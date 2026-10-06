@@ -3356,6 +3356,43 @@ function shouldIgnoreVoice(m){
    COLA DE VOZ
 ===================================================== */
 
+// Prioridad GREÑA para el Chat de Voz:
+// 4 = dueño/streamer, 3 = moderador, 2 = suscriptor/seguidor, 1 = usuario normal.
+// Nunca corta el audio que ya está sonando: solo ordena lo que queda pendiente.
+function voicePriority(message = {}){
+  if(message.__voiceTest) return 99;
+  if(message.isBroadcaster === true) return 4;
+  if(message.isModerator === true) return 3;
+  if(message.isSubscriber === true || message.isFollower === true) return 2;
+  return 1;
+}
+
+function insertVoiceByPriority(message){
+  const priority = voicePriority(message);
+  message.__voicePriority = priority;
+  message.__voiceQueuedAt = Date.now();
+
+  // Conserva FIFO dentro del mismo nivel. Un moderador nuevo no adelanta a
+  // otro moderador que ya estaba esperando, pero sí pasa delante de usuarios
+  // de menor prioridad.
+  let index = voiceQueue.findIndex(item => voicePriority(item) < priority);
+  if(index < 0) index = voiceQueue.length;
+  voiceQueue.splice(index,0,message);
+}
+
+function dropLowestPriorityVoice(){
+  if(!voiceQueue.length) return null;
+  let lowest = Infinity;
+  for(const item of voiceQueue) lowest = Math.min(lowest,voicePriority(item));
+
+  // Si la cola se llena, descartamos primero el mensaje más viejo del nivel
+  // más bajo. Así nunca tiramos un mensaje del dueño/moderador mientras haya
+  // comentarios normales pendientes.
+  const index = voiceQueue.findIndex(item => voicePriority(item) === lowest);
+  if(index < 0) return null;
+  return voiceQueue.splice(index,1)[0] || null;
+}
+
 function queueVoice(m){
 
   if(
@@ -3426,12 +3463,12 @@ function queueVoice(m){
     voiceQueue.length >= 20
   ){
 
-    const dropped = voiceQueue.shift();
+    const dropped = dropLowestPriorityVoice();
     cleanupFishPreparedMessage(dropped,true);
 
   }
 
-  voiceQueue.push({
+  insertVoiceByPriority({
 
     ...m,
 
