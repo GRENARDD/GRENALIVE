@@ -1,0 +1,5120 @@
+<!doctype html>
+<html class="tiktok-only" lang="es">
+
+<head>
+
+<meta charset="utf-8">
+
+<meta name="viewport"
+      content="width=device-width,initial-scale=1">
+
+<title>Greña Chat</title>
+
+<style>
+
+*{
+  box-sizing:border-box
+}
+
+body{
+  margin:0;
+  background:#090b10;
+  color:#fff;
+  font-family:Arial,sans-serif
+}
+
+.app{
+  max-width:1000px;
+  margin:40px auto;
+  padding:20px
+}
+
+h1{
+  font-size:36px;
+  margin:0 0 5px
+}
+
+.sub{
+  color:#9ca3af;
+  margin-bottom:22px
+}
+
+/* =========================
+   CONEXIONES
+========================= */
+
+.connections{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-bottom:12px
+}
+
+.connection-box{
+  background:#11151c;
+  border:1px solid #252b36;
+  border-radius:14px;
+  padding:14px
+}
+
+.connection-title{
+  font-weight:bold;
+  margin-bottom:9px;
+  display:flex;
+  align-items:center;
+  gap:8px
+}
+
+.platform-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  display:inline-block
+}
+
+.tiktok-dot{
+  background:#fe2c55
+}
+
+.twitch-dot{
+  background:#9146ff
+}
+
+.bar{
+  display:flex;
+  gap:10px
+}
+
+input,
+select{
+  width:100%;
+  padding:15px;
+  border-radius:12px;
+  border:1px solid #303744;
+  background:#151922;
+  color:#fff;
+  font-size:16px;
+  outline:none
+}
+
+select{
+  cursor:pointer
+}
+
+input:focus,
+select:focus{
+  border-color:#555d6c
+}
+
+button{
+  padding:0 24px;
+  border:0;
+  border-radius:12px;
+  background:#fe2c55;
+  color:white;
+  font-weight:bold;
+  cursor:pointer
+}
+
+button:hover{
+  opacity:.9
+}
+
+.connect-buttons{
+  display:flex;
+  gap:10px;
+  margin-top:12px
+}
+
+.connect-buttons button{
+  flex:1;
+  height:48px
+}
+
+#connectTwitch{
+  background:#9146ff
+}
+
+#disconnect{
+  background:#303744
+}
+
+/* =========================
+   CHAT DE VOZ
+========================= */
+
+.voice-panel{
+  margin-top:18px;
+  background:#11151c;
+  border:1px solid #252b36;
+  border-radius:16px;
+  padding:18px
+}
+
+.voice-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
+  margin-bottom:15px
+}
+
+.voice-title h2{
+  margin:0;
+  font-size:21px
+}
+
+.voice-toggle{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  cursor:pointer;
+  font-weight:bold
+}
+
+.voice-toggle input{
+  width:20px;
+  height:20px;
+  cursor:pointer
+}
+
+.voice-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px
+}
+
+.voice-box{
+  background:#0e1117;
+  border:1px solid #252b36;
+  border-radius:12px;
+  padding:14px
+}
+
+.voice-box h3{
+  margin:0 0 12px;
+  font-size:16px
+}
+
+.voice-field{
+  margin-bottom:12px
+}
+
+.voice-field label{
+  display:block;
+  color:#9ca3af;
+  font-size:13px;
+  margin-bottom:6px
+}
+
+.voice-field input[type="range"]{
+  padding:0;
+  accent-color:#fe2c55
+}
+
+.voice-check{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin:8px 0;
+  color:#dbe1ea;
+  cursor:pointer
+}
+
+.voice-check input{
+  width:17px;
+  height:17px;
+  cursor:pointer
+}
+
+.radio-group{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:8px
+}
+
+.radio-option{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#dbe1ea;
+  cursor:pointer
+}
+
+.radio-option input{
+  width:17px;
+  height:17px;
+  cursor:pointer
+}
+
+.voice-buttons{
+  display:flex;
+  gap:10px;
+  margin-top:10px
+}
+
+.voice-buttons button{
+  height:42px;
+  flex:1
+}
+
+#testVoice{
+  background:#303744
+}
+
+#clearVoiceQueue{
+  background:#444b59
+}
+
+.voice-status{
+  margin-top:12px;
+  padding:10px;
+  border-radius:10px;
+  background:#151922;
+  color:#9ca3af;
+  font-size:13px
+}
+
+.range-value{
+  float:right;
+  color:#fff;
+  font-weight:bold
+}
+
+textarea{
+  width:100%;
+  min-height:90px;
+  resize:vertical;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid #303744;
+  background:#151922;
+  color:#fff;
+  outline:none;
+  font-family:Arial,sans-serif
+}
+
+textarea:focus{
+  border-color:#555d6c
+}
+
+.help{
+  color:#69717f;
+  font-size:12px;
+  line-height:1.4;
+  margin-top:6px
+}
+
+/* =========================
+   ESTADO
+========================= */
+
+.status{
+  margin-top:14px;
+  padding:13px;
+  border-radius:12px;
+  background:#11151c;
+  color:#cbd5e1
+}
+
+.ok{
+  color:#70e0a8
+}
+
+.bad{
+  color:#ff8c9d
+}
+
+/* =========================
+   INFORMACIÓN
+========================= */
+
+.info{
+  display:flex;
+  justify-content:space-between;
+  margin:12px 3px;
+  color:#9ca3af;
+  gap:10px;
+  flex-wrap:wrap
+}
+
+.platform-status{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap
+}
+
+.status-pill{
+  padding:5px 9px;
+  border-radius:8px;
+  font-size:12px;
+  font-weight:bold;
+  background:#151922
+}
+
+.status-tiktok{
+  color:#fff
+}
+
+.status-twitch{
+  color:#c9a7ff
+}
+
+/* =========================
+   CHAT
+========================= */
+
+.chat{
+  height:620px;
+  overflow:auto;
+  border:1px solid #252b36;
+  border-radius:16px;
+  background:#0e1117;
+  padding:12px
+}
+
+.msg{
+  display:flex;
+  gap:10px;
+  padding:10px;
+  margin-bottom:8px;
+  border-radius:10px;
+  border-bottom:1px solid #191e27;
+  transition:.15s
+}
+
+.msg.tiktok{
+  background:linear-gradient(90deg,rgba(254,44,85,.22),rgba(12,13,18,.96) 34%);
+  border:1px solid rgba(254,44,85,.32);
+  border-left:4px solid #fe2c55;
+  box-shadow:0 0 18px rgba(254,44,85,.13),inset 0 0 18px rgba(254,44,85,.035)
+}
+
+.msg.twitch{
+  background:linear-gradient(90deg,rgba(145,70,255,.27),rgba(12,13,18,.96) 34%);
+  border:1px solid rgba(145,70,255,.38);
+  border-left:4px solid #9146ff;
+  box-shadow:0 0 18px rgba(145,70,255,.16),inset 0 0 18px rgba(145,70,255,.045)
+}
+
+.msg.kick{
+  background:linear-gradient(90deg,rgba(83,252,24,.22),rgba(12,13,18,.96) 34%);
+  border:1px solid rgba(83,252,24,.34);
+  border-left:4px solid #53fc18;
+  box-shadow:0 0 18px rgba(83,252,24,.14),inset 0 0 18px rgba(83,252,24,.04)
+}
+.msg.tiktok .name{color:#ff6b88;text-shadow:0 0 10px rgba(254,44,85,.38)}
+.msg.twitch .name{color:#c5a0ff;text-shadow:0 0 10px rgba(145,70,255,.42)}
+.msg.kick .name{color:#78ff49;text-shadow:0 0 10px rgba(83,252,24,.38)}
+.msg.tiktok .avatar{border:2px solid #fe2c55;box-shadow:0 0 12px rgba(254,44,85,.32)}
+.msg.twitch .avatar{border:2px solid #9146ff;box-shadow:0 0 12px rgba(145,70,255,.36)}
+.msg.kick .avatar{border:2px solid #53fc18;box-shadow:0 0 12px rgba(83,252,24,.32)}
+.msg.tiktok .platform-label{background:rgba(254,44,85,.18);border:1px solid rgba(254,44,85,.55);color:#ff8ba2}
+.msg.twitch .platform-label{background:rgba(145,70,255,.20);border:1px solid rgba(145,70,255,.58);color:#d0b5ff}
+.msg.kick .platform-label{background:rgba(83,252,24,.16);border:1px solid rgba(83,252,24,.52);color:#8cff64}
+
+.avatar{
+  width:38px;
+  height:38px;
+  min-width:38px;
+  border-radius:50%;
+  object-fit:cover;
+  background:#252b35
+}
+
+.message-body{
+  min-width:0;
+  flex:1
+}
+
+.message-header{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap
+}
+
+.name{
+  font-weight:bold
+}
+
+.time{
+  font-size:12px;
+  color:#a7adb8;
+  margin-left:3px
+}
+
+.platform-label{
+  font-size:10px;
+  font-weight:bold;
+  padding:3px 6px;
+  border-radius:5px;
+  background:rgba(255,255,255,.12);
+  color:#fff
+}
+
+.text{
+  margin-top:4px;
+  color:#fff;
+  word-break:break-word;
+  line-height:1.4
+}
+
+.empty{
+  text-align:center;
+  color:#69717f;
+  padding-top:270px
+}
+
+.chat::-webkit-scrollbar{
+  width:8px
+}
+
+.chat::-webkit-scrollbar-track{
+  background:#0b0e13
+}
+
+
+.msg{position:relative;cursor:pointer;transition:background .15s ease,border-color .15s ease}
+.msg:hover{background:rgba(255,255,255,.055)}
+.msg:hover:after{content:'MOD';position:absolute;right:10px;top:10px;font-size:9px;font-weight:900;letter-spacing:.08em;color:#dce6f7;background:#172033;border:1px solid #ffffff20;border-radius:7px;padding:4px 6px;pointer-events:none}
+.mod-backdrop{position:fixed;inset:0;background:rgba(3,7,14,.72);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:99999;padding:18px}
+.mod-backdrop.show{display:flex}
+.mod-card{width:min(560px,96vw);max-height:88vh;overflow:auto;background:#0e1420;border:1px solid #ffffff20;border-radius:18px;box-shadow:0 28px 80px #000a;padding:18px}
+.mod-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;margin-bottom:14px}.mod-head h3{margin:0;font-size:20px}.mod-head small{color:#8f9bb0}.mod-close{border:0;background:#ffffff10;color:#fff;border-radius:10px;width:34px;height:34px;cursor:pointer}
+.mod-user{padding:11px 12px;background:#ffffff08;border:1px solid #ffffff12;border-radius:12px;margin-bottom:12px}.mod-user b{display:block}.mod-user small{color:#9aa7bb}
+.mod-reason{display:block;margin:12px 0}.mod-reason input{width:100%;margin-top:6px;background:#090d15;color:#fff;border:1px solid #ffffff18;border-radius:10px;padding:10px 12px}
+.mod-section{margin-top:13px}.mod-section-title{font-size:11px;font-weight:900;letter-spacing:.09em;color:#93a4be;margin-bottom:7px}.mod-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.mod-btn{border:1px solid #ffffff18;background:#141d2b;color:#fff;border-radius:10px;padding:10px;cursor:pointer;text-align:left;font-weight:700}.mod-btn:hover{background:#1b2940}.mod-btn.danger{border-color:#ff5a6d55;background:#40151c}.mod-btn.warn{border-color:#ffcb6655;background:#3a2b12}.mod-btn.safe{border-color:#56e39f55;background:#103727}.mod-btn:disabled{opacity:.4;cursor:not-allowed}
+.mod-note{font-size:12px;line-height:1.45;color:#9aa7bb;background:#ffffff06;border-radius:10px;padding:10px;margin-top:10px}.mod-result{margin-top:12px;padding:10px 12px;border-radius:10px;background:#ffffff08;font-size:13px;display:none}.mod-result.show{display:block}.mod-result.ok{color:#8ff0ba}.mod-result.bad{color:#ff8b98}
+@media(max-width:650px){.mod-grid{grid-template-columns:1fr}}
+
+.chat::-webkit-scrollbar-thumb{
+  background:#303744;
+  border-radius:10px
+}
+
+/* =========================
+   MÓVIL
+========================= */
+
+@media(max-width:650px){
+
+  .app{
+    margin:15px auto;
+    padding:12px
+  }
+
+  h1{
+    font-size:29px
+  }
+
+  .connections{
+    grid-template-columns:1fr
+  }
+
+  .bar{
+    flex-direction:column
+  }
+
+  button{
+    height:48px
+  }
+
+  .connect-buttons{
+    flex-direction:column
+  }
+
+  .voice-grid{
+    grid-template-columns:1fr
+  }
+
+  .voice-title{
+    align-items:flex-start;
+    flex-direction:column
+  }
+
+  .voice-buttons{
+    flex-direction:column
+  }
+
+  .chat{
+    height:70vh
+  }
+
+}
+
+
+.platform-heading{display:flex;align-items:center;gap:8px}.platform-heading img{width:24px;height:24px;object-fit:contain;display:block}
+
+.platform-brand-icon{width:22px;height:22px;object-fit:contain;display:block}
+.connect-buttons button{display:flex;align-items:center;justify-content:center;gap:8px}
+.button-platform-icon{width:20px;height:20px;object-fit:contain;display:block}
+.status-pill{display:inline-flex;align-items:center;gap:6px}
+.status-pill:before{content:"";width:15px;height:15px;background-size:contain;background-repeat:no-repeat;background-position:center;display:inline-block;flex:0 0 auto}
+.status-tiktok:before{background-image:url('/assets/platforms/tiktok.webp')}
+.status-twitch:before{background-image:url('/assets/platforms/twitch.webp')}
+
+/* ===== S15.1 · POLISH SEGURO (solo visual, no cambia conectores) ===== */
+.autoconnect-strip{
+  margin:12px 0 0;
+  padding:11px 13px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));
+  box-shadow:0 12px 34px rgba(0,0,0,.20);
+}
+.autoconnect-dot{
+  width:9px;height:9px;border-radius:50%;
+  background:#53fc18;
+  box-shadow:0 0 0 4px rgba(83,252,24,.10),0 0 18px rgba(83,252,24,.55);
+  flex:0 0 auto;
+}
+.autoconnect-strip b{font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.autoconnect-strip small{color:#98a2b3;font-size:12px;line-height:1.35}
+.autoconnect-strip .auto-spacer{flex:1}
+.autoconnect-strip .auto-platforms{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.auto-chip{
+  border:1px solid rgba(255,255,255,.10);
+  background:#0e121a;
+  color:#8f98a8;
+  border-radius:999px;
+  padding:5px 8px;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.05em;
+}
+.auto-chip.on{color:#dfffd4;border-color:rgba(83,252,24,.28);background:rgba(83,252,24,.08)}
+.network-card{
+  position:relative;
+  overflow:hidden;
+  transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;
+}
+.network-card:focus-within{
+  transform:translateY(-1px);
+  border-color:rgba(255,255,255,.16)!important;
+  box-shadow:0 16px 36px rgba(0,0,0,.24);
+}
+.network-card .bar input{
+  min-height:42px;
+  border-radius:11px!important;
+  transition:border-color .18s ease,box-shadow .18s ease,background .18s ease;
+}
+.network-card .bar input:focus{
+  outline:none;
+  border-color:rgba(255,255,255,.24)!important;
+  background:rgba(255,255,255,.055)!important;
+  box-shadow:0 0 0 3px rgba(255,255,255,.04);
+}
+.network-connect{font-weight:900!important;letter-spacing:.025em}
+.status-pill{backdrop-filter:blur(8px)}
+.msg{transition:transform .15s ease,border-color .15s ease,background .15s ease}
+.msg:hover{transform:translateX(2px)}
+.voice-panel,.filters-panel{
+  border-color:rgba(255,255,255,.085)!important;
+  box-shadow:0 18px 46px rgba(0,0,0,.18);
+}
+@media(max-width:760px){
+  .autoconnect-strip{align-items:flex-start;flex-wrap:wrap}
+  .autoconnect-strip .auto-spacer{display:none}
+  .autoconnect-strip .auto-platforms{width:100%;justify-content:flex-start}
+}
+</style>
+<link rel="stylesheet" href="/premium.css">
+<link rel="stylesheet" href="/ui-refresh.css">
+<link rel="stylesheet" href="/ui-v2.css">
+
+<style>
+html.grena-embed body{background:#090b10!important}
+html.grena-embed .app{max-width:none!important;margin:0!important;padding:12px 13px 22px!important}
+html.grena-embed .cc-topline,html.grena-embed .cc-kicker,html.grena-embed .app>h1,html.grena-embed .app>.sub{display:none!important}
+html.grena-embed .connections,html.grena-embed .disconnect-all-wrap{display:none!important}
+html.grena-embed .autoconnect-strip{margin-top:0!important}
+html.grena-embed .connections{margin-top:0!important}
+html.grena-embed .voice-panel{margin-top:12px!important}
+html.grena-embed .chat{height:260px!important;min-height:260px!important}
+@media(min-width:1050px){
+html.grena-embed .voice-panel{padding:12px!important}
+html.grena-embed .voice-title{margin-bottom:10px!important}
+html.grena-embed .voice-title h2{font-size:17px!important}
+html.grena-embed .voice-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important}
+html.grena-embed .voice-box{padding:10px!important}
+html.grena-embed .voice-box h3{font-size:13px!important;margin-bottom:8px!important}
+html.grena-embed .voice-field{margin-bottom:8px!important}
+html.grena-embed .voice-field label{font-size:11px!important;margin-bottom:4px!important}
+html.grena-embed .voice-check,html.grena-embed .radio-option{font-size:11px!important;margin:5px 0!important;gap:6px!important}
+html.grena-embed .radio-group{gap:4px!important;margin-top:5px!important}
+html.grena-embed textarea{min-height:58px!important;height:58px!important;padding:8px!important;font-size:11px!important}
+html.grena-embed input,html.grena-embed select{padding:10px!important;font-size:12px!important}
+html.grena-embed .voice-buttons button{height:34px!important;font-size:10px!important}
+html.grena-embed .voice-status{margin-top:8px!important;padding:7px!important;font-size:10px!important}
+html.grena-embed .help{font-size:9px!important}
+html.grena-embed .status{margin-top:9px!important;padding:9px!important;font-size:11px!important}
+html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
+}
+@media(max-width:760px){html.grena-embed .connections,html.grena-embed .voice-grid{grid-template-columns:1fr!important}}
+</style>
+<script>if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('grena-embed')</script>
+
+<style id="grena-network-card-fix">
+.grena-network-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+.network-card{display:flex!important;flex-direction:column!important;gap:10px!important}
+.network-card .bar{margin:0!important}
+.network-connect{width:100%!important;min-height:44px!important;margin-top:2px!important}
+.tiktok-connect{background:#ef2f59!important}.twitch-connect{background:#8247e5!important}.kick-connect{background:#53fc18!important;color:#071006!important}
+.disconnect-all-wrap{display:flex;margin:12px 0 0}.disconnect-all-wrap #disconnect{width:100%;min-height:44px;background:#222938!important}
+@media(max-width:900px){.grena-network-grid{grid-template-columns:1fr!important}}
+</style>
+<link rel="stylesheet" href="/tiktok-only.css">
+</head>
+
+<body class="grena-chat">
+
+<main class="app">
+<div class="cc-topline"><a class="cc-home-link" href="/">← Creator Control</a><span class="cc-mode">Chat web activo</span></div>
+<div class="cc-kicker">TIKTOK CHAT + VOZ</div>
+<h1>GREÑA CHAT</h1>
+
+<div class="sub">
+  Conecta tu TikTok LIVE para ver el chat y usar todas las funciones de voz.
+</div>
+
+<!-- =========================
+     CONEXIONES
+========================= -->
+
+<div class="connections grena-network-grid">
+
+  <div class="connection-box network-card">
+    <div class="connection-title">
+      <img class="platform-brand-icon" src="/assets/platforms/tiktok.webp" alt=""> TikTok LIVE
+    </div>
+    <div class="bar"><input id="tiktokUrl" placeholder="https://www.tiktok.com/@usuario/live"></div>
+    <button id="connectTikTok" class="network-connect tiktok-connect">
+      <img class="button-platform-icon" src="/assets/platforms/tiktok.webp" alt=""> CONECTAR TIKTOK
+    </button>
+  </div>
+
+  <div class="connection-box network-card">
+    <div class="connection-title">
+      <img class="platform-brand-icon" src="/assets/platforms/twitch.webp" alt=""> Twitch
+    </div>
+    <div class="bar"><input id="twitchUrl" placeholder="https://www.twitch.tv/canal"></div>
+    <button id="connectTwitch" class="network-connect twitch-connect">
+      <img class="button-platform-icon" src="/assets/platforms/twitch.webp" alt=""> CONECTAR TWITCH
+    </button>
+  </div>
+
+  <div class="connection-box network-card">
+    <div class="connection-title">
+      <img class="platform-brand-icon" src="/assets/platforms/kick.svg" alt=""> Kick
+    </div>
+    <div class="bar"><input id="kickUrl" placeholder="https://kick.com/usuario"></div>
+    <button id="connectKick" class="network-connect kick-connect">
+      <img class="button-platform-icon" src="/assets/platforms/kick.svg" alt=""> CONECTAR KICK
+    </button>
+  </div>
+
+</div>
+
+<div class="autoconnect-strip" id="autoConnectStrip">
+  <span class="autoconnect-dot" id="autoConnectDot"></span>
+  <div>
+    <b id="autoConnectTitle">Autoconexión activa</b>
+    <small id="autoConnectText">GREÑA recuerda tus canales y vuelve a intentarlo automáticamente cuando abras el programa o el LIVE todavía no esté disponible.</small>
+  </div>
+  <span class="auto-spacer"></span>
+  <div class="auto-platforms">
+    <span class="auto-chip" id="autoTikTok">TikTok</span>
+    <span class="auto-chip" id="autoTwitch">Twitch</span>
+    <span class="auto-chip" id="autoKick">Kick</span>
+  </div>
+</div>
+
+<div class="disconnect-all-wrap">
+  <button id="disconnect">DESCONECTAR TIKTOK</button>
+</div>
+
+<!-- =========================
+     CHAT DE VOZ
+========================= -->
+
+<section class="voice-panel">
+
+  <div class="voice-title">
+
+    <h2>🔊 CHAT DE VOZ</h2>
+
+    <label class="voice-toggle">
+
+      <input
+        type="checkbox"
+        id="voiceEnabled"
+      >
+
+      Activar Chat de Voz
+
+    </label><label class="voice-check" style="display:flex;margin-top:10px;gap:8px;align-items:center">
+      <input type="checkbox" id="voiceReadUsername"> Leer nombre del usuario
+    </label>
+
+  </div>
+
+  <div class="voice-grid">
+
+    <!-- VOZ -->
+
+    <div class="voice-box">
+
+      <h3>🎙️ Configuración de voz</h3>
+
+      <div class="voice-field">
+
+        <label for="voiceSelect">
+          Voz
+        </label>
+
+        <select id="voiceSelect"></select>
+        <div id="voiceHint" style="margin-top:7px;color:#9ca3af;font-size:12px;line-height:1.4"></div>
+
+      </div>
+
+      <div class="voice-field" id="fishModelField" style="display:none">
+        <label>5 voces rotativas · Fish Audio</label>
+        <div id="fishModelRows" style="display:grid;gap:8px;margin-top:8px">
+          <div style="display:flex;gap:8px;align-items:center"><span style="width:52px;font-size:11px;color:#cbd5e1">Voz 1</span><input id="fishModelId1" class="fish-model-input" type="text" autocomplete="off" spellcheck="false" placeholder="ID del modelo 1" style="min-width:0;flex:1"><button class="fish-paste-model" data-fish-paste-target="fishModelId1" type="button" style="white-space:nowrap">📋</button></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="width:52px;font-size:11px;color:#cbd5e1">Voz 2</span><input id="fishModelId2" class="fish-model-input" type="text" autocomplete="off" spellcheck="false" placeholder="ID del modelo 2" style="min-width:0;flex:1"><button class="fish-paste-model" data-fish-paste-target="fishModelId2" type="button" style="white-space:nowrap">📋</button></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="width:52px;font-size:11px;color:#cbd5e1">Voz 3</span><input id="fishModelId3" class="fish-model-input" type="text" autocomplete="off" spellcheck="false" placeholder="ID del modelo 3" style="min-width:0;flex:1"><button class="fish-paste-model" data-fish-paste-target="fishModelId3" type="button" style="white-space:nowrap">📋</button></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="width:52px;font-size:11px;color:#cbd5e1">Voz 4</span><input id="fishModelId4" class="fish-model-input" type="text" autocomplete="off" spellcheck="false" placeholder="ID del modelo 4" style="min-width:0;flex:1"><button class="fish-paste-model" data-fish-paste-target="fishModelId4" type="button" style="white-space:nowrap">📋</button></div>
+          <div style="display:flex;gap:8px;align-items:center"><span style="width:52px;font-size:11px;color:#cbd5e1">Voz 5</span><input id="fishModelId5" class="fish-model-input" type="text" autocomplete="off" spellcheck="false" placeholder="ID del modelo 5" style="min-width:0;flex:1"><button class="fish-paste-model" data-fish-paste-target="fishModelId5" type="button" style="white-space:nowrap">📋</button></div>
+        </div>
+        <div style="margin-top:9px;color:#9ca3af;font-size:11px;line-height:1.45">GREÑA rota en orden: Voz 1 → 2 → 3 → 4 → 5 → Voz 1. Cada comentario usa una sola voz y espera a que termine antes de leer el siguiente.</div>
+      </div>
+
+      <div class="voice-field">
+
+        <label for="voiceRate">
+
+          Velocidad
+
+          <span
+            id="rateValue"
+            class="range-value"
+          >
+            1.0x
+          </span>
+
+        </label>
+
+        <input
+          id="voiceRate"
+          type="range"
+          min="0.5"
+          max="2"
+          step="0.1"
+          value="1"
+        >
+
+      </div>
+
+      <div class="voice-field">
+
+        <label for="voiceVolume">
+
+          Volumen
+
+          <span
+            id="volumeValue"
+            class="range-value"
+          >
+            100%
+          </span>
+
+        </label>
+
+        <input
+          id="voiceVolume"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          value="1"
+        >
+
+      </div>
+
+      <div class="voice-field">
+
+        <label for="maxCharacters">
+
+          Máximo de caracteres
+
+          <span
+            id="charactersValue"
+            class="range-value"
+          >
+            150
+          </span>
+
+        </label>
+
+        <input
+          id="maxCharacters"
+          type="range"
+          min="30"
+          max="300"
+          step="10"
+          value="150"
+        >
+
+      </div>
+
+      <div class="voice-buttons">
+
+        <button id="testVoice">
+          🔊 Probar voz
+        </button>
+
+        <button id="clearVoiceQueue">
+          🗑️ Vaciar cola
+        </button>
+
+      </div>
+
+    </div>
+
+    <!-- TIKTOK -->
+
+    <div class="voice-box">
+
+      <h3 class="platform-heading"><img src="/assets/platforms/tiktok.webp" alt="">TikTok</h3>
+
+      <label class="voice-check">
+
+        <input
+          type="checkbox"
+          id="tiktokVoiceEnabled"
+          checked
+        >
+
+        Leer mensajes de TikTok
+
+      </label>
+
+      <div class="radio-group">
+
+        <label class="radio-option">
+
+          <input
+            type="radio"
+            name="tiktokMode"
+            value="all"
+            checked
+          >
+
+          👥 Todos
+
+        </label>
+
+        <label class="radio-option">
+
+          <input
+            type="radio"
+            name="tiktokMode"
+            value="followers"
+          >
+
+          ⭐ Solo seguidores
+
+        </label>
+
+        <label class="radio-option">
+
+          <input
+            type="radio"
+            name="tiktokMode"
+            value="selected"
+          >
+
+          🎯 Solo usuarios seleccionados
+
+        </label>
+
+      </div>
+
+      <div
+        class="voice-field"
+        style="margin-top:14px"
+      >
+
+        <label>
+          Usuarios seleccionados
+        </label>
+
+        <textarea
+          id="tiktokSelectedUsers"
+          placeholder="@usuario1&#10;@usuario2&#10;@usuario3"
+        ></textarea>
+
+      </div>
+
+    </div>
+
+    <!-- TWITCH -->
+
+    <div class="voice-box">
+
+      <h3 class="platform-heading"><img src="/assets/platforms/twitch.webp" alt="">Twitch</h3>
+
+      <label class="voice-check">
+
+        <input
+          type="checkbox"
+          id="twitchVoiceEnabled"
+          checked
+        >
+
+        Leer mensajes de Twitch
+
+      </label>
+
+      <div class="radio-group">
+
+        <label class="radio-option">
+
+          <input
+            type="radio"
+            name="twitchMode"
+            value="all"
+            checked
+          >
+
+          👥 Todos
+
+        </label>
+
+        <label class="radio-option">
+
+          <input
+            type="radio"
+            name="twitchMode"
+            value="followers"
+          >
+
+          ⭐ Solo seguidores
+
+        </label>
+
+        <label class="radio-option">
+
+          <input
+            type="radio"
+            name="twitchMode"
+            value="selected"
+          >
+
+          🎯 Solo usuarios seleccionados
+
+        </label>
+
+      </div>
+
+      <div
+        class="voice-field"
+        style="margin-top:14px"
+      >
+
+        <label>
+          Usuarios seleccionados
+        </label>
+
+        <textarea
+          id="twitchSelectedUsers"
+          placeholder="usuario1&#10;usuario2&#10;usuario3"
+        ></textarea>
+
+      </div>
+
+    </div>
+
+    <!-- KICK -->
+    <div class="voice-box">
+      <h3 class="platform-heading"><img src="/assets/platforms/kick.svg" alt="">Kick</h3>
+      <label class="voice-check"><input type="checkbox" id="kickVoiceEnabled" checked> Leer mensajes de Kick</label>
+      <div class="radio-group">
+        <label class="radio-option"><input type="radio" name="kickMode" value="all" checked> 👥 Todos</label>
+        <label class="radio-option"><input type="radio" name="kickMode" value="followers"> ⭐ Solo seguidores</label>
+        <label class="radio-option"><input type="radio" name="kickMode" value="selected"> 🎯 Solo usuarios seleccionados</label>
+      </div>
+      <div class="voice-field" style="margin-top:14px"><label>Usuarios seleccionados</label><textarea id="kickSelectedUsers" placeholder="usuario1&#10;usuario2"></textarea></div>
+    </div>
+
+    <!-- FILTROS -->
+
+    <div class="voice-box">
+
+      <h3>🛡️ Filtros y anti-spam</h3>
+
+      <label class="voice-check" style="margin-bottom:10px">
+        <input type="checkbox" id="smartSpamEnabled" checked>
+        🧠 Anti-spam inteligente para la voz
+      </label>
+
+      <div class="voice-field">
+        <label for="smartSpamLevel">Nivel inteligente</label>
+        <select id="smartSpamLevel">
+          <option value="soft">Suave</option>
+          <option value="normal" selected>Normal · recomendado</option>
+          <option value="strict">Estricto</option>
+        </select>
+      </div>
+
+      <div class="voice-field">
+
+        <label>
+          Usuarios bloqueados
+        </label>
+
+        <textarea
+          id="blockedUsers"
+          placeholder="usuario1&#10;usuario2&#10;usuario3"
+        ></textarea>
+
+      </div>
+
+      <div class="voice-field">
+
+        <label>
+          Palabras bloqueadas
+        </label>
+
+        <textarea
+          id="blockedWords"
+          placeholder="palabra1&#10;palabra2&#10;palabra3"
+        ></textarea>
+
+      </div>
+
+      <label class="voice-check">
+
+        <input
+          type="checkbox"
+          id="ignoreRepeated"
+          checked
+        >
+
+        🔁 Ignorar mensajes repetidos
+
+      </label>
+
+      <label class="voice-check">
+
+        <input
+          type="checkbox"
+          id="ignoreRapid"
+          checked
+        >
+
+        🛑 Evitar spam del mismo usuario
+
+      </label>
+
+      <div class="help">
+
+        El modo inteligente reduce emojis repetidos, flood, mensajes iguales o casi iguales, enlaces y ruido de símbolos.
+        Los mensajes filtrados no se enviarán a la voz; el chat visual seguirá mostrándolos normalmente.
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <div
+    id="voiceStatus"
+    class="voice-status"
+  >
+    🔇 Chat de Voz desactivado.
+  </div>
+
+</section>
+
+<!-- =========================
+     ESTADO
+========================= -->
+
+<div id="status" class="status">
+  🟡 Listo.
+</div>
+
+<div class="info">
+
+  <div class="platform-status">
+
+    <span
+      id="tiktokStatus"
+      class="status-pill status-tiktok"
+    >
+      TikTok: desconectado
+    </span>
+
+    <span id="twitchStatus" class="status-pill status-twitch">Twitch: desconectado</span>
+    <span id="kickStatus" class="status-pill" style="border-color:#53fc18">Kick: desconectado</span>
+
+  </div>
+
+  <span id="count">
+    0 comentarios
+  </span>
+
+</div>
+
+<!-- =========================
+     CHAT
+========================= -->
+
+<div id="chat" class="chat">
+
+  <div id="empty" class="empty">
+    Los comentarios aparecerán aquí en tiempo real.
+  </div>
+
+</div>
+
+</main>
+
+<script>
+window.__GRENA_TIKTOK_ONLY__=true;
+
+/* =====================================================
+   GREÑA CHAT
+   CONFIGURACIÓN PERSISTENTE
+===================================================== */
+
+const GRENA_PROFILE_ID = String(window.__GRENA_ACTIVE_PROFILE__ || new URLSearchParams(location.search).get('profile') || 'legacy');
+const SETTINGS_BASE_KEY = 'grenaChatSettings_v1';
+const SETTINGS_KEY = `${SETTINGS_BASE_KEY}:${GRENA_PROFILE_ID}`;
+
+
+/* =========================
+   VARIABLES
+========================= */
+
+let ws;
+
+let total = 0;
+
+let availableVoices = [];
+
+let voiceQueue = [];
+
+let speaking = false;
+
+// Estado robusto del motor TTS. Evita que SpeechSynthesis quede
+// bloqueado si el navegador cancela una locución sin disparar onend/onerror.
+let activeVoiceMessage = null;
+let activeVoiceUtterance = null;
+let activeFishAudio = null;
+let activeFishObjectUrl = '';
+let activeFishAbortController = null;
+let fishBlockedError = '';
+let fishTransientError = '';
+let fishRetryAt = 0;
+let fishRetryTimer = null;
+let fishPrefetchActive = 0;
+let fishPrefetchGeneration = 0;
+const fishPrefetchControllers = new Set();
+// FIX10: cada usuario conserva una voz Fish durante la sesión del LIVE.
+// Las 5 voces NO se reservan ni se consumen: se reutilizan para todos los
+// usuarios, manteniendo una distribución equilibrada en grupos sucesivos.
+const fishVoiceAssignments = new Map();
+let fishVoiceBag = [];
+let fishVoiceBagSignature = '';
+let activeFishVoiceSlot = 0;
+let voiceWatchdogTimer = null;
+let voiceRunId = 0;
+let voiceNeedsUnlock = false;
+let settingsRestored = false;
+
+// Motor de voz v2: perfiles estables + pequeño espacio entre mensajes.
+// Esto evita que Chrome/Windows encadene dos sintetizadores a la vez y
+// produzca el efecto de voz trabada, cortada o con timbre extraño.
+const VOICE_ENGINE_VERSION = 6;
+const VOICE_GAP_MS = 140;
+// Fish Audio usa un hueco mucho menor porque el siguiente comentario se
+// prepara mientras el actual todavía se está reproduciendo.
+const FISH_VOICE_GAP_MS = 24;
+const FISH_PREFETCH_LIMIT = 2;
+const FISH_MAX_RETRIES_PER_MESSAGE = 3;
+const FISH_RETRY_BASE_MS = 900;
+const FISH_RETRY_MAX_MS = 8000;
+const FISH_FETCH_TIMEOUT_MS = 48000;
+const FISH_ASSIGNMENT_MAX = 3000;
+const FISH_ASSIGNMENT_MAX_AGE_MS = 3 * 60 * 60 * 1000;
+const FISH_HEALTHCHECK_MS = 5000;
+
+// Solo dejamos el perfil normal/recomendado y las voces instaladas en Windows.
+const VOICE_PRESETS = {
+  'preset:smooth-es': {
+    label: '⭐ Español natural — recomendado',
+    langPrefixes: ['es-ES','es-MX','es-US','es'],
+    preferredNames: ['Alvaro','Álvaro','Jorge','Pablo','Raul','Raúl','Dalia','Elvira'],
+    rateMultiplier: 1,
+    pitch: 1
+  }
+};
+
+let lastSpokenMessage = '';
+
+let lastSpokenUser = '';
+
+let lastSpokenTime = 0;
+
+
+// Historial anti-spam por usuario (solo afecta la voz)
+const voiceSpamHistory = new Map();
+let lastVoiceSpamCleanupAt = 0;
+const VOICE_SPAM_HISTORY_MAX = 1500;
+const VOICE_SPAM_HISTORY_TTL_MS = 2 * 60 * 1000;
+
+const SMART_SPAM_PROFILES = {
+  soft: {
+    windowMs: 6000,
+    maxMessages: 9,
+    floodMuteMs: 5000,
+    duplicateReadLimit: 3,
+    similarReadLimit: 3,
+    similarWindowMs: 35000,
+    similarityThreshold: 0.91,
+    maxEmojiDescriptions: 4,
+    maxUrls: 2
+  },
+  normal: {
+    windowMs: 5000,
+    maxMessages: 6,
+    floodMuteMs: 8000,
+    duplicateReadLimit: 2,
+    similarReadLimit: 2,
+    similarWindowMs: 45000,
+    similarityThreshold: 0.86,
+    maxEmojiDescriptions: 3,
+    maxUrls: 1
+  },
+  strict: {
+    windowMs: 6000,
+    maxMessages: 4,
+    floodMuteMs: 12000,
+    duplicateReadLimit: 1,
+    similarReadLimit: 1,
+    similarWindowMs: 60000,
+    similarityThreshold: 0.79,
+    maxEmojiDescriptions: 2,
+    maxUrls: 0
+  }
+};
+
+
+const $ = id =>
+  document.getElementById(id);
+
+
+/* =====================================================
+   GUARDAR CONFIGURACIÓN
+===================================================== */
+
+function saveSettings(){
+
+  try{
+
+    const selectedTikTokMode =
+      document.querySelector(
+        'input[name="tiktokMode"]:checked'
+      )?.value || 'all';
+
+    const selectedTwitchMode =
+      document.querySelector(
+        'input[name="twitchMode"]:checked'
+      )?.value || 'all';
+
+    const voice =
+      getSelectedVoice();
+
+    const settings = {
+
+      tiktokUrl:
+        $('tiktokUrl').value,
+
+      twitchUrl:
+        $('twitchUrl').value,
+
+      kickUrl:
+        $('kickUrl').value,
+
+      voiceEnabled:
+        $('voiceEnabled').checked,
+
+      voiceRate:
+        $('voiceRate').value,
+
+      voiceVolume:
+        $('voiceVolume').value,
+
+      maxCharacters:
+        $('maxCharacters').value,
+
+      voiceReadUsername:
+        !!$('voiceReadUsername')?.checked,
+
+      tiktokVoiceEnabled:
+        $('tiktokVoiceEnabled').checked,
+
+      tiktokMode:
+        selectedTikTokMode,
+
+      tiktokSelectedUsers:
+        $('tiktokSelectedUsers').value,
+
+      twitchVoiceEnabled:
+        $('twitchVoiceEnabled').checked,
+
+      twitchMode:
+        selectedTwitchMode,
+
+      twitchSelectedUsers:
+        $('twitchSelectedUsers').value,
+
+      kickVoiceEnabled:
+        $('kickVoiceEnabled').checked,
+
+      kickMode:
+        document.querySelector('input[name="kickMode"]:checked')?.value || 'all',
+
+      kickSelectedUsers:
+        $('kickSelectedUsers').value,
+
+      blockedUsers:
+        $('blockedUsers').value,
+
+      blockedWords:
+        $('blockedWords').value,
+
+      ignoreRepeated:
+        $('ignoreRepeated').checked,
+
+      ignoreRapid:
+        $('ignoreRapid').checked,
+
+      smartSpamEnabled:
+        $('smartSpamEnabled')?.checked !== false,
+
+      smartSpamLevel:
+        $('smartSpamLevel')?.value || 'normal',
+
+      voiceName:
+        voice?.name || '',
+
+      voiceLang:
+        voice?.lang || '',
+
+      voiceChoice:
+        $('voiceSelect')?.value || 'preset:smooth-es',
+
+      // Guardamos las cinco voces. `fishModelId` se mantiene también para
+      // que una configuración antigua pueda volver atrás sin perder la Voz 1.
+      fishModelIds:
+        getFishModelIds(),
+
+      fishModelId:
+        getFishModelIds()[0] || '',
+
+      voiceEngineVersion:
+        VOICE_ENGINE_VERSION
+
+    };
+
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify(settings)
+    );
+
+  }catch(error){
+
+    console.warn(
+      'No se pudo guardar la configuración:',
+      error
+    );
+
+  }
+
+}
+
+
+/* =====================================================
+   CARGAR CONFIGURACIÓN
+===================================================== */
+
+function loadSettings(){
+
+  try{
+
+    let raw = localStorage.getItem(SETTINGS_KEY);
+
+    // Primera migración: conserva la configuración anterior del dueño original,
+    // pero a partir de ahora cada GREÑA ID tiene su propia clave.
+    if(!raw && GRENA_PROFILE_ID !== 'legacy' && window.__GRENA_MIGRATE_LEGACY_CHAT__ === true){
+      raw = localStorage.getItem(SETTINGS_BASE_KEY);
+      if(raw){
+        try{ localStorage.setItem(SETTINGS_KEY, raw); }catch{}
+      }
+    }
+
+    if(!raw) return null;
+
+    return JSON.parse(raw);
+
+  }catch(error){
+
+    console.warn(
+      'No se pudo cargar la configuración:',
+      error
+    );
+
+    return null;
+
+  }
+
+}
+
+
+/* =====================================================
+   RESTAURAR CONTROLES
+===================================================== */
+
+function restoreSettings(){
+
+  const settings =
+    loadSettings();
+
+  if(!settings){
+
+    updateRangeLabels();
+
+    return;
+
+  }
+
+  if(
+    typeof settings.tiktokUrl === 'string'
+  ){
+
+    $('tiktokUrl').value =
+      settings.tiktokUrl;
+
+  }
+
+  if(
+    typeof settings.twitchUrl === 'string'
+  ){
+
+    $('twitchUrl').value =
+      settings.twitchUrl;
+
+  }
+
+  if(typeof settings.kickUrl === 'string') $('kickUrl').value=settings.kickUrl;
+  if(typeof settings.kickVoiceEnabled === 'boolean') $('kickVoiceEnabled').checked=settings.kickVoiceEnabled;
+  if(settings.kickMode){const km=document.querySelector(`input[name="kickMode"][value="${settings.kickMode}"]`);if(km)km.checked=true;}
+  if(typeof settings.kickSelectedUsers === 'string') $('kickSelectedUsers').value=settings.kickSelectedUsers;
+
+  if(
+    typeof settings.voiceEnabled === 'boolean'
+  ){
+
+    $('voiceEnabled').checked =
+      settings.voiceEnabled;
+
+  }
+
+  if(settings.voiceEngineVersion !== VOICE_ENGINE_VERSION){
+    // La versión anterior podía quedar con una combinación de voz/velocidad
+    // que sonaba metálica o entrecortada. Al migrar volvemos a 1.0x una vez.
+    $('voiceRate').value = '1';
+  }else if(settings.voiceRate != null){
+
+    $('voiceRate').value =
+      settings.voiceRate;
+
+  }
+
+  if(settings.voiceVolume != null){
+
+    $('voiceVolume').value =
+      settings.voiceVolume;
+
+  }
+
+  // FIX5: migración automática del antiguo ID único a la Voz 1.
+  const savedFishModels = Array.isArray(settings.fishModelIds)
+    ? settings.fishModelIds.slice(0,5)
+    : (typeof settings.fishModelId === 'string' && settings.fishModelId.trim()
+        ? [settings.fishModelId]
+        : []);
+  for(let i=0;i<5;i++){
+    const input = $(`fishModelId${i+1}`);
+    if(input) input.value = String(savedFishModels[i] || '').trim();
+  }
+
+  if(settings.maxCharacters != null){
+
+    $('maxCharacters').value =
+      settings.maxCharacters;
+
+  }
+
+  if(
+    typeof settings.voiceReadUsername === 'boolean' &&
+    $('voiceReadUsername')
+  ){
+
+    $('voiceReadUsername').checked =
+      settings.voiceReadUsername;
+
+  }
+
+  if(
+    typeof settings.tiktokVoiceEnabled === 'boolean'
+  ){
+
+    $('tiktokVoiceEnabled').checked =
+      settings.tiktokVoiceEnabled;
+
+  }
+
+  if(settings.tiktokSelectedUsers != null){
+
+    $('tiktokSelectedUsers').value =
+      settings.tiktokSelectedUsers;
+
+  }
+
+  if(
+    typeof settings.twitchVoiceEnabled === 'boolean'
+  ){
+
+    $('twitchVoiceEnabled').checked =
+      settings.twitchVoiceEnabled;
+
+  }
+
+  if(settings.twitchSelectedUsers != null){
+
+    $('twitchSelectedUsers').value =
+      settings.twitchSelectedUsers;
+
+  }
+
+  if(settings.blockedUsers != null){
+
+    $('blockedUsers').value =
+      settings.blockedUsers;
+
+  }
+
+  if(settings.blockedWords != null){
+
+    $('blockedWords').value =
+      settings.blockedWords;
+
+  }
+
+  if(
+    typeof settings.ignoreRepeated === 'boolean'
+  ){
+
+    $('ignoreRepeated').checked =
+      settings.ignoreRepeated;
+
+  }
+
+  if(
+    typeof settings.ignoreRapid === 'boolean'
+  ){
+
+    $('ignoreRapid').checked =
+      settings.ignoreRapid;
+
+  }
+
+  if(
+    typeof settings.smartSpamEnabled === 'boolean' &&
+    $('smartSpamEnabled')
+  ){
+
+    $('smartSpamEnabled').checked =
+      settings.smartSpamEnabled;
+
+  }
+
+  if(
+    ['soft','normal','strict'].includes(settings.smartSpamLevel) &&
+    $('smartSpamLevel')
+  ){
+
+    $('smartSpamLevel').value =
+      settings.smartSpamLevel;
+
+  }
+
+  restoreRadio(
+    'tiktokMode',
+    settings.tiktokMode
+  );
+
+  restoreRadio(
+    'twitchMode',
+    settings.twitchMode
+  );
+
+  updateRangeLabels();
+
+}
+
+
+/* =====================================================
+   RESTAURAR RADIO
+===================================================== */
+
+function restoreRadio(
+  name,
+  value
+){
+
+  if(!value){
+
+    return;
+
+  }
+
+  const radios =
+    document.querySelectorAll(
+      `input[name="${name}"]`
+    );
+
+  radios.forEach(
+    radio => {
+
+      radio.checked =
+        radio.value === value;
+
+    }
+  );
+
+}
+
+
+/* =====================================================
+   VOCES
+===================================================== */
+
+function normalizeVoiceName(value){
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase();
+}
+
+function findPresetVoice(preset){
+
+  if(!preset || !availableVoices.length){
+    return null;
+  }
+
+  const preferred = preset.preferredNames.map(normalizeVoiceName);
+
+  // Primero buscamos el nombre preferido dentro del idioma correcto.
+  for(const langPrefix of preset.langPrefixes){
+    const prefix = String(langPrefix).toLowerCase();
+    for(const wanted of preferred){
+      const match = availableVoices.find(voice =>
+        String(voice.lang || '').toLowerCase().startsWith(prefix) &&
+        normalizeVoiceName(voice.name).includes(wanted)
+      );
+      if(match) return match;
+    }
+  }
+
+  // Si esa voz exacta no está instalada, usamos la mejor del mismo idioma.
+  for(const langPrefix of preset.langPrefixes){
+    const prefix = String(langPrefix).toLowerCase();
+    const match = availableVoices.find(
+      voice => String(voice.lang || '').toLowerCase().startsWith(prefix)
+    );
+    if(match) return match;
+  }
+
+  return availableVoices[0] || null;
+}
+
+function isFishVoiceSelected(){
+  return $('voiceSelect')?.value === 'fish:s2.1-pro-free';
+}
+
+const FISH_VOICE_COUNT = 5;
+
+function getFishModelIds(){
+  return Array.from({length:FISH_VOICE_COUNT},(_,index) =>
+    String($(`fishModelId${index+1}`)?.value || '').trim()
+  );
+}
+
+function getConfiguredFishModels(){
+  return getFishModelIds()
+    .map((modelId,index) => ({modelId,slot:index+1}))
+    .filter(item => item.modelId);
+}
+
+function fishModelsSignature(models = getConfiguredFishModels()){
+  return models.map(item => `${item.slot}:${item.modelId}`).join('|');
+}
+
+function shuffleFishModels(models){
+  const shuffled = models.map(item => ({...item}));
+  for(let i=shuffled.length-1;i>0;i--){
+    const j = Math.floor(Math.random() * (i+1));
+    [shuffled[i],shuffled[j]] = [shuffled[j],shuffled[i]];
+  }
+  return shuffled;
+}
+
+function resetFishRotation(clearAssignments = false){
+  fishVoiceBag = [];
+  fishVoiceBagSignature = '';
+  if(clearAssignments) fishVoiceAssignments.clear();
+}
+
+function pruneFishVoiceAssignments(now = Date.now()){
+  // En LIVE muy largos pueden aparecer miles de usuarios distintos. Conservamos
+  // las asignaciones recientes y ponemos un techo para que este mapa nunca crezca
+  // indefinidamente durante horas o días de uso.
+  for(const [key,value] of fishVoiceAssignments){
+    const lastSeen = Number(value?.lastSeen || 0);
+    if(lastSeen && now-lastSeen > FISH_ASSIGNMENT_MAX_AGE_MS){
+      fishVoiceAssignments.delete(key);
+    }
+  }
+  while(fishVoiceAssignments.size >= FISH_ASSIGNMENT_MAX){
+    const oldestKey = fishVoiceAssignments.keys().next().value;
+    if(oldestKey === undefined) break;
+    fishVoiceAssignments.delete(oldestKey);
+  }
+}
+
+function fishUserKey(message){
+  const platform = String(message?.platform || 'unknown').trim().toLowerCase() || 'unknown';
+  const userId = String(message?.userId || '').trim().toLowerCase();
+  const username = String(message?.user || message?.nickname || '').trim().toLowerCase().replace(/^@/,'');
+  const identity = userId ? `id:${userId}` : `user:${username || 'anonimo'}`;
+  return `${platform}:${identity}`;
+}
+
+function clearFishAssignmentsForPlatform(platform){
+  const prefix = `${String(platform || '').trim().toLowerCase()}:`;
+  if(!prefix || prefix === ':') return;
+  for(const key of fishVoiceAssignments.keys()){
+    if(key.startsWith(prefix)) fishVoiceAssignments.delete(key);
+  }
+  // Mezclamos de nuevo para los usuarios nuevos del próximo LIVE de esa plataforma.
+  fishVoiceBag = [];
+}
+
+function ensureFishVoiceBag(models){
+  const signature = fishModelsSignature(models);
+  if(signature !== fishVoiceBagSignature){
+    // Si el creador cambió uno de los cinco IDs, las asignaciones viejas ya no
+    // son válidas porque podrían apuntar a una voz que dejó de estar configurada.
+    fishVoiceAssignments.clear();
+    fishVoiceBag = [];
+    fishVoiceBagSignature = signature;
+  }
+  if(!fishVoiceBag.length){
+    fishVoiceBag = shuffleFishModels(models);
+  }
+}
+
+function cleanupFishPreparedMessage(message, abort = false){
+  if(!message || typeof message !== 'object') return;
+
+  const controller = message.__fishPrefetchController;
+  if(abort && controller){
+    try{ controller.abort(); }catch{}
+  }
+  if(controller) fishPrefetchControllers.delete(controller);
+
+  delete message.__fishPrefetchController;
+  delete message.__fishPreparePromise;
+  delete message.__fishPreparedBlob;
+  delete message.__fishPrefetchError;
+}
+
+function cancelFishPrefetches(){
+  fishPrefetchGeneration++;
+  for(const controller of fishPrefetchControllers){
+    try{ controller.abort(); }catch{}
+  }
+  fishPrefetchControllers.clear();
+  fishPrefetchActive = 0;
+  voiceQueue.forEach(message => cleanupFishPreparedMessage(message,false));
+}
+
+function clearQueuedFishSelections(){
+  cancelFishPrefetches();
+  voiceQueue.forEach(message => {
+    if(message && typeof message === 'object') delete message.__fishVoiceSelection;
+  });
+}
+
+function getNextFishVoice(message){
+  // Si un mensaje fue reintentado o ya entró al prebuffer, conserva exactamente
+  // la misma voz seleccionada.
+  if(message?.__fishVoiceSelection?.modelId){
+    return message.__fishVoiceSelection;
+  }
+
+  const models = getConfiguredFishModels();
+  if(!models.length) return null;
+
+  // El botón "Probar voz" no representa a un usuario real: elegimos una voz
+  // aleatoria sin guardarla en el mapa de usuarios.
+  if(message?.__voiceTest){
+    const selection = models[Math.floor(Math.random() * models.length)];
+    if(message && typeof message === 'object') message.__fishVoiceSelection = {...selection};
+    return selection;
+  }
+
+  const key = fishUserKey(message);
+  const assigned = fishVoiceAssignments.get(key);
+  if(assigned && models.some(item => item.modelId === assigned.modelId && item.slot === assigned.slot)){
+    // Refrescamos el orden LRU para que los usuarios activos conserven su voz.
+    const refreshed = {...assigned,lastSeen:Date.now()};
+    fishVoiceAssignments.delete(key);
+    fishVoiceAssignments.set(key,refreshed);
+    const selection = {modelId:refreshed.modelId,slot:refreshed.slot};
+    if(message && typeof message === 'object') message.__fishVoiceSelection = {...selection};
+    return selection;
+  }
+
+  pruneFishVoiceAssignments();
+  ensureFishVoiceBag(models);
+  const selection = fishVoiceBag.shift() || models[0];
+  fishVoiceAssignments.set(key,{...selection,lastSeen:Date.now()});
+
+  if(message && typeof message === 'object'){
+    message.__fishVoiceSelection = {...selection};
+  }
+  return selection;
+}
+
+async function fetchFishAudioBlob(spokenText, modelId, controller){
+  let timeout = null;
+  if(controller){
+    timeout = setTimeout(() => {
+      try{ controller.abort(); }catch{}
+    },FISH_FETCH_TIMEOUT_MS);
+  }
+
+  try{
+    const response = await fetch('/chat/api/fish-tts',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({text:spokenText,reference_id:modelId}),
+      signal:controller?.signal,
+      cache:'no-store'
+    });
+
+    if(!response.ok){
+      let detail = '';
+      try{
+        const d = await response.json();
+        detail = String(d?.error || d?.message || '');
+      }catch{}
+      throw new Error(detail || `Fish Audio respondió HTTP ${response.status}.`);
+    }
+
+    const blob = await response.blob();
+    if(!blob.size) throw new Error('Fish Audio devolvió un audio vacío.');
+    return blob;
+  }finally{
+    if(timeout) clearTimeout(timeout);
+  }
+}
+
+function startFishPrefetch(message){
+  if(!message || typeof message !== 'object') return;
+  if(message.__fishPreparedBlob || message.__fishPreparePromise || message.__fishPrefetchError) return;
+  if(message.__voiceTest) return;
+
+  const fishVoice = getNextFishVoice(message);
+  const modelId = fishVoice?.modelId || '';
+  if(!modelId) return;
+
+  const spokenText = buildSpokenText(message);
+  if(!spokenText) return;
+
+  const controller = new AbortController();
+  const generation = fishPrefetchGeneration;
+  message.__fishPrefetchController = controller;
+  fishPrefetchControllers.add(controller);
+  fishPrefetchActive++;
+
+  message.__fishPreparePromise = (async() => {
+    try{
+      const blob = await fetchFishAudioBlob(spokenText,modelId,controller);
+      if(generation !== fishPrefetchGeneration || controller.signal.aborted) return null;
+      message.__fishPreparedBlob = blob;
+      message.__fishPrefetchError = '';
+      return blob;
+    }catch(error){
+      if(generation !== fishPrefetchGeneration) return null;
+      if(error?.name === 'AbortError'){
+        message.__fishPrefetchError = 'Fish Audio tardó demasiado en responder.';
+        return null;
+      }
+      message.__fishPrefetchError = String(error?.message || 'No se pudo conectar con Fish Audio.');
+      return null;
+    }finally{
+      fishPrefetchControllers.delete(controller);
+      if(message.__fishPrefetchController === controller){
+        delete message.__fishPrefetchController;
+      }
+      fishPrefetchActive = Math.max(0,fishPrefetchActive-1);
+      // Si todavía hay hueco, empezamos a preparar el siguiente comentario.
+      queueMicrotask(pumpFishPrefetch);
+    }
+  })();
+}
+
+function pumpFishPrefetch(){
+  if(!isFishVoiceSelected() || fishBlockedError || !$('voiceEnabled')?.checked) return;
+  if(fishRetryAt > Date.now()) return;
+  if(!getConfiguredFishModels().length) return;
+
+  // Solo adelantamos los primeros mensajes de la cola. Así mantenemos orden,
+  // no saturamos Fish Audio y normalmente la próxima voz ya está lista.
+  const candidates = voiceQueue.slice(0,FISH_PREFETCH_LIMIT);
+  for(const message of candidates){
+    if(fishPrefetchActive >= FISH_PREFETCH_LIMIT) break;
+    if(!message?.__fishPreparedBlob && !message?.__fishPreparePromise && !message?.__fishPrefetchError){
+      startFishPrefetch(message);
+    }
+  }
+}
+
+function updateFishControls(){
+  const field = $('fishModelField');
+  if(field) field.style.display = isFishVoiceSelected() ? '' : 'none';
+}
+
+function getSelectedVoicePreset(){
+  const choice = $('voiceSelect')?.value || '';
+  return VOICE_PRESETS[choice] || null;
+}
+
+function getSelectedVoice(){
+
+  const select = $('voiceSelect');
+  if(!select) return null;
+
+  const preset = VOICE_PRESETS[select.value];
+  if(preset){
+    return findPresetVoice(preset);
+  }
+
+  const match = /^voice:(\d+)$/.exec(select.value);
+  if(!match) return null;
+
+  const index = Number(match[1]);
+  return Number.isInteger(index) ? (availableVoices[index] || null) : null;
+}
+
+function updateVoiceHint(){
+  const hint = $('voiceHint');
+  if(!hint) return;
+
+  updateFishControls();
+
+  if(isFishVoiceSelected()){
+    const count = getConfiguredFishModels().length;
+    hint.textContent = count === 5
+      ? '🐟 5 voces listas · voz aleatoria fija por usuario durante el LIVE.'
+      : count
+        ? `🐟 ${count}/5 voces configuradas · cada usuario conserva una voz durante el LIVE.`
+        : '🐟 Fish Audio seleccionado · pega los 5 ID para asignar una voz fija a cada usuario.';
+    return;
+  }
+
+  const voice = getSelectedVoice();
+  if(!voice){
+    hint.textContent = 'Esperando las voces instaladas en Windows/navegador…';
+    return;
+  }
+
+  const preset = getSelectedVoicePreset();
+  hint.textContent = preset
+    ? `Usando ${voice.name} (${voice.lang}) con ajustes naturales y estables.`
+    : `Voz del sistema: ${voice.name} (${voice.lang}).`;
+}
+
+function loadVoices(){
+
+  if(!('speechSynthesis' in window)){
+    $('voiceStatus').textContent =
+      '🔴 Este navegador no soporta Chat de Voz.';
+    return;
+  }
+
+  const voices = speechSynthesis.getVoices();
+
+  if(!voices.length && !isFishVoiceSelected()){
+    $('voiceStatus').textContent =
+      '⏳ Cargando voces del navegador...';
+  }
+
+  availableVoices = Array.from(voices);
+
+  availableVoices.sort((a,b) => {
+    const rank = voice => {
+      const lang = String(voice.lang || '').toLowerCase();
+      if(lang.startsWith('es')) return 0;
+      if(lang.startsWith('en-gb')) return 1;
+      if(lang.startsWith('en')) return 2;
+      return 3;
+    };
+    return rank(a) - rank(b) || a.name.localeCompare(b.name);
+  });
+
+  const select = $('voiceSelect');
+  const previousChoice = select.value;
+  const settings = loadSettings();
+
+  select.innerHTML = '';
+
+  const aiGroup = document.createElement('optgroup');
+  aiGroup.label = 'Voces IA';
+  const fishOption = document.createElement('option');
+  fishOption.value = 'fish:s2.1-pro-free';
+  fishOption.textContent = '🐟 Fish Audio — 5 voces por usuario';
+  aiGroup.appendChild(fishOption);
+  select.appendChild(aiGroup);
+
+  const presetGroup = document.createElement('optgroup');
+  presetGroup.label = 'Perfiles GREÑA';
+
+  Object.entries(VOICE_PRESETS).forEach(([value,preset]) => {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = preset.label;
+    presetGroup.appendChild(option);
+  });
+
+  select.appendChild(presetGroup);
+
+  const systemGroup = document.createElement('optgroup');
+  systemGroup.label = 'Voces instaladas en el sistema';
+
+  availableVoices.forEach((voice,index) => {
+    const option = document.createElement('option');
+    option.value = `voice:${index}`;
+    option.textContent = `${voice.name} (${voice.lang})${voice.default ? ' — predeterminada' : ''}`;
+    systemGroup.appendChild(option);
+  });
+
+  select.appendChild(systemGroup);
+
+  let selected = false;
+
+  // Al actualizar desde el motor anterior, elegimos una voz estable una sola vez.
+  if(settings?.voiceEngineVersion !== VOICE_ENGINE_VERSION){
+    select.value = 'preset:smooth-es';
+    selected = true;
+  }
+
+  if(!selected && settings?.voiceChoice && select.querySelector(`option[value="${CSS.escape(settings.voiceChoice)}"]`)){
+    select.value = settings.voiceChoice;
+    selected = true;
+  }
+
+  if(!selected && settings?.voiceName){
+    const savedIndex = availableVoices.findIndex(voice =>
+      voice.name === settings.voiceName && voice.lang === settings.voiceLang
+    );
+    if(savedIndex >= 0){
+      select.value = `voice:${savedIndex}`;
+      selected = true;
+    }
+  }
+
+  if(!selected && previousChoice && select.querySelector(`option[value="${CSS.escape(previousChoice)}"]`)){
+    select.value = previousChoice;
+    selected = true;
+  }
+
+  if(!selected){
+    select.value = 'preset:smooth-es';
+  }
+
+  updateVoiceHint();
+
+  // Nunca sobrescribir preferencias antes de restaurarlas.
+  if(settingsRestored){
+    saveSettings();
+  }
+}
+
+
+
+/* =====================================================
+   CARGA DE VOCES
+===================================================== */
+
+function initVoiceSynthesis(){
+
+  if(!('speechSynthesis' in window)){
+    updateVoiceStatus();
+    return;
+  }
+
+  speechSynthesis.onvoiceschanged = loadVoices;
+
+  loadVoices();
+
+  [300,1000,2000].forEach(
+    delay => setTimeout(loadVoices,delay)
+  );
+}
+
+
+/* =====================================================
+   LISTAS
+===================================================== */
+
+function getList(text){
+
+  return String(text || '')
+    .split(/\r?\n/)
+    .map(
+      value =>
+        value
+          .trim()
+          .toLowerCase()
+          .replace(/^@/,'')
+    )
+    .filter(Boolean);
+
+}
+
+
+function getSelectedMode(platform){
+
+  const element =
+    document.querySelector(
+      `input[name="${platform}Mode"]:checked`
+    );
+
+  return element?.value || 'all';
+
+}
+
+
+/* =====================================================
+   USUARIO PERMITIDO
+===================================================== */
+
+function isUserAllowed(m){
+
+  const platform =
+    ['tiktok','twitch','kick'].includes(String(m.platform||'').toLowerCase())
+      ? String(m.platform).toLowerCase()
+      : 'tiktok';
+
+  const enabled =
+    platform === 'twitch' ? $('twitchVoiceEnabled').checked :
+    platform === 'kick' ? $('kickVoiceEnabled').checked :
+    $('tiktokVoiceEnabled').checked;
+
+  if(!enabled){
+
+    return false;
+
+  }
+
+  const mode =
+    getSelectedMode(platform);
+
+  const username =
+    String(
+      m.user ||
+      m.nickname ||
+      ''
+    )
+    .trim()
+    .toLowerCase()
+    .replace(/^@/,'');
+
+  if(
+    blockedUsers().includes(username)
+  ){
+
+    return false;
+
+  }
+
+  if(mode === 'selected'){
+
+    const list =
+      platform === 'twitch' ? getList($('twitchSelectedUsers').value) :
+      platform === 'kick' ? getList($('kickSelectedUsers').value) :
+      getList($('tiktokSelectedUsers').value);
+
+    if(
+      !list.includes(username)
+    ){
+
+      return false;
+
+    }
+
+  }
+
+  if(mode === 'followers'){
+
+    return m.isFollower === true;
+
+  }
+
+  return true;
+
+}
+
+
+/* =====================================================
+   BLOQUEADOS
+===================================================== */
+
+function blockedUsers(){
+
+  return getList(
+    $('blockedUsers').value
+  );
+
+}
+
+
+function containsBlockedWord(text){
+
+  const words =
+    getList(
+      $('blockedWords').value
+    );
+
+  const normalized =
+    String(text || '')
+      .toLowerCase();
+
+  return words.some(
+    word =>
+      word &&
+      normalized.includes(word)
+  );
+
+}
+
+
+/* =====================================================
+   🧠 FILTRO INTELIGENTE PARA LA VOZ
+===================================================== */
+
+/*
+ * Importante:
+ *
+ * Este filtro NO modifica m.text.
+ *
+ * El mensaje original continúa intacto
+ * para el chat visual.
+ *
+ * Solamente se utiliza para generar
+ * el texto que escuchará la voz.
+ */
+
+
+/* =========================
+   DESCRIPCIONES DE EMOJIS
+========================= */
+
+const emojiNames = new Map([
+
+  ['😀','cara sonriendo'],
+  ['😃','cara feliz'],
+  ['😄','cara feliz'],
+  ['😁','cara sonriente'],
+  ['😆','cara riendo'],
+  ['😅','cara riendo con sudor'],
+  ['😂','cara llorando de risa'],
+  ['🤣','cara revolcándose de risa'],
+  ['😊','cara feliz'],
+  ['😇','cara de ángel'],
+  ['🙂','cara sonriendo'],
+  ['🙃','cara al revés'],
+  ['😉','cara guiñando'],
+  ['😌','cara tranquila'],
+  ['😍','cara enamorada'],
+  ['🥰','cara con corazones'],
+  ['😘','cara lanzando beso'],
+  ['😗','cara besando'],
+  ['😙','cara besando'],
+  ['😚','cara besando'],
+  ['😋','cara saboreando'],
+  ['😛','cara sacando la lengua'],
+  ['😜','cara guiñando con lengua'],
+  ['🤪','cara loca'],
+  ['🤨','cara levantando una ceja'],
+  ['🧐','cara investigando'],
+  ['🤓','cara con gafas'],
+  ['😎','cara con gafas de sol'],
+  ['🤩','cara emocionada'],
+  ['🥳','cara de fiesta'],
+  ['😏','cara pícara'],
+  ['😒','cara aburrida'],
+  ['😞','cara decepcionada'],
+  ['😔','cara triste'],
+  ['😟','cara preocupada'],
+  ['😕','cara confundida'],
+  ['🙁','cara triste'],
+  ['☹️','cara triste'],
+  ['😣','cara sufriendo'],
+  ['😖','cara frustrada'],
+  ['😫','cara cansada'],
+  ['😩','cara agotada'],
+  ['🥺','cara suplicando'],
+  ['😢','cara llorando'],
+  ['😭','cara llorando'],
+  ['😤','cara enfadada'],
+  ['😠','cara enojada'],
+  ['😡','cara furiosa'],
+  ['🤬','cara diciendo groserías'],
+  ['🤯','cara explotando de sorpresa'],
+  ['😳','cara avergonzada'],
+  ['🥵','cara con calor'],
+  ['🥶','cara con frío'],
+  ['😱','cara gritando de miedo'],
+  ['😨','cara asustada'],
+  ['😰','cara preocupada con sudor'],
+  ['😥','cara triste con sudor'],
+  ['😓','cara sudando'],
+  ['🤗','cara abrazando'],
+  ['🤔','cara pensando'],
+  ['🫡','cara saludando'],
+  ['🤭','cara tapándose la boca'],
+  ['🤫','cara pidiendo silencio'],
+  ['🤥','cara mentirosa'],
+  ['😶','cara sin expresión'],
+  ['😐','cara neutral'],
+  ['😑','cara sin expresión'],
+  ['🙄','cara poniendo los ojos en blanco'],
+  ['😬','cara haciendo mueca'],
+  ['😮','cara sorprendida'],
+  ['😯','cara sorprendida'],
+  ['😲','cara asombrada'],
+  ['😴','cara durmiendo'],
+  ['🤤','cara babeando'],
+  ['😪','cara somnolienta'],
+  ['😵','cara mareada'],
+  ['🤐','cara con boca cerrada'],
+  ['🥴','cara mareada'],
+  ['🤢','cara con náuseas'],
+  ['🤮','cara vomitando'],
+  ['🤧','cara estornudando'],
+  ['😈','cara sonriente con cuernos'],
+  ['👿','cara enfadada con cuernos'],
+  ['💀','calavera'],
+  ['☠️','calavera y huesos'],
+  ['👻','fantasma'],
+  ['👽','alienígena'],
+  ['🤖','robot'],
+  ['💩','caca'],
+  ['🔥','fuego'],
+  ['❤️','corazón rojo'],
+  ['🧡','corazón naranja'],
+  ['💛','corazón amarillo'],
+  ['💚','corazón verde'],
+  ['💙','corazón azul'],
+  ['💜','corazón morado'],
+  ['🖤','corazón negro'],
+  ['🤍','corazón blanco'],
+  ['🤎','corazón marrón'],
+  ['💔','corazón roto'],
+  ['💕','dos corazones'],
+  ['💖','corazón brillante'],
+  ['💯','cien por ciento'],
+  ['💥','explosión'],
+  ['💢','símbolo de enfado'],
+  ['💦','gotas de agua'],
+  ['💨','viento'],
+  ['✨','destellos'],
+  ['⭐','estrella'],
+  ['🌟','estrella brillante'],
+  ['⚡','rayo'],
+  ['🎉','fiesta'],
+  ['🎊','confeti'],
+  ['🎁','regalo'],
+  ['🎂','pastel de cumpleaños'],
+  ['👏','aplausos'],
+  ['🙌','manos levantadas'],
+  ['👍','pulgar arriba'],
+  ['👎','pulgar abajo'],
+  ['👌','mano haciendo ok'],
+  ['✌️','señal de victoria'],
+  ['🤞','dedos cruzados'],
+  ['🤟','te quiero'],
+  ['🤘','mano rockera'],
+  ['👋','mano saludando'],
+  ['🙏','manos rezando'],
+  ['💪','brazo fuerte'],
+  ['🫶','manos formando corazón'],
+  ['👀','ojos'],
+  ['👁️','ojo'],
+  ['👄','boca'],
+  ['👅','lengua'],
+  ['💋','beso'],
+  ['❤️‍🔥','corazón en llamas'],
+  ['🚀','cohete'],
+  ['💰','bolsa de dinero'],
+  ['💎','diamante'],
+  ['🏆','trofeo'],
+  ['🥇','medalla de oro'],
+  ['⚽','balón de fútbol'],
+  ['🎮','videojuego'],
+  ['🔴','círculo rojo'],
+  ['🟢','círculo verde'],
+  ['🔵','círculo azul'],
+  ['🟣','círculo morado'],
+  ['⚫','círculo negro'],
+  ['⚪','círculo blanco'],
+  ['❌','equis'],
+  ['✅','marca de verificación'],
+  ['❗','signo de exclamación'],
+  ['❓','signo de interrogación'],
+  ['‼️','doble exclamación'],
+  ['⁉️','exclamación e interrogación']
+]);
+
+
+/* =====================================================
+   SEGMENTAR TEXTO CORRECTAMENTE
+===================================================== */
+
+let graphemeSegmenter = null;
+
+try{
+
+  if(
+    'Segmenter' in Intl
+  ){
+
+    graphemeSegmenter =
+      new Intl.Segmenter(
+        'es',
+        {
+          granularity:
+            'grapheme'
+        }
+      );
+
+  }
+
+}catch{
+
+  graphemeSegmenter =
+    null;
+
+}
+
+
+function getGraphemes(text){
+
+  const value =
+    String(text || '');
+
+  if(!value){
+
+    return [];
+
+  }
+
+  if(graphemeSegmenter){
+
+    return Array.from(
+      graphemeSegmenter.segment(value),
+      item => item.segment
+    );
+
+  }
+
+  return Array.from(value);
+
+}
+
+
+/* =====================================================
+   DETECTAR EMOJI
+===================================================== */
+
+function isEmojiUnit(unit){
+
+  if(!unit){
+
+    return false;
+
+  }
+
+  /*
+   * Si es un emoji conocido,
+   * lo consideramos emoji inmediatamente.
+   */
+
+  if(
+    emojiNames.has(unit)
+  ){
+
+    return true;
+
+  }
+
+  /*
+   * Unicode Property Escapes.
+   * Detecta la mayoría de emojis modernos.
+   */
+
+  try{
+
+    return (
+      /\p{Extended_Pictographic}/u
+        .test(unit)
+    );
+
+  }catch{
+
+    /*
+     * Compatibilidad con navegadores
+     * que no soporten esta propiedad.
+     */
+
+    return false;
+
+  }
+
+}
+
+
+/* =====================================================
+   DESCRIBIR EMOJI
+===================================================== */
+
+function describeEmoji(unit){
+
+  if(
+    emojiNames.has(unit)
+  ){
+
+    return emojiNames.get(unit);
+
+  }
+
+  /*
+   * Algunos emojis pueden traer
+   * variación de presentación.
+   */
+
+  const simplified =
+    String(unit)
+      .replace(/\uFE0F/g,'');
+
+  if(
+    emojiNames.has(simplified)
+  ){
+
+    return emojiNames.get(
+      simplified
+    );
+
+  }
+
+  return 'emoji';
+
+}
+
+
+/* =====================================================
+   LIMITAR EMOJIS REPETIDOS
+===================================================== */
+
+function limitRepeatedEmojis(text){
+
+  const graphemes =
+    getGraphemes(text);
+
+  if(!graphemes.length){
+
+    return '';
+
+  }
+
+  const output = [];
+
+  let lastEmoji = '';
+  let emojiCount = 0;
+
+  for(
+    const unit of graphemes
+  ){
+
+    if(
+      isEmojiUnit(unit)
+    ){
+
+      /*
+       * Si es el mismo emoji consecutivo,
+       * solamente permitimos 3.
+       */
+
+      if(
+        unit === lastEmoji
+      ){
+
+        emojiCount++;
+
+      }else{
+
+        lastEmoji =
+          unit;
+
+        emojiCount =
+          1;
+
+      }
+
+      if(
+        emojiCount <= 1
+      ){
+
+        output.push(
+          describeEmoji(unit)
+        );
+
+      }
+
+      continue;
+
+    }
+
+    /*
+     * Al aparecer texto normal,
+     * reiniciamos la repetición de emoji.
+     */
+
+    lastEmoji =
+      '';
+
+    emojiCount =
+      0;
+
+    /*
+     * No agregamos espacios entre
+     * cada letra. Se conserva el texto.
+     */
+
+    output.push(unit);
+
+  }
+
+  /*
+   * La conversión anterior genera
+   * descripciones de emoji pegadas al
+   * texto. Esta limpieza separa
+   * correctamente las palabras.
+   */
+
+  let result =
+    output.join('');
+
+  /*
+   * Separamos una descripción de emoji
+   * cuando queda pegada a texto.
+   */
+
+  result =
+    result.replace(
+      /([^\s])((?:cara |corazón |emoji|fuego|calavera|fantasma|alienígena|robot|caca|aplausos|pulgar|manos|ojo|ojos|boca|lengua|beso|cohete|bolsa|diamante|trofeo|medalla|balón|videojuego|círculo|equis|marca|signo|doble|exclamación|destellos|estrella|rayo|fiesta|confeti|regalo|pastel|brazo|viento|gotas|explosión|símbolo))/giu,
+      '$1 $2'
+    );
+
+  result =
+    result.replace(
+      /((?:emoji|fuego|calavera|fantasma|alienígena|robot|caca|aplausos|pulgar|manos|ojo|ojos|boca|lengua|beso|cohete|bolsa|diamante|trofeo|medalla|balón|videojuego|círculo|equis|marca|signo|doble|exclamación|destellos|estrella|rayo|fiesta|confeti|regalo|pastel|brazo|viento|gotas|explosión|símbolo)[^a-záéíóúüñ]*) (?=[a-záéíóúüñ])/giu,
+      '$1 '
+    );
+
+  /*
+   * Mejoramos la separación de emojis conocidos
+   * cuando están junto a palabras.
+   */
+
+  result =
+    result
+      .replace(
+        /\s+/g,
+        ' '
+      )
+      .trim();
+
+  return result;
+
+}
+
+
+/* =====================================================
+   VERSIÓN MÁS ROBUSTA PARA EMOJIS
+===================================================== */
+
+function convertEmojisAndLimit(text){
+
+  const graphemes =
+    getGraphemes(text);
+
+  if(!graphemes.length){
+
+    return '';
+
+  }
+
+  const pieces = [];
+
+  let normalBuffer = '';
+
+  let lastEmoji = '';
+  let emojiCount = 0;
+  let describedEmojiCount = 0;
+  const smartEmojiCap = $('smartSpamEnabled')?.checked !== false
+    ? getSmartSpamProfile().maxEmojiDescriptions
+    : 12;
+
+  const flushNormal =
+    () => {
+
+      if(normalBuffer){
+
+        pieces.push(
+          normalBuffer
+        );
+
+        normalBuffer =
+          '';
+
+      }
+
+    };
+
+  for(
+    const unit of graphemes
+  ){
+
+    if(
+      isEmojiUnit(unit)
+    ){
+
+      flushNormal();
+
+      if(
+        unit === lastEmoji
+      ){
+
+        emojiCount++;
+
+      }else{
+
+        lastEmoji =
+          unit;
+
+        emojiCount =
+          1;
+
+      }
+
+      /*
+       * Máximo tres del mismo emoji
+       * consecutivo.
+       */
+
+      if(
+        emojiCount <= 1 &&
+        describedEmojiCount < smartEmojiCap
+      ){
+
+        pieces.push(
+          describeEmoji(unit)
+        );
+        describedEmojiCount++;
+
+      }
+
+      continue;
+
+    }
+
+    /*
+     * Texto normal.
+     */
+
+    lastEmoji =
+      '';
+
+    emojiCount =
+      0;
+
+    normalBuffer +=
+      unit;
+
+  }
+
+  flushNormal();
+
+  /*
+   * Unimos cada pieza con espacios.
+   * Esto evita que "Hola😭" se convierta
+   * en "Hola carita llorando" sin destruir
+   * las letras normales.
+   */
+
+  return pieces
+    .join(' ')
+    .replace(
+      /\s+/g,
+      ' '
+    )
+    .trim();
+
+}
+
+
+/* =====================================================
+   LIMITAR LETRAS REPETIDAS
+===================================================== */
+
+function limitRepeatedCharacters(text){
+
+  let result =
+    String(text || '');
+
+  /*
+   * Cuando una misma letra aparece 4 o más
+   * veces seguidas, dejamos solamente 3.
+   *
+   * Ejemplos:
+   *
+   * NOOOOOOO -> NOOO
+   * XDDDDDDD -> XDDD
+   * AAAAAAAA -> AAA
+   */
+
+  try{
+
+    result =
+      result.replace(
+        /(.)(\1{3,})/gu,
+        '$1$1$1'
+      );
+
+  }catch{
+
+    result =
+      result.replace(
+        /(.)\1{3,}/g,
+        '$1$1$1'
+      );
+
+  }
+
+  return result;
+
+}
+
+
+/* =====================================================
+   LIMITAR PALABRAS REPETIDAS
+===================================================== */
+
+function limitRepeatedWords(text){
+
+  let result =
+    String(text || '');
+
+  /*
+   * Ejemplo:
+   *
+   * hola hola hola hola
+   *
+   * queda:
+   *
+   * hola hola hola
+   *
+   * Se conservan hasta 3 repeticiones
+   * consecutivas.
+   */
+
+  try{
+
+    result =
+      result.replace(
+        /(\b[\p{L}\p{N}_]+\b)(\s+\1){3,}/giu,
+        '$1 $1'
+      );
+
+  }catch{
+
+    result =
+      result.replace(
+        /(\b[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9_]+\b)(\s+\1){3,}/gi,
+        '$1 $1'
+      );
+
+  }
+
+  return result;
+
+}
+
+
+/* =====================================================
+   LIMPIEZA DE ENLACES Y MENCIONES PARA TTS
+===================================================== */
+
+function stripUrlsForVoice(text){
+  return String(text || '')
+    .replace(/(?:https?:\/\/|www\.)\S+/giu,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+/* =====================================================
+   IGNORAR CIFRAS DEMASIADO LARGAS EN LA VOZ
+===================================================== */
+
+const VOICE_LONG_NUMBER_MIN_DIGITS = 10;
+
+function stripLongNumbersForVoice(text){
+  return String(text || '')
+    .replace(/(?:\+?\s*[\(\[]?\s*\d[\d\s().,\/_-]*\d[\)\]]?|\d+)/g, match => {
+      const digitCount = (match.match(/\d/g) || []).length;
+      return digitCount >= VOICE_LONG_NUMBER_MIN_DIGITS ? ' ' : match;
+    })
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function limitRepeatedMentions(text){
+  const seen = new Set();
+  return String(text || '')
+    .split(/\s+/)
+    .filter(token => {
+      if(!/^@[\p{L}\p{N}_.-]+$/u.test(token)) return true;
+      const key = token.toLowerCase();
+      if(seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(' ');
+}
+
+
+/* =====================================================
+   LIMPIEZA FINAL
+===================================================== */
+
+function cleanTextForVoice(text){
+
+  let result =
+    stripUrlsForVoice(text);
+
+  result =
+    stripLongNumbersForVoice(result);
+
+  result =
+    limitRepeatedMentions(result);
+
+  if(!result){
+
+    return '';
+
+  }
+
+  /*
+   * 1. Primero reducimos letras exageradas.
+   */
+
+  result =
+    limitRepeatedCharacters(
+      result
+    );
+
+  /*
+   * 2. Después reducimos palabras repetidas.
+   */
+
+  result =
+    limitRepeatedWords(
+      result
+    );
+
+  /*
+   * 3. Finalmente procesamos emojis.
+   *
+   * Esto hace que la voz no intente leer
+   * cada emoji directamente.
+   */
+
+  result =
+    convertEmojisAndLimit(
+      result
+    );
+
+  /*
+   * 4. Limpieza de espacios.
+   */
+
+  result =
+    result
+      .replace(
+        /\s+/g,
+        ' '
+      )
+      .trim();
+
+  return result;
+
+}
+
+
+/* =====================================================
+   ANTI-SPAM
+===================================================== */
+
+function getSmartSpamLevel(){
+  const value = String($('smartSpamLevel')?.value || 'normal').toLowerCase();
+  return SMART_SPAM_PROFILES[value] ? value : 'normal';
+}
+
+function getSmartSpamProfile(){
+  return SMART_SPAM_PROFILES[getSmartSpamLevel()] || SMART_SPAM_PROFILES.normal;
+}
+
+function normalizeSpamText(text){
+  return String(text||'')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/(?:https?:\/\/|www\.)\S+/giu,' ')
+    .replace(/[^a-z0-9]+/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function comparableSpamText(text){
+  return normalizeSpamText(text)
+    .replace(/(.)\1{2,}/g,'$1$1')
+    .replace(/\b(\w+)(?:\s+\1){1,}\b/g,'$1')
+    .trim();
+}
+
+function spamDiceSimilarity(a,b){
+  a = String(a || '');
+  b = String(b || '');
+  if(!a || !b) return 0;
+  if(a === b) return 1;
+  if(Math.min(a.length,b.length) < 5) return 0;
+  const bigrams = value => {
+    const map = new Map();
+    for(let i=0;i<value.length-1;i++){
+      const gram = value.slice(i,i+2);
+      map.set(gram,(map.get(gram)||0)+1);
+    }
+    return map;
+  };
+  const A=bigrams(a), B=bigrams(b);
+  let overlap=0, totalA=0, totalB=0;
+  for(const count of A.values()) totalA += count;
+  for(const count of B.values()) totalB += count;
+  for(const [gram,countA] of A){
+    overlap += Math.min(countA,B.get(gram)||0);
+  }
+  return (2*overlap)/Math.max(1,totalA+totalB);
+}
+
+function countUrls(text){
+  return (String(text || '').match(/(?:https?:\/\/|www\.)\S+/giu) || []).length;
+}
+
+function looksLikeGarbageVoiceSpam(text,profile){
+  const raw=String(text||'').trim();
+  if(!raw) return true;
+
+  const urlCount=countUrls(raw);
+  const withoutUrls=raw.replace(/(?:https?:\/\/|www\.)\S+/giu,' ').trim();
+  if(urlCount > profile.maxUrls && normalizeSpamText(withoutUrls).length < 5) return true;
+  if(urlCount && !withoutUrls) return true;
+
+  const compact=withoutUrls.replace(/\s+/g,'');
+  if(compact.length >= 8){
+    try{
+      if(/^([\p{L}\p{N}])\1{7,}$/u.test(compact)) return true;
+    }catch{
+      if(/^([A-Za-z0-9])\1{7,}$/.test(compact)) return true;
+    }
+  }
+
+  // Puro ruido de puntuación/símbolos, pero no castigamos emojis reales.
+  const graphemes=getGraphemes(withoutUrls);
+  let emojiCount=0, alphaNumCount=0, symbolCount=0;
+  for(const unit of graphemes){
+    if(/^\s+$/u.test(unit)) continue;
+    if(isEmojiUnit(unit)){ emojiCount++; continue; }
+    let isAlphaNum=false;
+    try{ isAlphaNum=/[\p{L}\p{N}]/u.test(unit); }catch{ isAlphaNum=/[A-Za-z0-9]/.test(unit); }
+    if(isAlphaNum) alphaNumCount++; else symbolCount++;
+  }
+  if(symbolCount >= 5 && alphaNumCount === 0 && emojiCount === 0) return true;
+  if(symbolCount >= 12 && symbolCount > (alphaNumCount + emojiCount) * 2) return true;
+
+  return false;
+}
+
+function cleanupVoiceSpamHistory(now=Date.now()){
+  if(now-lastVoiceSpamCleanupAt<=30000 && voiceSpamHistory.size<=VOICE_SPAM_HISTORY_MAX+250) return;
+  lastVoiceSpamCleanupAt=now;
+  for(const [k,v] of voiceSpamHistory){
+    const last=Number(v?.time||0);
+    if(now-last>VOICE_SPAM_HISTORY_TTL_MS) voiceSpamHistory.delete(k);
+  }
+  while(voiceSpamHistory.size>VOICE_SPAM_HISTORY_MAX){
+    const oldestKey=voiceSpamHistory.keys().next().value;
+    if(oldestKey===undefined) break;
+    voiceSpamHistory.delete(oldestKey);
+  }
+}
+
+function isSmartVoiceSpam(m){
+  if($('smartSpamEnabled')?.checked === false) return false;
+
+  const text=String(m.text||'').trim();
+  if(!text) return true;
+
+  const profile=getSmartSpamProfile();
+  if(looksLikeGarbageVoiceSpam(text,profile)) return true;
+
+  const platform=String(m.platform||'tiktok').toLowerCase();
+  const user=String(m.user||m.nickname||'').toLowerCase().trim()||'anonimo';
+  const key=`${platform}:${user}`;
+  const now=Date.now();
+  const comparable=comparableSpamText(text);
+  const exact=normalizeSpamText(text);
+
+  let h=voiceSpamHistory.get(key) || {
+    time:0,
+    mutedUntil:0,
+    recentTimes:[],
+    recentTexts:[]
+  };
+
+  if(Number(h.mutedUntil||0) > now){
+    h.time=now;
+    voiceSpamHistory.delete(key);
+    voiceSpamHistory.set(key,h);
+    cleanupVoiceSpamHistory(now);
+    return true;
+  }
+
+  h.recentTimes=(Array.isArray(h.recentTimes)?h.recentTimes:[])
+    .filter(t => now-Number(t||0) <= profile.windowMs);
+  h.recentTimes.push(now);
+
+  if($('ignoreRapid')?.checked && h.recentTimes.length > profile.maxMessages){
+    h.mutedUntil=now+profile.floodMuteMs;
+    h.time=now;
+    voiceSpamHistory.delete(key);
+    voiceSpamHistory.set(key,h);
+    cleanupVoiceSpamHistory(now);
+    return true;
+  }
+
+  h.recentTexts=(Array.isArray(h.recentTexts)?h.recentTexts:[])
+    .filter(item => now-Number(item?.time||0) <= profile.similarWindowMs)
+    .slice(-10);
+
+  let exactPrevious=0;
+  let similarPrevious=0;
+  for(const item of h.recentTexts){
+    if(exact && item.exact === exact){
+      exactPrevious++;
+      similarPrevious++;
+      continue;
+    }
+    if(comparable && item.comparable && comparable === item.comparable){
+      // Detecta variaciones típicas de spam (holaaa / holaaaa, signos,
+      // mayúsculas, etc.) sin confundir frases normales que solo comparten
+      // muchas palabras, como "parte 1" y "parte 2".
+      similarPrevious++;
+    }
+  }
+
+  const duplicateBlocked = exact && exactPrevious >= profile.duplicateReadLimit;
+  const similarBlocked = comparable && similarPrevious >= profile.similarReadLimit;
+
+  h.recentTexts.push({exact,comparable,time:now});
+  if(h.recentTexts.length>12) h.recentTexts=h.recentTexts.slice(-12);
+  h.time=now;
+  voiceSpamHistory.delete(key);
+  voiceSpamHistory.set(key,h);
+  cleanupVoiceSpamHistory(now);
+
+  return duplicateBlocked || similarBlocked;
+}
+
+function shouldIgnoreVoice(m){
+
+  const text =
+    String(
+      m.text || ''
+    ).trim();
+
+  if(!text){
+
+    return true;
+
+  }
+
+  if(
+    containsBlockedWord(text)
+  ){
+
+    return true;
+
+  }
+
+  if(isSmartVoiceSpam(m)){
+    return true;
+  }
+
+  const username=String(m.user || m.nickname || '').toLowerCase().trim();
+
+  if(
+    $('ignoreRepeated').checked &&
+    username &&
+    username === lastSpokenUser &&
+    normalizeSpamText(text) === normalizeSpamText(lastSpokenMessage)
+  ){
+
+    return true;
+
+  }
+
+  // El control inteligente se encarga del flood cuando está activo.
+  // Si el usuario lo apaga, conservamos la protección rápida clásica.
+  if(
+    $('ignoreRapid').checked &&
+    $('smartSpamEnabled')?.checked === false
+  ){
+
+    const now =
+      Date.now();
+
+    if(
+      username === lastSpokenUser &&
+      now - lastSpokenTime < 2500
+    ){
+
+      return true;
+
+    }
+
+  }
+
+  return false;
+
+}
+
+
+/* =====================================================
+   COLA DE VOZ
+===================================================== */
+
+function queueVoice(m){
+
+  if(
+    !$('voiceEnabled').checked
+  ){
+
+    return;
+
+  }
+
+  if(
+    !isUserAllowed(m)
+  ){
+
+    return;
+
+  }
+
+  if(
+    shouldIgnoreVoice(m)
+  ){
+
+    return;
+
+  }
+
+  /*
+   * IMPORTANTE:
+   *
+   * m.text permanece intacto.
+   *
+   * Solamente creamos una copia
+   * preparada para la voz.
+   */
+
+  let text =
+    cleanTextForVoice(
+      m.text || ''
+    );
+
+  if(!text){
+
+    return;
+
+  }
+
+  const max =
+    Number(
+      $('maxCharacters').value
+    );
+
+  if(
+    text.length > max
+  ){
+
+    text =
+      text
+        .substring(
+          0,
+          max
+        )
+        .trim() +
+      '...';
+
+  }
+
+  if(
+    voiceQueue.length >= 20
+  ){
+
+    const dropped = voiceQueue.shift();
+    cleanupFishPreparedMessage(dropped,true);
+
+  }
+
+  voiceQueue.push({
+
+    ...m,
+
+    text
+
+  });
+
+  updateVoiceStatus();
+
+  if(isFishVoiceSelected()) pumpFishPrefetch();
+  speakNext();
+
+}
+
+
+/* =====================================================
+   HABLAR
+===================================================== */
+
+function clearVoiceWatchdog(){
+
+  if(voiceWatchdogTimer){
+    clearTimeout(voiceWatchdogTimer);
+    voiceWatchdogTimer = null;
+  }
+
+}
+
+function clearFishRetryTimer(){
+  if(fishRetryTimer){
+    clearTimeout(fishRetryTimer);
+    fishRetryTimer = null;
+  }
+}
+
+function fishRetryDelay(retryCount = 1, errorText = ''){
+  const text = String(errorText || '').toLowerCase();
+  const rateLimited = text.includes('limitando') || text.includes('429') || text.includes('demasiadas');
+  const base = rateLimited ? 1800 : FISH_RETRY_BASE_MS;
+  return Math.min(FISH_RETRY_MAX_MS, base * Math.pow(2,Math.max(0,retryCount-1)));
+}
+
+function isFishPermanentError(errorText = ''){
+  const text = String(errorText || '').toLowerCase();
+  return text.includes('rechazó la credencial') ||
+    text.includes('no está configurado en esta instalación') ||
+    text.includes('no hay ninguna voz fish audio configurada');
+}
+
+function scheduleFishResume(delayMs){
+  const delay = Math.max(250,Number(delayMs)||FISH_RETRY_BASE_MS);
+  clearFishRetryTimer();
+  fishRetryAt = Date.now() + delay;
+  fishRetryTimer = setTimeout(() => {
+    fishRetryTimer = null;
+    fishRetryAt = 0;
+    fishTransientError = '';
+    if($('voiceEnabled')?.checked && !fishBlockedError && !voiceNeedsUnlock){
+      pumpFishPrefetch();
+      speakNext();
+    }else{
+      updateVoiceStatus();
+    }
+  },delay);
+}
+
+
+function resumeVoiceEngineIfPaused(){
+  if(!('speechSynthesis' in window)) return;
+  try{
+    if(speechSynthesis.paused){
+      speechSynthesis.resume();
+    }
+  }catch{}
+}
+
+
+function resetVoiceEngine(clearQueue = false){
+
+  // Invalidamos cualquier callback pendiente ANTES de cancelar.
+  voiceRunId++;
+  clearVoiceWatchdog();
+  clearFishRetryTimer();
+  fishRetryAt = 0;
+  fishTransientError = '';
+
+  speaking = false;
+  activeVoiceMessage = null;
+  activeVoiceUtterance = null;
+  activeFishVoiceSlot = 0;
+
+  // Las preparaciones paralelas pertenecen a la ejecución anterior.
+  cancelFishPrefetches();
+
+  if(activeFishAbortController){
+    try{ activeFishAbortController.abort(); }catch{}
+    activeFishAbortController = null;
+  }
+  if(activeFishAudio){
+    try{ activeFishAudio.pause(); activeFishAudio.src = ''; }catch{}
+    activeFishAudio = null;
+  }
+  if(activeFishObjectUrl){
+    try{ URL.revokeObjectURL(activeFishObjectUrl); }catch{}
+    activeFishObjectUrl = '';
+  }
+
+  if(clearQueue){
+    voiceQueue = [];
+    resetFishRotation();
+  }
+
+  if('speechSynthesis' in window){
+    try{
+      speechSynthesis.cancel();
+      resumeVoiceEngineIfPaused();
+    }catch{}
+  }
+
+  updateVoiceStatus();
+
+}
+
+
+function unlockVoiceFromGesture(){
+
+  if('speechSynthesis' in window){
+    resumeVoiceEngineIfPaused();
+  }
+
+  if(voiceNeedsUnlock){
+    voiceNeedsUnlock = false;
+    updateVoiceStatus();
+
+    if($('voiceEnabled').checked){
+      setTimeout(speakNext,0);
+    }
+  }
+
+}
+
+
+function buildSpokenText(message){
+
+  const text = String(message?.text || '').trim();
+  const spokenName = String(message?.nickname || message?.user || '').trim();
+
+  return $('voiceReadUsername')?.checked && spokenName
+    ? `${spokenName} dice: ${text}`
+    : text;
+}
+
+
+async function speakFishMessage(message, spokenText){
+
+  const fishVoice = getNextFishVoice(message);
+  const modelId = fishVoice?.modelId || '';
+  if(!modelId){
+    if(!message.__voiceTest) voiceQueue.unshift(message);
+    fishBlockedError = 'No hay ninguna voz Fish Audio configurada.';
+    updateVoiceStatus();
+    return;
+  }
+
+  activeFishVoiceSlot = Number(fishVoice.slot) || 0;
+
+  const requestedRate = Math.max(0.5,Math.min(2,Number($('voiceRate').value)||1));
+  const volume = Math.max(0,Math.min(1,Number($('voiceVolume').value)));
+  const runId = ++voiceRunId;
+  let settled = false;
+
+  speaking = true;
+  activeVoiceMessage = message;
+  activeVoiceUtterance = null;
+  fishBlockedError = '';
+  fishTransientError = '';
+
+  if(!message.__voiceTest){
+    lastSpokenMessage = message.text;
+    lastSpokenUser = String(message.user || '').toLowerCase();
+    lastSpokenTime = Date.now();
+  }
+
+  updateVoiceStatus();
+
+  const finish = (errorText = '', blocked = false) => {
+    if(settled || runId !== voiceRunId) return;
+    settled = true;
+    clearVoiceWatchdog();
+
+    if(activeFishAbortController){
+      try{ activeFishAbortController.abort(); }catch{}
+      activeFishAbortController = null;
+    }
+    if(activeFishAudio){
+      try{ activeFishAudio.pause(); activeFishAudio.src = ''; }catch{}
+      activeFishAudio = null;
+    }
+    if(activeFishObjectUrl){
+      try{ URL.revokeObjectURL(activeFishObjectUrl); }catch{}
+      activeFishObjectUrl = '';
+    }
+
+    cleanupFishPreparedMessage(message,false);
+    speaking = false;
+    activeVoiceMessage = null;
+    activeFishVoiceSlot = 0;
+
+    if(blocked){
+      const failure = String(errorText || 'Fish Audio no pudo generar la voz.');
+
+      // Solo los errores de configuración/credencial detienen el motor. Un
+      // 429, timeout, fallo de red o audio vacío ahora se recupera solo.
+      if(isFishPermanentError(failure)){
+        if(!message.__voiceTest) voiceQueue.unshift(message);
+        fishBlockedError = failure;
+        fishTransientError = '';
+        updateVoiceStatus();
+        return;
+      }
+
+      fishBlockedError = '';
+      const retryCount = Math.max(0,Number(message.__fishRetryCount)||0) + 1;
+      message.__fishRetryCount = retryCount;
+
+      if(!message.__voiceTest && retryCount <= FISH_MAX_RETRIES_PER_MESSAGE){
+        voiceQueue.unshift(message);
+        const delay = fishRetryDelay(retryCount,failure);
+        fishTransientError = `${failure} · reintento ${retryCount}/${FISH_MAX_RETRIES_PER_MESSAGE} automático...`;
+        updateVoiceStatus();
+        scheduleFishResume(delay);
+        return;
+      }
+
+      // Si un comentario concreto falla repetidamente, lo saltamos y seguimos
+      // con la cola. Así un mensaje malo nunca vuelve a matar el chat de voz.
+      delete message.__fishRetryCount;
+      fishTransientError = message.__voiceTest
+        ? failure
+        : `${failure} · comentario omitido; continuando con la cola.`;
+      updateVoiceStatus();
+      setTimeout(() => {
+        fishTransientError = '';
+        updateVoiceStatus();
+        if($('voiceEnabled')?.checked && !voiceNeedsUnlock) speakNext();
+      },message.__voiceTest ? 1200 : 450);
+      return;
+    }
+
+    if(errorText === 'not-allowed'){
+      if(!message.__voiceTest) voiceQueue.unshift(message);
+      voiceNeedsUnlock = true;
+      updateVoiceStatus();
+      return;
+    }
+
+    delete message.__fishRetryCount;
+    fishBlockedError = '';
+    fishTransientError = '';
+    updateVoiceStatus();
+    pumpFishPrefetch();
+    setTimeout(speakNext,FISH_VOICE_GAP_MS);
+  };
+
+  try{
+    let blob = message.__fishPreparedBlob || null;
+
+    // Si este comentario ya se estaba preparando mientras sonaba el anterior,
+    // aprovechamos esa misma solicitud en lugar de crear otra.
+    if(!blob && message.__fishPreparePromise){
+      blob = await message.__fishPreparePromise;
+      if(runId !== voiceRunId) return;
+      if(!blob && message.__fishPrefetchError){
+        finish(message.__fishPrefetchError,true);
+        return;
+      }
+    }
+
+    // Primer mensaje (o mensaje que todavía no había entrado al prebuffer):
+    // se genera normalmente. Los siguientes sí quedan preparándose en paralelo.
+    if(!blob){
+      activeFishAbortController = new AbortController();
+      blob = await fetchFishAudioBlob(spokenText,modelId,activeFishAbortController);
+      activeFishAbortController = null;
+      if(runId !== voiceRunId) return;
+    }
+
+    if(!blob?.size){
+      finish('Fish Audio devolvió un audio vacío.',true);
+      return;
+    }
+
+    // Ya no necesitamos conservar la copia preparada dentro del mensaje.
+    delete message.__fishPreparedBlob;
+    delete message.__fishPreparePromise;
+    delete message.__fishPrefetchError;
+
+    activeFishObjectUrl = URL.createObjectURL(blob);
+    const audio = new Audio(activeFishObjectUrl);
+    activeFishAudio = audio;
+    audio.preload = 'auto';
+    audio.volume = Number.isFinite(volume) ? volume : 1;
+    audio.playbackRate = requestedRate;
+    audio.onended = () => finish('',false);
+    audio.onerror = () => finish('No se pudo reproducir el audio generado por Fish Audio.',true);
+
+    try{
+      await audio.play();
+    }catch(error){
+      const name = String(error?.name || '');
+      finish(name === 'NotAllowedError' ? 'not-allowed' : 'No se pudo iniciar la reproducción de Fish Audio.', name !== 'NotAllowedError');
+      return;
+    }
+
+    // Mientras esta voz está sonando, generamos hasta dos mensajes futuros.
+    pumpFishPrefetch();
+
+    const fishWatchdogMs = Math.max(18000,Math.min(90000,
+      7000 + Math.ceil(spokenText.length * 220 / Math.max(0.5,requestedRate))
+    ));
+    voiceWatchdogTimer = setTimeout(() => {
+      if(runId !== voiceRunId || !speaking) return;
+      finish('Fish Audio tardó demasiado en terminar la reproducción.',true);
+    },fishWatchdogMs);
+
+  }catch(error){
+    if(runId !== voiceRunId) return;
+    if(error?.name === 'AbortError'){
+      finish('Fish Audio tardó demasiado en responder.',true);
+      return;
+    }
+    console.warn('[GREÑA VOZ] Fish Audio:',error);
+    finish(String(error?.message || 'No se pudo conectar con Fish Audio.'),true);
+  }
+}
+
+function speakNext(){
+
+  if(speaking){
+    return;
+  }
+
+  if(!$('voiceEnabled').checked){
+    updateVoiceStatus();
+    return;
+  }
+
+  if(voiceNeedsUnlock){
+    updateVoiceStatus();
+    return;
+  }
+
+  if(!voiceQueue.length){
+    updateVoiceStatus();
+    return;
+  }
+
+  if(isFishVoiceSelected()){
+    if(fishBlockedError){
+      updateVoiceStatus();
+      return;
+    }
+    if(fishRetryAt > Date.now()){
+      if(!fishRetryTimer) scheduleFishResume(fishRetryAt-Date.now());
+      updateVoiceStatus();
+      return;
+    }
+    // FIX6: en FIX5 quedó una llamada al antiguo getFishModelId(), que ya no
+    // existe desde que Fish Audio pasó a 5 IDs. Eso lanzaba un ReferenceError
+    // justo antes de reproducir y por eso ninguna de las cinco voces sonaba.
+    if(!getConfiguredFishModels().length){
+      updateVoiceStatus();
+      return;
+    }
+    pumpFishPrefetch();
+    const message = voiceQueue.shift();
+    const spokenText = buildSpokenText(message);
+    speakFishMessage(message,spokenText);
+    return;
+  }
+
+  if(!('speechSynthesis' in window)){
+    updateVoiceStatus();
+    return;
+  }
+
+  const message =
+    voiceQueue.shift();
+
+  // Si el navegador dejó una locución fantasma/pending de la ejecución
+  // anterior, la limpiamos antes de crear la siguiente. Así no se solapan
+  // dos voces, que es una causa común del sonido trabado/metálico.
+  if(speechSynthesis.speaking || speechSynthesis.pending){
+    try{ speechSynthesis.cancel(); }catch{}
+    voiceQueue.unshift(message);
+    setTimeout(speakNext,VOICE_GAP_MS);
+    return;
+  }
+
+  const spokenText = buildSpokenText(message);
+
+  const utterance =
+    new SpeechSynthesisUtterance(spokenText);
+
+  const voice =
+    getSelectedVoice();
+
+  if(voice){
+    utterance.voice = voice;
+    utterance.lang = voice.lang;
+  }else{
+    // El motor del sistema puede hablar con su voz predeterminada aunque
+    // getVoices() todavía no haya terminado de poblar el selector.
+    utterance.lang = 'es';
+  }
+
+  const preset = getSelectedVoicePreset();
+
+  const requestedRate =
+    Math.max(0.5,Math.min(2,Number($('voiceRate').value)||1));
+
+  // Los perfiles ajustan la base, pero el control de velocidad del usuario
+  // sigue funcionando. Limitamos el extremo alto porque algunos motores de
+  // Windows empiezan a sonar cortados/robotizados a velocidades excesivas.
+  const rate = Math.max(0.5,Math.min(1.6,
+    requestedRate * (preset?.rateMultiplier || 1)
+  ));
+
+  const pitch = Math.max(0,Math.min(2,preset?.pitch ?? 1));
+
+  const volume =
+    Math.max(0,Math.min(1,Number($('voiceVolume').value)));
+
+  utterance.rate = rate;
+  utterance.pitch = pitch;
+  utterance.volume = Number.isFinite(volume) ? volume : 1;
+
+  const runId = ++voiceRunId;
+  let settled = false;
+
+  speaking = true;
+  activeVoiceMessage = message;
+  activeVoiceUtterance = utterance;
+
+  if(!message.__voiceTest){
+    lastSpokenMessage = message.text;
+    lastSpokenUser = String(message.user || '').toLowerCase();
+    lastSpokenTime = Date.now();
+  }
+
+  updateVoiceStatus();
+
+  const finish = (errorCode = '') => {
+
+    if(settled || runId !== voiceRunId){
+      return;
+    }
+
+    settled = true;
+    clearVoiceWatchdog();
+
+    speaking = false;
+    activeVoiceMessage = null;
+    activeVoiceUtterance = null;
+
+    if(errorCode === 'not-allowed'){
+      // Conservamos el mensaje y esperamos una interacción del usuario.
+      if(!message.__voiceTest){
+        voiceQueue.unshift(message);
+      }
+      voiceNeedsUnlock = true;
+      updateVoiceStatus();
+      return;
+    }
+
+    updateVoiceStatus();
+    setTimeout(speakNext,VOICE_GAP_MS);
+
+  };
+
+  utterance.onend =
+    () => finish('');
+
+  utterance.onerror =
+    event => {
+      const code = String(event?.error || 'synthesis-failed');
+      console.warn('[GREÑA VOZ] SpeechSynthesis:',code);
+      finish(code);
+    };
+
+  try{
+    resumeVoiceEngineIfPaused();
+    speechSynthesis.speak(utterance);
+  }catch(error){
+    console.warn('[GREÑA VOZ] No se pudo iniciar la voz:',error);
+    finish('synthesis-failed');
+    return;
+  }
+
+  // Algunos motores de Windows/Chrome pueden cancelar una locución sin
+  // disparar onend/onerror. Este seguro recupera la cola automáticamente.
+  const watchdogMs =
+    Math.max(
+      12000,
+      Math.min(
+        120000,
+        5000 + Math.ceil(spokenText.length * 180 / rate)
+      )
+    );
+
+  voiceWatchdogTimer =
+    setTimeout(
+      () => {
+        if(runId !== voiceRunId || !speaking){
+          return;
+        }
+
+        console.warn('[GREÑA VOZ] Recuperando motor TTS bloqueado.');
+
+        // Invalidamos los callbacks de la locución anterior.
+        voiceRunId++;
+        clearVoiceWatchdog();
+        speaking = false;
+        activeVoiceMessage = null;
+        activeVoiceUtterance = null;
+
+        try{
+          speechSynthesis.cancel();
+          resumeVoiceEngineIfPaused();
+        }catch{}
+
+        updateVoiceStatus();
+        setTimeout(speakNext,VOICE_GAP_MS);
+      },
+      watchdogMs
+    );
+
+}
+
+
+
+// El Centro de Control mantiene este iframe vivo aunque Alertas o Widgets
+// estén cubriendo la pantalla. El pulso evita que una pausa accidental del
+// motor de voz deje la cola detenida al trabajar en otro módulo.
+window.addEventListener('message',event=>{
+  if(event?.data?.type!=='grena-background-keepalive')return;
+  try{
+    if($('voiceEnabled')?.checked && !voiceNeedsUnlock){
+      resumeVoiceEngineIfPaused();
+      if(!speaking)setTimeout(speakNext,0);
+    }
+  }catch{}
+});
+
+// FIX12: pulso propio del motor. Aunque el Centro de Control deje de enviar
+// keepalive por carga alta, una cola que quedó en reposo vuelve a arrancar sola.
+setInterval(() => {
+  try{
+    if(!$('voiceEnabled')?.checked || voiceNeedsUnlock) return;
+    if(isFishVoiceSelected()){
+      if(!fishBlockedError && fishRetryAt <= Date.now()) pumpFishPrefetch();
+    }else{
+      resumeVoiceEngineIfPaused();
+    }
+    if(!speaking && voiceQueue.length && fishRetryAt <= Date.now()){
+      speakNext();
+    }
+  }catch(error){
+    console.warn('[GREÑA VOZ] Healthcheck:',error);
+  }
+},FISH_HEALTHCHECK_MS);
+
+// Una interacción real dentro del chat desbloquea audio si el navegador
+// aplicó su política de reproducción automática al iframe.
+document.addEventListener('pointerdown',unlockVoiceFromGesture,{passive:true});
+document.addEventListener('keydown',unlockVoiceFromGesture);
+
+
+/* =====================================================
+   ESTADO VOZ
+===================================================== */
+
+function updateVoiceStatus(){
+
+  if(
+    !$('voiceEnabled').checked
+  ){
+
+    $('voiceStatus').textContent =
+      '🔇 Chat de Voz desactivado.';
+
+    return;
+
+  }
+
+  if(voiceNeedsUnlock){
+
+    $('voiceStatus').textContent =
+      '🟡 Haz clic dentro de GREÑA para habilitar el audio del Chat de Voz.';
+
+    return;
+
+  }
+
+  if(isFishVoiceSelected() && !getConfiguredFishModels().length){
+    $('voiceStatus').textContent =
+      '🟡 Fish Audio: pega al menos un ID. Para repartir mejor los usuarios, configura las 5 voces.';
+    return;
+  }
+
+  if(isFishVoiceSelected() && fishBlockedError){
+    $('voiceStatus').textContent = `🔴 Fish Audio: ${fishBlockedError}`;
+    return;
+  }
+
+  if(isFishVoiceSelected() && fishTransientError){
+    const waitMs = Math.max(0,fishRetryAt-Date.now());
+    const waitText = waitMs > 0 ? ` · reanudando en ${Math.max(1,Math.ceil(waitMs/1000))}s` : '';
+    $('voiceStatus').textContent = `🟠 Fish Audio: ${fishTransientError}${waitText}`;
+    return;
+  }
+
+  if(speaking){
+
+    $('voiceStatus').textContent = isFishVoiceSelected() && activeFishVoiceSlot
+      ? `🔊 Voz ${activeFishVoiceSlot} hablando... | Cola: ${voiceQueue.length} · preparando ${Math.min(fishPrefetchActive,FISH_PREFETCH_LIMIT)}`
+      : `🔊 Hablando... | Cola: ${voiceQueue.length}`;
+
+    return;
+
+  }
+
+  if(voiceQueue.length){
+
+    $('voiceStatus').textContent =
+      `⏳ ${voiceQueue.length} mensaje(s) en cola.`;
+
+    return;
+
+  }
+
+  if(isFishVoiceSelected()){
+    const count = getConfiguredFishModels().length;
+    $('voiceStatus').textContent = count === 5
+      ? '🟢 Fish Audio: 5 voces por usuario activas · asignación aleatoria fija · prebuffer rápido 2.'
+      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · prebuffer rápido 2.`;
+    return;
+  }
+
+  $('voiceStatus').textContent =
+    '🟢 Chat de Voz activo.';
+
+}
+
+
+/* =====================================================
+   EVENTO CHAT DE VOZ
+===================================================== */
+
+$('voiceReadUsername')?.addEventListener('change',saveSettings);
+
+$('voiceEnabled').addEventListener(
+  'change',
+  () => {
+
+    if(
+      !$('voiceEnabled').checked
+    ){
+
+      voiceNeedsUnlock = false;
+      resetVoiceEngine(true);
+
+    }else{
+
+      // Este change viene de un clic del usuario y sirve para desbloquear
+      // la salida de audio en navegadores con política de autoplay.
+      unlockVoiceFromGesture();
+      speakNext();
+
+    }
+
+    saveSettings();
+
+    updateVoiceStatus();
+
+  }
+);
+
+
+/* =====================================================
+   PROBAR VOZ
+===================================================== */
+
+$('testVoice').onclick =
+  () => {
+
+    if(!isFishVoiceSelected() && !('speechSynthesis' in window)){
+      $('voiceStatus').textContent =
+        '🔴 Este navegador no soporta Chat de Voz.';
+      return;
+    }
+
+    if(isFishVoiceSelected() && !getConfiguredFishModels().length){
+      $('voiceStatus').textContent = '🟡 Fish Audio: pega al menos un ID de voz antes de probar.';
+      $('fishModelId1')?.focus();
+      return;
+    }
+
+    fishBlockedError = '';
+    unlockVoiceFromGesture();
+
+    // Antes se hacía cancel() sin resetear `speaking`; si se probaba la voz
+    // mientras estaba leyendo, la cola podía quedar bloqueada para siempre.
+    resetVoiceEngine(false);
+
+    voiceQueue.unshift({
+      __voiceTest: true,
+      platform: 'system',
+      user: '',
+      nickname: '',
+      text: 'Hola. Soy la voz de Greña. La voz está funcionando de forma clara y estable.'
+    });
+
+    // La prueba debe funcionar incluso si el interruptor general estaba apagado.
+    const wasEnabled = $('voiceEnabled').checked;
+    if(!wasEnabled){
+      $('voiceEnabled').checked = true;
+    }
+
+    speakNext();
+
+    if(!wasEnabled){
+      const restoreAfterTest = () => {
+        if(activeVoiceMessage?.__voiceTest || speaking){
+          setTimeout(restoreAfterTest,80);
+          return;
+        }
+        $('voiceEnabled').checked = false;
+        resetVoiceEngine(false);
+        updateVoiceStatus();
+      };
+      setTimeout(restoreAfterTest,80);
+    }
+
+  };
+
+
+/* =====================================================
+   VACIAR COLA
+===================================================== */
+
+$('clearVoiceQueue').onclick =
+  () => {
+
+    voiceNeedsUnlock = false;
+    resetVoiceEngine(true);
+
+  };
+
+
+/* =====================================================
+   CONTROLES
+===================================================== */
+
+function updateRangeLabels(){
+
+  $('rateValue').textContent =
+    Number(
+      $('voiceRate').value
+    ).toFixed(1) + 'x';
+
+  $('volumeValue').textContent =
+    Math.round(
+      Number(
+        $('voiceVolume').value
+      ) * 100
+    ) + '%';
+
+  $('charactersValue').textContent =
+    $('maxCharacters').value;
+
+}
+
+
+$('voiceRate').oninput =
+  () => {
+
+    updateRangeLabels();
+
+    saveSettings();
+
+  };
+
+
+$('voiceVolume').oninput =
+  () => {
+
+    updateRangeLabels();
+
+    saveSettings();
+
+  };
+
+
+$('maxCharacters').oninput =
+  () => {
+
+    updateRangeLabels();
+
+    saveSettings();
+
+  };
+
+
+/* =====================================================
+   WEBSOCKET
+===================================================== */
+
+function openWS(){
+
+  return new Promise(
+    (resolve,reject) => {
+
+      ws =
+        new WebSocket(
+          (location.protocol === 'https:' ? 'wss' : 'ws')
+          + '://' + location.host + '/chat-ws'
+        );
+
+      ws.onopen =
+        resolve;
+
+      ws.onerror =
+        () => reject();
+
+      ws.onmessage =
+        event => {
+
+          let m;
+
+          try{
+
+            m =
+              JSON.parse(
+                event.data
+              );
+
+          }catch{
+
+            return;
+
+          }
+
+          if(
+            m.type === 'status'
+          ){
+
+            status(
+              '🟡 ' +
+              m.message
+            );
+
+          }
+
+          if(
+            m.type === 'connected'
+          ){
+
+            status(
+              '🟢 ' +
+              m.message,
+              'ok'
+            );
+
+            if(m.platform === 'twitch'){
+              $('twitchStatus').textContent='Twitch: conectado';
+            }else if(m.platform === 'kick'){
+              $('kickStatus').textContent='Kick: conectado';
+            }else{
+              $('tiktokStatus').textContent='TikTok: conectado';
+            }
+            syncSavedConnections();
+
+          }
+
+          if(
+            m.type === 'error'
+          ){
+
+            status(
+              '🔴 ' +
+              m.message,
+              'bad'
+            );
+
+            if(m.platform === 'tiktok') $('tiktokStatus').textContent='TikTok: reintentará automáticamente';
+            if(m.platform === 'twitch') $('twitchStatus').textContent='Twitch: reintentará automáticamente';
+            if(m.platform === 'kick') $('kickStatus').textContent='Kick: reintentará automáticamente';
+
+          }
+
+          if(
+            m.type === 'ended'
+          ){
+
+            status(
+              '🔴 ' +
+              m.message,
+              'bad'
+            );
+
+            // El próximo LIVE empieza con un reparto nuevo. No limpiamos en
+            // desconexiones temporales para que un reconectado conserve su voz.
+            clearFishAssignmentsForPlatform(m.platform || 'tiktok');
+
+          }
+
+          if(
+            m.type === 'disconnected'
+          ){
+
+            status(
+              '⚪ ' +
+              m.message
+            );
+
+          }
+
+          if(m.type === 'moderation-update'){
+            if(m.action==='mute_local'){
+              removeUserRows(String(m.platform||'').toLowerCase(),m.user);
+              const platform=String(m.platform||'').toLowerCase();
+              const user=String(m.user||'').toLowerCase();
+              const kept=[];
+              for(const queued of voiceQueue){
+                const matches=String(queued.platform||'').toLowerCase()===platform && String(queued.user||queued.nickname||'').toLowerCase()===user;
+                if(matches) cleanupFishPreparedMessage(queued,true);
+                else kept.push(queued);
+              }
+              voiceQueue=kept;
+              if(isFishVoiceSelected()) pumpFishPrefetch();
+            }
+          }
+
+          if(m.type === 'voice-control' && typeof m.enabled === 'boolean'){
+            const enabled=!!m.enabled;
+            if($('voiceEnabled').checked!==enabled){
+              $('voiceEnabled').checked=enabled;
+              if(!enabled){voiceNeedsUnlock=false;resetVoiceEngine(true);}
+              else{speakNext();}
+              saveSettings();
+              updateVoiceStatus();
+            }
+          }
+
+          if(
+            m.type === 'chat'
+          ){
+
+            /*
+             * Primero mostramos el mensaje ORIGINAL.
+             */
+
+            addMessage(m);
+
+            /*
+             * Después hacemos una copia
+             * solamente para la voz.
+             */
+
+            queueVoice(m);
+
+          }
+
+        };
+
+    }
+  );
+
+}
+
+
+
+/* =====================================================
+   MODERADOR INTEGRADO
+===================================================== */
+let moderationTarget=null;
+function moderationModal(){
+  let back=document.getElementById('moderationBackdrop');if(back)return back;
+  back=document.createElement('div');back.id='moderationBackdrop';back.className='mod-backdrop';
+  back.innerHTML=`<div class="mod-card"><div class="mod-head"><div><h3>🛡️ Moderar usuario</h3><small id="modSubtitle">GREÑA Moderador</small></div><button class="mod-close" id="modClose">✕</button></div><div class="mod-user"><b id="modUser">Usuario</b><small id="modPlatform">PLATAFORMA</small></div><label class="mod-reason">Razón (opcional)<input id="modReason" maxlength="100" placeholder="Ej.: spam, insultos, enlaces…"></label><div class="mod-section"><div class="mod-section-title">DENTRO DE GREÑA</div><div class="mod-grid"><button class="mod-btn warn" data-mod-action="mute_local">🔇 Silenciar este LIVE</button><button class="mod-btn safe" data-mod-action="unmute_local">🔊 Quitar silencio</button><button class="mod-btn" data-mod-action="hide_local">👁 Ocultar este mensaje</button></div></div><div id="platformModActions" class="mod-section"></div><div id="modNote" class="mod-note"></div><div id="modResult" class="mod-result"></div></div>`;
+  document.body.append(back);back.querySelector('#modClose').onclick=()=>back.classList.remove('show');back.addEventListener('click',e=>{if(e.target===back)back.classList.remove('show')});
+  back.querySelectorAll('[data-mod-action]').forEach(b=>b.onclick=()=>runModeration(b.dataset.modAction,b));return back;
+}
+function platformActionHtml(platform,m={}){
+  if(platform==='twitch'||platform==='kick')return `<div class="mod-section-title">EN ${platform==='twitch'?'TWITCH':'KICK'} DE VERDAD</div><div class="mod-grid"><button class="mod-btn" data-real-action="delete_message" ${m.messageId?'':'disabled'}>🗑 Borrar mensaje</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="60">⏱ Timeout 1 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="300">⏱ Timeout 5 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="600">⏱ Timeout 10 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="1800">⏱ Timeout 30 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="3600">⏱ Timeout 1 hora</button><button class="mod-btn danger" data-real-action="ban">⛔ Ban permanente</button><button class="mod-btn safe" data-real-action="unban">↩ Quitar ban / timeout</button></div>`;
+  return `<div class="mod-section-title">EN TIKTOK</div>`;
+}
+function openModerator(m,row){
+  const platform=['tiktok','twitch','kick'].includes(String(m.platform||'').toLowerCase())?String(m.platform).toLowerCase():'tiktok';moderationTarget={...m,platform,__row:row};
+  const back=moderationModal();back.querySelector('#modUser').textContent=(m.nickname||m.user||'Usuario')+(m.user&&m.nickname&&m.user!==m.nickname?`  @${m.user}`:'');back.querySelector('#modPlatform').textContent=platform.toUpperCase();back.querySelector('#modReason').value='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';
+  const area=back.querySelector('#platformModActions');area.innerHTML=platformActionHtml(platform,m);area.querySelectorAll('[data-real-action]').forEach(b=>b.onclick=()=>runModeration(b.dataset.realAction,b,Number(b.dataset.seconds||0)));
+  back.querySelector('#modNote').textContent=platform==='tiktok'?'TikTok: GREÑA puede ocultar o silenciar al usuario durante este LIVE. La conexión LIVE actual no ofrece ban/timeout oficial desde una app externa.':`${platform==='twitch'?'Twitch':'Kick'}: borrar, timeout, ban y desban se ejecutan en la plataforma si tu cuenta de GREÑA está autorizada con permisos de moderación.`;
+  back.classList.add('show');
+}
+function removeUserRows(platform,user){const key=String(user||'').toLowerCase();document.querySelectorAll('.msg').forEach(el=>{if(el.dataset.platform===platform&&el.dataset.user===key)el.remove()})}
+async function runModeration(action,button,durationSeconds=0){
+  const t=moderationTarget;if(!t)return;const back=moderationModal(),result=back.querySelector('#modResult');
+  if(action==='hide_local'){t.__row?.remove();result.textContent='Mensaje ocultado en GREÑA.';result.className='mod-result show ok';return}
+  button.disabled=true;const old=button.textContent;button.textContent='Procesando…';
+  try{const payload={platform:t.platform,action,username:t.user||t.nickname||'',userId:t.userId||'',messageId:t.messageId||'',broadcaster:t.broadcaster||'',broadcasterId:t.broadcasterId||'',durationSeconds,reason:back.querySelector('#modReason').value.trim()};const r=await fetch('/chat/api/moderation/action',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'No se pudo ejecutar la moderación.');result.textContent='✓ '+(d.message||'Acción completada.');result.className='mod-result show ok';if(action==='mute_local'||action==='ban'||action==='timeout')removeUserRows(t.platform,t.user||t.nickname);if(action==='delete_message')t.__row?.remove();}
+  catch(e){result.textContent='⚠ '+e.message+( /permiso|scope|401|403|autoriza/i.test(e.message)?' Vuelve a vincular esa plataforma en GREÑA para aceptar los permisos nuevos.':'');result.className='mod-result show bad'}finally{button.disabled=false;button.textContent=old}
+}
+
+/* =====================================================
+   AGREGAR MENSAJE
+===================================================== */
+
+function addMessage(m){
+
+  $('empty')?.remove();
+
+  total++;
+
+  $('count').textContent =
+    total.toLocaleString()
+    + ' comentarios';
+
+  const row =
+    document.createElement(
+      'div'
+    );
+
+  const platform =
+    ['tiktok','twitch','kick'].includes(String(m.platform||'').toLowerCase())
+      ? String(m.platform).toLowerCase()
+      : 'tiktok';
+
+  row.className =
+    'msg ' +
+    platform;
+  row.dataset.platform=platform;
+  row.dataset.user=String(m.user||m.nickname||'').toLowerCase();
+  row.title='Haz clic para moderar a este usuario';
+
+  const avatar =
+    document.createElement(
+      'img'
+    );
+
+  avatar.className =
+    'avatar';
+
+  const avatarUrl =
+    m.avatar || '';
+
+  if(avatarUrl){
+
+    avatar.src =
+      '/chat/avatar?url='
+      + encodeURIComponent(
+          avatarUrl
+        );
+
+  }
+
+  avatar.alt =
+    '';
+
+  avatar.onerror =
+    () => {
+
+      avatar.removeAttribute(
+        'src'
+      );
+
+      avatar.style.display =
+        'none';
+
+    };
+
+  const body =
+    document.createElement(
+      'div'
+    );
+
+  body.className =
+    'message-body';
+
+  const header =
+    document.createElement(
+      'div'
+    );
+
+  header.className =
+    'message-header';
+
+  const name =
+    document.createElement(
+      'span'
+    );
+
+  name.className =
+    'name';
+
+  const displayName =
+    m.nickname &&
+    m.nickname !== 'Usuario'
+      ? m.nickname
+      : (
+          m.user ||
+          'Usuario'
+        );
+
+  name.textContent =
+    displayName;
+
+  const username =
+    document.createElement(
+      'span'
+    );
+
+  username.className =
+    'time';
+
+  username.textContent =
+    m.user &&
+    m.user !== 'Usuario'
+      ? '@' + m.user
+      : '';
+
+  const platformLabel =
+    document.createElement(
+      'span'
+    );
+
+  platformLabel.className =
+    'platform-label';
+
+  platformLabel.textContent =
+    platform === 'twitch' ? 'TWITCH' :
+    platform === 'kick' ? 'KICK' : 'TIKTOK';
+
+  const time =
+    document.createElement(
+      'span'
+    );
+
+  time.className =
+    'time';
+
+  time.textContent =
+    new Date()
+      .toLocaleTimeString();
+
+  header.append(
+    name,
+    username,
+    platformLabel,
+    time
+  );
+
+  const text =
+    document.createElement(
+      'div'
+    );
+
+  text.className =
+    'text';
+
+  /*
+   * AQUÍ NO TOCAMOS EL MENSAJE.
+   *
+   * Se muestra exactamente como llegó.
+   */
+
+  text.textContent =
+    m.text ||
+    '(mensaje sin texto)';
+
+  body.append(
+    header,
+    text
+  );
+
+  row.append(
+    avatar,
+    body
+  );
+
+  row.addEventListener('click',e=>{if(e.target.closest('button,a,input,select,textarea'))return;openModerator(m,row)});
+
+  $('chat').append(
+    row
+  );
+
+  // Evita que un directo largo acumule miles de nodos y vuelva lenta la interfaz.
+  while ($('chat').children.length > 300) {
+    $('chat').firstElementChild?.remove();
+  }
+
+  $('chat').scrollTop =
+    $('chat').scrollHeight;
+
+}
+
+
+/* =====================================================
+   CONECTAR TIKTOK
+===================================================== */
+
+async function connectTikTok(){
+
+  const url =
+    $('tiktokUrl')
+      .value
+      .trim();
+
+  if(!url){
+
+    status(
+      '🔴 Pega el enlace del TikTok LIVE.',
+      'bad'
+    );
+
+    return;
+
+  }
+
+  saveSettings();
+
+  try{
+
+    if(
+      !ws ||
+      ws.readyState !== 1
+    ){
+
+      await openWS();
+
+    }
+
+    ws.send(
+      JSON.stringify({
+
+        type:
+          'connect',
+
+        platform:
+          'tiktok',
+
+        url:
+          url
+
+      })
+    );
+
+    $('tiktokStatus').textContent =
+      'TikTok: conectando...';
+
+  }catch{
+
+    status(
+      '🔴 El motor de Greña Chat no está iniciado.',
+      'bad'
+    );
+
+  }
+
+}
+
+
+/* =====================================================
+   CONECTAR TWITCH
+===================================================== */
+
+async function connectTwitch(){
+
+  const url =
+    $('twitchUrl')
+      .value
+      .trim();
+
+  if(!url){
+
+    status(
+      '🔴 Pega el enlace del canal de Twitch.',
+      'bad'
+    );
+
+    return;
+
+  }
+
+  saveSettings();
+
+  try{
+
+    if(
+      !ws ||
+      ws.readyState !== 1
+    ){
+
+      await openWS();
+
+    }
+
+    ws.send(
+      JSON.stringify({
+
+        type:
+          'connect',
+
+        platform:
+          'twitch',
+
+        url:
+          url
+
+      })
+    );
+
+    $('twitchStatus').textContent =
+      'Twitch: conectando...';
+
+  }catch{
+
+    status(
+      '🔴 El motor de Greña Chat no está iniciado.',
+      'bad'
+    );
+
+  }
+
+}
+
+
+async function connectKick(){
+  const url=$('kickUrl').value.trim();
+  if(!url){status('🔴 Pega el enlace o usuario de Kick.','bad');return;}
+  saveSettings();
+  try{
+    if(!ws || ws.readyState!==1) await openWS();
+    ws.send(JSON.stringify({type:'connect',platform:'kick',url}));
+    $('kickStatus').textContent='Kick: conectando...';
+    status('🟡 Conectando Kick...');
+  }catch(e){
+    status('🔴 El motor de Greña Chat no está iniciado.','bad');
+  }
+}
+
+/* =====================================================
+   DESCONECTAR
+===================================================== */
+
+function disconnect(){
+
+  if(
+    ws &&
+    ws.readyState === 1
+  ){
+
+    ws.send(
+      JSON.stringify({
+
+        type:
+          'disconnect'
+
+      })
+    );
+
+  }
+
+  $('tiktokStatus').textContent =
+    'TikTok: desconectado';
+
+  $('twitchStatus').textContent =
+    'Twitch: desconectado';
+
+  $('kickStatus').textContent = 'Kick: desconectado';
+
+}
+
+
+/* =====================================================
+   BOTONES
+===================================================== */
+
+$('connectTikTok')
+  .onclick =
+  connectTikTok;
+
+$('connectTwitch')
+  .onclick =
+  connectTwitch;
+
+$('connectKick').onclick=connectKick;
+
+$('disconnect')
+  .onclick =
+  disconnect;
+
+
+/* =====================================================
+   ENTER
+===================================================== */
+
+$('tiktokUrl')
+  .onkeydown =
+  e => {
+
+    if(
+      e.key === 'Enter'
+    ){
+
+      connectTikTok();
+
+    }
+
+  };
+
+
+$('twitchUrl')
+  .onkeydown =
+  e => {
+
+    if(
+      e.key === 'Enter'
+    ){
+
+      connectTwitch();
+
+    }
+
+  };
+
+
+$('kickUrl').onkeydown=e=>{if(e.key==='Enter')connectKick();};
+
+/* =====================================================
+   GUARDADO AUTOMÁTICO
+===================================================== */
+
+function installSettingsListeners(){
+
+  const ids = [
+
+    'tiktokUrl',
+    'twitchUrl',
+    'kickUrl',
+    'voiceEnabled',
+    'voiceRate',
+    'voiceVolume',
+    'fishModelId1',
+    'fishModelId2',
+    'fishModelId3',
+    'fishModelId4',
+    'fishModelId5',
+    'maxCharacters',
+    'voiceReadUsername',
+    'tiktokVoiceEnabled',
+    'tiktokSelectedUsers',
+    'twitchVoiceEnabled',
+    'twitchSelectedUsers',
+    'kickVoiceEnabled',
+    'kickSelectedUsers',
+    'blockedUsers',
+    'blockedWords',
+    'ignoreRepeated',
+    'ignoreRapid',
+    'smartSpamEnabled',
+    'smartSpamLevel'
+
+  ];
+
+  ids.forEach(
+    id => {
+
+      const element =
+        $(id);
+
+      if(!element){
+
+        return;
+
+      }
+
+      element.addEventListener(
+        'input',
+        saveSettings
+      );
+
+      element.addEventListener(
+        'change',
+        saveSettings
+      );
+
+    }
+  );
+
+  document
+    .querySelectorAll(
+      'input[name="tiktokMode"], input[name="twitchMode"], input[name="kickMode"]'
+    )
+    .forEach(
+      radio => {
+
+        radio.addEventListener(
+          'change',
+          saveSettings
+        );
+
+      }
+    );
+
+  $('voiceSelect').addEventListener(
+    'change',
+    () => {
+      // No dejamos una voz vieja sonando cuando el usuario cambia de perfil.
+      fishBlockedError = '';
+      resetFishRotation(true);
+      clearQueuedFishSelections();
+      resetVoiceEngine(false);
+      updateVoiceHint();
+      updateFishControls();
+      saveSettings();
+      if($('voiceEnabled').checked && voiceQueue.length){
+        setTimeout(speakNext,VOICE_GAP_MS);
+      }
+    }
+  );
+
+  const refreshFishModels = () => {
+    fishBlockedError = '';
+    fishTransientError = '';
+    fishRetryAt = 0;
+    clearFishRetryTimer();
+    clearQueuedFishSelections();
+    resetFishRotation(true);
+    updateVoiceHint();
+    updateVoiceStatus();
+    saveSettings();
+    if($('voiceEnabled')?.checked && voiceQueue.length) setTimeout(speakNext,VOICE_GAP_MS);
+  };
+
+  document.querySelectorAll('.fish-model-input').forEach(input => {
+    input.addEventListener('input',refreshFishModels);
+    input.addEventListener('change',refreshFishModels);
+  });
+
+  document.querySelectorAll('.fish-paste-model').forEach(button => {
+    button.addEventListener('click',async()=>{
+      const target = $(button.dataset.fishPasteTarget || '');
+      try{
+        const value = String(await navigator.clipboard.readText()).trim();
+        if(value && target){
+          target.value = value;
+          refreshFishModels();
+        }
+      }catch{
+        target?.focus();
+        $('voiceStatus').textContent = '🟡 No pude leer el portapapeles. Pega el ID con Ctrl+V.';
+      }
+    });
+  });
+
+}
+
+
+
+/* =====================================================
+   AUTOCONEXIÓN / SINCRONIZACIÓN DE CUENTAS
+===================================================== */
+
+function renderAutoConnectPrefs(prefs={}, runtime={}){
+  const enabled=prefs.autoConnect !== false;
+  const title=$('autoConnectTitle'), text=$('autoConnectText'), dot=$('autoConnectDot');
+  if(title) title.textContent=enabled?'Autoconexión activa':'Autoconexión desactivada';
+  if(text) text.textContent=enabled
+    ? 'GREÑA recuerda tus canales y reintenta automáticamente cuando abras el programa o el LIVE todavía no esté disponible.'
+    : 'Las cuentas están guardadas, pero GREÑA no intentará reconectarlas automáticamente.';
+  if(dot){
+    dot.style.background=enabled?'#53fc18':'#697386';
+    dot.style.boxShadow=enabled?'0 0 0 4px rgba(83,252,24,.10),0 0 18px rgba(83,252,24,.55)':'none';
+  }
+  const map=[
+    ['autoTikTok','tiktokEnabled','tiktokUrl','tiktok'],
+    ['autoTwitch','twitchEnabled','twitchUrl','twitch'],
+    ['autoKick','kickEnabled','kickUrl','kick']
+  ];
+  for(const [id,enabledKey,urlKey,runtimeKey] of map){
+    const el=$(id);
+    if(!el) continue;
+    const saved=!!prefs[enabledKey]&&!!String(prefs[urlKey]||'').trim();
+    const live=!!runtime[runtimeKey];
+    el.classList.toggle('on',saved);
+    el.textContent=(id==='autoTikTok'?'TikTok':id==='autoTwitch'?'Twitch':'Kick')+(live?' ✓':saved?' · guardado':'');
+  }
+}
+
+async function syncSavedConnections(){
+  try{
+    const r=await fetch('/chat/api/connection-prefs',{cache:'no-store'});
+    const d=await r.json();
+    if(!r.ok||!d.ok) return;
+    const prefs=d.prefs||{};
+    if(prefs.tiktokUrl) $('tiktokUrl').value=prefs.tiktokUrl;
+    if(prefs.twitchUrl) $('twitchUrl').value=prefs.twitchUrl;
+    if(prefs.kickUrl) $('kickUrl').value=prefs.kickUrl;
+    const runtime=d.runtime||{};
+    renderAutoConnectPrefs(prefs,runtime);
+
+    // La conexión puede haberse establecido automáticamente ANTES de que esta
+    // pantalla abra su WebSocket. En ese caso no recibimos el evento "connected"
+    // histórico y los chips se quedaban diciendo "desconectado" aunque el motor
+    // ya estuviera leyendo Twitch/Kick/TikTok. Sincronizamos la UI con el runtime real.
+    const visible=[
+      ['tiktokStatus','TikTok','tiktok','tiktokEnabled','tiktokUrl'],
+      ['twitchStatus','Twitch','twitch','twitchEnabled','twitchUrl'],
+      ['kickStatus','Kick','kick','kickEnabled','kickUrl']
+    ];
+    for(const [id,label,key,enabledKey,urlKey] of visible){
+      const el=$(id);
+      if(!el) continue;
+      const live=!!runtime[key];
+      const saved=!!prefs[enabledKey]&&!!String(prefs[urlKey]||'').trim();
+      el.textContent=live
+        ? `${label}: conectado`
+        : saved
+          ? `${label}: reintentará automáticamente`
+          : `${label}: desconectado`;
+    }
+    saveSettings();
+  }catch{}
+}
+
+/* =====================================================
+   ESTADO GENERAL
+===================================================== */
+
+function status(
+  text,
+  className = ''
+){
+
+  $('status').textContent =
+    text;
+
+  $('status').className =
+    'status ' + className;
+
+}
+
+
+/* =====================================================
+   INICIO
+===================================================== */
+
+restoreSettings();
+settingsRestored = true;
+initVoiceSynthesis();
+syncSavedConnections();
+
+installSettingsListeners();
+
+updateRangeLabels();
+
+updateVoiceStatus();
+
+openWS()
+  .catch(
+    () =>
+      status(
+        '🔴 Inicia GREÑA CHAT con INICIAR_GRENA.vbs.',
+        'bad'
+      )
+  );
+
+</script>
+
+<script src="/ui-v2.js"></script>
+<script src="/tiktok-only.js"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+/* GREÑA LIVE PRO · TIKTOK ONLY */
+html.tiktok-only .viewer-card.twitch,
+html.tiktok-only .viewer-card.kick,
+html.tiktok-only .platform-row[data-platform="twitch"],
+html.tiktok-only .platform-row[data-platform="kick"],
+html.tiktok-only [data-test^="tw-"],
+html.tiktok-only [data-test^="ki-"]{display:none!important}
+html.tiktok-only .viewer-grid{grid-template-columns:minmax(0,1fr)!important}
+html.tiktok-only .platform-stack{grid-template-columns:minmax(0,1fr)!important}
+html.tiktok-only .test-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+html.tiktok-only .tiktok-only-badge{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid rgba(37,244,238,.28);border-radius:999px;background:rgba(37,244,238,.08);color:#dffffd;font-size:10px;font-weight:900;letter-spacing:.12em}
+
+html.tiktok-only [data-onboard="twitch"],
+html.tiktok-only [data-onboard="kick"],
+html.tiktok-only .alert-type[data-alert-event="sub"],
+html.tiktok-only .alert-type[data-alert-event="cheer"],
+html.tiktok-only .alert-type[data-alert-event="raid"]{display:none!important}
+html.tiktok-only .platforms{grid-template-columns:minmax(0,1fr)!important}
+
+/* Ocultación inmediata antes de que cargue el JS de cada módulo */
+html.tiktok-only .connection-box:has(#connectTwitch),
+html.tiktok-only .connection-box:has(#connectKick),
+html.tiktok-only .voice-box:has(#twitchVoiceEnabled),
+html.tiktok-only .voice-box:has(#kickVoiceEnabled),
+html.tiktok-only #twitchStatus,html.tiktok-only #kickStatus,
+html.tiktok-only #autoTwitch,html.tiktok-only #autoKick,
+html.tiktok-only .row:has(#twLink),html.tiktok-only .row:has(#kiLink),
+html.tiktok-only .setting:has(#sgTwitch),html.tiktok-only .setting:has(#sgKick),
+html.tiktok-only button[data-platform="Twitch"],html.tiktok-only button[data-platform="Kick"],
+html.tiktok-only article.tw,html.tiktok-only article.ki{display:none!important}
+html.tiktok-only .grena-network-grid{grid-template-columns:minmax(0,1fr)!important}

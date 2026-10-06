@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GREÑA LIVE PRO · Tap Tap Race</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Inter,"Segoe UI",Arial,sans-serif;color:#fff}
+:root{--red:#ff334f;--red2:#ff7a8d;--road:rgba(255,255,255,.12)}
+.stage{position:absolute;inset:0;overflow:hidden;padding:8px 18px 12px}
+.track{position:relative;width:100%;height:100%;min-height:118px;overflow:hidden}
+.track::before{content:"";position:absolute;left:24px;right:42px;top:62%;height:2px;background:repeating-linear-gradient(90deg,var(--road) 0 18px,transparent 18px 34px);opacity:.75}
+.finish{position:absolute;right:28px;top:18px;bottom:18px;width:12px;opacity:.42;background:repeating-conic-gradient(#fff 0 25%,transparent 0 50%) 0 0/6px 6px;filter:drop-shadow(0 0 8px rgba(255,255,255,.18))}
+.racer{position:absolute;left:0;top:50%;width:150px;height:62px;z-index:5;opacity:1;transition:transform .72s cubic-bezier(.2,.86,.18,1.04),opacity .28s ease,filter .28s ease;will-change:transform}
+.car{position:relative;width:150px;height:48px;margin-top:7px;filter:drop-shadow(0 9px 10px rgba(0,0,0,.34))}
+.body{position:absolute;left:18px;right:8px;top:8px;height:32px;border-radius:13px 18px 10px 10px;background:linear-gradient(180deg,rgba(28,31,42,.98),rgba(9,11,18,.98));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 14px rgba(255,51,79,.15)}
+.nose{position:absolute;right:-7px;top:13px;width:24px;height:23px;clip-path:polygon(0 0,100% 50%,0 100%);background:linear-gradient(135deg,var(--red2),var(--red));filter:drop-shadow(0 0 7px rgba(255,51,79,.3))}
+.wheel{position:absolute;bottom:-3px;width:17px;height:17px;border-radius:50%;background:#05070b;border:3px solid #2a2f3a;box-shadow:inset 0 0 0 2px #07090d}.w1{left:38px}.w2{right:24px}
+.avatar{position:absolute;left:2px;top:-1px;width:43px;height:43px;border-radius:50%;padding:2px;background:linear-gradient(135deg,var(--red2),var(--red));box-shadow:0 0 14px rgba(255,51,79,.28);z-index:3;overflow:hidden}.avatar img,.avatar .fallback{width:100%;height:100%;border-radius:50%;object-fit:cover;background:#0b0e15;display:grid;place-items:center;font-weight:1000;font-size:17px}
+.copy{position:absolute;left:49px;right:18px;top:10px;z-index:4;min-width:0}.name{font-size:11px;font-weight:1000;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 10px rgba(255,51,79,.18)}.likes{margin-top:3px;font-size:10px;font-weight:900;color:#ff9cab;white-space:nowrap}
+.place{position:absolute;right:5px;top:-8px;min-width:24px;height:19px;padding:0 6px;border-radius:999px;display:grid;place-items:center;background:rgba(8,10,16,.94);border:1px solid rgba(255,255,255,.13);font-size:9px;font-weight:1000;color:#fff;z-index:5}
+.racer.first .body{border-color:rgba(255,76,101,.45);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),0 0 18px rgba(255,51,79,.24)}
+.racer.boost{z-index:30;filter:brightness(1.3)}.racer.boost .car{animation:boost .72s ease}.racer.boost::after{content:"";position:absolute;right:138px;top:29px;width:74px;height:3px;border-radius:99px;background:linear-gradient(90deg,transparent,rgba(255,90,115,.95));box-shadow:0 -8px 0 -1px rgba(255,90,115,.42),0 8px 0 -1px rgba(255,90,115,.30);animation:trail .72s ease both}
+@keyframes boost{0%{transform:scale(1)}32%{transform:scale(1.08) translateX(12px)}100%{transform:scale(1)}}@keyframes trail{0%{opacity:0;transform:scaleX(.2)}35%{opacity:1;transform:scaleX(1)}100%{opacity:0;transform:translateX(-18px) scaleX(.55)}}
+.empty{position:absolute;left:18px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:900;color:rgba(255,255,255,.58);letter-spacing:.04em}
+@media(max-width:760px){.stage{padding:6px 10px}.racer{width:128px}.car{width:128px}.copy{right:14px}.name{font-size:10px}.likes{font-size:9px}.avatar{width:39px;height:39px}.finish{right:15px}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div id="track" class="track">
+    <div class="finish" aria-hidden="true"></div>
+    <div id="empty" class="empty">❤️ Esperando Tap Taps de TikTok…</div>
+  </div>
+</div>
+<script>
+const track=document.getElementById('track'),empty=document.getElementById('empty');
+const cars=new Map();let oldRanks=new Map(),socket,retry;
+function initials(n='U'){const s=String(n??'').trim();if(!s)return 'U';let g='';try{if(typeof Intl!=='undefined'&&Intl.Segmenter){const it=new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(s)[Symbol.iterator]().next();if(!it.done)g=it.value.segment}}catch{}if(!g)g=Array.from(s)[0]||'U';return g.toUpperCase().replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')}
+function carFor(r){
+  let el=cars.get(r.userId);if(el)return el;
+  el=document.createElement('div');el.className='racer';el.dataset.id=r.userId;
+  el.innerHTML='<div class="car"><div class="body"></div><div class="nose"></div><div class="wheel w1"></div><div class="wheel w2"></div><div class="avatar"></div><div class="copy"><div class="name"></div><div class="likes"></div></div><div class="place"></div></div>';
+  track.append(el);cars.set(r.userId,el);return el;
+}
+function setAvatar(el,r){
+  const box=el.querySelector('.avatar'),src=String(r.avatar||'');
+  if(box.dataset.src===src&&box.childNodes.length)return;
+  box.dataset.src=src;box.innerHTML='';
+  if(src){const img=document.createElement('img');img.src=src;img.alt='';img.onerror=()=>{box.innerHTML='<div class="fallback">'+initials(r.name)+'</div>'};box.append(img)}
+  else box.innerHTML='<div class="fallback">'+initials(r.name)+'</div>';
+}
+function rankX(index){
+  const usable=Math.max(260,track.clientWidth-205);
+  const slots=[.84,.64,.45,.27,.09];
+  return 18+Math.round(usable*slots[Math.max(0,Math.min(4,index))]);
+}
+function rankY(index){
+  const offsets=[-17,11,-7,18,2];
+  return offsets[index]||0;
+}
+function render(data={}){
+  const list=Array.isArray(data.leaderboard)?data.leaderboard.slice(0,5):[];
+  empty.style.display=list.length?'none':'block';
+  const active=new Set(),newRanks=new Map();
+  list.forEach((r,i)=>{
+    const id=String(r.userId||r.name||i);r.userId=id;active.add(id);newRanks.set(id,i+1);
+    const el=carFor(r);setAvatar(el,r);
+    el.querySelector('.name').textContent=String(r.name||id);
+    el.querySelector('.likes').textContent='❤️ '+Number(r.likes||0).toLocaleString('es-DO');
+    el.querySelector('.place').textContent='#'+(i+1);
+    const old=oldRanks.get(id);el.classList.toggle('first',i===0);
+    if(old&&i+1<old){el.classList.remove('boost');void el.offsetWidth;el.classList.add('boost');setTimeout(()=>el.classList.remove('boost'),760)}
+    el.style.opacity='1';el.style.transform=`translate(${rankX(i)}px,calc(-50% + ${rankY(i)}px))`;
+  });
+  for(const [id,el] of cars){if(!active.has(id)){el.style.opacity='0';setTimeout(()=>{if(!newRanks.has(id)){el.remove();cars.delete(id)}},300)}}
+  oldRanks=newRanks;
+}
+async function initial(){try{const r=await fetch('/api/taptap/state',{cache:'no-store'});if(r.ok)render(await r.json())}catch{}}
+function connect(){clearTimeout(retry);const proto=location.protocol==='https:'?'wss':'ws';socket=new WebSocket(`${proto}://${location.host}`);socket.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='taptap')render(d);else if(d.type==='hello'&&d.taptap)render(d.taptap)}catch{}};socket.onclose=()=>retry=setTimeout(connect,1200);socket.onerror=()=>{try{socket.close()}catch{}}}
+window.addEventListener('resize',initial);initial();connect();
+</script>
+</body>
+</html>

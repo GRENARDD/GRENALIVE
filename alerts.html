@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+
+<html class="tiktok-only" lang="es">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>GREÑA LIVE PRO · Alertas</title><link href="styles.css" rel="stylesheet"/><link href="/premium.css" rel="stylesheet"/><link href="/ui-refresh.css" rel="stylesheet"/>
+<style>html.grena-embedded .home-link{display:none!important}</style><link rel="stylesheet" href="/ui-v2.css">
+<link rel="stylesheet" href="/tiktok-only.css">
+</head>
+<body class="grena-alerts">
+<div class="app-shell">
+<aside class="sidebar">
+<div class="brand"><div class="brand-mark">G</div><div><b>GREÑA LIVE PRO</b><small>ALERTAS + OBS</small></div></div>
+<a class="home-link" href="/">⌂ <span>Creator Control</span></a>
+<nav>
+<button class="nav active" data-page="dashboard">▦ <span>Resumen</span></button>
+<button class="nav" data-page="editor">✦ <span>Editor de alertas</span></button>
+
+<button class="nav" data-page="obs">▣ <span>Conectar OBS</span></button>
+</nav>
+<div class="side-bottom"><div class="live-dot"></div><span id="serverStatus">Comprobando servidor…</span></div>
+</aside>
+<main class="main">
+<header class="topbar"><div><div class="eyebrow">CENTRO DE CONTROL</div><h1 id="pageTitle">Resumen</h1></div><div class="top-actions"><span class="local-pill">● GREÑA WEB</span><button class="btn btn-primary" id="quickTest">▶ Probar alerta</button></div></header>
+<section class="page active" id="dashboard">
+<div class="welcome"><div><div class="eyebrow">TU STREAM, TU ESTILO</div><h2>Todo tu show.<br/><span>Una sola experiencia.</span></h2><p>Administra todas tus alertas de TikTok LIVE desde un solo panel.</p></div><div class="orb">✦</div></div>
+<div class="stats">
+<article class="stat"><span>PLATAFORMA</span><strong>01</strong><small>TikTok LIVE</small></article>
+<article class="stat"><span>ALERTAS EN COLA</span><strong id="queueCount">0</strong><small>Eventos esperando</small></article>
+<article class="stat"><span>CONEXIÓN WEB</span><strong class="green">Activa</strong><small>Panel ↔ OBS por HTTPS</small></article>
+</div>
+<div class="section-heading"><div><h3>Prueba tus alertas</h3><p>Dispara un evento de demostración para revisar cómo se verá en OBS.</p></div></div>
+<div class="test-grid">
+<button class="event-card tiktok" data-event="follow" data-platform="TikTok"><span class="platform-icon"><img alt="TikTok" src="/assets/platforms/tiktok.webp"/></span><b>Nuevo seguidor</b><small>TikTok</small><span class="card-arrow">↗</span></button>
+<button class="event-card purple" data-event="sub" data-platform="Twitch"><span class="platform-icon"><img alt="Twitch" src="/assets/platforms/twitch.webp"/></span><b>Nueva suscripción</b><small>Twitch</small><span class="card-arrow">↗</span></button>
+<button class="event-card red" data-event="gift" data-platform="TikTok"><span class="platform-icon">♡</span><b>Regalo recibido</b><small>TikTok</small><span class="card-arrow">↗</span></button> <button class="event-card" data-event="follow" data-platform="Kick"><span class="platform-icon kick-icon"><img alt="Kick" src="/assets/platforms/kick.svg"/></span><b>Nuevo seguidor</b><small>Kick</small><span class="card-arrow">↗</span></button>
+<button class="event-card" data-event="sub" data-platform="Kick"><span class="platform-icon kick-icon"><img alt="Kick" src="/assets/platforms/kick.svg"/></span><b>Nueva suscripción</b><small>Kick</small><span class="card-arrow">↗</span></button>
+<button class="event-card" data-event="gift" data-platform="Kick"><span class="platform-icon kick-icon"><img alt="Kick" src="/assets/platforms/kick.svg"/></span><b>Regalo / apoyo</b><small>Kick · muestra nombre, cantidad e icono cuando el evento lo proporciona</small><span class="card-arrow">↗</span></button>
+</div>
+<div class="bottom-grid">
+<div class="panel"><div class="panel-title"><h3>Estado de plataformas</h3><span class="tag">CONFIGURACIÓN</span></div><div class="platform-row"><span class="platform-icon tiktok-icon"><img alt="TikTok" src="/assets/platforms/tiktok.webp"/></span><div><b>TikTok LIVE</b><small>Cuenta conectada + motor LIVE</small></div><span class="status pending" id="tiktokStatus">No conectado</span></div><div class="platform-row"><span class="platform-icon twitch-icon"><img alt="Twitch" src="/assets/platforms/twitch.webp"/></span><div><b>Twitch</b><small>Requiere autorización EventSub</small></div><span class="status pending" id="twitchStatus">No conectado</span></div><div class="platform-row"><span class="platform-icon kick-icon"><img alt="Kick" src="/assets/platforms/kick.svg"/></span><div><b>Kick</b><small>Cuenta conectada + eventos compatibles</small></div><span class="status pending" id="kickStatus">No conectado</span></div></div>
+<div class="panel obs-panel"><div class="panel-title"><h3>Superposición OBS</h3><span class="status ready">Lista web</span></div><p>Agrega esta dirección como fuente de navegador en OBS.</p><div class="url-field"><code id="overlayUrl">/overlay.html</code><button class="btn btn-small" id="copyOverlay">Copiar</button></div><a class="text-link" href="overlay.html" target="_blank">Abrir vista previa ↗</a></div>
+</div>
+</section>
+<section class="page" id="editor">
+<div class="studio-head">
+<div><div class="eyebrow">GREÑA ALERT STUDIO</div><h2>Alertas simples, claras y profesionales.</h2><p>Foto de perfil real + nombre + acción + plataforma. Personaliza colores, mensaje, sonido y duración.</p></div>
+<div class="studio-head-actions"><button class="btn" id="previewDesign">▶ Vista previa</button><button class="btn btn-primary" id="saveDesign">Guardar diseño</button></div>
+</div>
+<section class="alert-style-picker panel">
+<div class="alert-style-head"><div><div class="eyebrow">ESTILO DEL OVERLAY</div><h3>Elige cómo se verán todas las alertas en directo</h3><p>Puedes conservar las alertas actuales o activar Neón Pulse. El mismo enlace de OBS funciona para ambas.</p></div><span class="alert-style-status" id="alertStyleStatus">Cargando…</span></div>
+<div class="alert-style-grid">
+<button class="alert-style-card active" data-alert-style="classic" type="button">
+<span class="style-mini classic-mini"><i class="mini-avatar">G</i><span><b>USUARIO</b><small>NUEVO SEGUIDOR</small></span><em>✦</em></span>
+<strong>Clásica · Actual</strong><small>La alerta que GREÑA ya usa ahora. No cambia nada de tu diseño actual.</small><span class="style-check">✓ Seleccionada</span>
+</button>
+<button class="alert-style-card" data-alert-style="option-a" type="button">
+<span class="style-mini option-a-mini"><i class="mini-orb">🌹</i><span><b>¡NUEVO REGALO!</b><small>Franklin · Rosa ×5</small></span><em>×5</em></span>
+<strong>Neón Pulse · Dinámica</strong><small>Panel neón, regalo protagonista, anillos, partículas y colores por plataforma.</small><span class="style-check">Elegir</span>
+</button>
+</div>
+<div class="alert-style-actions"><button class="btn" id="testClassicStyle" type="button">▶ Probar Clásica</button><button class="btn btn-primary" id="testOptionAStyle" type="button">▶ Probar Neón Pulse</button></div>
+</section>
+<div class="alert-workspace">
+<aside class="event-rail panel">
+<div class="rail-title">TIPO DE ALERTA</div>
+<button class="alert-type active" data-alert-event="follow"><span>♥</span><div><b>Seguidores</b><small>TikTok</small></div></button>
+<button class="alert-type" data-alert-event="sub"><span>♛</span><div><b>Suscripciones / apoyo</b><small>TikTok</small></div></button>
+<button class="alert-type" data-alert-event="gift"><span>🎁</span><div><b>Regalos</b><small>TikTok</small></div></button>
+<button class="alert-type" data-alert-event="cheer"><span>◆</span><div><b>Bits / apoyo</b><small>Twitch + equivalentes compatibles</small></div></button>
+<button class="alert-type" data-alert-event="share"><span>↗</span><div><b>Compartidos</b><small>Cualquier plataforma que reporte el evento</small></div></button>
+<button class="alert-type" data-alert-event="like"><span>♥</span><div><b>100 Tap Tap</b><small>TikTok · cada 100 likes</small></div></button>
+<button class="alert-type" data-alert-event="raid"><span>⚡</span><div><b>Raid / apoyo</b><small>Twitch + equivalentes compatibles</small></div></button>
+<div class="rail-note"><b>DISEÑO INDEPENDIENTE</b><br/>Cada evento guarda su propio diseño. En directo, el nombre real sustituye al usuario de prueba.</div><div class="queue-badge">☰ COLA AUTOMÁTICA<br/><small>1 alerta visible a la vez</small></div>
+</aside>
+<main class="canvas-column panel">
+<div class="canvas-top"><div><span class="mini-label">EDITANDO</span><h3 id="editingEventLabel">Nuevo seguidor</h3></div><div class="canvas-actions"><button class="icon-btn" id="openAI">✧ IA</button><button class="btn btn-primary" id="sendToOverlay">Enviar a OBS ↗</button></div></div>
+<div class="preview-stage studio-stage" id="previewStage"><div class="alert-demo freeform" id="alertDemo"></div><div class="stage-caption">PREVISUALIZACIÓN · EN DIRECTO USARÁ LA FOTO REAL DEL USUARIO</div></div>
+<div class="simple-editor-note"><b>Formato fijo profesional</b><br/>La alerta siempre mostrará la foto de perfil de quien hizo la acción, su nombre, la acción realizada y TikTok. Tú personalizas el mensaje de agradecimiento, colores, sonido y duración.</div><div class="canvas-bottom"><label>Nombre de prueba<input id="editName" maxlength="50" value="GREÑA_FAN"/></label><label>Mensaje dinámico<input id="editMessage" maxlength="100" value="¡Gracias por el apoyo!"/></label></div><div class="live-behavior"><span>●</span><b>COMPORTAMIENTO EN DIRECTO</b><small>Si llegan varias alertas juntas, GREÑA las guarda y reproduce una por una. Nunca se apilan.</small></div>
+</main>
+</div>
+<section class="template-library panel">
+<div class="library-head"><div><div class="eyebrow">DISEÑOS PREDETERMINADOS</div><h3>Elige una base y hazla tuya</h3><p>Doce composiciones originales listas para OBS: entradas, brillo, luces, marcos y estilos realmente distintos. El overlay permanece transparente.</p></div><span class="tag">12 DISEÑOS PRO</span></div>
+<div class="template-grid">
+<button class="template-card active" data-preset="neon"><span class="template-visual tv-neon"><i>✦</i><b>NEON FRAME</b></span><strong>Neon Frame</strong><small>Luz viajera · cyan/magenta</small></button>
+<button class="template-card" data-preset="royal"><span class="template-visual tv-royal"><i>♛</i><b>ROYAL</b></span><strong>Royal Gold</strong><small>Lujo · destello dorado</small></button>
+<button class="template-card" data-preset="clean"><span class="template-visual tv-clean"><i>＋</i><b>CLEAN</b></span><strong>Clean Motion</strong><small>Barra fina · entrada lateral</small></button>
+<button class="template-card" data-preset="glitch"><span class="template-visual tv-glitch"><i>⚡</i><b>GLITCH</b></span><strong>Cyber Glitch</strong><small>Scanlines · corte digital</small></button>
+<button class="template-card" data-preset="fiesta"><span class="template-visual tv-fiesta"><i>★</i><b>PARTY</b></span><strong>Party Burst</strong><small>Confeti · rebote · brillo</small></button>
+<button class="template-card" data-preset="shadow"><span class="template-visual tv-shadow"><i>◈</i><b>STEALTH</b></span><strong>Stealth Glass</strong><small>Vidrio oscuro · elegante</small></button>
+<button class="template-card" data-preset="arcade"><span class="template-visual tv-arcade"><i>◆</i><b>ARCADE</b></span><strong>Arcade XP</strong><small>Gaming retro · doble marco</small></button>
+<button class="template-card" data-preset="holo"><span class="template-visual tv-holo"><i>✧</i><b>HOLO</b></span><strong>Holo Scan</strong><small>Holograma · barrido de luz</small></button>
+<button class="template-card" data-preset="fire"><span class="template-visual tv-fire"><i>🔥</i><b>IMPACT</b></span><strong>Fire Impact</strong><small>Golpe · energía caliente</small></button>
+<button class="template-card" data-preset="prism"><span class="template-visual tv-prism"><i>◇</i><b>PRISM</b></span><strong>Prism RGB</strong><small>Arcoíris · borde vivo</small></button>
+<button class="template-card" data-preset="streamer"><span class="template-visual tv-streamer"><i>♥</i><b>STREAM</b></span><strong>Streamer Pop</strong><small>Social · alegre · moderno</small></button>
+<button class="template-card" data-preset="vertical"><span class="template-visual tv-vertical"><i>↟</i><b>LIVE</b></span><strong>Vertical Live</strong><small>Compacto · TikTok/vertical</small></button>
+</div>
+</section>
+<div class="customizer-grid">
+<section class="panel compact-controls">
+<div class="panel-title"><div><h3>Personalizar diseño</h3><p>Lo importante, sin menús innecesarios.</p></div><span class="pro-badge">LIVE</span></div>
+<input id="eventType" type="hidden" value="follow"/>
+<div class="control-tabs"><button class="control-tab active" data-control-tab="style">Diseño</button><button class="control-tab" data-control-tab="media">Multimedia</button><button class="control-tab" data-control-tab="layers">Capas</button><button class="control-tab" data-control-tab="advanced">Avanzado</button></div>
+<div class="control-pane active" data-control-pane="style"><label>Look<select id="theme"><option>Gaming neón</option><option>Premium dorado</option><option>Minimalista</option><option>Cyber glitch</option><option>Caricatura divertida</option><option>Oscuro elegante</option><option>Retro arcade</option><option>Holográfico</option><option>Impacto fuego</option><option>Anime</option><option>Terror / supervivencia</option></select></label><div class="two-fields"><label>Color principal<input id="accent" type="color" value="#a855f7"/></label><label>Color secundario<input id="accent2" type="color" value="#22d3ee"/></label></div><label>Entrada<select id="animation"><option value="pop">Pop dinámico</option><option value="bounce">Rebote</option><option value="slide">Deslizar</option><option value="zoom">Zoom</option><option value="float">Flotar</option></select></label><label>Duración <output id="durationValue">6 s</output><input id="duration" max="15" min="2" type="range" value="6"/></label><label>Tamaño del nombre <output id="sizeValue">30 px</output><input id="nameSize" max="54" min="18" type="range" value="30"/></label></div>
+<div class="control-pane" data-control-pane="media"><label class="drop-zone">🖼️ Subir personaje / imagen<input accept="image/*" id="character" type="file"/></label><div class="sound-editor"><div class="sound-editor-head"><div><b>🔊 Sonido de esta alerta</b><small class="sound-status" id="soundName">Predeterminado · Seguidor</small></div><span class="tag">POR EVENTO</span></div><label class="drop-zone sound-drop">Cambiar sonido<input accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac" id="soundFile" type="file"/></label><div class="sound-tools"><button class="btn" id="testSound" type="button">▶ Probar sonido</button><button class="btn" id="resetSound" type="button">↺ Restaurar predeterminado</button></div><small class="sound-help">Los sonidos están agrupados por tipo para TikTok: Follow, Tap Tap, Compartir y Regalos pueden conservar su propio audio personalizado. Si subes otro audio, ese evento conservará tu sonido personalizado.</small></div><label class="check"><input checked="" id="soundEnabled" type="checkbox"/> Reproducir sonido en OBS</label><button class="btn ai-jump" id="openAI2">✧ Diseñar con IA</button></div>
+<div class="control-pane" data-control-pane="advanced"><div class="advanced-grid"><label>Animación de salida<select id="exitAnimation"><option value="fade">Desvanecer</option><option value="slide">Deslizar</option><option value="zoom">Zoom</option></select></label><label>Prioridad<select id="alertPriority"><option value="normal">Normal</option><option value="high">Alta</option></select></label><label class="check"><input checked="" disabled="" id="queueEnabled" type="checkbox"/> Cola automática activada</label><div class="advanced-note">La cola evita superposiciones. Regalos, follows, Bits, subs y raids esperan su turno y usan exactamente la misma zona del overlay.</div></div></div><div class="control-pane" data-control-pane="layers"><div class="layer-toolbar"><button class="btn" id="addTextLayer">＋ Texto</button><button class="btn" id="addShapeLayer">＋ Forma</button><button class="btn" id="addImageLayer">＋ Imagen</button></div><input accept="image/*" hidden="" id="extraImage" type="file"/><div class="layer-list" id="layerList"></div><div class="layer-props" id="layerProps"><label>X<input id="layerX" max="100" min="0" type="range" value="50"/></label><label>Y<input id="layerY" max="100" min="0" type="range" value="50"/></label><label>Ancho<input id="layerW" max="100" min="5" type="range" value="40"/></label><label>Tamaño<input id="layerFont" max="90" min="12" type="range" value="32"/></label><label>Opacidad<input id="layerOpacity" max="100" min="10" type="range" value="100"/></label><label>Animación<select id="layerAnim"><option value="pop">Pop</option><option value="bounce">Rebote</option><option value="slide">Lateral</option><option value="zoom">Zoom</option><option value="float">Flotar</option></select></label></div><button class="btn danger-soft" id="deleteLayer">Eliminar capa</button></div>
+</section>
+<section class="panel quick-help"><div class="eyebrow">FLUJO RÁPIDO</div><h3>Evento → diseño → personaliza → prueba</h3><p>El nombre que ves en el editor es solo una prueba. En directo, GREÑA reemplaza ese nombre con el usuario real recibido desde TikTok.</p><div class="quick-actions"><button class="btn" id="quickPreviewBottom">▶ Probar ahora</button><button class="btn btn-primary" id="quickSaveBottom">Guardar</button></div></section>
+</div>
+</section>
+
+<section class="page" id="obs">
+<div class="obs-guide"><div><div class="eyebrow">OBS STUDIO · BROWSER SOURCE</div><h2>Tu alerta, directo en pantalla.</h2><p>Usa una fuente de navegador para mostrar la superposición de GREÑA LIVE.</p></div><div class="obs-icon">▣</div></div>
+<div class="panel"><h3>1. Copia la URL de la superposición</h3><p>Esta dirección pública funciona desde cualquier PC autorizado y puede usarse en OBS.</p><div class="url-field large"><code id="overlayUrl2">/overlay.html</code><button class="btn btn-primary" id="copyOverlay2">Copiar URL</button></div></div>
+<div class="panel"><h3>2. Añádela en OBS</h3><ol class="steps"><li>Abre OBS Studio y selecciona la escena donde quieres las alertas.</li><li>En Fuentes, pulsa <b>+</b> y elige <b>Navegador</b>.</li><li>Ponle un nombre, por ejemplo <b>GREÑA LIVE · Alertas</b>.</li><li>Pega la URL copiada en el campo URL.</li><li>Configura el ancho y alto de acuerdo con tu lienzo. Para un lienzo vertical, puedes comenzar con 1080 × 1920; para horizontal, 1920 × 1080.</li><li>Pulsa Aceptar y usa “Probar alerta” desde el panel.</li></ol></div>
+<div class="panel"><h3>3. Comprueba la conexión</h3><div class="connection-check"><span class="live-dot"></span><div><b id="obsConnection">Comprobando enlace local…</b><small>Panel y superposición se comunican mediante WebSocket.</small></div></div><button class="btn btn-primary" id="obsTest">▶ Enviar alerta de prueba</button></div>
+<div class="notice"><b>GREÑA Web:</b> la dirección usa HTTPS público. No necesitas ejecutar Node en la PC donde está OBS.</div>
+</section>
+<footer>GREÑA LIVE <span>· TikTok · overlay web para OBS</span></footer>
+</main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(()=>{const u=location.origin+'/overlay.html';for(const id of ['overlayUrl','overlayUrl2']){const el=document.getElementById(id);if(el)el.textContent=u}})();
+</script>
+<script src="app.js"></script>
+<script>
+(() => {
+  const embedded = new URLSearchParams(location.search).get('embed') === '1' && window.parent !== window;
+  if (!embedded) return;
+  document.documentElement.classList.add('grena-embedded');
+  document.querySelectorAll('a[href="/"], a[href="/index.html"]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      window.parent.postMessage({type:'grena-module-close'}, location.origin);
+    });
+  });
+})();
+</script>
+<script src="/ui-v2.js"></script>
+<script src="/tiktok-only.js"></script>
+</body></html>

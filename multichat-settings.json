@@ -1,0 +1,20 @@
+{
+  "direction": "left",
+  "fontSize": 12,
+  "nameSize": 11,
+  "bubbleWidth": 40,
+  "bubbleScale": 92,
+  "padY": 7,
+  "padX": 10,
+  "avatarSize": 28,
+  "gap": 14,
+  "radius": 14,
+  "opacity": 88,
+  "maxMessages": 5,
+  "duration": 12,
+  "showAvatar": true,
+  "showPlatform": true,
+  "theme": "minimal",
+  "showHandle": false,
+  "fadeAfter": 5
+}

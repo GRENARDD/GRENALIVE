@@ -1,0 +1,150 @@
+<!doctype html>
+<html class="tiktok-only" lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080a10">
+<title>GREÑA LIVE PRO · Centro de Control</title>
+<link rel="stylesheet" href="/control-center.css">
+<link rel="stylesheet" href="/ui-refresh.css">
+<link rel="stylesheet" href="/ui-v2.css">
+<link rel="stylesheet" href="/tiktok-only.css">
+</head>
+<body class="grena-control">
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand-block">
+      <div class="brand-mark">G</div>
+      <div><strong>GREÑA LIVE PRO</strong><span>TIKTOK ONLY · CREATOR CONTROL</span></div>
+    </div>
+    <div class="top-status">
+      <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
+      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b id="profileName">GREÑA ID</b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div><button id="exitAppBtn" class="app-exit-btn" type="button">Salir de GREÑA</button>
+      <a class="top-link preview-link" href="/preview.html" target="_blank" rel="noopener">Preview LIVE</a>
+      <a class="top-link" href="/radar.html" data-module="radar">GREÑA Radar</a>
+      <a class="top-link" href="/alerts.html" data-module="alerts">Editor de alertas</a>
+      <a class="top-link" href="/widgets.html" data-module="widgets">Widgets OBS</a>
+      <a class="top-link" href="/cam-room.html" data-module="cam">Cam Room</a>
+      <a class="top-link" href="/gift-catalog.html" data-module="catalog">Catálogo</a>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="chat-zone panel-shell">
+      <div class="panel-head compact-head">
+        <div>
+          <div class="eyebrow">OPERACIÓN PRINCIPAL</div>
+          <h1>Chat + voz</h1>
+        </div>
+        <div class="engine-state"><span id="chatEngineDot"></span><b id="chatEngineText">Conectando motor de chat…</b></div>
+      </div>
+      <div class="chat-frame-wrap">
+        <iframe id="chatFrame" title="GREÑA Chat" src="about:blank" allow="autoplay"></iframe>
+      </div>
+    </section>
+
+    <aside class="ops-zone">
+      <section class="panel-shell overview-panel">
+        <div class="panel-head">
+          <div><div class="eyebrow">ESTADO EN VIVO</div><h2>Directo</h2></div>
+          <div class="viewer-total" aria-label="Total de espectadores en vivo">
+            <span class="viewer-total-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5c5.4 0 9.4 4.6 10.5 6.1a1.5 1.5 0 0 1 0 1.8C21.4 14.4 17.4 19 12 19S2.6 14.4 1.5 12.9a1.5 1.5 0 0 1 0-1.8C2.6 9.6 6.6 5 12 5Zm0 2C8 7 4.7 10.3 3.5 12c1.2 1.7 4.5 5 8.5 5s7.3-3.3 8.5-5C19.3 10.3 16 7 12 7Zm0 2.2A2.8 2.8 0 1 1 12 14.8 2.8 2.8 0 0 1 12 9.2Z"/></svg>
+            </span>
+            <div class="viewer-total-copy"><small>TOTAL EN VIVO</small><b id="totalViewers">0</b></div>
+            <svg class="viewer-sparkline" id="viewerSparkline" viewBox="0 0 72 28" preserveAspectRatio="none" aria-hidden="true">
+              <path class="viewer-sparkline-grid" d="M0 22H72M0 14H72M0 6H72"></path>
+              <polyline id="viewerSparklineLine" points="0,22 8,22 16,22 24,22 32,22 40,22 48,22 56,22 64,22 72,22"></polyline>
+              <circle id="viewerSparklineDot" cx="72" cy="22" r="2.2"></circle>
+            </svg>
+          </div>
+        </div>
+        <div class="viewer-grid">
+          <div class="viewer-card tiktok"><img class="platform-glyph" src="/assets/platforms/tiktok.webp" alt="TikTok"><div><small>TikTok</small><b id="tiktokViewers">0</b></div></div>
+          <div class="viewer-card twitch"><img class="platform-glyph" src="/assets/platforms/twitch.webp" alt="Twitch"><div><small>Twitch</small><b id="twitchViewers">0</b></div></div>
+          <div class="viewer-card kick"><img class="platform-glyph" src="/assets/platforms/kick.svg" alt="Kick"><div><small>Kick</small><b id="kickViewers">0</b></div></div>
+        </div>
+        <div class="platform-stack">
+          <article class="platform-row" data-platform="tiktok">
+            <div class="platform-id"><span class="platform-logo tt"><img src="/assets/platforms/tiktok.webp" alt="TikTok"></span><div><b>TikTok</b><small id="tiktokAccount">Cuenta no vinculada</small></div></div>
+            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="tiktokAuth">Cuenta</span><span class="state-chip" id="tiktokLive">LIVE</span><span class="state-chip" id="tiktokEvents">Eventos</span></div><button id="loginTikTok" class="platform-action">Conectar</button></div>
+          </article>
+          <article class="platform-row" data-platform="twitch">
+            <div class="platform-id"><span class="platform-logo tw"><img src="/assets/platforms/twitch.webp" alt="Twitch"></span><div><b>Twitch</b><small id="twitchAccount">Cuenta no vinculada</small></div></div>
+            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="twitchAuth">Cuenta</span><span class="state-chip" id="twitchLive">Chat</span><span class="state-chip" id="twitchEvents">Eventos</span></div><button id="loginTwitch" class="platform-action">Conectar</button></div>
+          </article>
+          <article class="platform-row" data-platform="kick">
+            <div class="platform-id"><span class="platform-logo"><img src="/assets/platforms/kick.svg" alt="Kick"></span><div><b>Kick</b><small id="kickAccount">Cuenta no vinculada</small></div></div>
+            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="kickAuth">Cuenta</span><span class="state-chip" id="kickLive">Chat</span><span class="state-chip" id="kickEvents">Eventos</span></div><button id="loginKick" class="platform-action">Conectar</button></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel-shell activity-panel" id="activity">
+        <div class="panel-head">
+          <div><div class="eyebrow">ALERTAS REALES</div><h2>Qué pasó en el LIVE</h2></div>
+          <span class="session-badge"><b id="eventCount">0</b> eventos</span>
+        </div>
+        <div class="activity-feed" id="activityFeed">
+          <div class="empty-state"><span>⚡</span><b>Esperando actividad</b><small>Follows, regalos, compartidos y Tap Tap de TikTok aparecerán aquí con el detalle exacto.</small></div>
+        </div>
+      </section>
+
+      <section class="panel-shell quick-panel">
+        <div class="panel-head slim"><div><div class="eyebrow">PRUEBA RÁPIDA</div><h2>Alertas</h2></div><a href="/alerts.html" class="mini-link" data-module="alerts">Personalizar →</a></div>
+        <div class="test-grid">
+          <button data-test="tt-follow"><span>＋</span>Follow</button>
+          <button data-test="tt-gift"><span>🎁</span>Rosa ×5</button>
+          <button data-test="tt-share"><span>↗</span>Share</button>
+          
+        </div>
+        <div class="obs-row"><div><small>OVERLAY OBS</small><code id="overlayUrl">/overlay.html</code></div><button id="copyOverlay" class="copy-btn">Copiar</button></div>
+      </section>
+    </aside>
+  </main>
+</div>
+<div class="module-layer" id="moduleLayer" aria-hidden="true">
+  <div class="module-bar">
+    <div class="module-title"><span class="module-live-dot"></span><b id="moduleTitle">Módulo GREÑA</b><small>Chat, voz y conexiones siguen activos en segundo plano</small></div>
+    <div class="module-actions">
+      <button id="moduleRadarBtn" type="button" data-module-switch="radar">Radar</button>
+      <button id="moduleAlertsBtn" type="button" data-module-switch="alerts">Alertas</button>
+      <button id="moduleWidgetsBtn" type="button" data-module-switch="widgets">Widgets</button>
+      <button id="moduleCamBtn" type="button" data-module-switch="cam">Cam Room</button>
+      <button id="moduleCatalogBtn" type="button" data-module-switch="catalog">Catálogo</button>
+      <button id="closeModuleBtn" type="button" class="module-close">← Chat + Voz</button>
+    </div>
+  </div>
+  <iframe id="moduleFrame" title="Módulo GREÑA" src="about:blank" allow="autoplay; clipboard-write; camera; microphone"></iframe>
+</div>
+<div class="tiktok-link-backdrop" id="tiktokLinkModal" aria-hidden="true">
+  <section class="tiktok-link-card" role="dialog" aria-modal="true" aria-labelledby="tiktokLinkTitle">
+    <div class="tiktok-link-brand"><img src="/assets/platforms/tiktok.webp" alt=""><span>TIKTOK LIVE</span></div>
+    <h2 id="tiktokLinkTitle">Conectar por link del LIVE</h2>
+    <p>Pega el enlace del LIVE de TikTok. GREÑA usará ese mismo LIVE para chat, viewers, regalos, follows, compartidos, likes y alertas.</p>
+    <label for="tiktokLiveUrl">Link del LIVE</label>
+    <input id="tiktokLiveUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://www.tiktok.com/@grena_rd/live">
+    <small id="tiktokLinkHint">No necesitas iniciar sesión ni autorizar permisos de TikTok.</small>
+    <div class="tiktok-link-actions"><button type="button" id="tiktokLinkCancel" class="secondary">Cancelar</button><button type="button" id="tiktokLinkConnect" class="primary">Conectar LIVE</button></div>
+  </section>
+</div>
+<div class="onboarding-backdrop" id="onboarding" aria-hidden="true">
+  <section class="onboarding-card" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+    <div class="onboarding-badge">GREÑA LIVE PRO</div>
+    <h2 id="onboardingTitle">Conecta tus plataformas</h2>
+    <p>Autoriza tus cuentas una sola vez. GREÑA recordará cada creador y conectará chat, alertas, widgets y contadores automáticamente.</p>
+    <div class="onboarding-platforms">
+      <button type="button" data-onboard="tiktok"><img src="/assets/platforms/tiktok.webp" alt=""> <span><b>TikTok</b><small>Link del LIVE · sin login</small></span><i>Conectar</i></button>
+      <button type="button" data-onboard="twitch"><img src="/assets/platforms/twitch.webp" alt=""> <span><b>Twitch</b><small>Autorización segura</small></span><i>Conectar</i></button>
+      <button type="button" data-onboard="kick"><img src="/assets/platforms/kick.svg" alt=""> <span><b>Kick</b><small>OAuth + LIVE</small></span><i>Conectar</i></button>
+    </div>
+    <button type="button" class="onboarding-later" id="onboardingLater">Continuar por ahora</button>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/control-center.js"></script>
+<script src="/ui-v2.js"></script>
+<script src="/app-lifecycle.js"></script>
+<script src="/tiktok-only.js"></script>
+<script id="GRENA_WEB_OVERLAY_URL">(()=>{const e=document.getElementById('overlayUrl');if(e)e.textContent=location.origin+'/overlay.html'})();</script></body>
+</html>

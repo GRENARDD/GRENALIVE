@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07090e">
+<title>GREÑA ID · Acceso</title>
+<style>
+*{box-sizing:border-box}html,body{min-height:100%}body{margin:0;background:#07090e;color:#f5f7fb;font-family:Inter,Segoe UI,Arial,sans-serif;display:grid;place-items:center;padding:24px;overflow:auto}body:before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 15% 0%,rgba(46,212,218,.12),transparent 30%),radial-gradient(circle at 88% 8%,rgba(157,92,255,.18),transparent 34%),linear-gradient(180deg,#090b13,#07090e 68%);z-index:-2}body:after{content:"";position:fixed;inset:0;pointer-events:none;opacity:.18;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:34px 34px;z-index:-1}.shell{width:min(980px,100%);display:grid;grid-template-columns:1.05fr .95fr;border:1px solid rgba(255,255,255,.085);border-radius:28px;overflow:hidden;background:rgba(12,15,24,.95);box-shadow:0 40px 120px rgba(0,0,0,.42)}.hero{padding:52px;min-height:650px;background:linear-gradient(145deg,rgba(126,76,238,.22),rgba(10,14,22,.3) 48%,rgba(35,201,210,.09));display:flex;flex-direction:column}.brand{display:flex;align-items:center;gap:12px}.mark{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#9d5cff,#6654e8 56%,#2ed4da);font-weight:900;box-shadow:0 15px 38px rgba(132,82,235,.28)}.brand b{font-size:18px;letter-spacing:.09em}.brand small{display:block;color:#8991a3;font-size:9px;letter-spacing:.18em;margin-top:3px;font-weight:800}.hero-copy{margin:auto 0}.eyebrow{font-size:9px;letter-spacing:.18em;color:#8d7ad7;font-weight:900}.hero h1{font-size:46px;line-height:1.02;letter-spacing:-.045em;margin:13px 0 18px;max-width:520px}.hero p{color:#9da5b8;line-height:1.65;font-size:14px;max-width:500px}.features{display:grid;gap:10px;margin-top:26px}.feature{display:flex;gap:11px;align-items:center;color:#b9c0d0;font-size:12px}.feature i{width:25px;height:25px;border-radius:8px;background:rgba(255,255,255,.055);display:grid;place-items:center;font-style:normal;color:#76e5c2}.migration{margin-top:auto;border:1px solid rgba(118,229,194,.13);background:rgba(61,189,151,.055);border-radius:13px;padding:12px 14px;color:#83a798;font-size:10px;line-height:1.5}.auth{padding:44px 40px;display:flex;flex-direction:column;justify-content:center}.auth h2{font-size:24px;margin:0 0 7px;letter-spacing:-.03em}.auth>p{margin:0 0 22px;color:#7f879a;font-size:12px}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;background:#090c12;padding:4px;border-radius:12px;margin-bottom:20px}.tabs button{height:38px;border:0;border-radius:9px;background:transparent;color:#70798b;font-weight:800;font-size:11px;cursor:pointer}.tabs button.on{background:#171b27;color:#fff;box-shadow:0 5px 15px rgba(0,0,0,.2)}.panel{display:none}.panel.on{display:block}.field{margin-bottom:12px}.field label{display:block;color:#7c8598;font-weight:800;font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin:0 0 6px 2px}.field input{width:100%;height:45px;border:1px solid rgba(255,255,255,.075);border-radius:11px;background:#090c12;color:#f6f7fb;padding:0 13px;outline:0;font-size:13px}.field input:focus{border-color:rgba(137,91,241,.55);box-shadow:0 0 0 3px rgba(137,91,241,.08)}.primary,.secondary{width:100%;height:46px;border:0;border-radius:11px;font-weight:900;font-size:11px;letter-spacing:.04em;cursor:pointer}.primary{margin-top:5px;background:linear-gradient(135deg,#9158ef,#6553e4 60%,#2dcbd2);color:white;box-shadow:0 14px 32px rgba(111,80,225,.25)}.secondary{background:#151a25;color:#d9deeb;border:1px solid rgba(255,255,255,.08);margin-top:10px}.primary:disabled,.secondary:disabled{opacity:.6;cursor:wait}.link{display:block;margin:14px auto 0;background:none;border:0;color:#9b8aff;text-decoration:none;font-weight:800;font-size:10px;cursor:pointer}.hint{margin-top:13px;color:#60697b;font-size:9px;line-height:1.5;text-align:center}.msg{min-height:34px;margin-top:14px;border-radius:9px;padding:9px 10px;display:none;font-size:10px;line-height:1.45}.msg.show{display:block}.msg.error{background:rgba(255,68,103,.08);border:1px solid rgba(255,68,103,.17);color:#ff9ab0}.msg.ok{background:rgba(70,218,156,.08);border:1px solid rgba(70,218,156,.17);color:#8fe7bd}.recovery-note{padding:11px 12px;border-radius:10px;background:rgba(80,113,255,.07);border:1px solid rgba(115,136,255,.14);color:#9da8ca;font-size:10px;line-height:1.5;margin-bottom:14px}.code{letter-spacing:.22em;text-align:center;font-size:18px!important;font-weight:800}@media(max-width:780px){.shell{grid-template-columns:1fr}.hero{min-height:auto;padding:30px}.hero-copy{margin:40px 0}.hero h1{font-size:36px}.migration{margin-top:20px}.auth{padding:32px 26px}}
+</style>
+<link rel="stylesheet" href="/ui-refresh.css">
+<link rel="stylesheet" href="/ui-v2.css">
+</head>
+<body class="grena-login">
+<div class="shell">
+ <section class="hero">
+  <div class="brand"><div class="mark">G</div><div><b>GREÑA</b><small>GREÑA LIVE PRO · 4.0</small></div></div>
+  <div class="hero-copy"><div class="eyebrow">GREÑA ID</div><h1>Tu directo.<br>Tu cuenta.</h1><p>Cada creador tiene su propio perfil. Ahora GREÑA también vincula un correo de recuperación para proteger el acceso.</p><div class="features"><div class="feature"><i>✓</i><span>Perfiles y configuraciones separados</span></div><div class="feature"><i>✉</i><span>Recuperación por correo con código temporal</span></div><div class="feature"><i>↻</i><span>Autoconexión, chat de voz, alertas y OBS</span></div></div></div>
+  <div class="migration">GREÑA nunca envía ni guarda tu contraseña en texto visible. Si la olvidas, recibirás tu usuario y un código temporal para crear una nueva.</div>
+ </section>
+ <section class="auth">
+  <h2 id="authTitle">Iniciar sesión</h2><p id="authSub">Entra a tu espacio personal de GREÑA.</p>
+  <div class="tabs" id="tabs"><button id="tabLogin" class="on" type="button">Entrar</button><button id="tabRegister" type="button">Crear cuenta</button></div>
+
+  <form id="loginPanel" class="panel on">
+   <div class="field"><label>Usuario GREÑA</label><input id="loginUser" autocomplete="username" placeholder="tu_usuario" required></div>
+   <div class="field"><label>Contraseña</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" required></div>
+   <button class="primary" id="loginBtn">ENTRAR A GREÑA</button>
+   <button class="link" id="forgotBtn" type="button">¿Olvidaste tu usuario o contraseña?</button>
+  </form>
+
+  <form id="registerPanel" class="panel">
+   <div class="field"><label>Nombre visible</label><input id="regName" autocomplete="name" placeholder="Tu nombre o canal" required></div>
+   <div class="field"><label>Correo de recuperación</label><input id="regEmail" type="email" autocomplete="email" placeholder="tu@correo.com" required></div>
+   <div class="field"><label>Usuario GREÑA</label><input id="regUser" autocomplete="username" placeholder="ejemplo: creador123" required></div>
+   <div class="field"><label>Contraseña</label><input id="regPass" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" minlength="8" required></div>
+   <button class="primary" id="registerBtn">CREAR MI GREÑA ID</button>
+  </form>
+
+  <form id="emailPanel" class="panel">
+   <div class="recovery-note">Esta cuenta fue creada antes del sistema de recuperación. Vincula un correo antes de continuar.</div>
+   <div class="field"><label>Correo de recuperación</label><input id="legacyEmail" type="email" autocomplete="email" placeholder="tu@correo.com" required></div>
+   <button class="primary" id="emailBtn">VINCULAR CORREO Y CONTINUAR</button>
+  </form>
+
+  <form id="recoverPanel" class="panel">
+   <div class="recovery-note">Escribe el correo vinculado. Si existe una cuenta, recibirás el <b>usuario GREÑA</b> y un código de 6 dígitos.</div>
+   <div class="field"><label>Correo vinculado</label><input id="recoverEmail" type="email" autocomplete="email" placeholder="tu@correo.com" required></div>
+   <button class="primary" id="recoverSendBtn">ENVIAR CÓDIGO</button>
+   <button class="secondary" id="backLogin1" type="button">VOLVER AL LOGIN</button>
+  </form>
+
+  <form id="resetPanel" class="panel">
+   <div class="recovery-note">Revisa tu correo. El código dura 10 minutos y solo funciona una vez.</div>
+   <div class="field"><label>Correo vinculado</label><input id="resetEmail" type="email" autocomplete="email" required></div>
+   <div class="field"><label>Código</label><input id="resetCode" class="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="000000" required></div>
+   <div class="field"><label>Nueva contraseña</label><input id="resetPass" type="password" autocomplete="new-password" minlength="8" placeholder="Mínimo 8 caracteres" required></div>
+   <button class="primary" id="resetBtn">CAMBIAR CONTRASEÑA</button>
+   <button class="secondary" id="resendBtn" type="button">REENVIAR CÓDIGO</button>
+   <button class="link" id="backLogin2" type="button">Volver al login</button>
+  </form>
+
+  <div class="msg" id="msg"></div>
+  <div class="hint" id="hint">El correo queda vinculado únicamente para identificar tu cuenta y recuperar el acceso.</div>
+ </section>
+</div>
+<script>
+const $=id=>document.getElementById(id),msg=$('msg');
+const panels=['loginPanel','registerPanel','emailPanel','recoverPanel','resetPanel'];
+function show(text,type='error'){msg.textContent=text;msg.className='msg show '+type}
+function clearMsg(){msg.className='msg'}
+function panel(id,title,sub,{tabs=false}={}){for(const p of panels)$(p).classList.toggle('on',p===id);$('tabs').style.display=tabs?'grid':'none';$('authTitle').textContent=title;$('authSub').textContent=sub;clearMsg()}
+function tab(mode){const login=mode==='login';$('tabLogin').classList.toggle('on',login);$('tabRegister').classList.toggle('on',!login);panel(login?'loginPanel':'registerPanel',login?'Iniciar sesión':'Crear GREÑA ID',login?'Entra a tu espacio personal de GREÑA.':'Tu correo permitirá recuperar tu cuenta si pierdes el acceso.',{tabs:true})}
+$('tabLogin').onclick=()=>tab('login');$('tabRegister').onclick=()=>tab('register');
+async function api(path,body,button){if(button){button.disabled=true;button.dataset.old=button.textContent;button.textContent='PROCESANDO…'}try{const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'No se pudo completar.');return d}finally{if(button){button.disabled=false;button.textContent=button.dataset.old||button.textContent}}}
+$('loginPanel').onsubmit=async e=>{e.preventDefault();try{const d=await api('/api/account/login',{username:$('loginUser').value,password:$('loginPass').value},$('loginBtn'));if(d.needsRecoveryEmail){panel('emailPanel','Protege tu GREÑA ID','Añade un correo para poder recuperar esta cuenta.');return}show('✓ Perfil cargado. Abriendo GREÑA…','ok');setTimeout(()=>location.replace('/'),300)}catch(e){show(e.message||String(e))}};
+$('registerPanel').onsubmit=async e=>{e.preventDefault();try{await api('/api/account/register',{displayName:$('regName').value,email:$('regEmail').value,username:$('regUser').value,password:$('regPass').value},$('registerBtn'));show('✓ GREÑA ID creado. Abriendo tu perfil…','ok');setTimeout(()=>location.replace('/'),300)}catch(e){show(e.message||String(e))}};
+$('emailPanel').onsubmit=async e=>{e.preventDefault();try{await api('/api/account/recovery-email',{email:$('legacyEmail').value},$('emailBtn'));show('✓ Correo vinculado. Entrando a GREÑA…','ok');setTimeout(()=>location.replace('/'),350)}catch(e){show(e.message||String(e))}};
+$('forgotBtn').onclick=()=>panel('recoverPanel','Recuperar GREÑA ID','Te enviaremos tu usuario y un código temporal al correo vinculado.');
+$('backLogin1').onclick=()=>tab('login');$('backLogin2').onclick=()=>tab('login');
+async function sendRecovery(button){try{const email=$('recoverPanel').classList.contains('on')?$('recoverEmail').value:$('resetEmail').value;const d=await api('/api/account/recovery/request',{email},button);$('resetEmail').value=email;panel('resetPanel','Revisa tu correo','Introduce el código recibido y crea una contraseña nueva.');show(d.message||'Si el correo está registrado, recibirás un código.','ok')}catch(e){show(e.message||String(e))}}
+$('recoverPanel').onsubmit=e=>{e.preventDefault();sendRecovery($('recoverSendBtn'))};
+$('resendBtn').onclick=()=>sendRecovery($('resendBtn'));
+$('resetPanel').onsubmit=async e=>{e.preventDefault();try{const d=await api('/api/account/recovery/reset',{email:$('resetEmail').value,code:$('resetCode').value,password:$('resetPass').value},$('resetBtn'));show(`✓ ${d.message||'Contraseña cambiada.'} Abriendo GREÑA…`,'ok');setTimeout(()=>location.replace('/'),450)}catch(e){show(e.message||String(e))}};
+fetch('/api/account/me',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(d.authenticated&&d.user){if(d.needsRecoveryEmail||!d.user.email){panel('emailPanel','Protege tu GREÑA ID','Añade un correo para recuperar esta cuenta si olvidas tus datos.');return}location.replace('/')}}).catch(()=>{});
+</script>
+<script src="/ui-v2.js"></script>
+<script src="/app-lifecycle.js"></script>
+</body>
+</html>

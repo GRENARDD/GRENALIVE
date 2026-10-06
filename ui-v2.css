@@ -1,0 +1,127 @@
+/* GREÑA LIVE 4.0 — UX PASS 2
+   Presentación y organización solamente. Sin lógica de streaming/OAuth/eventos. */
+:root{
+  --ux-bg:#070910;--ux-panel:#101520;--ux-panel2:#0b1018;--ux-panel3:#151b28;
+  --ux-line:rgba(255,255,255,.075);--ux-line2:rgba(255,255,255,.12);
+  --ux-text:#f4f7ff;--ux-muted:#8b95a9;--ux-dim:#606a7f;
+  --ux-purple:#9d63ff;--ux-cyan:#2fd5dc;--ux-green:#55dda5;--ux-yellow:#f7c76a;--ux-red:#ff6b7f;
+  --ux-radius:16px;--ux-radius-sm:11px;--ux-shadow:0 18px 56px rgba(0,0,0,.22);
+}
+
+/* 9 · Consistencia global de controles */
+body.grena-control,body.grena-chat,body.grena-alerts,body.grena-widgets,body.grena-login{color:var(--ux-text)}
+body.grena-control button,body.grena-chat button,body.grena-alerts button,body.grena-widgets button,body.grena-login button,
+body.grena-control input,body.grena-chat input,body.grena-alerts input,body.grena-widgets input,body.grena-login input,
+body.grena-chat select,body.grena-alerts select,body.grena-widgets select,
+body.grena-chat textarea,body.grena-alerts textarea,body.grena-widgets textarea{
+  font-family:Inter,Segoe UI,Arial,sans-serif;
+}
+body.grena-chat input:not([type=checkbox]):not([type=radio]):not([type=range]),body.grena-chat select,body.grena-chat textarea,
+body.grena-alerts input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),body.grena-alerts select,body.grena-alerts textarea,
+body.grena-widgets input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),body.grena-widgets select,
+body.grena-login input{
+  border-radius:10px!important;border:1px solid var(--ux-line)!important;background:#090d14!important;color:var(--ux-text)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.015);transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+body.grena-chat input:focus,body.grena-chat select:focus,body.grena-chat textarea:focus,
+body.grena-alerts input:focus,body.grena-alerts select:focus,body.grena-alerts textarea:focus,
+body.grena-widgets input:focus,body.grena-widgets select:focus,
+body.grena-login input:focus{
+  outline:0!important;border-color:rgba(157,99,255,.52)!important;box-shadow:0 0 0 3px rgba(157,99,255,.075)!important;
+}
+
+/* 6 · Jerarquía de botones */
+.ui-btn-primary{background:linear-gradient(135deg,#915bea,#6957e7 62%,#2fcbd2)!important;color:#fff!important;border-color:transparent!important;box-shadow:0 8px 22px rgba(111,82,226,.18)!important}
+.ui-btn-secondary{background:#121824!important;color:#d6dce8!important;border:1px solid var(--ux-line)!important}
+.ui-btn-danger{background:rgba(255,88,112,.075)!important;color:#ff9aa9!important;border:1px solid rgba(255,88,112,.18)!important;box-shadow:none!important}
+.ui-btn-primary:hover,.ui-btn-secondary:hover{filter:brightness(1.08)}.ui-btn-danger:hover{background:rgba(255,88,112,.12)!important}
+
+/* 4 · Estados con un solo lenguaje visual */
+.ui-status-success{color:#82e6b7!important;border-color:rgba(85,221,165,.22)!important;background:rgba(85,221,165,.075)!important}
+.ui-status-warning{color:#ffd88a!important;border-color:rgba(247,199,106,.22)!important;background:rgba(247,199,106,.075)!important}
+.ui-status-danger{color:#ff9aaa!important;border-color:rgba(255,107,127,.2)!important;background:rgba(255,107,127,.07)!important}
+.ui-status-neutral{color:#8b95a9!important;border-color:rgba(255,255,255,.07)!important;background:#0a0e16!important}
+
+/* 7 · Básico / avanzado */
+.ui-complexity-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;padding:9px 11px;border:1px solid var(--ux-line);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.018));box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.ui-complexity-copy{display:flex;align-items:center;gap:9px;min-width:0}.ui-complexity-copy i{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;background:rgba(157,99,255,.10);color:#b99cff;font-style:normal}.ui-complexity-copy b{display:block;font-size:10px}.ui-complexity-copy small{display:block;margin-top:2px;color:var(--ux-muted);font-size:8px}
+.ui-segmented{display:flex;gap:3px;padding:3px;border:1px solid var(--ux-line);border-radius:9px;background:#080c12}.ui-segmented button{height:27px!important;min-width:68px!important;padding:0 9px!important;border:0!important;border-radius:6px!important;background:transparent!important;color:#737d91!important;font-size:8px!important;font-weight:900!important;box-shadow:none!important}.ui-segmented button.on{background:#191f2d!important;color:#fff!important;box-shadow:inset 0 0 0 1px rgba(157,99,255,.18)!important}
+.ui-basic-mode [data-ui-advanced="true"],.ui-basic-mode .ui-advanced-only{display:none!important}
+
+/* 8 · feedback de guardado */
+.ui-save-state{position:fixed;right:18px;bottom:18px;z-index:500;display:flex;align-items:center;gap:7px;min-height:34px;padding:0 11px;border:1px solid var(--ux-line);border-radius:10px;background:rgba(13,17,26,.94);backdrop-filter:blur(15px);box-shadow:0 14px 45px rgba(0,0,0,.32);color:#9ba5b8;font-size:9px;font-weight:800;opacity:0;transform:translateY(8px);pointer-events:none;transition:.2s}.ui-save-state.show{opacity:1;transform:none}.ui-save-state.ok{color:#83e4b8;border-color:rgba(85,221,165,.18)}.ui-save-state.error{color:#ff9aaa;border-color:rgba(255,107,127,.18)}.ui-save-state i{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 10px currentColor}
+
+/* 2 · Navegación lateral premium y plegable */
+body.grena-alerts .sidebar{transition:width .2s ease,padding .2s ease;position:relative}
+.ui-sidebar-toggle{position:absolute;right:-14px;top:74px;width:28px;height:28px!important;padding:0!important;border-radius:9px!important;border:1px solid var(--ux-line2)!important;background:#111722!important;color:#aab3c4!important;z-index:5;box-shadow:0 8px 24px rgba(0,0,0,.28)}
+body.grena-alerts.ui-sidebar-collapsed .sidebar{width:78px!important;padding-left:10px!important;padding-right:10px!important}
+body.grena-alerts.ui-sidebar-collapsed .sidebar .brand>div:last-child,body.grena-alerts.ui-sidebar-collapsed .sidebar .home-link span,body.grena-alerts.ui-sidebar-collapsed .sidebar .nav span,body.grena-alerts.ui-sidebar-collapsed .sidebar .side-bottom span{display:none!important}
+body.grena-alerts.ui-sidebar-collapsed .sidebar .brand{justify-content:center;padding-left:0;padding-right:0}body.grena-alerts.ui-sidebar-collapsed .sidebar .home-link,body.grena-alerts.ui-sidebar-collapsed .sidebar .nav{justify-content:center;padding-left:0!important;padding-right:0!important;gap:0!important;text-align:center}body.grena-alerts.ui-sidebar-collapsed .sidebar .nav.active{box-shadow:inset 0 0 0 1px rgba(157,99,255,.22)!important}
+body.grena-alerts.ui-sidebar-collapsed .ui-sidebar-toggle{transform:rotate(180deg)}
+
+.ui-app-dock{position:fixed;left:12px;top:50%;transform:translateY(-50%);z-index:90;width:58px;padding:7px;border:1px solid var(--ux-line);border-radius:17px;background:rgba(11,15,23,.90);backdrop-filter:blur(18px);box-shadow:0 18px 52px rgba(0,0,0,.3);display:grid;gap:5px}.ui-app-dock a{height:43px;border-radius:11px;display:grid;place-items:center;color:#7f899c;text-decoration:none;border:1px solid transparent;font-size:16px;position:relative}.ui-app-dock a:hover,.ui-app-dock a.active{color:#fff;background:rgba(157,99,255,.10);border-color:rgba(157,99,255,.18)}.ui-app-dock a span{position:absolute;left:54px;white-space:nowrap;padding:6px 8px;border:1px solid var(--ux-line);border-radius:8px;background:#111722;color:#dbe0e9;font-size:8px;font-weight:800;opacity:0;pointer-events:none;transform:translateX(-4px);transition:.15s}.ui-app-dock a:hover span{opacity:1;transform:none}
+html.grena-embedded .ui-app-dock{display:none!important}
+
+/* 10 · Dashboard inicial: información esencial en una vista */
+.ui-dashboard-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:0 12px 9px}.ui-glance-card{min-width:0;min-height:45px;padding:7px 9px;border:1px solid var(--ux-line);border-radius:10px;background:#0a0e16;display:flex;align-items:center;gap:8px}.ui-glance-icon{width:27px;height:27px;flex:0 0 27px;border-radius:8px;display:grid;place-items:center;background:#151b28;color:#b89cff;font-size:12px}.ui-glance-card small{display:block;color:#687287;font-size:7px;font-weight:900;letter-spacing:.08em}.ui-glance-card b{display:block;margin-top:2px;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ui-glance-card.cam .ui-glance-icon{color:#67e8f9}.ui-glance-card.events .ui-glance-icon{color:#7de1b0}
+
+/* 1 · Centro de control / tarjetas de plataforma más legibles */
+body.grena-control .overview-panel{background:linear-gradient(180deg,rgba(18,23,35,.97),rgba(10,13,21,.97))}
+body.grena-control .viewer-grid{gap:7px;padding-bottom:8px}body.grena-control .viewer-card{position:relative;overflow:hidden;min-height:62px;padding:10px 11px}body.grena-control .viewer-card:after{content:"";position:absolute;width:70px;height:70px;border-radius:50%;right:-35px;top:-35px;background:currentColor;opacity:.035;filter:blur(8px)}
+body.grena-control .platform-stack{display:grid;gap:6px;padding:0 12px 11px}body.grena-control .platform-row{min-height:58px;border:1px solid var(--ux-line)!important;border-radius:11px;padding:8px 9px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.012));transition:border-color .15s ease,background .15s ease}body.grena-control .platform-row:hover{border-color:rgba(157,99,255,.20)!important;background:rgba(157,99,255,.025)}
+body.grena-control .platform-id{align-items:center}body.grena-control .platform-logo{width:32px;height:32px;border:1px solid rgba(255,255,255,.05)}body.grena-control .platform-id small{max-width:155px}
+body.grena-control .ui-platform-summary{display:block;margin-top:3px;color:#8b95a8;font-size:8px;font-weight:700}.ui-platform-summary.success{color:#6fdcac}.ui-platform-summary.warning{color:#e7bd70}.ui-platform-summary.danger{color:#ef8797}
+body.grena-control .platform-states{flex-wrap:wrap;justify-content:flex-end!important}body.grena-control .state-chip{min-width:0;text-align:center;padding:4px 6px}
+body.grena-control .platform-action{height:29px;min-width:76px;border-radius:9px}
+
+/* 3 · Menos scroll y paneles compactos */
+body.grena-chat .app{margin:18px auto!important;padding-top:12px!important}.grena-chat .connections{gap:8px!important}.grena-chat .connection-box{padding:11px!important}.grena-chat .voice-panel{padding:14px!important;margin-top:12px!important}.grena-chat .voice-grid{gap:9px!important}.grena-chat .voice-box{padding:12px!important}.grena-chat .voice-field{margin-bottom:9px!important}
+body.grena-alerts .main{padding-top:20px!important}.grena-alerts .topbar{margin-bottom:18px!important}.grena-alerts .stats{margin-bottom:22px!important}.grena-alerts .panel{box-shadow:0 14px 42px rgba(0,0,0,.14)}
+body.grena-widgets .wrap{margin-top:24px!important;margin-bottom:38px!important}.grena-widgets .grid{margin-top:19px!important}.grena-widgets .widget-module-body-inner{padding-top:15px!important}.grena-widgets .custom,.grena-widgets .testbox{padding:14px!important}
+
+/* 5 · estados vacíos más claros */
+body.grena-chat #empty.empty .empty{min-height:150px;display:grid;place-items:center;align-content:center;gap:7px;color:#687386!important;text-align:center!important;border:1px dashed rgba(255,255,255,.065);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006));margin:10px!important;padding:22px!important}
+body.grena-chat #empty.empty:before{content:"💬";font-size:26px;filter:grayscale(.35)}body.grena-chat #empty.empty:after{content:"TikTok, Twitch y Kick aparecerán aquí en tiempo real";display:block;color:#566176;font-size:9px;max-width:300px;line-height:1.45}
+.grena-control .empty-state{border:1px dashed rgba(255,255,255,.055);border-radius:13px;margin:9px;background:rgba(255,255,255,.012)}
+
+/* Alertas: modo básico oculta herramientas de precisión, pero nunca elimina datos */
+body.grena-alerts.ui-basic-mode .control-tab[data-control-tab="advanced"],body.grena-alerts.ui-basic-mode .control-tab[data-control-tab="layers"]{display:none!important}
+body.grena-alerts .control-tabs{padding:3px;border:1px solid var(--ux-line);border-radius:10px;background:#090d14}.grena-alerts .control-tab{border-radius:7px!important}.grena-alerts .studio-head{gap:14px}.grena-alerts .event-rail{position:sticky;top:16px}
+
+/* Widgets: los parámetros finos se revelan solo en vista completa */
+body.grena-widgets .ui-complexity-bar{max-width:680px}.grena-widgets .widget-module-head{min-height:66px}.grena-widgets .widget-module-quick{background:rgba(0,0,0,.08);padding-top:8px}.grena-widgets .overlay-label{margin-bottom:5px}.grena-widgets .setting{padding:5px 0;border-bottom:1px solid rgba(255,255,255,.035);margin:4px 0!important}.grena-widgets .setting:last-child{border-bottom:0}
+
+/* Login: pulido y jerarquía */
+body.grena-login .auth{background:linear-gradient(180deg,rgba(13,17,25,.98),rgba(8,11,17,.98))!important}.grena-login .primary{box-shadow:0 12px 34px rgba(111,80,225,.22)!important}.grena-login .field label{letter-spacing:.02em}
+
+/* Header/module switcher consistente */
+body.grena-control .top-link{white-space:nowrap}.module-actions button{min-width:68px}.module-actions button[data-module-switch="cam"]{color:#8adfe3}
+
+@media(max-width:1180px){.ui-app-dock{display:none}.ui-dashboard-strip{grid-template-columns:1fr 1fr}.ui-dashboard-strip .cam{grid-column:1/-1}.grena-control .platform-id small{max-width:120px}}
+@media(max-width:820px){.ui-complexity-bar{align-items:flex-start;flex-direction:column}.ui-segmented{width:100%}.ui-segmented button{flex:1}.ui-sidebar-toggle{display:none}.ui-dashboard-strip{grid-template-columns:1fr}.ui-dashboard-strip .cam{grid-column:auto}}
+@media(max-width:650px){body.grena-control .platform-row{align-items:flex-start;gap:8px}.grena-control .platform-controls{flex-direction:column;align-items:flex-end}.grena-control .platform-states{display:flex!important}.ui-save-state{right:10px;bottom:10px}.ui-complexity-copy small{display:none}}
+
+/* Ajuste visual: total de espectadores + sparkline tipo financiero */
+body.grena-control .viewer-total{align-items:center;gap:8px;min-width:150px;justify-content:flex-end}
+body.grena-control .viewer-total-icon{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;flex:0 0 26px;background:rgba(124,91,255,.10);border:1px solid rgba(154,102,255,.16);color:#b99dff}
+body.grena-control .viewer-total-icon svg{width:14px;height:14px;fill:currentColor;display:block}
+body.grena-control .viewer-total-copy{display:grid;line-height:1;min-width:36px}
+body.grena-control .viewer-total-copy small{font-size:6px;letter-spacing:.12em;font-weight:900;color:#737c90;white-space:nowrap;margin-bottom:4px}
+body.grena-control .viewer-total-copy b{font-size:22px;letter-spacing:-.04em}
+body.grena-control .viewer-sparkline{width:72px;height:28px;overflow:visible;flex:0 0 72px}
+body.grena-control .viewer-sparkline-grid{fill:none;stroke:rgba(255,255,255,.035);stroke-width:.7;vector-effect:non-scaling-stroke}
+body.grena-control #viewerSparklineLine{fill:none;stroke:#8f72ee;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 5px rgba(143,114,238,.26));transition:points .35s ease}
+body.grena-control #viewerSparklineDot{fill:#9d86ff;filter:drop-shadow(0 0 5px rgba(157,134,255,.65));transition:cx .35s ease,cy .35s ease}
+body.grena-control #viewerSparklineLine.updated{animation:viewerLinePulse .48s ease}
+body.grena-control #viewerSparklineDot.updated{animation:viewerDotPulse .48s ease}
+@keyframes viewerLinePulse{0%{opacity:.45}100%{opacity:1}}
+@keyframes viewerDotPulse{0%{r:2.2;opacity:.7}55%{r:3.3;opacity:1}100%{r:2.2;opacity:1}}
+@media(prefers-reduced-motion:reduce){body.grena-control #viewerSparklineLine.updated,body.grena-control #viewerSparklineDot.updated{animation:none}}
+
+/* Botones de plataforma: misma apariencia base para TikTok, Twitch y Kick */
+body.grena-control .platform-action,
+body.grena-control .platform-action.connected{width:84px;min-width:84px;height:29px;border-radius:9px;background:#0e121b!important;border:1px solid rgba(255,255,255,.085)!important;color:#aeb7c8!important;box-shadow:none!important;font-weight:800;transition:background .16s ease,border-color .16s ease,color .16s ease,transform .16s ease}
+body.grena-control .platform-action:hover{background:rgba(154,102,255,.10)!important;border-color:rgba(154,102,255,.34)!important;color:#fff!important;transform:translateY(-1px)}
+body.grena-control .platform-action.connected:hover{background:rgba(255,101,118,.075)!important;border-color:rgba(255,101,118,.28)!important;color:#ffadb8!important}
+body.grena-control .platform-action:focus-visible{outline:2px solid rgba(169,112,255,.65);outline-offset:2px}
+@media(max-width:650px){body.grena-control .viewer-sparkline{display:none}body.grena-control .viewer-total{min-width:auto}.grena-control .platform-action,.grena-control .platform-action.connected{width:78px;min-width:78px}}

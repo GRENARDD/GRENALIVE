@@ -1,0 +1,218 @@
+const $=id=>document.getElementById(id);
+const state={status:{},bridge:{tiktok:false,twitch:false,kick:false},eventHealth:{},viewers:{tiktok:0,twitch:0,kick:0},activity:[],chatConnected:false,profile:null};
+const icons={follow:'＋',gift:'🎁',cheer:'◆',sub:'★',share:'↗',raid:'⚡',like:'♥'};
+
+async function initAccount(){
+ try{
+  const d=await fetch('/api/account/me',{cache:'no-store'}).then(r=>r.json());
+  if(!d.authenticated||!d.user){location.replace('/login.html');return false}
+  state.profile=d.user;
+  $('profileName').textContent=d.user.displayName||d.user.username;
+  $('profileUser').textContent='@'+d.user.username;
+  $('profileAvatar').textContent=String(d.user.displayName||d.user.username||'G').trim().slice(0,1).toUpperCase();
+  const chat=$('chatFrame');
+  const wanted=`${location.origin}/chat/?embed=1&profile=${encodeURIComponent(d.user.id)}`;
+  if(chat.src!==wanted)chat.src=wanted;
+  return true;
+ }catch{location.replace('/login.html');return false}
+}
+$('logoutBtn').onclick=async()=>{try{await fetch('/api/account/logout',{method:'POST'});}catch{}location.replace('/login.html')};
+$('exitAppBtn').onclick=async()=>{
+ const btn=$('exitAppBtn');
+ if(!confirm('¿Salir de GREÑA LIVE PRO? Se cerrarán Chat + Voz, conexiones, Cam Room, túneles y todos los procesos internos de GREÑA.'))return;
+ btn.disabled=true;btn.textContent='Cerrando…';
+ try{await fetch('/api/app/exit',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});toast('Cerrando GREÑA LIVE PRO…')}catch{toast('Cerrando GREÑA…')}
+};
+function profileKey(base){return `${base}:${state.profile?.id||'legacy'}`}
+
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2400)}
+function clock(t){return new Date(t||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+function renderSystem(ok){$('systemDot').classList.toggle('on',ok);$('systemText').textContent=ok?'Sistema local listo':'Reconectando sistema…'}
+const viewerTrend={values:[]};
+function renderViewerSparkline(total){
+ const value=Math.max(0,Number(total)||0);viewerTrend.values.push(value);if(viewerTrend.values.length>10)viewerTrend.values.shift();
+ const vals=viewerTrend.values.length>1?viewerTrend.values:[value,value];
+ const min=Math.min(...vals),max=Math.max(...vals),range=Math.max(1,max-min);const width=72,top=4,bottom=23;
+ const pts=vals.map((v,i)=>{const x=vals.length===1?width:(i/(vals.length-1))*width;const y=max===min?18:bottom-((v-min)/range)*(bottom-top);return [x,y]});
+ const line=$('viewerSparklineLine'),dot=$('viewerSparklineDot');if(!line||!dot)return;
+ const points=pts.map(([x,y])=>`${x.toFixed(1)},${y.toFixed(1)}`).join(' ');line.setAttribute('points',points);
+ const [lastX,lastY]=pts[pts.length-1];dot.setAttribute('cx',lastX.toFixed(1));dot.setAttribute('cy',lastY.toFixed(1));
+ line.classList.remove('updated');dot.classList.remove('updated');void line.getBoundingClientRect();line.classList.add('updated');dot.classList.add('updated');
+}
+function renderViewers(){const t=Number(state.viewers.tiktok||0),total=t;$('tiktokViewers').textContent=t.toLocaleString('es-DO');if($('twitchViewers'))$('twitchViewers').textContent='0';if($('kickViewers'))$('kickViewers').textContent='0';$('totalViewers').textContent=total.toLocaleString('es-DO');renderViewerSparkline(total)}
+function platformAccount(p){const s=state.status[p]||{};const account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':'Kick');return s.authenticated?(account?(p==='tiktok'?`@${String(account).replace(/^@/,'')} · LIVE vinculado`:`${account} · cuenta vinculada`):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada')}
+function renderPlatforms(){
+ const labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick'};
+ const chipClass=status=>status==='ready'?' on':status==='degraded'||status==='connecting'?' warn':status==='fallback'?' fallback':status==='waiting'?' waiting':' off';
+ for(const p of ['tiktok']){
+  const s=state.status[p]||{},health=state.eventHealth[p]||{},auth=!!s.authenticated;
+  const runtimeLive=p==='kick'?!!(s.runtimeConnected||state.bridge[p]):!!state.bridge[p];
+  const chatState=String(health.chat||(runtimeLive?'ready':auth?'waiting':'off'));
+  const eventState=String(health.events||(auth?'waiting':'off'));
+  $(p+'Account').textContent=platformAccount(p);
+  const a=$(p+'Auth'),l=$(p+'Live'),e=$(p+'Events'),btn=$('login'+labels[p]);
+
+  a.className='state-chip'+(auth?' on':' off');
+  a.textContent=p==='tiktok'?(auth?'Link ✓':'Link —'):(auth?'Cuenta ✓':'Cuenta —');
+  a.title=p==='tiktok'?(auth?'LIVE de TikTok vinculado por enlace':'TikTok no vinculado'):(auth?'Cuenta autorizada en GREÑA':'Cuenta no vinculada');
+
+  const liveLabel=p==='tiktok'?'LIVE':'Chat';
+  l.className='state-chip'+chipClass(chatState)+(chatState==='ready'?' live':'');
+  l.textContent=chatState==='ready'?`${liveLabel} ✓`:chatState==='degraded'?`${liveLabel} !`:chatState==='connecting'?`${liveLabel}…`:chatState==='fallback'?`${liveLabel} local`:chatState==='waiting'?`${liveLabel} espera`:`${liveLabel} —`;
+  l.title=chatState==='ready'?`${liveLabel} conectado`:chatState==='waiting'?`Cuenta vinculada; ${liveLabel.toLowerCase()} esperando conexión`:(health.lastError||health.source||`${liveLabel} no conectado`);
+
+  e.className='state-chip'+chipClass(eventState);
+  e.textContent=eventState==='ready'?'Eventos ✓':eventState==='degraded'?'Eventos !':eventState==='connecting'?'Eventos…':eventState==='fallback'?'Eventos local':eventState==='waiting'?'Eventos espera':'Eventos —';
+  e.title=eventState==='ready'?'Eventos en tiempo real activos':eventState==='waiting'?'Cuenta vinculada; eventos esperando que el motor en vivo esté disponible':(health.lastError||health.source||'Eventos no activos');
+
+  btn.textContent=auth?'Desconectar':'Conectar';btn.classList.toggle('connected',auth);btn.title=auth?`Desconectar ${labels[p]}`:`Conectar ${labels[p]}`;
+ }
+ maybeOnboarding();
+}
+function detailFor(a){if(a.event==='gift'&&a.giftName){const parts=[];parts.push(`${a.giftName}${Number(a.count||1)>1?' × '+a.count:''}`);if(Number(a.totalDiamonds)>0)parts.push(`${Number(a.totalDiamonds).toLocaleString('es-DO')} diamantes`);return parts.join(' · ')}if(a.event==='cheer'&&Number(a.bits)>0)return `${Number(a.bits).toLocaleString('es-DO')} Bits`;if(a.event==='raid'&&Number(a.viewers)>0)return `${Number(a.viewers).toLocaleString('es-DO')} espectadores`;return ''}
+function addActivity(a,fromHistory=false){if(!a||a.platform!=='TikTok')return;const id=[a.platform,a.event,a.name,a.receivedAt].join('|');if(state.activity.some(x=>x.__id===id))return;a.__id=id;state.activity.unshift(a);if(state.activity.length>80)state.activity.length=80;if(!fromHistory)renderActivity();}
+function renderActivity(){const box=$('activityFeed');$('eventCount').textContent=state.activity.length;if(!state.activity.length){box.innerHTML='<div class="empty-state"><span>⚡</span><b>Esperando actividad</b><small>Follows, regalos, compartidos y Tap Tap de TikTok aparecerán aquí con el detalle exacto.</small></div>';return}box.innerHTML=state.activity.map(a=>{const p=a.platform==='TikTok'?'tt':a.platform==='Kick'?'kick':'tw',detail=detailFor(a),action=a.action||a.message||'realizó una acción';return `<div class="event-row"><div class="event-icon">${icons[a.event]||'•'}</div><div class="event-copy"><div class="event-top"><b>${esc(a.name||'Usuario')}</b><span class="event-platform ${p}">${esc(a.platform)}</span></div><div class="event-action">${esc(action)}</div>${detail&&!String(action).includes(detail)?`<div class="event-detail">${esc(detail)}</div>`:''}</div><span class="event-time">${clock(a.receivedAt)}</span></div>`}).join('')}
+async function loadInitial(){try{const [st,ac,v]=await Promise.all([fetch('/api/status',{cache:'no-store'}).then(r=>r.json()),fetch('/api/activity?limit=60',{cache:'no-store'}).then(r=>r.json()),fetch('/api/viewers',{cache:'no-store'}).then(r=>r.json())]);state.status=st.status||{};state.bridge={...state.bridge,...(st.bridgeRuntime||{})};state.eventHealth=st.eventHealth||state.eventHealth;state.viewers=v.viewers||state.viewers;state.activity=[];(ac.activity||[]).slice().reverse().forEach(a=>addActivity(a,true));renderActivity();renderPlatforms();renderViewers();renderSystem(true)}catch{renderSystem(false)}}
+let coreWS,retryCore;function connectCore(){clearTimeout(retryCore);try{coreWS?.close()}catch{}const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);coreWS=ws;ws.onopen=()=>renderSystem(true);ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='hello'){state.status=d.status||state.status;state.bridge={...state.bridge,...(d.bridgeRuntime||{})};state.eventHealth=d.eventHealth||state.eventHealth;state.viewers=d.viewers||state.viewers;renderPlatforms();renderViewers()}if(d.type==='platform-status'){state.status=d.status||state.status;renderPlatforms()}if(d.type==='event-health'){state.eventHealth=d.eventHealth||state.eventHealth;renderPlatforms()}if(d.type==='viewers'){state.viewers=d.viewers||state.viewers;renderViewers()}if(d.type==='activity'){addActivity(d.activity);renderActivity()}if(d.type==='profile-changed'){if(!d.profile){location.replace('/login.html');return}state.profile=d.profile;$('profileName').textContent=d.profile.displayName||d.profile.username;$('profileUser').textContent='@'+d.profile.username;$('profileAvatar').textContent=String(d.profile.displayName||d.profile.username||'G').slice(0,1).toUpperCase()}}catch{}};ws.onclose=()=>{renderSystem(false);retryCore=setTimeout(connectCore,1500)};ws.onerror=()=>{try{ws.close()}catch{}}}
+let chatWS,retryChat;function connectChatEngine(){clearTimeout(retryChat);try{chatWS?.close()}catch{}const ws=new WebSocket(`ws://${location.hostname}:8788/ws`);chatWS=ws;ws.onopen=()=>{state.chatConnected=true;$('chatEngineDot').classList.add('on');$('chatEngineText').textContent='Motor de chat conectado'};ws.onmessage=e=>{try{const d=JSON.parse(e.data),p=String(d.platform||'').toLowerCase();if(p==='tiktok'){if(d.type==='connected'){state.bridge[p]=true;renderPlatforms()}if(['disconnected','ended'].includes(d.type)){state.bridge[p]=false;renderPlatforms()}}}catch{}};ws.onclose=()=>{state.chatConnected=false;$('chatEngineDot').classList.remove('on');$('chatEngineText').textContent='Reconectando motor de chat…';retryChat=setTimeout(connectChatEngine,1500)};ws.onerror=()=>{try{ws.close()}catch{}}}
+async function postAlert(payload){const r=await fetch('/api/alert',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw Error('No se pudo enviar la alerta')}
+const tests={
+ 'tt-follow':{platform:'TikTok',event:'follow',name:'USUARIO_PRUEBA',action:'te siguió'},
+ 'tt-gift':{platform:'TikTok',event:'gift',name:'USUARIO_PRUEBA',giftName:'Rosa',count:5,unitDiamonds:1,totalDiamonds:5,action:'envió Rosa × 5 · 5 diamantes'},
+ 'tt-share':{platform:'TikTok',event:'share',name:'USUARIO_PRUEBA',action:'compartió el LIVE'},
+ 'tw-sub':{platform:'Twitch',event:'sub',name:'USUARIO_PRUEBA',action:'se suscribió · Tier 1'},
+ 'tw-bits':{platform:'Twitch',event:'cheer',name:'USUARIO_PRUEBA',bits:500,action:'envió 500 Bits'},
+ 'ki-follow':{platform:'Kick',event:'follow',name:'USUARIO_PRUEBA',action:'te siguió'},
+ 'ki-sub':{platform:'Kick',event:'sub',name:'USUARIO_PRUEBA',action:'se suscribió'}
+};
+document.querySelectorAll('[data-test]').forEach(b=>b.onclick=async()=>{
+ const payload=tests[b.dataset.test];
+ if(!payload){toast('Esta prueba todavía no está configurada.');return}
+ try{await postAlert(payload);toast('Alerta de prueba enviada a OBS')}catch(e){toast(e.message)}
+});
+$('copyOverlay').onclick=async()=>{try{await navigator.clipboard.writeText($('overlayUrl').textContent);toast('Link del overlay copiado')}catch{toast('Copia el link manualmente')}};
+function openTikTokLinkModal(){
+ const modal=$('tiktokLinkModal'),input=$('tiktokLiveUrl'),hint=$('tiktokLinkHint');if(!modal)return;
+ hint.textContent='No necesitas iniciar sesión ni autorizar permisos de TikTok.';hint.classList.remove('error');
+ input.value='';modal.classList.add('show');modal.setAttribute('aria-hidden','false');setTimeout(()=>input.focus(),30);
+}
+function closeTikTokLinkModal(){const modal=$('tiktokLinkModal');if(!modal)return;modal.classList.remove('show');modal.setAttribute('aria-hidden','true')}
+async function submitTikTokLiveLink(){
+ const input=$('tiktokLiveUrl'),hint=$('tiktokLinkHint'),btn=$('tiktokLinkConnect'),url=String(input?.value||'').trim();
+ if(!url){hint.textContent='Pega primero el link del LIVE de TikTok.';hint.classList.add('error');input?.focus();return}
+ btn.disabled=true;hint.textContent='Conectando GREÑA a ese LIVE…';hint.classList.remove('error');
+ try{
+  const r=await fetch('/api/tiktok/live-link',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url})}),d=await r.json().catch(()=>({}));
+  if(!r.ok)throw Error(d.error||'No se pudo conectar ese LIVE de TikTok.');
+  closeTikTokLinkModal();toast(d.message||'TikTok conectado por link del LIVE.');setTimeout(loadInitial,350);
+ }catch(e){hint.textContent=e.message||'No se pudo conectar TikTok.';hint.classList.add('error')}
+ finally{btn.disabled=false}
+}
+$('tiktokLinkCancel')?.addEventListener('click',closeTikTokLinkModal);
+$('tiktokLinkConnect')?.addEventListener('click',submitTikTokLiveLink);
+$('tiktokLiveUrl')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submitTikTokLiveLink()}if(e.key==='Escape')closeTikTokLinkModal()});
+$('tiktokLinkModal')?.addEventListener('click',e=>{if(e.target===$('tiktokLinkModal'))closeTikTokLinkModal()});
+
+async function connectPlatformAccount(platform,label){
+ if(platform==='tiktok'){openTikTokLinkModal();return}
+ try{
+  const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
+  if(st.oauthConfigured?.[platform]===false){
+   const detail=st.authService?.configured?(st.authService?.lastError||'El servicio de autenticación aún no tiene esta plataforma activada.'):'GREÑA Auth todavía no está configurado por el administrador.';
+   toast(detail);return;
+  }
+  const w=640,h=780,left=Math.max(0,(screen.width-w)/2),top=Math.max(0,(screen.height-h)/2);
+  const popup=window.open(`/oauth/${platform}/start`,`grena_oauth_${platform}`,`width=${w},height=${h},left=${left},top=${top}`);
+  if(!popup){toast('Permite ventanas emergentes para conectar '+label+'.');return}
+  toast(`Inicia sesión en ${label} y autoriza GREÑA.`);
+  const timer=setInterval(()=>{if(popup.closed){clearInterval(timer);setTimeout(loadInitial,500)}},650);
+ }catch(e){toast(e.message||`No se pudo iniciar ${label}`)}
+}
+async function disconnectPlatformAccount(platform,label){
+ try{
+  const r=await fetch(`/api/disconnect/${platform}`,{method:'POST'}),d=await r.json().catch(()=>({}));
+  if(!r.ok)throw Error(d.error||`No se pudo desconectar ${label}.`);
+  toast(`${label} desconectado.`);await loadInitial();
+ }catch(e){toast(e.message||`No se pudo desconectar ${label}.`)}
+}
+function platformAction(platform,label){return state.status[platform]?.authenticated?disconnectPlatformAccount(platform,label):connectPlatformAccount(platform,label)}
+$('loginTikTok').onclick=()=>platformAction('tiktok','TikTok');
+$('loginTwitch').onclick=()=>platformAction('twitch','Twitch');
+$('loginKick').onclick=()=>platformAction('kick','Kick');
+
+function onboardingKey(){return profileKey('grenaOnboardingDismissedV4')}
+function maybeOnboarding(){
+ const box=$('onboarding');if(!box||!state.profile)return;
+ const any=!!state.status.tiktok?.authenticated;
+ const dismissed=localStorage.getItem(onboardingKey())==='1';
+ box.classList.toggle('show',!any&&!dismissed);box.setAttribute('aria-hidden',any||dismissed?'true':'false');
+}
+document.querySelectorAll('[data-onboard]').forEach(b=>b.onclick=()=>{const p=b.dataset.onboard,label=p==='tiktok'?'TikTok':p==='twitch'?'Twitch':'Kick';connectPlatformAccount(p,label)});
+$('onboardingLater')?.addEventListener('click',()=>{localStorage.setItem(onboardingKey(),'1');maybeOnboarding()});
+
+// ===== NAVEGACIÓN PERSISTENTE =====
+// Alertas y Widgets se abren en una capa interna. El iframe de Chat + Voz
+// permanece montado y activo, por lo que SpeechSynthesis y sus colas no se destruyen.
+const moduleLayer=$('moduleLayer'), moduleFrame=$('moduleFrame'), moduleTitle=$('moduleTitle');
+const moduleMap={
+  radar:{path:'/radar.html?embed=1',title:'GREÑA Radar · Análisis de tendencias'},
+  alerts:{path:'/alerts.html?embed=1',title:'Editor de alertas'},
+  widgets:{path:'/widgets.html?embed=1',title:'Widgets OBS'},
+  cam:{path:'/cam-room.html?embed=1',title:'GREÑA Cam Room · Cámaras para OBS'},
+  catalog:{path:'/gift-catalog.html?embed=1',title:'Catálogo universal de regalos'}
+};
+let activeModule='';
+let moduleKeepaliveTimer=null;
+function pingBackgroundEngines(){
+  try{$('chatFrame')?.contentWindow?.postMessage({type:'grena-background-keepalive',source:'creator-control'},'*')}catch{}
+}
+function startBackgroundKeepalive(){
+  clearInterval(moduleKeepaliveTimer);
+  pingBackgroundEngines();
+  moduleKeepaliveTimer=setInterval(pingBackgroundEngines,2500);
+}
+function stopBackgroundKeepalive(){
+  clearInterval(moduleKeepaliveTimer);
+  moduleKeepaliveTimer=null;
+  pingBackgroundEngines();
+}
+function moduleFromHash(){const h=String(location.hash||'').replace(/^#/,'').toLowerCase();return moduleMap[h]?h:''}
+function openModule(name,{updateHash=true}={}){
+  const cfg=moduleMap[name];if(!cfg||!moduleLayer||!moduleFrame)return;
+  activeModule=name;
+  const current=moduleFrame.getAttribute('data-module');
+  if(current!==name){
+    moduleFrame.src=cfg.path;
+    moduleFrame.setAttribute('data-module',name);
+  }
+  moduleTitle.textContent=cfg.title;
+  moduleLayer.classList.add('open');
+  moduleLayer.setAttribute('aria-hidden','false');
+  document.body.classList.add('module-open');
+  startBackgroundKeepalive();
+  document.querySelectorAll('[data-module-switch]').forEach(b=>b.classList.toggle('active',b.dataset.moduleSwitch===name));
+  if(updateHash&&location.hash!=='#'+name)history.pushState({module:name},'',location.pathname+location.search+'#'+name);
+}
+function closeModule({updateHash=true}={}){
+  if(!moduleLayer)return;
+  activeModule='';
+  moduleLayer.classList.remove('open');
+  moduleLayer.setAttribute('aria-hidden','true');
+  document.body.classList.remove('module-open');
+  stopBackgroundKeepalive();
+  document.querySelectorAll('[data-module-switch]').forEach(b=>b.classList.remove('active'));
+  // No descargamos chatFrame. El módulo secundario sí puede quedar cargado.
+  if(updateHash&&location.hash)history.pushState({},'',location.pathname+location.search);
+}
+document.querySelectorAll('a[data-module]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();openModule(a.dataset.module)}));
+document.querySelectorAll('[data-module-switch]').forEach(b=>b.addEventListener('click',()=>openModule(b.dataset.moduleSwitch)));
+$('closeModuleBtn')?.addEventListener('click',()=>closeModule());
+window.addEventListener('message',e=>{
+  if(e.origin!==location.origin)return;
+  if(e.data?.type==='grena-module-close')closeModule();
+  if(e.data?.type==='grena-module-open'&&moduleMap[e.data?.module])openModule(e.data.module);
+});
+window.addEventListener('popstate',()=>{const m=moduleFromHash();m?openModule(m,{updateHash:false}):closeModule({updateHash:false})});
+
+(async()=>{if(!(await initAccount()))return;await loadInitial();connectCore();connectChatEngine();const m=moduleFromHash();if(m)openModule(m,{updateHash:false})})();

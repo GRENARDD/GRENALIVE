@@ -1,0 +1,66 @@
+<!doctype html>
+<html class="tiktok-only" lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080a10">
+<title>GREÑA LIVE PRO · Catálogo universal</title>
+<link rel="stylesheet" href="/gift-catalog.css">
+<link rel="stylesheet" href="/tiktok-only.css">
+</head>
+<body>
+<div class="catalog-shell">
+  <header class="catalog-head">
+    <div class="brand-line">
+      <div class="brand-mark">G</div>
+      <div><span class="eyebrow">GREÑA LIVE · CATÁLOGO UNIVERSAL</span><h1>Regalos y apoyos</h1><p>Biblioteca visual exclusiva de regalos de TikTok LIVE.</p></div>
+    </div>
+    <div class="head-actions">
+      <button id="refreshBtn" class="btn primary" type="button">↻ Actualizar catálogo</button>
+      <button id="closeBtn" class="btn" type="button">← Chat + Voz</button>
+    </div>
+  </header>
+
+  <section class="source-note" id="sourceNote">
+    <span class="pulse"></span>
+    <div><b>Catálogo inteligente</b><small>TikTok se sincroniza con el catálogo regional disponible para tu LIVE.</small></div>
+  </section>
+
+  <section class="stats-grid">
+    <article><span>Total</span><b id="statTotal">0</b><small>elementos</small></article>
+    <article class="tt"><span>TikTok</span><b id="statTikTok">0</b><small>regalos</small></article>
+    <article class="tw"><span>Twitch</span><b id="statTwitch">0</b><small>Bits / subs</small></article>
+    <article class="ki"><span>Kick</span><b id="statKick">0</b><small>KICKs / Gifts</small></article>
+    <article><span>Animados</span><b id="statAnimated">0</b><small>media disponible</small></article>
+  </section>
+
+  <section class="toolbar">
+    <div class="search-box"><span>⌕</span><input id="searchInput" type="search" autocomplete="off" placeholder="Buscar Rosa, Galaxy, TikTok Universe…"></div>
+    <div class="platform-tabs" id="platformTabs">
+      <button class="active" data-platform="">Todos</button>
+      <button data-platform="TikTok">TikTok</button>
+      <button data-platform="Twitch">Twitch</button>
+      <button data-platform="Kick">Kick</button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="animatedOnly"><span></span> Solo animados</label>
+  </section>
+
+  <section class="status-row">
+    <div><b id="resultLabel">Cargando…</b><small id="updatedLabel"></small></div>
+    <div class="legend"><span><i class="dot animated"></i>Animado</span><span><i class="dot observed"></i>Visto en LIVE</span></div>
+  </section>
+
+  <main class="gift-grid" id="giftGrid">
+    <div class="loading-card">Cargando catálogo…</div>
+  </main>
+
+  <section class="catalog-footnote">
+    <b>Cómo funciona con las alertas</b>
+    <p>Cuando llega un apoyo real, GREÑA intenta asociarlo con este catálogo. Si existe imagen animada la usa primero; si no, usa la imagen estática del evento o del catálogo. </p>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/gift-catalog.js"></script>
+<script src="/tiktok-only.js"></script>
+</body>
+</html>

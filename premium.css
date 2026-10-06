@@ -1,0 +1,202 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&display=swap');
+
+:root{
+  --cc-bg:#070811;
+  --cc-bg-2:#0b0d17;
+  --cc-panel:rgba(17,20,32,.82);
+  --cc-panel-strong:#111522;
+  --cc-line:rgba(255,255,255,.085);
+  --cc-line-hi:rgba(174,142,255,.26);
+  --cc-text:#f7f8ff;
+  --cc-muted:#959db3;
+  --cc-purple:#a970ff;
+  --cc-purple-2:#7657ff;
+  --cc-cyan:#2fe6e8;
+  --cc-green:#58e6a9;
+  --cc-red:#ff5d79;
+  --cc-shadow:0 22px 70px rgba(0,0,0,.34);
+  --cc-radius:20px;
+}
+
+body.grena-home,body.grena-chat,body.grena-widgets,body.grena-admin,body.grena-alerts{
+  color:var(--cc-text);
+  font-family:Inter,"Segoe UI",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+body.grena-home::before,body.grena-chat::before,body.grena-widgets::before,body.grena-admin::before,body.grena-alerts::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-2;
+  background:
+    radial-gradient(900px 520px at 8% -10%,rgba(146,79,255,.18),transparent 62%),
+    radial-gradient(760px 520px at 92% 6%,rgba(30,220,230,.10),transparent 64%),
+    linear-gradient(180deg,#080914 0%,#070811 45%,#070810 100%);
+}
+body.grena-home::after,body.grena-chat::after,body.grena-widgets::after,body.grena-admin::after,body.grena-alerts::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.2;
+  background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);
+  background-size:42px 42px;
+  mask-image:linear-gradient(to bottom,black,transparent 82%);
+}
+::selection{background:rgba(169,112,255,.34);color:#fff}
+:focus-visible{outline:2px solid var(--cc-cyan)!important;outline-offset:3px}
+
+.cc-topline{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px}
+.cc-home-link{display:inline-flex;align-items:center;gap:8px;color:#cfd4e6;text-decoration:none;font-weight:750;font-size:12px;letter-spacing:.02em;padding:9px 12px;border:1px solid var(--cc-line);border-radius:11px;background:rgba(255,255,255,.03);transition:.2s ease}
+.cc-home-link:hover{transform:translateY(-1px);border-color:var(--cc-line-hi);background:rgba(169,112,255,.08);color:#fff}
+.cc-mode{display:inline-flex;align-items:center;gap:8px;color:#aab3c9;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.cc-mode::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--cc-green);box-shadow:0 0 14px rgba(88,230,169,.75)}
+.cc-kicker{font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#aa91ff;margin-bottom:8px}
+
+/* HOME */
+body.grena-home{min-height:100vh;display:block!important;background:transparent!important}
+body.grena-home .wrap{width:min(1180px,calc(100% - 40px));margin:0 auto;padding:58px 0 34px;text-align:left!important}
+body.grena-home .home-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:72px}
+body.grena-home .home-brand{display:flex;align-items:center;gap:13px}
+body.grena-home .logo{margin:0!important;width:48px!important;height:48px!important;border-radius:15px!important;font-size:22px!important;background:linear-gradient(135deg,#9c5cff,#6449ef 56%,#26d9df)!important;box-shadow:0 12px 38px rgba(132,78,255,.3)!important;border:1px solid rgba(255,255,255,.12)}
+body.grena-home .brand{font-size:11px!important;letter-spacing:.18em!important;color:#aab0c3!important}
+body.grena-home .home-state{display:flex;align-items:center;gap:9px;padding:9px 12px;border:1px solid var(--cc-line);border-radius:999px;background:rgba(255,255,255,.035);font-size:11px;color:#aeb6ca;font-weight:700}
+body.grena-home .home-state i{width:7px;height:7px;border-radius:50%;background:var(--cc-green);box-shadow:0 0 12px rgba(88,230,169,.75)}
+body.grena-home .hero{max-width:850px;margin-bottom:42px}
+body.grena-home .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;border:1px solid rgba(169,112,255,.2);background:rgba(169,112,255,.075);font-size:10px;font-weight:800;letter-spacing:.14em;color:#cdbdff;text-transform:uppercase;margin-bottom:17px}
+body.grena-home h1{font-family:Manrope,Inter,sans-serif!important;font-size:clamp(46px,7vw,78px)!important;letter-spacing:-.05em!important;line-height:.94!important;max-width:760px}
+body.grena-home h1 span{background:linear-gradient(100deg,#fff 20%,#d7ccff 58%,#84f4ef);-webkit-background-clip:text;background-clip:text;color:transparent}
+body.grena-home .lead{margin:20px 0 0!important;max-width:760px!important;font-size:16px!important;line-height:1.7!important;color:#979fb5!important}
+body.grena-home .grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:16px!important}
+body.grena-home .card{min-height:220px!important;padding:25px!important;border-radius:22px!important;border:1px solid var(--cc-line)!important;background:linear-gradient(145deg,rgba(22,25,40,.86),rgba(10,12,20,.92))!important;box-shadow:0 20px 56px rgba(0,0,0,.18);backdrop-filter:blur(18px);isolation:isolate}
+body.grena-home .card::before{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;background:linear-gradient(130deg,rgba(255,255,255,.14),transparent 35%,rgba(169,112,255,.1));-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+body.grena-home .card:hover{transform:translateY(-4px)!important;border-color:rgba(169,112,255,.32)!important;box-shadow:0 26px 74px rgba(0,0,0,.32),0 0 0 1px rgba(169,112,255,.06)!important}
+body.grena-home .card .icon{width:46px;height:46px;display:grid;place-items:center;border-radius:13px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.07);font-size:23px!important}
+body.grena-home .card h2{font-family:Manrope,Inter,sans-serif;font-size:23px!important;letter-spacing:-.02em;margin:22px 0 8px!important}
+body.grena-home .card p{font-size:13px!important;line-height:1.65!important;color:#8f98ae!important;max-width:440px}
+body.grena-home .go{font-size:11px;letter-spacing:.08em;color:#d0c2ff!important}
+body.grena-home .glow{opacity:.12!important;width:220px!important;height:220px!important;filter:blur(60px)!important}
+body.grena-home .foot{text-align:center;margin-top:32px!important;color:#545e75!important}
+
+/* CHAT */
+body.grena-chat{background:transparent!important}
+body.grena-chat .app{max-width:1160px!important;margin:0 auto!important;padding:32px 24px 42px!important}
+body.grena-chat h1{font-family:Manrope,Inter,sans-serif!important;font-size:38px!important;letter-spacing:-.035em!important;margin-top:0!important}
+body.grena-chat .sub{font-size:14px;color:#9099b0!important;margin-bottom:25px!important}
+body.grena-chat .connections{gap:14px!important}
+body.grena-chat .connection-box,body.grena-chat .voice-panel,body.grena-chat .status,body.grena-chat .chat{
+  background:linear-gradient(180deg,rgba(18,21,34,.92),rgba(11,14,23,.94))!important;border:1px solid var(--cc-line)!important;box-shadow:var(--cc-shadow);backdrop-filter:blur(16px)
+}
+body.grena-chat .connection-box{border-radius:18px!important;padding:17px!important}
+body.grena-chat .connection-title{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:#c8cede}
+body.grena-chat input,body.grena-chat select,body.grena-chat textarea{background:#0b0e18!important;border:1px solid rgba(255,255,255,.09)!important;border-radius:11px!important;color:#f4f6ff!important;transition:border-color .18s,box-shadow .18s,background .18s}
+body.grena-chat input:focus,body.grena-chat select:focus,body.grena-chat textarea:focus{border-color:rgba(169,112,255,.62)!important;box-shadow:0 0 0 3px rgba(169,112,255,.09);background:#0c101b!important}
+body.grena-chat button{border-radius:11px!important;transition:transform .18s,filter .18s,box-shadow .18s!important}
+body.grena-chat button:hover{opacity:1!important;transform:translateY(-1px);filter:brightness(1.06)}
+body.grena-chat #connectTikTok{background:linear-gradient(135deg,#ff3863,#df2854)!important;box-shadow:0 10px 26px rgba(254,44,85,.17)}
+body.grena-chat #connectTwitch{background:linear-gradient(135deg,#9c5cff,#7443eb)!important;box-shadow:0 10px 26px rgba(145,70,255,.18)}
+body.grena-chat #disconnect{background:#1c2230!important;border:1px solid rgba(255,255,255,.08)}
+body.grena-chat .voice-panel{border-radius:20px!important;padding:20px!important}
+body.grena-chat .voice-title h2{font-family:Manrope,Inter,sans-serif!important;font-size:19px!important}
+body.grena-chat .voice-box{background:rgba(8,11,18,.58)!important;border:1px solid rgba(255,255,255,.07)!important;border-radius:14px!important}
+body.grena-chat .voice-status{background:#0b0e18!important;border:1px solid rgba(255,255,255,.055)}
+body.grena-chat .info{font-size:12px!important;margin:15px 3px!important}
+body.grena-chat .status-pill{border:1px solid rgba(255,255,255,.06)!important;background:rgba(255,255,255,.04)!important;border-radius:999px!important;padding:6px 10px!important}
+body.grena-chat .chat{height:600px!important;border-radius:20px!important;padding:12px!important}
+body.grena-chat .msg{margin-bottom:7px!important;border:1px solid transparent!important;border-left-width:3px!important;border-radius:12px!important;padding:10px 11px!important;contain:content}
+body.grena-chat .msg.tiktok{background:linear-gradient(90deg,rgba(254,44,85,.095),rgba(255,255,255,.018) 45%,transparent)!important;border-color:rgba(254,44,85,.1)!important;border-left-color:#fe2c55!important}
+body.grena-chat .msg.twitch{background:linear-gradient(90deg,rgba(145,70,255,.11),rgba(255,255,255,.018) 45%,transparent)!important;border-color:rgba(145,70,255,.12)!important;border-left-color:#9c63ff!important}
+body.grena-chat .avatar{border:1px solid rgba(255,255,255,.1)}
+body.grena-chat .name{font-size:13px!important}
+body.grena-chat .text{color:#e9ebf5!important;font-size:13px!important;line-height:1.5!important}
+body.grena-chat .platform-label{font-size:8px!important;letter-spacing:.08em!important;border:1px solid rgba(255,255,255,.08)!important;background:rgba(255,255,255,.045)!important;border-radius:5px!important}
+
+/* WIDGETS */
+body.grena-widgets{background:transparent!important}
+body.grena-widgets .wrap{width:min(1180px,calc(100% - 40px))!important;margin:0 auto!important;padding:32px 0 54px}
+body.grena-widgets .back{display:none}
+body.grena-widgets .tag{margin-top:28px!important;font-size:10px!important;letter-spacing:.18em!important;color:#a993ff!important}
+body.grena-widgets h1{font-family:Manrope,Inter,sans-serif!important;font-size:44px!important;letter-spacing:-.04em!important;margin:8px 0!important}
+body.grena-widgets .sub{font-size:14px!important;color:#929bb1!important}
+body.grena-widgets .grid{gap:16px!important;margin-top:26px!important;align-items:start}
+body.grena-widgets .card{padding:22px!important;border:1px solid var(--cc-line)!important;border-radius:20px!important;background:linear-gradient(160deg,rgba(19,23,36,.92),rgba(10,13,21,.94))!important;box-shadow:var(--cc-shadow)!important;backdrop-filter:blur(16px)}
+body.grena-widgets .card h2{font-family:Manrope,Inter,sans-serif!important;font-size:22px!important;letter-spacing:-.025em!important}
+body.grena-widgets .preview{border:1px solid rgba(255,255,255,.06);background-color:#0d1019!important;box-shadow:inset 0 0 30px rgba(0,0,0,.24)}
+body.grena-widgets .url{background:#0a0d15!important;border:1px solid rgba(255,255,255,.08)!important;border-radius:10px!important}
+body.grena-widgets .btn{border-radius:10px!important;background:linear-gradient(135deg,#8755f1,#6262e9 60%,#28cfd5)!important;box-shadow:0 10px 24px rgba(105,76,230,.18);font-size:11px!important;letter-spacing:.035em!important;transition:.18s!important}
+body.grena-widgets .btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
+body.grena-widgets .btn.alt{background:#181d2a!important;border:1px solid rgba(255,255,255,.09)!important;box-shadow:none}
+body.grena-widgets .btn.stop{background:#211821!important;color:#ff9aae!important;border:1px solid rgba(255,93,121,.18)!important;box-shadow:none}
+body.grena-widgets .testbox,body.grena-widgets .custom{background:rgba(7,10,17,.62)!important;border:1px solid rgba(255,255,255,.065)!important;border-radius:15px!important}
+body.grena-widgets .setting label,body.grena-widgets .note{color:#9099af!important}
+body.grena-widgets .setting select{background:#0d111b!important;border-color:rgba(255,255,255,.08)!important}
+body.grena-widgets input[type="range"]{accent-color:#9a63ff!important}
+body.grena-widgets .live{font-size:9px!important;letter-spacing:.11em!important;text-transform:uppercase}
+
+/* STREAM ADMIN */
+body.grena-admin{background:transparent!important}
+body.grena-admin .shell{max-width:1580px!important;padding:28px 26px 34px!important}
+body.grena-admin .top{margin-bottom:22px!important}
+body.grena-admin .top h1{font-family:Manrope,Inter,sans-serif;font-size:30px!important;letter-spacing:-.035em}
+body.grena-admin .back{border-color:var(--cc-line)!important;background:rgba(255,255,255,.035)!important;color:#d4d8e7!important;transition:.18s}
+body.grena-admin .back:hover{transform:translateY(-1px);border-color:var(--cc-line-hi)!important}
+body.grena-admin .stats{gap:10px!important;margin-bottom:12px!important}
+body.grena-admin .stat,body.grena-admin .panel{background:linear-gradient(180deg,rgba(18,22,34,.9),rgba(10,13,21,.94))!important;border:1px solid var(--cc-line)!important;box-shadow:0 16px 48px rgba(0,0,0,.23)!important;backdrop-filter:blur(16px)}
+body.grena-admin .stat{border-radius:16px!important;min-height:96px!important}
+body.grena-admin .stat .k{font-size:9px!important;letter-spacing:.13em!important;color:#7f899f!important}
+body.grena-admin .stat .v{font-family:Manrope,Inter,sans-serif!important}
+body.grena-admin .main{gap:12px!important}
+body.grena-admin .panel{border-radius:18px!important}
+body.grena-admin .head{border-bottom-color:rgba(255,255,255,.065)!important;height:60px!important}
+body.grena-admin .badge{background:rgba(255,255,255,.04)!important;border-color:rgba(255,255,255,.07)!important;color:#929bb1!important}
+body.grena-admin .feed{scrollbar-width:thin;scrollbar-color:#30374a transparent}
+body.grena-admin .chat-row,body.grena-admin .event-row{border-radius:12px!important;contain:content}
+body.grena-admin .chat-row:hover,body.grena-admin .event-row:hover{background:rgba(255,255,255,.035)!important}
+body.grena-admin .event-icon{background:#121826!important;border:1px solid rgba(255,255,255,.06)!important}
+body.grena-admin .mini{background:rgba(10,13,21,.8)!important;border-color:var(--cc-line)!important;border-radius:12px!important}
+body.grena-admin .mini b{font-family:Manrope,Inter,sans-serif!important}
+
+/* ALERTS APP */
+body.grena-alerts{background:transparent!important}
+body.grena-alerts .sidebar{background:rgba(10,12,20,.86)!important;border-right:1px solid rgba(255,255,255,.07)!important;backdrop-filter:blur(18px);width:258px!important;padding:22px 14px!important}
+body.grena-alerts .brand{padding:0 9px 23px!important}
+body.grena-alerts .brand-mark{border-radius:14px!important;background:linear-gradient(135deg,#9d5cff,#6e52ee 55%,#29d4dc)!important;box-shadow:0 12px 35px rgba(137,82,244,.28)!important;border:1px solid rgba(255,255,255,.1)}
+body.grena-alerts .home-link{display:flex;align-items:center;gap:10px;text-decoration:none;color:#949db2;font-size:11px;font-weight:750;padding:10px 13px;margin:0 0 12px;border:1px solid rgba(255,255,255,.055);border-radius:10px;background:rgba(255,255,255,.025);transition:.18s}
+body.grena-alerts .home-link:hover{color:#fff;border-color:rgba(169,112,255,.26);background:rgba(169,112,255,.07)}
+body.grena-alerts .nav{border-radius:10px!important;font-size:13px!important;color:#929bb0!important}
+body.grena-alerts .nav.active,body.grena-alerts .nav:hover{background:linear-gradient(90deg,rgba(169,112,255,.13),rgba(169,112,255,.045))!important;color:#eee9ff!important}
+body.grena-alerts .nav.active{box-shadow:inset 2px 0 #a970ff!important}
+body.grena-alerts .main{padding:25px clamp(20px,3vw,46px)!important}
+body.grena-alerts .topbar{margin-bottom:24px!important}
+body.grena-alerts .topbar h1{font-family:Manrope,Inter,sans-serif!important;font-size:26px!important;letter-spacing:-.03em}
+body.grena-alerts .local-pill{border:1px solid rgba(88,230,169,.11);background:rgba(88,230,169,.075)!important;color:#7de8b7!important;border-radius:999px!important}
+body.grena-alerts .btn{border-radius:9px!important;border-color:rgba(255,255,255,.085)!important;background:#171b28!important;transition:.18s!important}
+body.grena-alerts .btn:hover{transform:translateY(-1px)!important;border-color:rgba(169,112,255,.35)!important;filter:brightness(1.05)}
+body.grena-alerts .btn-primary{background:linear-gradient(135deg,#8755f1,#6755dc)!important;box-shadow:0 10px 28px rgba(105,70,215,.2)!important;border-color:transparent!important}
+body.grena-alerts .welcome{min-height:205px!important;border-radius:20px!important;border:1px solid rgba(255,255,255,.09)!important;background:radial-gradient(ellipse at 82% 20%,rgba(133,77,220,.24),transparent 40%),linear-gradient(125deg,rgba(25,22,43,.92),rgba(13,16,27,.94) 65%,rgba(11,31,37,.86))!important;box-shadow:0 24px 68px rgba(0,0,0,.2)}
+body.grena-alerts .welcome h2,body.grena-alerts .obs-guide h2,body.grena-alerts .ai-hero h2{font-family:Manrope,Inter,sans-serif!important;letter-spacing:-.035em!important}
+body.grena-alerts .orb{width:116px!important;height:116px!important;font-size:46px!important;border-color:rgba(201,181,255,.25)!important;box-shadow:0 0 70px rgba(147,51,234,.24),inset 0 0 35px rgba(147,51,234,.12)!important}
+body.grena-alerts .stat,body.grena-alerts .panel,body.grena-alerts .connection-card{background:linear-gradient(180deg,rgba(18,21,34,.9),rgba(11,14,23,.92))!important;border:1px solid rgba(255,255,255,.07)!important;box-shadow:0 15px 45px rgba(0,0,0,.16)!important;backdrop-filter:blur(14px)}
+body.grena-alerts .stat,body.grena-alerts .panel{border-radius:14px!important}
+body.grena-alerts .event-card{border-radius:14px!important;background:linear-gradient(150deg,rgba(21,24,38,.94),rgba(13,16,26,.94))!important;border-color:rgba(255,255,255,.075)!important;transition:.18s!important}
+body.grena-alerts .event-card:hover{transform:translateY(-2px);border-color:rgba(169,112,255,.24)!important}
+body.grena-alerts .url-field{border-radius:10px!important;background:#090c14!important;border-color:rgba(255,255,255,.075)!important}
+body.grena-alerts .connection-card{border-radius:16px!important}
+body.grena-alerts input:not([type="range"]):not([type="checkbox"]):not([type="color"]),body.grena-alerts select,body.grena-alerts textarea{background:#0a0d16!important;border-color:rgba(255,255,255,.08)!important;border-radius:9px!important}
+body.grena-alerts input:focus,body.grena-alerts select:focus,body.grena-alerts textarea:focus{border-color:rgba(169,112,255,.55)!important;box-shadow:0 0 0 3px rgba(169,112,255,.08)}
+body.grena-alerts .side-bottom{font-size:10px!important}
+body.grena-alerts footer{color:#555e73!important}
+
+@media(max-width:900px){
+  body.grena-home .grid{grid-template-columns:1fr!important}
+  body.grena-home .home-top{margin-bottom:48px}
+  body.grena-widgets .grid{grid-template-columns:1fr!important}
+  body.grena-admin .stats{grid-template-columns:1fr 1fr!important}
+  body.grena-alerts .sidebar{width:218px!important}
+}
+@media(max-width:720px){
+  body.grena-home .wrap,body.grena-widgets .wrap{width:min(100% - 24px,1180px)!important}
+  body.grena-home .wrap{padding-top:24px}
+  body.grena-home .home-top{margin-bottom:38px}
+  body.grena-home .home-state{display:none}
+  body.grena-home h1{font-size:48px!important}
+  body.grena-chat .app{padding:18px 12px 28px!important}
+  body.grena-widgets h1{font-size:36px!important}
+  body.grena-admin .shell{padding:18px 12px!important}
+  body.grena-admin .stats{grid-template-columns:1fr!important}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}

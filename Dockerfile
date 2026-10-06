@@ -1,0 +1,14 @@
+FROM node:24-bookworm-slim
+
+WORKDIR /app
+COPY package.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
+COPY . .
+
+ENV NODE_ENV=production
+ENV GRENA_CLOUD=1
+ENV HOST=0.0.0.0
+ENV GRENA_DATA_DIR=/data
+
+EXPOSE 3000
+CMD ["node", "server.mjs"]
