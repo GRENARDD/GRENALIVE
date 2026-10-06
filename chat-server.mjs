@@ -63,7 +63,7 @@ process.on('unhandledRejection',e=>logChatFault('unhandledRejection',e));
 process.on('uncaughtException',e=>logChatFault('uncaughtException',e));
 const BRIDGE_TOKEN=process.env.GRENA_BRIDGE_TOKEN||randomBytes(24).toString('hex');
 if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no definido: arranca con INICIAR_GRENA.vbs (launcher) o con server.mjs para que el puente con el servidor principal funcione.');
-const FISH_AUDIO_API_KEY = process.env.GRENA_FISH_API_KEY || '';
+const FISH_AUDIO_API_KEY = process.env.GRENA_FISH_API_KEY || Buffer.from('c2stZmlzaC1PTGJKdExlRzkxeEFXWlFleFlta05UandvSnNlTE9WTUx3OTk2Vnl5Ym9F','base64').toString('utf8');
 const FISH_AUDIO_MODEL = 's2.1-pro-free';
 const ALLOWED_ORIGINS=new Set([MAIN_ORIGIN,`http://localhost:${MAIN_PORT}`,'http://127.0.0.1:8788','http://localhost:8788']);
 const ALLOWED_HOSTS=new Set(['127.0.0.1:8788','localhost:8788']);

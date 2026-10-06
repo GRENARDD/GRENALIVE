@@ -16,7 +16,7 @@ IsLiveRouteConfig.skipFetchRoomIdFromEulerRoute = true;
 
 const CLOUD_MODE=process.env.GRENA_CLOUD==='1';
 const HOST=process.env.HOST||(CLOUD_MODE?'0.0.0.0':'127.0.0.1'), PORT=Number(process.env.PORT||8787), APP_ROOT=dirname(fileURLToPath(import.meta.url)), ROOT=APP_ROOT;
-const PUBLIC_URL=String(process.env.GRENA_PUBLIC_URL||'').trim().replace(/\/$/,'');
+const PUBLIC_URL=String(process.env.GRENA_PUBLIC_URL||(process.env.RAILWAY_PUBLIC_DOMAIN?`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`:'')).trim().replace(/\/$/,'');
 const BASE=PUBLIC_URL||`http://${HOST}:${PORT}`;
 
 // ===== GREÑA FIX5: robustez y endurecimiento =====
@@ -1857,8 +1857,8 @@ function panelGuard(req,res,pathname){
   json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});return false;
 }
 // ===== GREÑA WEB: proxy interno del motor de chat (8788) sobre el mismo HTTPS público =====
-function proxyChatHttp(req,res,url){
-  const pathname=url.pathname==='/chat'?'/':url.pathname.slice('/chat'.length)||'/';
+function proxyChatHttp(req,res,url,stripChat=true){
+  const pathname=stripChat?(url.pathname==='/chat'?'/':url.pathname.slice('/chat'.length)||'/'):url.pathname;
   const internalOrigin=`http://127.0.0.1:${PORT}`;
   const headers={...req.headers,host:'127.0.0.1:8788',origin:internalOrigin};
   delete headers['x-forwarded-host'];delete headers['x-forwarded-proto'];delete headers['x-forwarded-for'];
@@ -1869,6 +1869,16 @@ function proxyChatHttp(req,res,url){
   upstream.on('error',e=>{if(!res.headersSent)json(res,502,{ok:false,error:'Motor de chat no disponible.',detail:String(e?.message||e)});else try{res.end()}catch{}});
   req.pipe(upstream);
 }
+const CHAT_HTTP_ROUTES=new Set([
+  '/api/fish-tts',
+  '/api/connection-prefs',
+  '/api/moderation/action',
+  '/api/voice-control',
+  '/api/multichat-settings',
+  '/api/multichat-history',
+  '/api/multichat-test',
+  '/avatar'
+]);
 
 const bridgeMessageSeen=new Map();
 function bridgeMessageDuplicate(id){id=String(id||'').trim();if(!id)return false;const now=Date.now(),prev=bridgeMessageSeen.get(id)||0;if(prev&&now-prev<2*60*1000)return true;bridgeMessageSeen.set(id,now);for(const [k,t] of bridgeMessageSeen)if(now-t>2*60*1000)bridgeMessageSeen.delete(k);return false}
@@ -1876,6 +1886,7 @@ function bridgeMessageDuplicate(id){id=String(id||'').trim();if(!id)return false
 const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!safeReqPath(req.url))throw 0;url=new URL(req.url,'http://127.0.0.1');pathname=url.pathname}catch{res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});return res.end('Solicitud no válida')}try{
  if(pathname==='/chat'||pathname.startsWith('/chat/'))return proxyChatHttp(req,res,url);
  if(!panelGuard(req,res,pathname))return;
+ if(CHAT_HTTP_ROUTES.has(pathname))return proxyChatHttp(req,res,url,false);
  if(pathname==='/health')return json(res,200,{ok:true,app:'GREÑA LIVE PRO',status});
  if(pathname==='/api/app/window-heartbeat'&&req.method==='POST'){appWindowHeartbeat();return json(res,200,{ok:true});}
  if(pathname==='/api/app/window-closing'&&req.method==='POST'){appWindowClosing();return json(res,200,{ok:true});}
