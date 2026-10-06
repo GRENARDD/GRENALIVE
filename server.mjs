@@ -1,4 +1,5 @@
 import http from 'node:http';
+import tls from 'node:tls';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFile, writeFile, mkdir, copyFile, unlink, access, rename, chmod, appendFile } from 'node:fs/promises';
@@ -309,7 +310,14 @@ Object.assign(oauthConfig.tiktok,{clientKey:process.env.TIKTOK_CLIENT_KEY||oauth
 Object.assign(oauthConfig.twitch,{clientId:process.env.TWITCH_CLIENT_ID||oauthConfig.twitch.clientId||packagedPublicConfig.twitchClientId,clientSecret:process.env.TWITCH_CLIENT_SECRET||oauthConfig.twitch.clientSecret});
 Object.assign(oauthConfig.kick,{clientId:process.env.KICK_CLIENT_ID||oauthConfig.kick.clientId,clientSecret:process.env.KICK_CLIENT_SECRET||oauthConfig.kick.clientSecret,slug:process.env.KICK_CHANNEL||oauthConfig.kick.slug});
 Object.assign(oauthConfig.openai,{apiKey:process.env.OPENAI_API_KEY||oauthConfig.openai?.apiKey});
-Object.assign(oauthConfig.mail,{provider:process.env.GRENA_MAIL_PROVIDER||oauthConfig.mail?.provider||'resend',apiKey:process.env.RESEND_API_KEY||process.env.GRENA_MAIL_API_KEY||oauthConfig.mail?.apiKey,from:process.env.GRENA_MAIL_FROM||oauthConfig.mail?.from,name:process.env.GRENA_MAIL_NAME||oauthConfig.mail?.name||'GREÑA ID'});
+Object.assign(oauthConfig.mail,{
+  provider:process.env.GRENA_MAIL_PROVIDER||oauthConfig.mail?.provider||'gmail',
+  apiKey:process.env.RESEND_API_KEY||process.env.GRENA_MAIL_API_KEY||oauthConfig.mail?.apiKey,
+  from:process.env.GRENA_MAIL_FROM||oauthConfig.mail?.from,
+  name:process.env.GRENA_MAIL_NAME||oauthConfig.mail?.name||'GREÑA ID',
+  gmailUser:process.env.GRENA_GMAIL_USER||oauthConfig.mail?.gmailUser,
+  gmailAppPassword:process.env.GRENA_GMAIL_APP_PASSWORD||oauthConfig.mail?.gmailAppPassword
+});
 
 // GREÑA Auth central: los usuarios finales nunca escriben Client ID ni Client Secret.
 // El propietario de GREÑA configura esta URL una sola vez antes de distribuir la aplicación.
@@ -337,10 +345,108 @@ async function loadAuthServiceConfig(){
 await loadAuthServiceConfig();
 function normalizeKickSlug(value=''){const raw=String(value||'').trim();const m=raw.match(/kick\.com\/([^/?#]+)/i);return (m?.[1]||raw).replace(/^@/,'').trim()}
 function currentKickSlug(){return normalizeKickSlug(autoPrefs.counterKick||oauthConfig.kick?.slug||'')}
-function mailConfigured(){const m=oauthConfig.mail||{};return String(m.provider||'resend').toLowerCase()==='resend'&&!!(m.apiKey&&m.from)}
+function mailConfigured(){
+ const m=oauthConfig.mail||{},provider=String(m.provider||'gmail').toLowerCase();
+ if(provider==='gmail')return !!(m.gmailUser&&m.gmailAppPassword);
+ if(provider==='resend')return !!(m.apiKey&&m.from);
+ return false;
+}
 function htmlEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function smtpHeaderEncode(value=''){return '=?UTF-8?B?'+Buffer.from(String(value),'utf8').toString('base64')+'?='}
+function createSmtpReader(socket){
+ let buffer='',current=[],responses=[],waiters=[],failed=null;
+ const settle=reply=>{
+   if(waiters.length)waiters.shift().resolve(reply);
+   else responses.push(reply);
+ };
+ const fail=err=>{
+   failed=err instanceof Error?err:new Error(String(err||'Error SMTP'));
+   while(waiters.length)waiters.shift().reject(failed);
+ };
+ socket.on('data',chunk=>{
+   buffer+=chunk.toString('utf8');
+   for(;;){
+     const i=buffer.indexOf('\r\n');
+     if(i<0)break;
+     const line=buffer.slice(0,i);buffer=buffer.slice(i+2);
+     if(!line)continue;
+     current.push(line);
+     const m=line.match(/^(\d{3})([ -])/);
+     if(m&&m[2]===' '){
+       const code=Number(m[1]),text=current.join('\n');current=[];
+       settle({code,text});
+     }
+   }
+ });
+ socket.on('error',fail);
+ socket.on('close',()=>{if(waiters.length)fail(new Error('La conexión SMTP se cerró antes de tiempo.'))});
+ return {
+   read(){
+     if(responses.length)return Promise.resolve(responses.shift());
+     if(failed)return Promise.reject(failed);
+     return new Promise((resolve,reject)=>waiters.push({resolve,reject}));
+   }
+ };
+}
+async function gmailSmtpCommand(socket,reader,command,expected){
+ if(command!==null)socket.write(command+'\r\n');
+ const reply=await reader.read();
+ const ok=(Array.isArray(expected)?expected:[expected]).includes(reply.code);
+ if(!ok)throw Error('Gmail SMTP rechazó la operación ('+reply.code+').');
+ return reply;
+}
+async function sendRecoveryEmailViaGmail(user,code,m){
+ const gmailUser=String(m.gmailUser||'').trim();
+ const appPassword=String(m.gmailAppPassword||'').replace(/\s+/g,'');
+ if(!gmailUser||!appPassword)throw Error('Falta configurar el Gmail de recuperación de GREÑA.');
+
+ const socket=tls.connect({host:'smtp.gmail.com',port:465,servername:'smtp.gmail.com',rejectUnauthorized:true});
+ const reader=createSmtpReader(socket);
+ await new Promise((resolve,reject)=>{
+   if(socket.authorized||socket.encrypted&&socket.readyState==='open')return resolve();
+   socket.once('secureConnect',resolve);
+   socket.once('error',reject);
+ });
+ try{
+   await gmailSmtpCommand(socket,reader,null,220);
+   await gmailSmtpCommand(socket,reader,'EHLO grenalive',250);
+   await gmailSmtpCommand(socket,reader,'AUTH LOGIN',334);
+   await gmailSmtpCommand(socket,reader,Buffer.from(gmailUser).toString('base64'),334);
+   await gmailSmtpCommand(socket,reader,Buffer.from(appPassword).toString('base64'),235);
+   await gmailSmtpCommand(socket,reader,'MAIL FROM:<'+gmailUser.replace(/[<>\r\n]/g,'')+'>',250);
+   await gmailSmtpCommand(socket,reader,'RCPT TO:<'+String(user.email).replace(/[<>\r\n]/g,'')+'>',[250,251]);
+   await gmailSmtpCommand(socket,reader,'DATA',354);
+
+   const fromName=String(m.name||'GREÑA ID').replace(/[\r\n<>]/g,'').trim()||'GREÑA ID';
+   const subject=smtpHeaderEncode('Código para recuperar tu GREÑA ID');
+   const username=htmlEscape(user.username),safeCode=htmlEscape(code);
+   const html=`<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:28px;color:#141722"><h2 style="margin:0 0 14px">Recuperación de GREÑA ID</h2><p>Recibimos una solicitud para recuperar tu cuenta.</p><p><b>Usuario:</b> ${username}</p><p style="font-size:30px;letter-spacing:6px;font-weight:800;background:#f4f2ff;padding:16px 18px;border-radius:12px;text-align:center">${safeCode}</p><p>Este código vence en <b>10 minutos</b> y solo se puede usar una vez.</p><p style="color:#666">GREÑA nunca te enviará tu contraseña anterior. Si no pediste este código, ignora este mensaje.</p></div>`;
+   const message=[
+     'From: '+smtpHeaderEncode(fromName)+' <'+gmailUser.replace(/[<>\r\n]/g,'')+'>',
+     'To: <'+String(user.email).replace(/[<>\r\n]/g,'')+'>',
+     'Subject: '+subject,
+     'Date: '+new Date().toUTCString(),
+     'MIME-Version: 1.0',
+     'Content-Type: text/html; charset=UTF-8',
+     'Content-Transfer-Encoding: 8bit',
+     '',
+     html
+   ].join('\r\n').replace(/\r\n\./g,'\r\n..');
+
+   socket.write(message+'\r\n.\r\n');
+   const sent=await reader.read();
+   if(sent.code!==250)throw Error('Gmail SMTP no aceptó el correo ('+sent.code+').');
+   try{await gmailSmtpCommand(socket,reader,'QUIT',221)}catch{}
+   return {ok:true,provider:'gmail'};
+ }finally{
+   try{socket.end()}catch{}
+ }
+}
 async function sendRecoveryEmail(user,code){
  const m=oauthConfig.mail||{};if(!mailConfigured())throw Error('El correo de recuperación todavía no está configurado por el administrador de GREÑA.');
+ const provider=String(m.provider||'gmail').toLowerCase();
+ if(provider==='gmail')return sendRecoveryEmailViaGmail(user,code,m);
+
  const fromName=String(m.name||'GREÑA ID').replace(/[\r\n<>]/g,'').trim()||'GREÑA ID';
  const from=`${fromName} <${String(m.from).trim()}>`;
  const subject='Código para recuperar tu GREÑA ID';
