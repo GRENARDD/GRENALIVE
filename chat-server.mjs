@@ -385,6 +385,38 @@ function getTikTokFollowerStatus(data, user) {
   return false;
 }
 
+function getTikTokSubscriberStatus(data, user) {
+  const direct = [
+    user?.isSubscriber,
+    user?.is_subscriber,
+    user?.isSubscriberToAnchor,
+    user?.is_subscriber_to_anchor,
+    data?.isSubscriber,
+    data?.is_subscriber,
+    data?.isSubscriberToAnchor,
+    data?.is_subscriber_to_anchor,
+    data?.user?.isSubscriber,
+    data?.user?.is_subscriber,
+    data?.user?.isSubscriberToAnchor,
+    data?.user?.is_subscriber_to_anchor
+  ];
+  if(direct.some(v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true')) return true;
+
+  const badgeText = JSON.stringify([
+    user?.badges,
+    user?.badge,
+    user?.badgeList,
+    user?.badge_list,
+    data?.badges,
+    data?.badge,
+    data?.badgeList,
+    data?.badge_list,
+    data?.user?.badges
+  ]).toLowerCase();
+
+  return /subscriber|subscription|subscribed|member|fan club|fanclub/.test(badgeText);
+}
+
 // =====================================
 // EXTRAER DATOS DE TIKTOK
 // =====================================
@@ -464,6 +496,12 @@ function extractTikTokChat(data) {
       user
     );
 
+  const isSubscriber =
+    getTikTokSubscriberStatus(
+      data,
+      user
+    );
+
   return {
     user:
       username ||
@@ -485,6 +523,7 @@ function extractTikTokChat(data) {
     userId: String(user?.id || user?.userId || user?.user_id || data?.userId || data?.user_id || data?.user?.id || ''),
     messageId: String(data?.msgId || data?.msgIdStr || data?.messageId || data?.message_id || data?.common?.msgId || ''),
     isFollower,
+    isSubscriber,
     isModerator: !!(user?.isModerator || user?.is_moderator || data?.isModerator || data?.is_moderator || data?.user?.isModerator),
     isBroadcaster: !!(user?.isBroadcaster || user?.is_broadcaster || data?.isBroadcaster || data?.is_broadcaster)
   };
@@ -657,7 +696,7 @@ function normalizeKickChatPayload(raw){
     const username=sender.username||sender.name||sender.slug||sender.channel_slug||o.username||o.user_name;
     if(typeof content==='string' && content.trim() && username){
       const roleText=JSON.stringify([sender.badges,sender.identity,o.badges,o.identity,o.sender_identity]||[]).toLowerCase();
-      return {user:String(username),nickname:String(sender.username||sender.name||username),text:content.trim(),avatar:String(sender.profile_picture||sender.avatar||sender.profile_pic||''),userId:String(sender.user_id||sender.id||o.user_id||o.sender_id||''),messageId:String(o.message_id||o.id||root?.message_id||root?.id||''),isModerator:/moderator|\"mod\"/.test(roleText),isBroadcaster:/broadcaster|channel_owner|owner/.test(roleText)};
+      return {user:String(username),nickname:String(sender.username||sender.name||username),text:content.trim(),avatar:String(sender.profile_picture||sender.avatar||sender.profile_pic||''),userId:String(sender.user_id||sender.id||o.user_id||o.sender_id||''),messageId:String(o.message_id||o.id||root?.message_id||root?.id||''),isSubscriber:/subscriber|subscription|subscribed|founder/.test(roleText),isModerator:/moderator|\"mod\"/.test(roleText),isBroadcaster:/broadcaster|channel_owner|owner/.test(roleText)};
     }
   }
   return null;
@@ -670,8 +709,11 @@ function deliverKickChat(msg){
   if(now-prev<2500)return;
   kickSeenMessages.set(key,now);
   for(const [k,t] of kickSeenMessages) if(now-t>15000) kickSeenMessages.delete(k);
-  kickUsers.set(msg.user.toLowerCase(),{username:msg.user,nickname:msg.nickname||msg.user,userId:msg.userId||'',isFollower:null,lastSeen:now});
-  broadcastPlatform('kick',{type:'chat',user:msg.user,nickname:msg.nickname||msg.user,text:msg.text,avatar:msg.avatar||'',userId:msg.userId||'',messageId:msg.messageId||'',isFollower:null,broadcaster:currentKickChannel,isModerator:!!msg.isModerator,isBroadcaster:!!msg.isBroadcaster||String(msg.user||'').toLowerCase()===String(currentKickChannel||'').toLowerCase()});
+  const oldUser=kickUsers.get(msg.user.toLowerCase())||{};
+  const isFollower=typeof oldUser.isFollower==='boolean'?oldUser.isFollower:null;
+  const isSubscriber=!!msg.isSubscriber||!!oldUser.isSubscriber;
+  kickUsers.set(msg.user.toLowerCase(),{...oldUser,username:msg.user,nickname:msg.nickname||msg.user,userId:msg.userId||oldUser.userId||'',isFollower,isSubscriber,lastSeen:now});
+  broadcastPlatform('kick',{type:'chat',user:msg.user,nickname:msg.nickname||msg.user,text:msg.text,avatar:msg.avatar||'',userId:msg.userId||'',messageId:msg.messageId||'',isFollower,isSubscriber,broadcaster:currentKickChannel,isModerator:!!msg.isModerator,isBroadcaster:!!msg.isBroadcaster||String(msg.user||'').toLowerCase()===String(currentKickChannel||'').toLowerCase()});
 }
 
 function consumeKickRealtimeFrame(payload){
@@ -697,7 +739,9 @@ function consumeKickRealtimeFrame(payload){
       bridgeAlert('Kick','gift',who,`envió ${giftName}${amount>0?' · '+amount.toLocaleString('es-DO')+' KICKs':''}`,{giftName,giftKind:'kicks',amount,kickGiftType:firstString(gift.type,d.type),kickGiftTier:firstString(gift.tier,d.tier),giftMessage:firstString(gift.message,d.message),avatar:findUrl(d?.sender?.profile_picture||d?.gifter?.profile_picture||''),kickEvent:name});handled=true;continue;
     }
     if(/SubscriptionEvent$/i.test(name)||name==='channel.subscription.new'||name==='channel.subscription.renewal'){
-      const d=kickEventData(ev),who=kickPerson(d);bridgeAlert('Kick','sub',who,name==='channel.subscription.renewal'?'renovó su suscripción':'se suscribió',{avatar:findUrl(d?.subscriber?.profile_picture||d?.sender?.profile_picture||''),kickEvent:name});handled=true;continue;
+      const d=kickEventData(ev),who=kickPerson(d),key=String(who||'').toLowerCase();
+      if(key){const old=kickUsers.get(key)||{username:who,nickname:who,userId:'',lastSeen:Date.now()};kickUsers.set(key,{...old,isSubscriber:true,lastSeen:Date.now()})}
+      bridgeAlert('Kick','sub',who,name==='channel.subscription.renewal'?'renovó su suscripción':'se suscribió',{avatar:findUrl(d?.subscriber?.profile_picture||d?.sender?.profile_picture||''),kickEvent:name});handled=true;continue;
     }
     if(/FollowEvent$/i.test(name)||name==='channel.followed'){
       const d=kickEventData(ev),who=kickPerson(d),key=String(who||'').toLowerCase();if(key){const old=kickUsers.get(key)||{username:who,nickname:who,userId:'',lastSeen:Date.now()};kickUsers.set(key,{...old,isFollower:true,lastSeen:Date.now()})}bridgeAlert('Kick','follow',who,'te siguió',{kickEvent:name});handled=true;continue;
@@ -1022,6 +1066,9 @@ async function connectTikTok(input) {
             isFollower:
               chat.isFollower,
 
+            isSubscriber:
+              chat.isSubscriber,
+
             lastSeen:
               Date.now()
           }
@@ -1068,6 +1115,9 @@ async function connectTikTok(input) {
 
           isFollower:
             chat.isFollower,
+
+          isSubscriber:
+            chat.isSubscriber,
 
           isModerator:
             chat.isModerator,
@@ -1482,6 +1532,9 @@ async function connectTwitch(input) {
             currentTwitchChannel,
 
           isFollower,
+
+          isSubscriber:
+            tags?.subscriber === '1' || !!tags?.badges?.subscriber || !!tags?.badges?.founder,
 
           isModerator:
             tags?.mod === '1' || !!tags?.badges?.moderator || !!tags?.badges?.broadcaster,
