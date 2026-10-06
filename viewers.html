@@ -43,6 +43,7 @@ html,body{
 .tt{border-color:rgba(37,244,238,.22)}
 .tw{border-color:rgba(145,70,255,.30)}
 .ki{border-color:rgba(83,252,24,.30)}
+.counter.is-hidden{display:none!important}
 .pulse{animation:pulse .32s ease}
 @keyframes pulse{50%{transform:scale(1.06)}}
 
@@ -120,7 +121,7 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
   </section>
 
   <div class="counters">
-    <section class="counter tt">
+    <section class="counter tt is-hidden">
       <div class="platform">
         <img src="/assets/platforms/tiktok.webp" alt="TikTok">
         <span>TikTok</span>
@@ -128,7 +129,7 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
       <strong id="tt" class="count">0</strong>
     </section>
 
-    <section class="counter tw">
+    <section class="counter tw is-hidden">
       <div class="platform">
         <img src="/assets/platforms/twitch.webp" alt="Twitch">
         <span>Twitch</span>
@@ -136,7 +137,7 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
       <strong id="tw" class="count">0</strong>
     </section>
 
-    <section class="counter ki">
+    <section class="counter ki is-hidden">
       <div class="platform">
         <img src="/assets/platforms/kick-viewer.png" alt="Kick">
         <span>Kick</span>
@@ -151,6 +152,24 @@ const old={tiktok:-1,twitch:-1,kick:-1};
 const counterDefaults={style:'classic',counterCardColor:'#18232c'};
 let counterSettings={...counterDefaults};
 let previewOverride=false;
+let latestMeta={};
+
+function platformIsLive(platform,count,meta={}){
+  const n=Math.max(0,Math.floor(Number(count)||0));
+  if(n>0)return true;
+  const source=String(meta?.[platform]?.source||'').toLowerCase();
+  if(!source)return false;
+  if(/waiting|offline|stream_end|desconect|disconnect|apagado|stopped|termin[oó]|sin live|error/.test(source))return false;
+  return true;
+}
+
+function updatePlatformVisibility(v={},meta=latestMeta){
+  for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki']]){
+    const card=document.querySelector(selector);
+    if(!card)continue;
+    card.classList.toggle('is-hidden',!platformIsLive(k,v[k],meta));
+  }
+}
 
 function normalizeCounterSettings(v={}){
   const style=['classic','trio','vertical'].includes(String(v.style||''))?String(v.style):'classic';
@@ -163,7 +182,8 @@ function applyCounterSettings(v={}){
   document.documentElement.dataset.counterStyle=counterSettings.style;
   document.documentElement.style.setProperty('--vertical-card',counterSettings.counterCardColor);
 }
-function draw(v={}){
+function draw(v={},meta){
+  if(meta&&typeof meta==='object')latestMeta=meta;
   for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki']]){
     const n=Math.max(0,Math.floor(Number(v[k])||0));
     const e=document.getElementById(id);
@@ -175,13 +195,14 @@ function draw(v={}){
       old[k]=n;
     }
   }
+  updatePlatformVisibility(v,latestMeta);
 }
 
 let pollTimer=null;
 async function poll(){
   try{
     const [vr,sr]=await Promise.all([fetch('/api/viewers',{cache:'no-store'}),fetch('/api/counter-settings',{cache:'no-store'})]);
-    if(vr.ok){const d=await vr.json();draw(d.viewers)}
+    if(vr.ok){const d=await vr.json();draw(d.viewers,d.meta)}
     if(sr.ok){const d=await sr.json();if(d.settings&&!previewOverride)applyCounterSettings(d.settings)}
   }catch{}
   clearTimeout(pollTimer);
