@@ -110,7 +110,6 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
   html[data-counter-style="trio"] .counter{min-width:110px}
   html[data-counter-style="vertical"] .stage{gap:16px;transform:scale(.86)}
 }
-.tw,.ki{display:none!important}.wrap,.cards{max-width:100%!important}
 </style>
 </head>
 <body>
@@ -148,7 +147,7 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
 </main>
 
 <script>
-const old={tiktok:-1};
+const old={tiktok:-1,twitch:-1,kick:-1};
 const counterDefaults={style:'classic',counterCardColor:'#18232c'};
 let counterSettings={...counterDefaults};
 let previewOverride=false;
@@ -165,7 +164,7 @@ function applyCounterSettings(v={}){
   document.documentElement.style.setProperty('--vertical-card',counterSettings.counterCardColor);
 }
 function draw(v={}){
-  for(const [k,id] of [['tiktok','tt']]){
+  for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki']]){
     const n=Math.max(0,Math.floor(Number(v[k])||0));
     const e=document.getElementById(id);
     if(old[k]!==n){

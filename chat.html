@@ -1,5 +1,5 @@
 <!doctype html>
-<html class="tiktok-only" lang="es">
+<html lang="es">
 
 <head>
 
@@ -668,18 +668,17 @@ html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
 .disconnect-all-wrap{display:flex;margin:12px 0 0}.disconnect-all-wrap #disconnect{width:100%;min-height:44px;background:#222938!important}
 @media(max-width:900px){.grena-network-grid{grid-template-columns:1fr!important}}
 </style>
-<link rel="stylesheet" href="/tiktok-only.css">
 </head>
 
 <body class="grena-chat">
 
 <main class="app">
-<div class="cc-topline"><a class="cc-home-link" href="/">← Creator Control</a><span class="cc-mode">Chat web activo</span></div>
-<div class="cc-kicker">TIKTOK CHAT + VOZ</div>
+<div class="cc-topline"><a class="cc-home-link" href="/">← Creator Control</a><span class="cc-mode">Chat local activo</span></div>
+<div class="cc-kicker">MULTICHAT + VOZ</div>
 <h1>GREÑA CHAT</h1>
 
 <div class="sub">
-  Conecta tu TikTok LIVE para ver el chat y usar todas las funciones de voz.
+  Conecta TikTok LIVE y Twitch para ver ambos chats juntos.
 </div>
 
 <!-- =========================
@@ -735,7 +734,7 @@ html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
 </div>
 
 <div class="disconnect-all-wrap">
-  <button id="disconnect">DESCONECTAR TIKTOK</button>
+  <button id="disconnect">DESCONECTAR TODAS LAS REDES</button>
 </div>
 
 <!-- =========================
@@ -1187,7 +1186,6 @@ html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
 </main>
 
 <script>
-window.__GRENA_TIKTOK_ONLY__=true;
 
 /* =====================================================
    GREÑA CHAT
@@ -1926,7 +1924,7 @@ async function fetchFishAudioBlob(spokenText, modelId, controller){
   }
 
   try{
-    const response = await fetch('/chat/api/fish-tts',{
+    const response = await fetch('/api/fish-tts',{
       method:'POST',
       headers:{'content-type':'application/json'},
       body:JSON.stringify({text:spokenText,reference_id:modelId}),
@@ -4259,8 +4257,12 @@ function openWS(){
 
       ws =
         new WebSocket(
-          (location.protocol === 'https:' ? 'wss' : 'ws')
-          + '://' + location.host + '/chat-ws'
+          (location.protocol === 'https:'
+            ? 'wss'
+            : 'ws')
+          + '://'
+          + location.host
+          + '/chat-ws'
         );
 
       ws.onopen =
@@ -4444,7 +4446,7 @@ async function runModeration(action,button,durationSeconds=0){
   const t=moderationTarget;if(!t)return;const back=moderationModal(),result=back.querySelector('#modResult');
   if(action==='hide_local'){t.__row?.remove();result.textContent='Mensaje ocultado en GREÑA.';result.className='mod-result show ok';return}
   button.disabled=true;const old=button.textContent;button.textContent='Procesando…';
-  try{const payload={platform:t.platform,action,username:t.user||t.nickname||'',userId:t.userId||'',messageId:t.messageId||'',broadcaster:t.broadcaster||'',broadcasterId:t.broadcasterId||'',durationSeconds,reason:back.querySelector('#modReason').value.trim()};const r=await fetch('/chat/api/moderation/action',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'No se pudo ejecutar la moderación.');result.textContent='✓ '+(d.message||'Acción completada.');result.className='mod-result show ok';if(action==='mute_local'||action==='ban'||action==='timeout')removeUserRows(t.platform,t.user||t.nickname);if(action==='delete_message')t.__row?.remove();}
+  try{const payload={platform:t.platform,action,username:t.user||t.nickname||'',userId:t.userId||'',messageId:t.messageId||'',broadcaster:t.broadcaster||'',broadcasterId:t.broadcasterId||'',durationSeconds,reason:back.querySelector('#modReason').value.trim()};const r=await fetch('/api/moderation/action',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'No se pudo ejecutar la moderación.');result.textContent='✓ '+(d.message||'Acción completada.');result.className='mod-result show ok';if(action==='mute_local'||action==='ban'||action==='timeout')removeUserRows(t.platform,t.user||t.nickname);if(action==='delete_message')t.__row?.remove();}
   catch(e){result.textContent='⚠ '+e.message+( /permiso|scope|401|403|autoriza/i.test(e.message)?' Vuelve a vincular esa plataforma en GREÑA para aceptar los permisos nuevos.':'');result.className='mod-result show bad'}finally{button.disabled=false;button.textContent=old}
 }
 
@@ -4493,7 +4495,7 @@ function addMessage(m){
   if(avatarUrl){
 
     avatar.src =
-      '/chat/avatar?url='
+      '/avatar?url='
       + encodeURIComponent(
           avatarUrl
         );
@@ -5036,7 +5038,7 @@ function renderAutoConnectPrefs(prefs={}, runtime={}){
 
 async function syncSavedConnections(){
   try{
-    const r=await fetch('/chat/api/connection-prefs',{cache:'no-store'});
+    const r=await fetch('/api/connection-prefs',{cache:'no-store'});
     const d=await r.json();
     if(!r.ok||!d.ok) return;
     const prefs=d.prefs||{};
@@ -5115,6 +5117,5 @@ openWS()
 </script>
 
 <script src="/ui-v2.js"></script>
-<script src="/tiktok-only.js"></script>
 </body>
 </html>

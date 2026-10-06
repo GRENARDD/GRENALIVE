@@ -238,8 +238,10 @@
   <div id="status" class="status"></div>
 <script>
 const KEY='grenaMultichatSettings_v2';
-const CHAT_HTTP=location.origin+'/chat';
-const CHAT_WS=`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`;
+const CHAT_HOST=location.hostname||'127.0.0.1';
+const CHAT_DIRECT=location.port==='8788';
+const CHAT_HTTP=CHAT_DIRECT?location.origin:`${location.origin}/chat`;
+const CHAT_WS=CHAT_DIRECT?`ws://${CHAT_HOST}:8788/ws`:`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`;
 const defaults={
   direction:'left',fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,
   avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,
@@ -372,7 +374,7 @@ function add(d){
 }
 window.addEventListener('storage',e=>{ if(e.key===KEY)load() });
 window.addEventListener('message',e=>{
-  const allowedOrigins=new Set([location.origin]);
+  const allowedOrigins=new Set(['http://127.0.0.1:8787','http://localhost:8787','http://127.0.0.1:8788','http://localhost:8788',location.origin]);
   if(e.source!==window.parent&&e.source!==window)return;if(!allowedOrigins.has(e.origin))return;
   if(e.data?.type==='grena-multichat-settings'){ cfg=sanitizeCfg(e.data.settings); applyStage(); }
   if(e.data?.type==='grena-multichat-demo') add(e.data.message);

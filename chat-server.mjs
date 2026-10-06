@@ -25,9 +25,8 @@ IsLiveRouteConfig.skipFetchRoomIdFromEulerRoute = true;
 
 const HOST = '127.0.0.1';
 const PORT = 8788;
-const MAIN_PORT = Number(process.env.GRENA_MAIN_PORT||process.env.PORT||8787);
-const MAIN_BASE = `http://127.0.0.1:${MAIN_PORT}`;
-const TIKTOK_ONLY = true;
+const MAIN_PORT = Number(process.env.PORT||8787);
+const MAIN_ORIGIN = `http://127.0.0.1:${MAIN_PORT}`;
 
 async function safeWriteJson(file,data){
   const text=JSON.stringify(data,null,2);
@@ -55,14 +54,8 @@ let activeProfileId=String((await readJson(ACTIVE_PROFILE_FILE,{})).userId||'');
 let CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
 let MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
 const connectionDefaults={autoConnect:true,tiktokUrl:'',twitchUrl:'',kickUrl:'',tiktokEnabled:false,twitchEnabled:false,kickEnabled:false};
-function tikTokOnlyPrefs(v={}){return {...connectionDefaults,...v,twitchEnabled:false,kickEnabled:false,twitchUrl:'',kickUrl:''}}
-let connectionPrefs=tikTokOnlyPrefs(await readJson(CONNECTIONS_FILE,{}));
-async function saveConnectionPrefs(){
-  if(!TIKTOK_ONLY){await safeWriteJson(CONNECTIONS_FILE,connectionPrefs).catch(()=>{});return}
-  const previous=await readJson(CONNECTIONS_FILE,{});
-  const persisted={...previous,autoConnect:!!connectionPrefs.autoConnect,tiktokUrl:String(connectionPrefs.tiktokUrl||''),tiktokEnabled:!!connectionPrefs.tiktokEnabled};
-  await safeWriteJson(CONNECTIONS_FILE,persisted).catch(()=>{});
-}
+let connectionPrefs={...connectionDefaults,...await readJson(CONNECTIONS_FILE,{})};
+async function saveConnectionPrefs(){await safeWriteJson(CONNECTIONS_FILE,connectionPrefs).catch(()=>{})}
 
 // ===== GREÑA FIX3: robustez y endurecimiento =====
 function logChatFault(kind,e){const line=`[${new Date().toISOString()}] ${kind}: ${e?.stack||e?.message||String(e)}\n`;console.error(line.trim());appendFile(CHAT_ERROR_LOG,line,'utf8').catch(()=>{})}
@@ -70,9 +63,9 @@ process.on('unhandledRejection',e=>logChatFault('unhandledRejection',e));
 process.on('uncaughtException',e=>logChatFault('uncaughtException',e));
 const BRIDGE_TOKEN=process.env.GRENA_BRIDGE_TOKEN||randomBytes(24).toString('hex');
 if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no definido: arranca con INICIAR_GRENA.vbs (launcher) o con server.mjs para que el puente con el servidor principal funcione.');
-const FISH_AUDIO_API_KEY = String(process.env.GRENA_FISH_API_KEY||'').trim();
+const FISH_AUDIO_API_KEY = process.env.GRENA_FISH_API_KEY || '';
 const FISH_AUDIO_MODEL = 's2.1-pro-free';
-const ALLOWED_ORIGINS=new Set(['http://127.0.0.1:8787','http://localhost:8787','http://127.0.0.1:8788','http://localhost:8788']);
+const ALLOWED_ORIGINS=new Set([MAIN_ORIGIN,`http://localhost:${MAIN_PORT}`,'http://127.0.0.1:8788','http://localhost:8788']);
 const ALLOWED_HOSTS=new Set(['127.0.0.1:8788','localhost:8788']);
 function hostAllowed(h){return ALLOWED_HOSTS.has(String(h||'').toLowerCase())}
 function originAllowed(o){return !o||ALLOWED_ORIGINS.has(o)}
@@ -122,7 +115,7 @@ async function loadChatProfile(userId=''){
   if(activeProfileId)await mkdir(join(PROFILES_DIR,activeProfileId),{recursive:true}).catch(()=>{});
   CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
   MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
-  connectionPrefs=tikTokOnlyPrefs(await readJson(CONNECTIONS_FILE,{}));
+  connectionPrefs={...connectionDefaults,...await readJson(CONNECTIONS_FILE,{})};
   multichatSettings=sanitizeMultichatSettings(await readJson(MULTICHAT_SETTINGS_FILE,{}),multichatDefaults);
 }
 
@@ -207,7 +200,7 @@ async function sendToAlerts(path,payload,{reliable=false,fromQueue=false}={}) {
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),2500);
   try {
-    const response=await fetch(`${MAIN_BASE}${path}`, {method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify(payload),signal:controller.signal});
+    const response=await fetch(`${MAIN_ORIGIN}${path}`, {method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify(payload),signal:controller.signal});
     const text=await response.text().catch(()=> '');
     if(!response.ok){console.warn(`[GREÑA BRIDGE] ${path} HTTP ${response.status}${text?` · ${text.slice(0,240)}`:''}`);if(reliable&&!fromQueue&&(response.status>=500||response.status===0))queueBridge(path,payload);return {ok:false,status:response.status,error:text}}
     let data={};try{data=text?JSON.parse(text):{}}catch{}
@@ -226,7 +219,7 @@ async function twitchChatUserMeta(userId){
   const hit=twitchMetaCache.get(id);if(hit&&Date.now()-hit.at<5*60e3)return hit.value;
   try{
     const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),1800);
-    const r=await fetch(`${MAIN_BASE}/api/internal/twitch-user-meta?user_id=${encodeURIComponent(id)}`,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(timer));
+    const r=await fetch(`${MAIN_ORIGIN}/api/internal/twitch-user-meta?user_id=${encodeURIComponent(id)}`,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(timer));
     const d=await r.json().catch(()=>({}));const value={avatar:String(d.avatar||''),isFollower:typeof d.isFollower==='boolean'?d.isFollower:null};
     twitchMetaCache.set(id,{at:Date.now(),value});return value;
   }catch{return hit?.value||{avatar:'',isFollower:null}}
@@ -808,13 +801,12 @@ async function launchKickChatReader(channel){
 }
 
 async function connectKick(input) {
-  if(TIKTOK_ONLY) throw Error('Esta edición funciona solo con TikTok.');
   const channel=kickChannelFromUrl(input);
   await disconnectKick();
   currentKickChannel=channel;
   broadcastPlatform('kick',{type:'status',message:`Conectando automáticamente al chat de Kick: ${channel}...`});
 
-  fetch(`${MAIN_BASE}/api/kick/config`,{
+  fetch(`${MAIN_ORIGIN}/api/kick/config`,{
     method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify({slug:channel})
   }).catch(()=>{});
 
@@ -1369,7 +1361,6 @@ async function connectTikTok(input) {
 // =====================================
 
 async function connectTwitch(input) {
-  if(TIKTOK_ONLY) throw Error('Esta edición funciona solo con TikTok.');
   const channel =
     twitchChannelFromUrl(
       input
@@ -1896,7 +1887,7 @@ const server =
           if(request.method==='POST'){
             let body='';body=await readBody(request);
             const incoming=JSON.parse(body||'{}');
-            const allowed=TIKTOK_ONLY?['autoConnect','tiktokUrl','tiktokEnabled']:['autoConnect','tiktokUrl','twitchUrl','kickUrl','tiktokEnabled','twitchEnabled','kickEnabled'];
+            const allowed=['autoConnect','tiktokUrl','twitchUrl','kickUrl','tiktokEnabled','twitchEnabled','kickEnabled'];
             const next={...connectionPrefs};
             for(const key of allowed){
               if(!(key in incoming))continue;
@@ -1906,7 +1897,7 @@ const server =
             connectionPrefs=next;
             await saveConnectionPrefs();
             if(connectionPrefs.autoConnect){
-              setTimeout(()=>{autoConnectTikTok()},50);
+              setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick()},50);
             }
             response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
             response.end(JSON.stringify({ok:true,prefs:connectionPrefs}));
@@ -1962,7 +1953,7 @@ const server =
               response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
               response.end(JSON.stringify({ok:true,message:action==='mute_local'?`${user} quedó silenciado en GREÑA durante este LIVE.`:`${user} volvió a estar visible en GREÑA.`}));return;
             }
-            const rr=await fetch(`${MAIN_BASE}/api/moderation/action`,{method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify(d)});
+            const rr=await fetch(`${MAIN_ORIGIN}/api/moderation/action`,{method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify(d)});
             const out=await rr.json().catch(()=>({ok:false,error:`Moderación HTTP ${rr.status}`}));
             response.writeHead(rr.ok?200:400,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify(out));return;
           }catch(e){response.writeHead(400,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});response.end(JSON.stringify({ok:false,error:e?.message||String(e)}));return}
@@ -2208,8 +2199,24 @@ wss.on(
             try{await connectTikTok(message.url)}
             catch(error){broadcastPlatform('tiktok',{type:'error',message:getError(error)})}
 
-          } else if (platform === 'twitch' || platform === 'kick') {
-            broadcast({type:'error',message:'Esta edición de GREÑA LIVE PRO funciona solo con TikTok.'});
+          } else if (platform === 'twitch') {
+            connectionPrefs.twitchUrl=String(message.url||'').trim();
+            connectionPrefs.twitchEnabled=true;
+            connectionPrefs.autoConnect=true;
+            await saveConnectionPrefs();
+            try{await connectTwitch(message.url)}
+            catch(error){broadcastPlatform('twitch',{type:'error',message:getError(error)})}
+
+          } else if (platform === 'kick') {
+            connectionPrefs.kickUrl=String(message.url||'').trim();
+            connectionPrefs.kickEnabled=true;
+            connectionPrefs.autoConnect=true;
+            await saveConnectionPrefs();
+            try { await connectKick(message.url); }
+            catch(error){
+              kickConnected=false;
+              broadcastPlatform('kick',{type:'error',message:getError(error)});
+            }
           } else {
             broadcast({type:'error',message:'Plataforma no reconocida.'});
           }
@@ -2283,6 +2290,8 @@ wss.on(
 
 function bridgeHeartbeat(){
   bridgeStatus('tiktok',!!tiktokConn,!!tiktokConn?`@${currentTikTokUser||'tiktok'} · chat LIVE conectado`:'TikTok chat desconectado',currentTikTokUser||'',{roomId:String(tiktokConn?.roomId||''),heartbeat:true});
+  bridgeStatus('twitch',!!twitchClient,!!twitchClient?`${currentTwitchChannel||'twitch'} · chat conectado`:'Twitch chat desconectado',currentTwitchChannel||'',{heartbeat:true});
+  bridgeStatus('kick',!!kickConnected,!!kickConnected?`${currentKickChannel||'kick'} · chat conectado`:'Kick chat desconectado',currentKickChannel||'',{heartbeat:true});
   flushBridgeQueue().catch(()=>{});
 }
 const bridgeHeartbeatTimer=setInterval(bridgeHeartbeat,3000);bridgeHeartbeatTimer.unref?.();setTimeout(bridgeHeartbeat,350);
@@ -2301,7 +2310,7 @@ async function autoConnectKick(){
   // Si el usuario ya vinculó/configuró Kick en GREÑA principal, recuperamos el canal solos.
   if(!connectionPrefs.kickUrl){
     try{
-      const r=await fetch(`${MAIN_BASE}/api/kick/config`,{headers:{'x-grena-internal':BRIDGE_TOKEN}});
+      const r=await fetch(`${MAIN_ORIGIN}/api/kick/config`,{headers:{'x-grena-internal':BRIDGE_TOKEN}});
       const d=await r.json();
       if(d?.slug){connectionPrefs.kickUrl=`https://kick.com/${d.slug}`;connectionPrefs.kickEnabled=true;await saveConnectionPrefs()}
     }catch{}
@@ -2314,9 +2323,9 @@ server.listen(
   HOST,
   async () => {
     console.log(`GREÑA CHAT listo: http://${HOST}:${PORT}`);
-    console.log('GREÑA TIKTOK ONLY preparado. Autoconexión TikTok:',connectionPrefs.autoConnect?'ACTIVA':'DESACTIVADA');
+    console.log('TikTok + Twitch + Kick preparados. Autoconexión:',connectionPrefs.autoConnect?'ACTIVA':'DESACTIVADA');
     console.log('Chat de voz preparado desde el navegador.');
-    await Promise.allSettled([autoConnectTikTok()]);
-    setInterval(()=>{autoConnectTikTok()},30000);
+    await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick()]);
+    setInterval(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick()},30000);
   }
 );

@@ -1,5 +1,5 @@
 <!doctype html>
-<html class="tiktok-only" lang="es">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -8,14 +8,13 @@
 <link rel="stylesheet" href="/control-center.css">
 <link rel="stylesheet" href="/ui-refresh.css">
 <link rel="stylesheet" href="/ui-v2.css">
-<link rel="stylesheet" href="/tiktok-only.css">
 </head>
 <body class="grena-control">
 <div class="app-shell">
   <header class="topbar">
     <div class="brand-block">
       <div class="brand-mark">G</div>
-      <div><strong>GREÑA LIVE PRO</strong><span>TIKTOK ONLY · CREATOR CONTROL</span></div>
+      <div><strong>GREÑA LIVE PRO</strong><span>CREATOR CONTROL · 4.0</span></div>
     </div>
     <div class="top-status">
       <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
@@ -86,7 +85,7 @@
           <span class="session-badge"><b id="eventCount">0</b> eventos</span>
         </div>
         <div class="activity-feed" id="activityFeed">
-          <div class="empty-state"><span>⚡</span><b>Esperando actividad</b><small>Follows, regalos, compartidos y Tap Tap de TikTok aparecerán aquí con el detalle exacto.</small></div>
+          <div class="empty-state"><span>⚡</span><b>Esperando actividad</b><small>Follows, regalos, compartidos, subs, Bits y raids aparecerán aquí con el detalle exacto.</small></div>
         </div>
       </section>
 
@@ -96,7 +95,10 @@
           <button data-test="tt-follow"><span>＋</span>Follow</button>
           <button data-test="tt-gift"><span>🎁</span>Rosa ×5</button>
           <button data-test="tt-share"><span>↗</span>Share</button>
-          
+          <button data-test="tw-sub"><span>★</span>Sub</button>
+          <button data-test="tw-bits"><span>◆</span>500 Bits</button>
+          <button data-test="ki-follow"><span>＋</span>Kick Follow</button>
+          <button data-test="ki-sub"><span>★</span>Kick Sub</button>
         </div>
         <div class="obs-row"><div><small>OVERLAY OBS</small><code id="overlayUrl">/overlay.html</code></div><button id="copyOverlay" class="copy-btn">Copiar</button></div>
       </section>
@@ -145,6 +147,6 @@
 <script src="/control-center.js"></script>
 <script src="/ui-v2.js"></script>
 <script src="/app-lifecycle.js"></script>
-<script src="/tiktok-only.js"></script>
-<script id="GRENA_WEB_OVERLAY_URL">(()=>{const e=document.getElementById('overlayUrl');if(e)e.textContent=location.origin+'/overlay.html'})();</script></body>
+<script>(()=>{const e=document.getElementById('overlayUrl');if(e)e.textContent=location.origin+'/overlay.html'})();</script>
+</body>
 </html>

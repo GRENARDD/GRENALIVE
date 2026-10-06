@@ -1,5 +1,5 @@
 <!doctype html>
-<html class="tiktok-only" lang="es">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -36,7 +36,6 @@ label{display:block;color:#c9d0e5;font-size:11px;margin:12px 0 6px}select,input{
 @media(max-width:900px){.grid{grid-template-columns:1fr}.side{position:static}.pulse-grid{grid-template-columns:1fr}.summary-top{flex-direction:column}.general-index{width:100%}}
 @media(max-width:600px){body{padding:8px}.hero-top{flex-direction:column}.sources{grid-template-columns:1fr}.platforms{grid-template-columns:1fr 1fr}.actions{grid-template-columns:1fr 1fr}.truth{grid-template-columns:1fr}.summary-stats{grid-template-columns:1fr 1fr}}
 </style>
-<link rel="stylesheet" href="/tiktok-only.css">
 </head>
 <body>
 <div class="wrap">
@@ -96,8 +95,8 @@ label{display:block;color:#c9d0e5;font-size:11px;margin:12px 0 6px}select,input{
  <label>Plataformas</label>
  <div class="platforms">
   <label class="pcheck"><input id="pTikTok" type="checkbox" checked><i class="dot tt"></i>TikTok</label>
-  <label class="pcheck" style="display:none"><input id="pKick" type="checkbox"><i class="dot kick"></i>Kick</label>
-  <label class="pcheck" style="display:none"><input id="pTwitch" type="checkbox"><i class="dot tw"></i>Twitch</label>
+  <label class="pcheck"><input id="pKick" type="checkbox" checked><i class="dot kick"></i>Kick</label>
+  <label class="pcheck"><input id="pTwitch" type="checkbox" checked><i class="dot tw"></i>Twitch</label>
  </div>
  <button class="btn" id="analyze">⚡ ANALIZAR DATOS REALES</button>
  <div class="note"><b>Cuentas vinculadas en GREÑA:</b><div id="linkedAccounts" style="margin-top:7px;display:grid;gap:6px"></div></div>
@@ -106,7 +105,7 @@ label{display:block;color:#c9d0e5;font-size:11px;margin:12px 0 6px}select,input{
 <main class="main">
  <section class="panel summary-panel">
   <div class="summary-top">
-   <div class="summary-copy"><div class="eyebrow">RESUMEN DEL MOMENTO</div><h2 id="summaryHeadline">Esperando un análisis real</h2><p id="summaryText">Cuando analices, GREÑA resumirá aquí las señales reales recibidas de TikTok y destacará el tema con mejor oportunidad según el Índice GREÑA.</p><div class="summary-meta" id="summaryMeta">Todavía no hay snapshots analizados.</div></div>
+   <div class="summary-copy"><div class="eyebrow">RESUMEN DEL MOMENTO</div><h2 id="summaryHeadline">Esperando un análisis real</h2><p id="summaryText">Cuando analices, GREÑA resumirá aquí las señales reales recibidas de TikTok, Kick y Twitch y destacará el tema con mejor oportunidad según el Índice GREÑA.</p><div class="summary-meta" id="summaryMeta">Todavía no hay snapshots analizados.</div></div>
    <div class="general-index"><span>Índice GREÑA general</span><b id="generalIndex">--</b><small id="generalIndexLabel">Derivado de señales reales</small></div>
   </div>
   <div class="summary-stats">
@@ -121,13 +120,15 @@ label{display:block;color:#c9d0e5;font-size:11px;margin:12px 0 6px}select,input{
  <section class="panel">
   <div class="head"><div><div class="eyebrow">PULSO POR PLATAFORMA</div><h2>Qué tan activa está cada red</h2><small>Los datos base son reales; el índice mostrado es una puntuación GREÑA derivada, no una estadística oficial de la plataforma.</small></div><span class="pill" id="pulseState">Esperando análisis</span></div>
   <div class="pulse-grid" id="pulseGrid">
-   <div class="pulse-card inactive"><div class="pulse-top"><i class="dot tt"></i><b>TikTok</b><div class="pulse-index"><strong>--</strong><small>ÍNDICE GREÑA</small></div></div><div class="pulse-line">Sin análisis todavía.</div><div class="pulse-bar"><i style="width:0%"></i></div></div><div class="pulse-line">Sin análisis todavía.</div><div class="pulse-bar"><i style="width:0%"></i></div></div><div class="pulse-line">Sin análisis todavía.</div><div class="pulse-bar"><i style="width:0%"></i></div></div>
+   <div class="pulse-card inactive"><div class="pulse-top"><i class="dot tt"></i><b>TikTok</b><div class="pulse-index"><strong>--</strong><small>ÍNDICE GREÑA</small></div></div><div class="pulse-line">Sin análisis todavía.</div><div class="pulse-bar"><i style="width:0%"></i></div></div>
+   <div class="pulse-card inactive"><div class="pulse-top"><i class="dot kick"></i><b>Kick</b><div class="pulse-index"><strong>--</strong><small>ÍNDICE GREÑA</small></div></div><div class="pulse-line">Sin análisis todavía.</div><div class="pulse-bar"><i style="width:0%"></i></div></div>
+   <div class="pulse-card inactive"><div class="pulse-top"><i class="dot tw"></i><b>Twitch</b><div class="pulse-index"><strong>--</strong><small>ÍNDICE GREÑA</small></div></div><div class="pulse-line">Sin análisis todavía.</div><div class="pulse-bar"><i style="width:0%"></i></div></div>
   </div>
  </section>
 
  <section class="panel">
   <div class="head"><div><div class="eyebrow">TOP DEL MOMENTO</div><h2>Oportunidades recomendadas</h2><small id="analysisMeta">Aún no se ha ejecutado un análisis.</small></div><span class="pill" id="doneCount">0 hechas</span></div>
-  <div class="empty" id="empty"><b>Esperando datos reales</b>Ejecuta el análisis con las cuentas de TikTok que ya vinculaste en GREÑA. Si una red no puede aportar una métrica real, GREÑA la omite en vez de inventarla.</div>
+  <div class="empty" id="empty"><b>Esperando datos reales</b>Ejecuta el análisis con las cuentas de TikTok, Kick y Twitch que ya vinculaste en GREÑA. Si una red no puede aportar una métrica real, GREÑA la omite en vez de inventarla.</div>
   <div class="opps" id="opps" style="display:none"></div>
  </section>
 
@@ -139,8 +140,8 @@ label{display:block;color:#c9d0e5;font-size:11px;margin:12px 0 6px}select,input{
  <section class="panel">
   <div class="head"><div><div class="eyebrow">TRANSPARENCIA</div><h2>Qué significa cada número</h2></div></div>
   <div class="truth">
-   <div><b>Estadística real de plataforma</b><p>Viewers, vistas y crecimiento salen de datos reales accesibles de TikTok según lo que la cuenta vinculada permita consultar.</p></div>
-   <div><b>Índice GREÑA</b><p>El “score” de oportunidad es una fórmula propia para ordenar señales reales. No es un porcentaje oficial de TikTok y nunca se presenta como tal.</p></div>
+   <div><b>Estadística real de plataforma</b><p>Viewers, vistas y crecimiento salen de datos reales accesibles mediante las cuentas vinculadas. En Twitch/Kick la cobertura puede ser una muestra de streams; TikTok solo aporta lo que la cuenta vinculada permita consultar.</p></div>
+   <div><b>Índice GREÑA</b><p>El “score” de oportunidad es una fórmula propia para ordenar señales reales. No es un porcentaje oficial de TikTok, Kick o Twitch y nunca se presenta como tal.</p></div>
   </div>
  </section>
 </main>
@@ -212,8 +213,8 @@ function renderSummary(d){
  $('summaryMeta').textContent=`${new Date(d.generatedAt).toLocaleString('es-DO')} · ventana ${d.windowHours}h · ${realSources.length} red(es) aportando datos · ${measured.length} tema(s) con crecimiento ya medido.`;
 }
 function renderPulse(d){
- const wanted=['TikTok'];
- const selected=new Set(['TikTok']);
+ const wanted=['TikTok','Kick','Twitch'];
+ const selected=new Set(selectedPlatforms().map(x=>x==='tiktok'?'TikTok':x==='kick'?'Kick':'Twitch'));
  const byName=new Map((d.sources||[]).map(s=>[s.platform,s]));
  let active=0;
  $('pulseGrid').innerHTML=wanted.map(name=>{
@@ -234,7 +235,7 @@ async function syncLinkedAccounts(){
  try{
   const r=await fetch('/api/status',{cache:'no-store'}),d=await r.json();
   if(!r.ok||!d.ok)throw Error(d.error||'No se pudieron leer las cuentas vinculadas');
-  const defs=[['tiktok','pTikTok','TikTok','tt']];
+  const defs=[['tiktok','pTikTok','TikTok','tt'],['kick','pKick','Kick','kick'],['twitch','pTwitch','Twitch','tw']];
   const rows=[];
   for(const [key,id,label,cls] of defs){
    const st=d.status?.[key]||{},linked=!!st.authenticated,cb=$(id);
@@ -245,7 +246,7 @@ async function syncLinkedAccounts(){
   $('linkedAccounts').innerHTML=rows.join('');
  }catch(e){$('linkedAccounts').innerHTML=`<span style="color:#ff9cac">${esc(e.message)}</span>`}
 }
-function selectedPlatforms(){return ['tiktok']}
+function selectedPlatforms(){return [['tiktok','pTikTok'],['kick','pKick'],['twitch','pTwitch']].filter(x=>$(x[1]).checked&&!$(x[1]).disabled).map(x=>x[0])}
 function nextAvailable(except=''){
  const used=new Set(visible.map(x=>x.key));return allOpportunities.find(x=>x.key!==except&&!used.has(x.key)&&!completed.has(x.key)&&!skipped.has(x.key))
 }
@@ -298,13 +299,12 @@ async function analyze(){
   const ok=d.sources.filter(x=>x.ok&&((x.items||[]).length>0)).length,measured=d.opportunities.filter(x=>Object.values(x.platforms).some(m=>Number.isFinite(m.growthPct))).length;
   const unavailable=d.sources.filter(x=>!x.ok||!(x.items||[]).length).map(x=>x.platform);
   $('analysisMeta').textContent=`${new Date(d.generatedAt).toLocaleString('es-DO')} · ${ok} red(es) aportando señales reales · ${measured} tema(s) con crecimiento medido${unavailable.length?' · sin señal utilizable: '+unavailable.join(', '):''}.`;
-  if(!allOpportunities.length){$('empty').style.display='block';$('opps').style.display='none';$('empty').innerHTML='<b>No hay suficientes señales reales</b>Vincula TikTok en GREÑA y vuelve a analizar. GREÑA no generó oportunidades ficticias.'}
+  if(!allOpportunities.length){$('empty').style.display='block';$('opps').style.display='none';$('empty').innerHTML='<b>No hay suficientes señales reales</b>Vincula TikTok, Kick o Twitch en GREÑA y vuelve a analizar. GREÑA no generó oportunidades ficticias.'}
  }catch(e){toast(e.message)}finally{btn.disabled=false;btn.textContent='⚡ ANALIZAR DATOS REALES'}
 }
 $('region').onchange=()=>{$('countryWrap').style.display=$('region').value==='Otro país'?'block':'none'};
 $('analyze').onclick=analyze;
 initCountries();updateDone();syncLinkedAccounts();
 </script>
-<script src="/tiktok-only.js"></script>
 </body>
 </html>

@@ -16,7 +16,6 @@ IsLiveRouteConfig.skipFetchRoomIdFromEulerRoute = true;
 
 const CLOUD_MODE=process.env.GRENA_CLOUD==='1';
 const HOST=process.env.HOST||(CLOUD_MODE?'0.0.0.0':'127.0.0.1'), PORT=Number(process.env.PORT||8787), APP_ROOT=dirname(fileURLToPath(import.meta.url)), ROOT=APP_ROOT;
-const TIKTOK_ONLY=true;
 const PUBLIC_URL=String(process.env.GRENA_PUBLIC_URL||'').trim().replace(/\/$/,'');
 const BASE=PUBLIC_URL||`http://${HOST}:${PORT}`;
 
@@ -113,7 +112,6 @@ function appWindowHeartbeat(){
 }
 function requestFullShutdown(reason='ventana-cerrada'){
   console.log(`[GREÑA ciclo-vida] cierre solicitado: ${reason}`);
-  if(CLOUD_MODE){console.log('[GREÑA nube] Se ignora el cierre de una pestaña; el servicio permanece activo.');return;}
   if(notifyLauncher('grena-shutdown-request',{reason}))return;
   // Respaldo cuando server.mjs se ejecuta manualmente, sin launcher.
   stopOwnedChat();stopCamTunnelProcess();setTimeout(()=>process.exit(0),80);
@@ -677,8 +675,10 @@ function radarConfigPublic(){
  };
 }
 async function radarAnalyze(params={}){
- const enabled=['tiktok'];
+ const enabled=Array.isArray(params.platforms)?params.platforms.map(x=>String(x).toLowerCase()):['tiktok','kick','twitch'];
  const jobs=[];
+ if(enabled.includes('twitch'))jobs.push(radarFetchTwitch(params).catch(e=>radarSourceError('Twitch',e)));
+ if(enabled.includes('kick'))jobs.push(radarFetchKick(params).catch(e=>radarSourceError('Kick',e)));
  if(enabled.includes('tiktok'))jobs.push(radarFetchTikTok(params).catch(e=>radarSourceError('TikTok',e)));
  const sources=await Promise.all(jobs);await radarApplyGrowth(sources,params);
  const opportunities=radarMergeOpportunities(sources,params);
@@ -1456,10 +1456,8 @@ async function syncCreatorAccount(platform,username){
  try{await fetch('http://127.0.0.1:8788/api/connection-prefs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({autoConnect:true,[platform+'Url']:value,[platform+'Enabled']:true})})}catch{}
 }
 async function syncAllCreatorAccounts(){
- const username=savedAuth.tiktok?.username||'';
- if(username)await syncCreatorAccount('tiktok',username).catch(()=>{});
- socialSettings={...socialSettings,twitchUser:'',kickUser:''};
- await safeWriteJson(stateFile('social.json',LEGACY_SOCIAL_FILE),socialSettings).catch(()=>{});
+ const accounts={tiktok:savedAuth.tiktok?.username||'',twitch:savedAuth.twitch?.login||savedAuth.twitch?.displayName||'',kick:savedAuth.kick?.username||savedAuth.kick?.slug||''};
+ for(const [platform,username] of Object.entries(accounts))if(username)await syncCreatorAccount(platform,username).catch(()=>{});
 }
 async function disconnectChatPlatform(platform){
  try{await fetch('http://127.0.0.1:8788/api/internal/disconnect-platform',{method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify({platform})})}catch{}
@@ -1858,11 +1856,11 @@ function panelGuard(req,res,pathname){
   if(sessionUser(req))return true;
   json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});return false;
 }
-
 // ===== GREÑA WEB: proxy interno del motor de chat (8788) sobre el mismo HTTPS público =====
 function proxyChatHttp(req,res,url){
   const pathname=url.pathname==='/chat'?'/':url.pathname.slice('/chat'.length)||'/';
-  const headers={...req.headers,host:'127.0.0.1:8788',origin:'http://127.0.0.1:8787'};
+  const internalOrigin=`http://127.0.0.1:${PORT}`;
+  const headers={...req.headers,host:'127.0.0.1:8788',origin:internalOrigin};
   delete headers['x-forwarded-host'];delete headers['x-forwarded-proto'];delete headers['x-forwarded-for'];
   const upstream=http.request({hostname:'127.0.0.1',port:8788,path:pathname+url.search,method:req.method,headers},u=>{
     const out={...u.headers};delete out['access-control-allow-origin'];delete out['access-control-allow-credentials'];
@@ -1881,10 +1879,9 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/health')return json(res,200,{ok:true,app:'GREÑA LIVE PRO',status});
  if(pathname==='/api/app/window-heartbeat'&&req.method==='POST'){appWindowHeartbeat();return json(res,200,{ok:true});}
  if(pathname==='/api/app/window-closing'&&req.method==='POST'){appWindowClosing();return json(res,200,{ok:true});}
- if(pathname==='/api/app/exit'&&req.method==='POST'){json(res,200,{ok:true,message:'Cerrando GREÑA LIVE PRO…'});setTimeout(()=>requestFullShutdown('boton-salir-de-grena'),120);return;}
+ if(pathname==='/api/app/exit'&&req.method==='POST'){if(CLOUD_MODE)return json(res,200,{ok:true,message:'GREÑA Web continúa en línea. Usa Cerrar sesión para salir de tu cuenta.'});json(res,200,{ok:true,message:'Cerrando GREÑA LIVE PRO…'});setTimeout(()=>requestFullShutdown('boton-salir-de-grena'),120);return;}
  if(pathname==='/api/account/me'&&req.method==='GET'){const u=sessionUser(req);return json(res,200,accountPayload(u));}
  if(pathname==='/api/account/register'&&req.method==='POST'){
-   if(CLOUD_MODE&&usersStore.users.length>0&&process.env.GRENA_ALLOW_REGISTRATION!=='1')return json(res,403,{ok:false,error:'El registro está cerrado en esta GREÑA Web. Usa la cuenta creada por el administrador.'});
    {const g=authThrottle();if(g)return tooMany(res,g)}
    let raw='';raw=await readBody(req);const body=JSON.parse(raw||'{}');
    const username=normalizeGrenaUsername(body.username),displayName=String(body.displayName||body.username||'').trim().slice(0,40),password=String(body.password||''),email=normalizeEmail(body.email);
@@ -1967,7 +1964,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/internal/status'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;
   let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
-  if(body.platform!=='tiktok')return json(res,400,{ok:false,error:'Esta edición acepta solo viewers de TikTok'});
+  if(!['tiktok','twitch','kick'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   const p=body.platform,wasConnected=!!bridgeRuntime[p],label=String(body.label||'');
   bridgeRuntime[p]=!!body.connected;
   noteBridgeSignal(p,'status',{connected:!!body.connected,label,roomId:String(body.roomId||'')});
@@ -2003,7 +2000,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  if(pathname==='/api/internal/event'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const platform=String(body.platform||''),event=String(body.event||'');
-  if(platform!=='TikTok'||!['follow','gift','share','like'].includes(event))return json(res,400,{ok:false,error:'Esta edición acepta solo eventos de TikTok'});
+  if(!['TikTok','Twitch','Kick'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
   if(bridgeMessageDuplicate(body.bridgeEventId))return json(res,200,{ok:true,duplicate:true});
   if(platform==='Twitch'&&twitchCfg){
    const officialFor={follow:['channel.follow'],sub:['channel.subscribe','channel.subscription.message'],gift:['channel.subscription.gift'],cheer:['channel.cheer'],raid:['channel.raid']};
@@ -2053,7 +2050,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  if(pathname==='/api/internal/viewers'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
-  if(body.platform!=='tiktok')return json(res,400,{ok:false,error:'Esta edición acepta solo viewers de TikTok'});
+  if(!['tiktok','twitch','kick'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   // El bridge y el contador dedicado ahora se respaldan mutuamente. Antes TikTok descartaba
   // por completo esta cifra cuando existía counterTikTok, causando el 0 permanente visto en LIVE.
   const source=String(body.source||'').trim()||(body.platform==='kick'?'Kick browser realtime':body.platform==='tiktok'?'TikTok LIVE bridge':'Twitch IRC bridge');
@@ -2137,12 +2134,14 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   const su=sessionUser(req);if(!su)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
   const force=url.searchParams.get('refresh')==='1';
   if(force||!sourceIsFresh('tiktok')){try{await refreshTikTokGiftCatalog(force)}catch(e){giftCatalogCache.sources.tiktok={...(giftCatalogCache.sources.tiktok||{}),source:TIKTOK_GIFT_SOURCE_URL,error:e?.message||String(e),lastErrorAt:Date.now()}}}
-  ensureBuiltInGiftCatalog();const data=publicGiftCatalog({platform:'TikTok',q:url.searchParams.get('q')||'',animatedOnly:url.searchParams.get('animated')==='1'});return json(res,200,{ok:true,...data});
+  if(twitchCfg?.token&&(force||!sourceIsFresh('twitch'))){try{await refreshTwitchGiftCatalog(force)}catch(e){giftCatalogCache.sources.twitch={...(giftCatalogCache.sources.twitch||{}),source:'Twitch Helix',error:e?.message||String(e),lastErrorAt:Date.now()}}}
+  ensureBuiltInGiftCatalog();const data=publicGiftCatalog({platform:url.searchParams.get('platform')||'',q:url.searchParams.get('q')||'',animatedOnly:url.searchParams.get('animated')==='1'});return json(res,200,{ok:true,...data});
  }
  if(pathname==='/api/gift-catalog/refresh'&&req.method==='POST'){
   const su=sessionUser(req);if(!su)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});const results={};
   try{results.tiktok=await refreshTikTokGiftCatalog(true)}catch(e){results.tiktok={ok:false,error:e?.message||String(e)}}
-  ensureBuiltInGiftCatalog();return json(res,200,{ok:true,results,...publicGiftCatalog({platform:'TikTok'})});
+  try{results.twitch=await refreshTwitchGiftCatalog(true)}catch(e){results.twitch={ok:false,error:e?.message||String(e)}}
+  ensureBuiltInGiftCatalog();return json(res,200,{ok:true,results,...publicGiftCatalog()});
  }
  if(pathname==='/api/radar/config'&&req.method==='GET'){
   const su=sessionUser(req);if(!su)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
@@ -2157,7 +2156,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
   return json(res,200,await radarAnalyze(body));
  }
- if(pathname==='/api/status')return json(res,200,{ok:true,edition:'tiktok-only',profile:publicUser(usersStore.users.find(u=>u.id===activeUserId)),status:publicStatus(),bridgeRuntime,eventHealth:eventHealthSnapshot(),authService:{configured:authService.configured,reachable:authService.reachable,url:AUTH_SERVICE_URL?AUTH_SERVICE_URL.replace(/\/\/[^/]+/,'//'+new URL(AUTH_SERVICE_URL).host):'',providers:{tiktok:authService.providers?.tiktok||{}},lastError:authService.lastError},oauthConfigured:{tiktok:configured('tiktok'),twitch:false,kick:false}});
+ if(pathname==='/api/status')return json(res,200,{ok:true,profile:publicUser(usersStore.users.find(u=>u.id===activeUserId)),status:publicStatus(),bridgeRuntime,eventHealth:eventHealthSnapshot(),authService:{configured:authService.configured,reachable:authService.reachable,url:AUTH_SERVICE_URL?AUTH_SERVICE_URL.replace(/\/\/[^/]+/,'//'+new URL(AUTH_SERVICE_URL).host):'',providers:authService.providers,lastError:authService.lastError},oauthConfigured:{tiktok:configured('tiktok'),twitch:configured('twitch'),kick:configured('kick')}});
  if(pathname==='/api/event-health'&&req.method==='GET')return json(res,200,{ok:true,eventHealth:eventHealthSnapshot()});
  if(pathname==='/api/auth-service/refresh'&&req.method==='POST'){await loadAuthServiceConfig();return json(res,200,{ok:true,authService});}
  if(pathname==='/api/activity'){const limit=Math.max(1,Math.min(120,Number(url.searchParams.get('limit')||40)||40));return json(res,200,{ok:true,activity:activityHistory.slice(0,limit)});}
@@ -2167,9 +2166,9 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/alert-style'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const style=String(body.style||'classic');if(!['classic','option-a'].includes(style))return json(res,400,{ok:false,error:'Estilo de alerta no válido.'});autoPrefs.alertStyle=style;await persistAutoPrefs();broadcast({type:'alert-style',style});return json(res,200,{ok:true,style})}
  if(pathname==='/api/designs'&&req.method==='GET')return json(res,200,{ok:true,designs:savedAlertDesigns});
  if(pathname==='/api/design'&&req.method==='POST'){let b='';b=await readBody(req);const d=JSON.parse(b||'{}');const ev=String(d.event||'follow');savedAlertDesigns[ev]={...d,soundProfileVersion:SOUND_PROFILE_VERSION};await safeWriteJson(stateFile('alert-designs.json',LEGACY_ALERTS_FILE),savedAlertDesigns);return json(res,200,{ok:true,event:ev})}
- if(pathname==='/api/alert'&&req.method==='POST'){let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(a.platform&&String(a.platform)!=='TikTok')return json(res,400,{ok:false,error:'Esta edición acepta alertas solo de TikTok'});if(a.platform&&a.event&&['follow','gift','share','like'].includes(String(a.event))){alert('TikTok',String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,platform:a.platform||'TikTok',receivedAt:Date.now()}})}return json(res,200,{ok:true})}
+ if(pathname==='/api/alert'&&req.method==='POST'){let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(a.platform&&a.event&&['follow','sub','gift','cheer','share','raid','like'].includes(String(a.event))){alert(String(a.platform),String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,receivedAt:Date.now()}})}return json(res,200,{ok:true})}
  if(pathname==='/api/tiktok/browser-login'&&req.method==='POST'){json(res,202,{ok:true,message:'Abriendo TikTok…'});beginTikTokBrowserLogin().catch(e=>{console.error('TikTok Browser Login:',e);if(tiktokLoginContext){tiktokLoginContext.close().catch(()=>{});tiktokLoginContext=null}setStatus('tiktok',false,'Error de login: '+(e?.message||e))});return}
- const m=pathname.match(/^\/oauth\/(tiktok|twitch|kick)\/(start|callback)$/);if(m){if(m[1]!=='tiktok')return callbackPage(res,false,'Esta edición de GREÑA LIVE PRO funciona solo con TikTok.');if(m[2]==='start')return await beginOAuth(m[1],res);return await finishOAuth(m[1],url,res)}
+ const m=pathname.match(/^\/oauth\/(tiktok|twitch|kick)\/(start|callback)$/);if(m){if(m[2]==='start')return await beginOAuth(m[1],res);return await finishOAuth(m[1],url,res)}
  if(pathname==='/api/twitch/device/status'&&req.method==='GET'){
   const id=String(url.searchParams.get('id')||''),session=twitchDeviceSessions.get(id);if(!session)return json(res,404,{ok:false,error:'Esta autorización de Twitch ya no existe o venció.'});
   return json(res,200,{ok:true,status:session.status,message:session.message||'',account:session.account||'',expiresAt:session.expiresAt});
@@ -2231,7 +2230,7 @@ const wss=new WebSocketServer({noServer:true,maxPayload:256*1024});wss.on('conne
 
 const chatProxyWss=new WebSocketServer({noServer:true,maxPayload:256*1024});
 chatProxyWss.on('connection',(client)=>{
-  const upstream=new WebSocket('ws://127.0.0.1:8788/ws',{headers:{Origin:'http://127.0.0.1:8787',Host:'127.0.0.1:8788'}});
+  const upstream=new WebSocket('ws://127.0.0.1:8788/ws',{headers:{Origin:`http://127.0.0.1:${PORT}`,Host:'127.0.0.1:8788'}});
   const pending=[];
   client.on('message',(data,isBinary)=>{if(upstream.readyState===WebSocket.OPEN)upstream.send(data,{binary:isBinary});else if(upstream.readyState===WebSocket.CONNECTING&&pending.length<100)pending.push([data,isBinary])});
   upstream.on('open',()=>{for(const [data,isBinary] of pending.splice(0))if(upstream.readyState===WebSocket.OPEN)upstream.send(data,{binary:isBinary})});
@@ -2246,18 +2245,19 @@ server.on('upgrade',(req,socket,head)=>{
   if(pathname!=='/')return socket.destroy();
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
-
 let autoTikTokBusy=false;
 async function ensureTikTokLiveAuto(){if(!autoPrefs.enabled||savedAuth.tiktok?.mode==='live-link'||bridgeRuntime.tiktok||!savedAuth.tiktok?.username||autoTikTokBusy||tiktok?.roomId)return;autoTikTokBusy=true;try{await connectTikTokLive(savedAuth.tiktok.username)}catch{}finally{autoTikTokBusy=false}}
-async function ensureCountersAuto(){if(!autoPrefs.enabled)return;try{if(autoPrefs.counterTikTokEnabled&&autoPrefs.counterTikTok&&!counterTikTok)await connectCounterTikTok(autoPrefs.counterTikTok)}catch{}}
+async function ensureCountersAuto(){if(!autoPrefs.enabled)return;try{if(autoPrefs.counterTikTokEnabled&&autoPrefs.counterTikTok&&!counterTikTok)await connectCounterTikTok(autoPrefs.counterTikTok)}catch{}try{if(autoPrefs.counterTwitchEnabled&&autoPrefs.counterTwitch&&!counterTwitchLogin)await connectCounterTwitch(autoPrefs.counterTwitch)}catch{}try{if(autoPrefs.counterKickEnabled&&autoPrefs.counterKick&&!kickViewerTimer)startKickPolling()}catch{}}
 server.listen(PORT,HOST,async()=>{
- console.log(`GREÑA LIVE PRO WEB listo: ${BASE}`);
+ console.log(`GREÑA LIVE PRO WEB FIX14 completo listo: ${BASE}`);
  purgeSessionsAndPersist();setInterval(purgeSessionsAndPersist,6*60*60*1000).unref();
  refreshTikTokGiftCatalog(false).catch(e=>console.warn('Catálogo TikTok:',e?.message||e));
  await loadAuthServiceConfig();
  console.log('GREÑA Auth:',AUTH_SERVICE_URL?(authService.reachable?'conectado':'no disponible'):'sin configurar');
- console.log('GREÑA TIKTOK ONLY · TikTok:',configured('tiktok')?'configurado':'link LIVE disponible');
+ console.log('Login OAuth:',Object.fromEntries(['tiktok','twitch','kick'].map(p=>[p,configured(p)?'configurado':'pendiente'])));
  await syncAllCreatorAccounts();
+ try{await restoreTwitchSession()}catch(e){console.warn('Twitch auto-login:',e?.message||e)}
+ try{if(currentKickSlug()&&(savedAuth.kick?.access_token||isBrokerProvider('kick')||oauthConfig.kick?.clientId&&oauthConfig.kick?.clientSecret))startKickPolling();if(savedAuth.kick?.access_token)ensureKickEventSubscriptions().catch(()=>{})}catch(e){console.warn('Kick auto-login:',e?.message||e)}
  await ensureTikTokLiveAuto();
  await ensureCountersAuto();
  pushEventHealth();

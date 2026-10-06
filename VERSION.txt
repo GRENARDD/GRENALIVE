@@ -1,8 +1,2 @@
-GREÑA LIVE PRO WEB · TIKTOK ONLY
-Base: FIX14 · Chat Voz Inteligente + números largos ignorados
-Modo: Nube / Railway / HTTPS + WebSockets
-- Solo TikTok en la interfaz.
-- Chat de voz inteligente y filtro de cifras largas.
-- Motor de chat servido por /chat y /chat-ws.
-- Widgets OBS con URLs HTTPS públicas.
-- Fish Audio por variable privada GRENA_FISH_API_KEY.
+GREÑA LIVE PRO WEB · FIX14 COMPLETO · NÚMEROS LARGOS IGNORADOS
+TikTok + Twitch + Kick · Cloud Ready

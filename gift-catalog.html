@@ -1,19 +1,18 @@
 <!doctype html>
-<html class="tiktok-only" lang="es">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#080a10">
 <title>GREÑA LIVE PRO · Catálogo universal</title>
 <link rel="stylesheet" href="/gift-catalog.css">
-<link rel="stylesheet" href="/tiktok-only.css">
 </head>
 <body>
 <div class="catalog-shell">
   <header class="catalog-head">
     <div class="brand-line">
       <div class="brand-mark">G</div>
-      <div><span class="eyebrow">GREÑA LIVE · CATÁLOGO UNIVERSAL</span><h1>Regalos y apoyos</h1><p>Biblioteca visual exclusiva de regalos de TikTok LIVE.</p></div>
+      <div><span class="eyebrow">GREÑA LIVE · CATÁLOGO UNIVERSAL</span><h1>Regalos y apoyos</h1><p>TikTok + Twitch + Kick en una sola biblioteca visual para alertas.</p></div>
     </div>
     <div class="head-actions">
       <button id="refreshBtn" class="btn primary" type="button">↻ Actualizar catálogo</button>
@@ -23,7 +22,7 @@
 
   <section class="source-note" id="sourceNote">
     <span class="pulse"></span>
-    <div><b>Catálogo inteligente</b><small>TikTok se sincroniza con el catálogo regional disponible para tu LIVE.</small></div>
+    <div><b>Catálogo inteligente</b><small>TikTok se sincroniza con el catálogo regional de República Dominicana; Twitch usa Cheermotes oficiales cuando tu cuenta está conectada; Kick conserva los Gifts reales que GREÑA recibe.</small></div>
   </section>
 
   <section class="stats-grid">
@@ -35,7 +34,7 @@
   </section>
 
   <section class="toolbar">
-    <div class="search-box"><span>⌕</span><input id="searchInput" type="search" autocomplete="off" placeholder="Buscar Rosa, Galaxy, TikTok Universe…"></div>
+    <div class="search-box"><span>⌕</span><input id="searchInput" type="search" autocomplete="off" placeholder="Buscar Rosa, Galaxy, Bits, KICKs…"></div>
     <div class="platform-tabs" id="platformTabs">
       <button class="active" data-platform="">Todos</button>
       <button data-platform="TikTok">TikTok</button>
@@ -56,11 +55,10 @@
 
   <section class="catalog-footnote">
     <b>Cómo funciona con las alertas</b>
-    <p>Cuando llega un apoyo real, GREÑA intenta asociarlo con este catálogo. Si existe imagen animada la usa primero; si no, usa la imagen estática del evento o del catálogo. </p>
+    <p>Cuando llega un apoyo real, GREÑA intenta asociarlo con este catálogo. Si existe imagen animada la usa primero; si no, usa la imagen estática del evento o del catálogo. En Kick, el webhook oficial actualmente entrega nombre, valor, tipo y tier del Gift, pero no una imagen oficial del Gift en el payload documentado, por eso GREÑA aprende lo que recibe y usa imagen solo cuando la plataforma la entrega.</p>
   </section>
 </div>
 <div class="toast" id="toast"></div>
 <script src="/gift-catalog.js"></script>
-<script src="/tiktok-only.js"></script>
 </body>
 </html>
