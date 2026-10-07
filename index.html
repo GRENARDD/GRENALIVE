@@ -44,6 +44,17 @@
       <div class="chat-frame-wrap">
         <iframe id="chatFrame" title="GREÑA Chat" src="about:blank" allow="autoplay"></iframe>
       </div>
+      <div class="soundboard-strip" id="soundboardStrip" aria-label="Audios rápidos">
+        <div class="soundboard-meta"><b>🎧 AUDIOS RÁPIDOS</b><span>Clic: reproducir/pausar · Mantén 5 s: reemplazar</span></div>
+        <div class="soundboard-buttons">
+          <button class="sound-pad empty" type="button" data-sound-slot="1"><span class="sound-pad-icon">＋</span><b>Audio 1</b><small>Vacío · subir</small></button>
+          <button class="sound-pad empty" type="button" data-sound-slot="2"><span class="sound-pad-icon">＋</span><b>Audio 2</b><small>Vacío · subir</small></button>
+          <button class="sound-pad empty" type="button" data-sound-slot="3"><span class="sound-pad-icon">＋</span><b>Audio 3</b><small>Vacío · subir</small></button>
+          <button class="sound-pad empty" type="button" data-sound-slot="4"><span class="sound-pad-icon">＋</span><b>Audio 4</b><small>Vacío · subir</small></button>
+          <button class="sound-pad empty" type="button" data-sound-slot="5"><span class="sound-pad-icon">＋</span><b>Audio 5</b><small>Vacío · subir</small></button>
+        </div>
+        <input id="soundboardFile" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.webm" hidden>
+      </div>
     </section>
 
     <aside class="ops-zone">
