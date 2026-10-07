@@ -1406,7 +1406,7 @@ async function connectTikTok(input) {
     try{await pollTikTokViewers('TikTok room/info bridge inicial')}catch(e){console.warn('[TIKTOK VIEWERS] room/info inicial:',getError(e))}
     if(tiktokViewerPollTimer)clearInterval(tiktokViewerPollTimer);
     tiktokViewerLastSignalAt=Date.now();
-    tiktokViewerPollTimer=setInterval(()=>pollTikTokViewers().catch(e=>console.warn('[TIKTOK VIEWERS] room/info:',getError(e))),8000);
+    tiktokViewerPollTimer=setInterval(()=>pollTikTokViewers().catch(e=>console.warn('[TIKTOK VIEWERS] room/info:',getError(e))),5000);
     tiktokViewerPollTimer.unref?.();
 
   } catch (error) {
