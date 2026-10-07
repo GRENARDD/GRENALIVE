@@ -217,6 +217,7 @@ let kickSeenMessages = new Map();
 let kickPagePollTimer = null;
 let kickRealtimeFrames = 0;
 let kickFollowerSeeded = false;
+let kickFollowerProbeLogged = false;
 const kickSeenFollowers = new Set();
 const kickRealtimeEventNames = new Set();
 
@@ -774,6 +775,7 @@ async function disconnectKick() {
   kickUsers.clear();
   kickSeenMessages.clear();
   kickFollowerSeeded=false;
+  kickFollowerProbeLogged=false;
   kickSeenFollowers.clear();
   kickRealtimeEventNames.clear();
   if(kickReconnectTimer){clearTimeout(kickReconnectTimer);kickReconnectTimer=null;}
@@ -937,18 +939,30 @@ async function pollKickFollowers(channel){
         `/api/v1/channels/${encodeURIComponent(slug)}/followers?limit=50`,
         `/api/v1/channels/${encodeURIComponent(slug)}/followers`
       ];
+      const attempts=[];
       for(const url of urls){
         try{
           const r=await fetch(url,{credentials:'include',cache:'no-store'});
+          attempts.push({url,status:r.status});
           if(!r.ok)continue;
           const d=await r.json();
-          return {ok:true,data:d,url,status:r.status};
-        }catch{}
+          return {ok:true,data:d,url,status:r.status,attempts};
+        }catch(e){attempts.push({url,status:0,error:String(e?.message||e||'fetch error')})}
       }
-      return {ok:false};
+      return {ok:false,attempts};
     },channel);
-    if(!data?.ok)return;
+    if(!data?.ok){
+      if(!kickFollowerProbeLogged){
+        kickFollowerProbeLogged=true;
+        console.warn('[KICK FOLLOWERS] endpoint no disponible',JSON.stringify(data?.attempts||[]));
+      }
+      return;
+    }
     const rows=kickFollowerRows(data.data).map(normalizeKickFollower).filter(Boolean);
+    if(!kickFollowerProbeLogged){
+      kickFollowerProbeLogged=true;
+      console.log('[KICK FOLLOWERS] endpoint activo',JSON.stringify({status:data.status,rows:rows.length,url:data.url,keys:Object.keys(data.data||{}).slice(0,12)}));
+    }
     if(!rows.length)return;
     if(!kickFollowerSeeded){
       for(const f of rows)kickSeenFollowers.add(f.id||f.username.toLowerCase());
