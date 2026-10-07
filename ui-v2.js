@@ -48,7 +48,7 @@
   function setupDock(){
     if(embedded||body.classList.contains('grena-control')||body.classList.contains('grena-alerts')||body.classList.contains('grena-login')||body.classList.contains('grena-chat'))return;
     const page=body.classList.contains('grena-widgets')?'widgets':body.classList.contains('grena-cam-room')?'cam':'';if(!page)return;
-    const dock=document.createElement('nav');dock.className='ui-app-dock';dock.setAttribute('aria-label','Navegación GREÑA');dock.innerHTML=`<a href="/" title="Creator Control">⌂<span>Creator Control</span></a><a href="/radar.html" title="GREÑA Radar">⌁<span>Radar</span></a><a href="/alerts.html" title="Alertas">✦<span>Alertas</span></a><a href="/widgets.html" title="Widgets" class="${page==='widgets'?'active':''}">▦<span>Widgets OBS</span></a><a href="/cam-room.html" title="Cam Room" class="${page==='cam'?'active':''}">▣<span>Cam Room</span></a>`;body.appendChild(dock);
+    const dock=document.createElement('nav');dock.className='ui-app-dock';dock.setAttribute('aria-label','Navegación GREÑA');dock.innerHTML=`<a href="/" title="Creator Control">⌂<span>Inicio</span></a><a href="/alerts.html" title="Alertas">✦<span>Alertas</span></a><a href="/widgets.html" title="Widgets" class="${page==='widgets'?'active':''}">▦<span>Widgets OBS</span></a><a href="/cam-room.html" title="Cam Room" class="${page==='cam'?'active':''}">▣<span>Cam Room</span></a>`;body.appendChild(dock);
   }
 
   /* 7 · Vista básica / completa */
