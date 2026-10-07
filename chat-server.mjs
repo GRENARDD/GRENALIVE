@@ -27,6 +27,7 @@ const HOST = '127.0.0.1';
 const PORT = 8788;
 const MAIN_PORT = Number(process.env.PORT||8787);
 const MAIN_ORIGIN = `http://127.0.0.1:${MAIN_PORT}`;
+const CLOUD_MODE = process.env.GRENA_CLOUD === '1';
 
 async function safeWriteJson(file,data){
   const text=JSON.stringify(data,null,2);
@@ -961,6 +962,19 @@ async function connectKick(input) {
     method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify({slug:channel})
   }).catch(()=>{});
 
+  // En Railway no hay Chrome/Edge dentro del contenedor. El chat de Kick llega por
+  // chat.message.sent al webhook oficial del servidor principal, que lo reenvía aquí.
+  // Conservamos Playwright/Pusher únicamente como respaldo para la versión local.
+  if(CLOUD_MODE){
+    kickConnected=true;
+    broadcastPlatform('kick',{
+      type:'connected',username:channel,
+      message:`Kick conectado: ${channel}. Chat oficial por webhook activo.`
+    });
+    bridgeStatus('kick',true,`${channel} · chat oficial listo`,channel,{source:'official-webhook'});
+    return true;
+  }
+
   await launchKickChatReader(channel);
   kickConnected=true;
   broadcastPlatform('kick',{
@@ -968,6 +982,7 @@ async function connectKick(input) {
     message:`Kick conectado automáticamente: ${channel}. Chat y contador activos en segundo plano.`
   });
   bridgeStatus('kick',true,`${channel} · chat conectado`,channel);
+  return true;
 }
 
 // =====================================
