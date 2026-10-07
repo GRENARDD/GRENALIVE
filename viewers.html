@@ -206,7 +206,7 @@ async function poll(){
     if(sr.ok){const d=await sr.json();if(d.settings&&!previewOverride)applyCounterSettings(d.settings)}
   }catch{}
   clearTimeout(pollTimer);
-  pollTimer=setTimeout(poll,3000);
+  pollTimer=setTimeout(poll,1500);
 }
 
 window.addEventListener('message',e=>{
