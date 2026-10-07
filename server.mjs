@@ -1413,7 +1413,7 @@ function startKickEventRetryLoop(){
  if(kickEventRetryTimer)clearInterval(kickEventRetryTimer);
  if(!savedAuth.kick?.access_token)return;
  ensureKickEventSubscriptions().catch(()=>{});
- kickEventRetryTimer=setInterval(()=>{if(savedAuth.kick?.access_token)startKickEventRetryLoop()},60000);
+ kickEventRetryTimer=setInterval(()=>{if(savedAuth.kick?.access_token)startKickEventRetryLoop()},5*60*1000);
  kickEventRetryTimer.unref?.();
 }
 let kickPublicKeyCache={key:'',at:0};const kickWebhookSeen=new Map();
@@ -1536,7 +1536,9 @@ async function stopProfileRuntime(){
   if(twitchViewerTimer)clearInterval(twitchViewerTimer);twitchViewerTimer=null;
   if(twitchValidationTimer)clearInterval(twitchValidationTimer);twitchValidationTimer=null;
   twitchCfg=null;try{twitchWS?.close()}catch{}twitchWS=null;
-  if(kickViewerTimer)clearInterval(kickViewerTimer);kickViewerTimer=null;kickAppToken='';kickTokenExpiresAt=0;
+  if(kickViewerTimer)clearInterval(kickViewerTimer);kickViewerTimer=null;
+  if(kickEventRetryTimer)clearInterval(kickEventRetryTimer);kickEventRetryTimer=null;
+  kickAppToken='';kickTokenExpiresAt=0;
   for(const p of ['tiktok','twitch','kick']){viewers[p]=0;viewerMeta[p].lastGood=0;viewerMeta[p].lastGoodAt=0;viewerMeta[p].source='waiting'}
   for(const p of ['tiktok','twitch','kick'])bridgeRuntime[p]=false;
   for(const p of ['tiktok','twitch','kick'])status[p]={connected:false,label:'No conectado'};
@@ -1900,7 +1902,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(!['tiktok','twitch','kick'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   const p=body.platform,wasConnected=!!bridgeRuntime[p],label=String(body.label||'');
   bridgeRuntime[p]=!!body.connected;
-  noteBridgeSignal(p,'status',{connected:!!body.connected,label,roomId:String(body.roomId||'')});
+  if(p==='kick')console.log('[KICK BRIDGE]',JSON.stringify({connected:!!body.connected,label,account:String(body.account||''),source:String(body.source||'')}));
+  noteBridgeSignal(p,'status',{connected:!!body.connected,label,roomId:String(body.roomId||''),source:String(body.source||'')});
   if(p==='tiktok'&&body.connected){
    clearTikTokBridgeDisconnectGrace();
    if(body.roomId){const changed=beginTapTapSession(body.roomId);if(changed){bridgeSignals.tiktok.lastEventAt=0;bridgeSignals.tiktok.lastKind='status';bridgeSignals.tiktok.counts={};}}
