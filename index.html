@@ -54,6 +54,13 @@
           <button class="sound-pad empty" type="button" data-sound-slot="5"><span class="sound-pad-icon">＋</span><b>Audio 5</b><small>Vacío · subir</small></button>
         </div>
         <input id="soundboardFile" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.webm" hidden>
+        <dialog class="soundboard-replace-dialog" id="soundboardReplaceDialog">
+          <div class="soundboard-replace-card">
+            <span class="soundboard-replace-icon">🎧</span>
+            <div><b id="soundboardReplaceTitle">Reemplazar audio</b><small id="soundboardReplaceName">Elige un archivo nuevo para este botón.</small></div>
+            <div class="soundboard-replace-actions"><button type="button" id="soundboardReplaceCancel">Cancelar</button><button type="button" class="primary" id="soundboardReplaceConfirm">Reemplazar audio</button></div>
+          </div>
+        </dialog>
       </div>
     </section>
 
