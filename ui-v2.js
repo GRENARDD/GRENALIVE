@@ -69,7 +69,7 @@
     if(body.classList.contains('grena-alerts')){$$('.control-tab[data-control-tab="advanced"],.control-tab[data-control-tab="layers"]').forEach(x=>x.classList.add('ui-advanced-only'))}
   }
   function setupComplexity(){
-    if(body.classList.contains('grena-control')||body.classList.contains('grena-login'))return;
+    if(body.classList.contains('grena-control')||body.classList.contains('grena-login')||body.classList.contains('grena-chat'))return;
     markAdvanced();const target=complexityTarget();if(!target)return;
     const key='grenaUiMode:'+(body.className.match(/grena-[\w-]+/)||['page'])[0];let mode=localStorage.getItem(key)||'basic';
     const bar=document.createElement('div');bar.className='ui-complexity-bar';bar.innerHTML='<div class="ui-complexity-copy"><i>☰</i><div><b>Nivel de configuración</b><small>Lo esencial primero; los controles finos siguen disponibles.</small></div></div><div class="ui-segmented"><button type="button" data-ui-mode="basic">BÁSICA</button><button type="button" data-ui-mode="full">COMPLETA</button></div>';

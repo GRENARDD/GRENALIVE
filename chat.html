@@ -631,12 +631,11 @@ textarea:focus{
 
 <style>
 html.grena-embed body{background:#090b10!important}
-html.grena-embed .app{max-width:none!important;margin:0!important;padding:12px 13px 22px!important}
+html.grena-embed .app{max-width:none!important;margin:0!important;padding:6px 13px 16px!important}
 html.grena-embed .cc-topline,html.grena-embed .cc-kicker,html.grena-embed .app>h1,html.grena-embed .app>.sub{display:none!important}
 html.grena-embed .connections,html.grena-embed .disconnect-all-wrap{display:none!important}
-html.grena-embed .autoconnect-strip{margin-top:0!important}
 html.grena-embed .connections{margin-top:0!important}
-html.grena-embed .voice-panel{margin-top:12px!important}
+html.grena-embed .voice-panel{margin-top:0!important}
 html.grena-embed .chat{height:260px!important;min-height:260px!important}
 @media(min-width:1050px){
 html.grena-embed .voice-panel{padding:12px!important}
@@ -654,13 +653,13 @@ html.grena-embed input,html.grena-embed select{padding:10px!important;font-size:
 html.grena-embed .voice-buttons button{height:34px!important;font-size:10px!important}
 html.grena-embed .voice-status{margin-top:8px!important;padding:7px!important;font-size:10px!important}
 html.grena-embed .help{font-size:9px!important}
-html.grena-embed .status{margin-top:9px!important;padding:9px!important;font-size:11px!important}
-html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
+html.grena-embed .status{margin-top:5px!important;padding:7px!important;font-size:10px!important}
+html.grena-embed .info{margin:5px 3px!important;font-size:10px!important}
 }
 @media(max-width:760px){html.grena-embed .connections,html.grena-embed .voice-grid{grid-template-columns:1fr!important}}
 
 /* ===== GREÑA · CENTRO COMPACTO DE CONFIGURACIÓN DE VOZ ===== */
-.voice-settings-hub{margin:8px 0 12px;padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.012))}
+.voice-settings-hub{margin:4px 0 7px;padding:8px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.012))}
 .voice-settings-hub-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:0 2px 9px}
 .voice-settings-hub-head b{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#e9edf6}
 .voice-settings-hub-head small{font-size:8px;color:#727d91}
@@ -754,20 +753,6 @@ body.voice-settings-modal-open{overflow:hidden!important}
     </button>
   </div>
 
-</div>
-
-<div class="autoconnect-strip" id="autoConnectStrip">
-  <span class="autoconnect-dot" id="autoConnectDot"></span>
-  <div>
-    <b id="autoConnectTitle">Autoconexión activa</b>
-    <small id="autoConnectText">GREÑA recuerda tus canales y vuelve a intentarlo automáticamente cuando abras el programa o el LIVE todavía no esté disponible.</small>
-  </div>
-  <span class="auto-spacer"></span>
-  <div class="auto-platforms">
-    <span class="auto-chip" id="autoTikTok">TikTok</span>
-    <span class="auto-chip" id="autoTwitch">Twitch</span>
-    <span class="auto-chip" id="autoKick">Kick</span>
-  </div>
 </div>
 
 <div class="disconnect-all-wrap">
