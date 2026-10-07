@@ -18,7 +18,7 @@
       <div><strong>GREÑA LIVE PRO</strong><span>CREATOR CONTROL · 4.0</span></div>
     </div>
     <nav class="primary-nav" aria-label="Navegación principal">
-      <a class="top-link nav-home active" href="/">⌂ <span>Inicio</span></a>
+      <a class="top-link nav-home active" href="/" data-home="1">⌂ <span>Inicio</span></a>
       <a class="top-link" href="/alerts.html" data-module="alerts">✦ <span>Alertas</span></a>
       <a class="top-link" href="/widgets.html" data-module="widgets">▦ <span>Widgets OBS</span></a>
       <a class="top-link" href="/cam-room.html" data-module="cam">▣ <span>Cam Room</span></a>
@@ -35,9 +35,9 @@
   <main class="workspace">
     <section class="chat-zone panel-shell">
       <div class="panel-head compact-head">
-        <div>
+        <div class="main-title-wrap">
           <div class="eyebrow">OPERACIÓN PRINCIPAL</div>
-          <h1>Chat + voz</h1>
+          <div class="main-title-row"><h1>Chat + Voz</h1><span>Controla tus canales, filtros y más. La inteligencia trabaja por ti.</span></div>
         </div>
         <div class="engine-state"><span id="chatEngineDot"></span><b id="chatEngineText">Conectando motor de chat…</b></div>
       </div>
@@ -67,6 +67,7 @@
           <div class="viewer-card twitch"><img class="platform-glyph" src="/assets/platforms/twitch.webp" alt="Twitch"><div><small>Twitch</small><b id="twitchViewers">0</b></div></div>
           <div class="viewer-card kick"><img class="platform-glyph" src="/assets/platforms/kick.svg" alt="Kick"><div><small>Kick</small><b id="kickViewers">0</b></div></div>
         </div>
+        <div class="platform-section-head"><div class="platform-section-icon">◉</div><div><b>Plataformas</b><small>Gestiona tus conexiones y estado en tiempo real.</small></div></div>
         <div class="platform-stack">
           <article class="platform-row" data-platform="tiktok">
             <div class="platform-id"><span class="platform-logo tt"><img src="/assets/platforms/tiktok.webp" alt="TikTok"></span><div><b>TikTok</b><small id="tiktokAccount">Cuenta no vinculada</small></div></div>
