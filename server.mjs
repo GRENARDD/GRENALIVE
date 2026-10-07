@@ -1117,6 +1117,12 @@ function publicGiftCatalog({platform='',q='',animatedOnly=false}={}){
  const stats={total:items.length,tiktok:items.filter(x=>x.platform==='TikTok').length,twitch:items.filter(x=>x.platform==='Twitch').length,kick:items.filter(x=>x.platform==='Kick').length,animated:items.filter(x=>x.animatedImage).length,observed:items.filter(x=>x.observed).length};return {version:1,updatedAt:giftCatalogCache.updatedAt,sources:giftCatalogCache.sources,stats,items};
 }
 function rememberActivity(a){activityHistory.unshift(a);if(activityHistory.length>120)activityHistory.length=120}
+const FOLLOWER_GOALS_FILE=path.join(DATA_DIR,'follower-goals.json');
+let followerGoals={settings:{tiktok:{start:0,goal:100,show:true},twitch:{start:0,goal:10,show:true},kick:{start:0,goal:10,show:true}},gained:{tiktok:0,twitch:0,kick:0}};
+try{const fg=JSON.parse(fs.readFileSync(FOLLOWER_GOALS_FILE,'utf8'));followerGoals={settings:{...followerGoals.settings,...(fg.settings||{})},gained:{...followerGoals.gained,...(fg.gained||{})}}}catch{}
+function publicFollowerGoals(){return {settings:followerGoals.settings,gained:followerGoals.gained}}
+async function persistFollowerGoals(){await safeWriteJson(FOLLOWER_GOALS_FILE,followerGoals).catch(()=>{})}
+function followerGoalFollow(platform){const p=String(platform||'').toLowerCase();if(!(p in followerGoals.gained))return;followerGoals.gained[p]=Math.max(0,Number(followerGoals.gained[p]||0))+1;persistFollowerGoals();broadcast({type:'follower-goals',state:publicFollowerGoals()})}
 function alert(platform,event,name,message='',extra={}){
  extra=enrichAlertMedia(platform,event,extra);
  rememberObservedCatalogGift(platform,event,extra);
@@ -1146,6 +1152,7 @@ function alert(platform,event,name,message='',extra={}){
  noteBridgeSignal(platform,event,{name:a.name,event,source:extra.tiktokSource||extra.kickEvent||extra.source||'alert'});pushEventHealth();
  rememberActivity(a);
  if(['TikTok','Twitch','Kick'].includes(platform)&&event!=='like'&&!['GREÑA_FAN','USUARIO_PRUEBA'].includes(String(a.name||'').toUpperCase()))recordLoyaltyEvent({platform,kind:event,user:a.name,nickname:a.name,avatar:a.avatar||'',count:a.count,totalDiamonds:a.totalDiamonds,bits:a.bits,amount:a.amount,viewers:a.viewers});
+ if(event==='follow')followerGoalFollow(platform);
  broadcast({type:'alert',alert:a});broadcast({type:'activity',activity:a})
 }
 function json(res,code,obj){res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj))}
@@ -1946,7 +1953,7 @@ function camWsMessageInner(ws,req,data){
 
 // ===== GREÑA FIX4: guard central del puerto 8787 (Host/Origin + sesión) =====
 // Rutas que usan los overlays de OBS (sin cookie) o que deben ser públicas por diseño.
-const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite','/api/alert-style','/api/counter-settings','/api/viewers','/api/loyalty','/api/social-settings','/api/taptap/state','/api/twitch/device/status','/auth/twitch/callback']);
+const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/twitch/device/status','/auth/twitch/callback']);
 const PUBLIC_POST=new Set(['/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
 function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())}
@@ -2185,6 +2192,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   noteBridgeSignal(body.platform,'viewer',{count:Number(body.count)||0,source,accepted});
   return json(res,200,{ok:true,accepted,viewers:currentViewers(),meta:viewerMeta[body.platform]});
  }
+ if(pathname==='/api/follower-goals'&&req.method==='GET')return json(res,200,publicFollowerGoals());
+ if(pathname==='/api/follower-goals'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}'),next={...followerGoals.settings};for(const p of ['tiktok','twitch','kick'])if(body[p])next[p]={start:Math.max(0,Number(body[p].start)||0),goal:Math.max(1,Number(body[p].goal)||1),show:body[p].show!==false};followerGoals.settings=next;if(body.resetGained)followerGoals.gained={tiktok:0,twitch:0,kick:0};await persistFollowerGoals();broadcast({type:'follower-goals',state:publicFollowerGoals()});return json(res,200,{ok:true,...publicFollowerGoals()})}
  if(pathname==='/api/viewers'){const v=currentViewers();return json(res,200,{ok:true,viewers:v,total:v.tiktok+v.twitch+v.kick,meta:viewerMeta,testMode:viewerTest.enabled,updatedAt:Date.now()})}
  if(pathname==='/api/counter-settings'&&req.method==='GET')return json(res,200,{ok:true,settings:publicCounterSettings()});
  if(pathname==='/api/counter-settings'&&req.method==='POST'){let b='';b=await readBody(req);const settings=normalizeCounterWidgetSettings(JSON.parse(b||'{}'));autoPrefs={...autoPrefs,counterStyle:settings.style,counterCardColor:settings.counterCardColor};await persistAutoPrefs();broadcast({type:'counter-settings',settings});return json(res,200,{ok:true,settings})}
