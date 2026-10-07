@@ -865,8 +865,14 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
   let browser=kickBrowser,page=kickPage,created=false;
   if(!browser||!page){
     const launchOpts={headless:true,args:['--disable-background-timer-throttling','--disable-renderer-backgrounding','--disable-backgrounding-occluded-windows','--mute-audio']};
-    try{browser=await chromium.launch({...launchOpts,channel:'chrome'})}
-    catch(e1){try{browser=await chromium.launch({...launchOpts,channel:'msedge'})}catch(e2){throw Error('GREÑA no pudo abrir Chrome/Edge para leer Kick. Instala Chrome o Edge e inténtalo otra vez.')}}
+    if(CLOUD_MODE){
+      const executablePath=process.env.GRENA_CHROMIUM_PATH||'/usr/bin/chromium';
+      browser=await chromium.launch({...launchOpts,executablePath,args:[...launchOpts.args,'--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage']})
+        .catch(()=>{throw Error('GREÑA no pudo abrir Chromium en Railway para el respaldo realtime de Kick.')});
+    }else{
+      try{browser=await chromium.launch({...launchOpts,channel:'chrome'})}
+      catch(e1){try{browser=await chromium.launch({...launchOpts,channel:'msedge'})}catch(e2){throw Error('GREÑA no pudo abrir Chrome/Edge para leer Kick. Instala Chrome o Edge e inténtalo otra vez.')}}
+    }
     page=await browser.newPage({viewport:{width:1280,height:720}});created=true;
     kickBrowser=browser;kickPage=page;
     // La propia web de Kick abre su realtime actual. Escucharlo desde Playwright evita
@@ -962,16 +968,20 @@ async function connectKick(input) {
     method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify({slug:channel})
   }).catch(()=>{});
 
-  // En Railway no hay Chrome/Edge dentro del contenedor. El chat de Kick llega por
-  // chat.message.sent al webhook oficial del servidor principal, que lo reenvía aquí.
-  // Conservamos Playwright/Pusher únicamente como respaldo para la versión local.
+  // En Railway usamos un modo híbrido: webhook oficial + navegador/Pusher como
+  // respaldo. Así el chat puede seguir llegando aunque Kick tarde en habilitar webhooks.
   if(CLOUD_MODE){
+    let realtime=false;
+    try{await launchKickChatReader(channel);realtime=true}
+    catch(e){console.warn('[KICK CLOUD REALTIME]',e?.message||e)}
     kickConnected=true;
     broadcastPlatform('kick',{
       type:'connected',username:channel,
-      message:`Kick conectado: ${channel}. Chat oficial por webhook activo.`
+      message:realtime
+        ?`Kick conectado: ${channel}. Chat realtime + webhook oficial activos.`
+        :`Kick conectado: ${channel}. Webhook oficial listo; realtime de respaldo no disponible.`
     });
-    bridgeStatus('kick',true,`${channel} · chat oficial listo`,channel,{source:'official-webhook'});
+    bridgeStatus('kick',true,realtime?`${channel} · chat realtime activo`:`${channel} · chat oficial listo`,channel,{source:realtime?'hybrid-realtime-webhook':'official-webhook'});
     return true;
   }
 
