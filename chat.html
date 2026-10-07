@@ -4409,12 +4409,12 @@ function openWS(){
           if(m.type === 'moderation-update'){
             if(m.muted){mutedUsersState=normalizeMutedUsersState(m.muted);renderMutedUsers()}
             if(m.action==='mute_local'){
-              removeUserRows(String(m.platform||'').toLowerCase(),m.user);
+              removeUserRows(String(m.platform||'').toLowerCase(),m.user,m.userId);
               const platform=String(m.platform||'').toLowerCase();
-              const user=String(m.user||'').toLowerCase();
+              const user=moderationIdentity(m);
               const kept=[];
               for(const queued of voiceQueue){
-                const matches=String(queued.platform||'').toLowerCase()===platform && String(queued.user||queued.nickname||'').toLowerCase()===user;
+                const matches=String(queued.platform||'').toLowerCase()===platform && moderationIdentity(queued)===user;
                 if(matches) cleanupFishPreparedMessage(queued,true);
                 else kept.push(queued);
               }
@@ -4537,7 +4537,7 @@ function platformActionHtml(platform,m={}){
   return `<div class="mod-section-title">EN TIKTOK</div>`;
 }
 function openModerator(m,row){
-  const platform=['tiktok','twitch','kick'].includes(String(m.platform||'').toLowerCase())?String(m.platform).toLowerCase():'tiktok';moderationTarget={...m,platform,__row:row};
+  const platform=['tiktok','twitch','kick'].includes(String(m.platform||'').toLowerCase())?String(m.platform).toLowerCase():'tiktok';moderationTarget={...m,platform,user:moderationIdentity(m)||m.user||m.nickname||'',__row:row};
   const back=moderationModal();back.querySelector('#modTitle').textContent='🛡️ Moderar usuario';back.querySelector('#modReasonWrap').style.display='';back.querySelector('#localModActions').style.display='';back.querySelector('#modUser').textContent=(m.nickname||m.user||'Usuario')+(m.user&&m.nickname&&m.user!==m.nickname?`  @${m.user}`:'');back.querySelector('#modPlatform').textContent=platform.toUpperCase();back.querySelector('#modReason').value='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';
   const area=back.querySelector('#platformModActions');area.innerHTML=platformActionHtml(platform,m);area.querySelectorAll('[data-real-action]').forEach(b=>b.onclick=()=>runModeration(b.dataset.realAction,b,Number(b.dataset.seconds||0)));
   back.querySelector('#modNote').textContent=platform==='tiktok'?'TikTok: al silenciar un usuario en GREÑA, deja de aparecer en el chat y queda guardado para todos tus próximos LIVE hasta que lo quites de la lista.':`${platform==='twitch'?'Twitch':'Kick'}: silenciar en GREÑA es permanente dentro de tu chat. Borrar, timeout, ban y desban se ejecutan además en la plataforma si tu cuenta está autorizada.`;
@@ -4549,11 +4549,30 @@ function openMutedUsersManager(){
   back.classList.add('show');refreshMutedUsers();
 }
 $('manageMutedUsers')?.addEventListener('click',openMutedUsersManager);
-function removeUserRows(platform,user){const key=String(user||'').toLowerCase();document.querySelectorAll('.msg').forEach(el=>{if(el.dataset.platform===platform&&el.dataset.user===key)el.remove()})}
+function moderationIdentity(m={}){
+  const rawUser=String(m.user||'').trim().replace(/^@/,'');
+  const nickname=String(m.nickname||'').trim().replace(/^@/,'');
+  const generic=/^(usuario|user|unknown|an[oó]nimo)$/i.test(rawUser);
+  return (rawUser&&!generic?rawUser:nickname||rawUser).toLowerCase();
+}
+function removeUserRows(platform,user,userId=''){
+  const p=String(platform||'').toLowerCase();
+  const id=String(userId||'').trim();
+  const key=String(user||'').trim().replace(/^@/,'').toLowerCase();
+  // Nunca borres todo el chat por una identidad genérica. Si hay ID estable,
+  // úsalo; si no, exige un nombre real.
+  const safeKey=key&&!/^(usuario|user|unknown|an[oó]nimo)$/i.test(key)?key:'';
+  document.querySelectorAll('.msg').forEach(el=>{
+    const samePlatform=el.dataset.platform===p;
+    const sameId=id&&el.dataset.userId===id;
+    const sameUser=safeKey&&el.dataset.user===safeKey;
+    if(samePlatform&&(sameId||sameUser))el.remove();
+  });
+}
 async function runModeration(action,button,durationSeconds=0){
   const t=moderationTarget;if(!t)return;const back=moderationModal(),result=back.querySelector('#modResult');
   button.disabled=true;const old=button.textContent;button.textContent='Procesando…';
-  try{const payload={platform:t.platform,action,username:t.user||t.nickname||'',userId:t.userId||'',messageId:t.messageId||'',broadcaster:t.broadcaster||'',broadcasterId:t.broadcasterId||'',durationSeconds,reason:back.querySelector('#modReason').value.trim()};const r=await fetch('/api/moderation/action',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'No se pudo ejecutar la moderación.');if(d.muted){mutedUsersState=normalizeMutedUsersState(d.muted);renderMutedUsers()}result.textContent='✓ '+(d.message||'Acción completada.');result.className='mod-result show ok';if(action==='mute_local'||action==='ban'||action==='timeout')removeUserRows(t.platform,t.user||t.nickname);if(action==='delete_message')t.__row?.remove();}
+  try{const safeUser=moderationIdentity(t);if(action==='mute_local'&&!safeUser)throw Error('No pude identificar a este usuario de forma segura.');const payload={platform:t.platform,action,username:safeUser||t.user||t.nickname||'',userId:t.userId||'',messageId:t.messageId||'',broadcaster:t.broadcaster||'',broadcasterId:t.broadcasterId||'',durationSeconds,reason:back.querySelector('#modReason').value.trim()};const r=await fetch('/api/moderation/action',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'No se pudo ejecutar la moderación.');if(d.muted){mutedUsersState=normalizeMutedUsersState(d.muted);renderMutedUsers()}result.textContent='✓ '+(d.message||'Acción completada.');result.className='mod-result show ok';if(action==='mute_local'||action==='ban'||action==='timeout')removeUserRows(t.platform,safeUser||t.user||t.nickname,t.userId);if(action==='delete_message')t.__row?.remove();if(action==='mute_local')setTimeout(()=>back.classList.remove('show'),450);}
   catch(e){result.textContent='⚠ '+e.message+( /permiso|scope|401|403|autoriza/i.test(e.message)?' Vuelve a vincular esa plataforma en GREÑA para aceptar los permisos nuevos.':'');result.className='mod-result show bad'}finally{button.disabled=false;button.textContent=old}
 }
 
@@ -4585,7 +4604,8 @@ function addMessage(m){
     'msg ' +
     platform;
   row.dataset.platform=platform;
-  row.dataset.user=String(m.user||m.nickname||'').toLowerCase();
+  row.dataset.user=moderationIdentity(m);
+  row.dataset.userId=String(m.userId||'');
   row.title='Haz clic para moderar a este usuario';
 
   const avatar =
