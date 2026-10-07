@@ -248,10 +248,11 @@ const soundboard={
  suppressClick:0,
  envelopeFrame:0,
  manualFadeFrame:0,
- stopping:false,
- fadeEnabled:true
+ stopping:false
 };
 function soundPad(slot){return document.querySelector('.sound-pad[data-sound-slot="'+slot+'"]')}
+function soundFadeInput(slot){return document.querySelector('[data-sound-fade="'+slot+'"]')}
+function soundFadeEnabled(slot){const meta=soundboard.slots.get(Number(slot));return !meta||meta.fade!==false}
 function soundName(name='',slot=1){
  const clean=String(name||'').replace(/\.[^.]+$/,'').trim();
  return clean||('Audio '+slot);
@@ -259,16 +260,21 @@ function soundName(name='',slot=1){
 function renderSoundPad(slot){
  const b=soundPad(slot);if(!b)return;
  const meta=soundboard.slots.get(slot);
+ const fade=soundFadeInput(slot),fadeLabel=fade?.closest('.sound-slot-fade');
  b.classList.remove('empty','playing','paused','uploading','holding');
  const icon=b.querySelector('.sound-pad-icon'),title=b.querySelector('b'),small=b.querySelector('small');
  if(!meta||meta.empty){
-  b.classList.add('empty');icon.textContent='＋';title.textContent='Audio '+slot;small.textContent='Vacío · subir';return;
+  b.classList.add('empty');icon.textContent='＋';title.textContent='Audio '+slot;small.textContent='Vacío · subir';
+  if(fade){fade.checked=true;fade.disabled=true}
+  fadeLabel?.classList.add('disabled');
+  return;
  }
+ if(fade){fade.checked=meta.fade!==false;fade.disabled=false}
+ fadeLabel?.classList.remove('disabled');
  title.textContent=soundName(meta.name,slot);
  if(soundboard.activeSlot===slot&&soundboard.audio){
-  b.classList.add('playing');
-  icon.textContent='■';
-  small.textContent=soundboard.stopping?(soundboard.fadeEnabled?'Desvaneciendo…':'Deteniendo…'):'Sonando · clic para detener';
+  b.classList.add('playing');icon.textContent='■';
+  small.textContent=soundboard.stopping?(soundFadeEnabled(slot)?'Desvaneciendo…':'Deteniendo…'):'Sonando · clic para detener';
  }else{
   icon.textContent='▶';small.textContent='Clic para reproducir';
  }
@@ -283,28 +289,6 @@ async function loadSoundboard(){
   renderSoundboard();
  }catch(e){console.warn('[soundboard]',e?.message||e)}
 }
-
-function soundboardFadeKey(){return profileKey('grenaSoundboardFade')}
-function applySoundboardFadeSetting(enabled,{save=false}={}){
- soundboard.fadeEnabled=!!enabled;
- const input=$('soundboardFadeEnabled');if(input)input.checked=soundboard.fadeEnabled;
- if(save&&state.profile)localStorage.setItem(soundboardFadeKey(),soundboard.fadeEnabled?'1':'0');
- if(!soundboard.audio)return;
- if(!soundboard.fadeEnabled){
-  cancelSoundEnvelope();cancelManualSoundFade();
-  try{soundboard.audio.volume=1}catch{}
- }else if(!soundboard.stopping){
-  startSoundEnvelope(soundboard.audio);
- }
-}
-function initSoundboardFadeSetting(){
- const saved=state.profile?localStorage.getItem(soundboardFadeKey()):null;
- applySoundboardFadeSetting(saved===null?true:saved==='1');
-}
-$('soundboardFadeEnabled')?.addEventListener('change',e=>{
- applySoundboardFadeSetting(!!e.currentTarget.checked,{save:true});
- toast(e.currentTarget.checked?'Desvanecido activado.':'Desvanecido desactivado.');
-});
 function cancelSoundEnvelope(){
  if(soundboard.envelopeFrame)cancelAnimationFrame(soundboard.envelopeFrame);
  soundboard.envelopeFrame=0;
@@ -313,11 +297,12 @@ function cancelManualSoundFade(){
  if(soundboard.manualFadeFrame)cancelAnimationFrame(soundboard.manualFadeFrame);
  soundboard.manualFadeFrame=0;
 }
-function startSoundEnvelope(audio){
+function startSoundEnvelope(audio,slot=soundboard.activeSlot){
  cancelSoundEnvelope();
- if(!soundboard.fadeEnabled){try{audio.volume=1}catch{};return}
+ if(!soundFadeEnabled(slot)){try{audio.volume=1}catch{};return}
  const tick=()=>{
   if(soundboard.audio!==audio||soundboard.stopping||audio.paused||audio.ended){soundboard.envelopeFrame=0;return}
+  if(!soundFadeEnabled(slot)){try{audio.volume=1}catch{};soundboard.envelopeFrame=0;return}
   const t=Math.max(0,Number(audio.currentTime)||0);
   const duration=Number(audio.duration);
   let level=Math.min(1,t/SOUNDBOARD_FADE_SECONDS);
@@ -330,9 +315,9 @@ function startSoundEnvelope(audio){
  };
  soundboard.envelopeFrame=requestAnimationFrame(tick);
 }
-function fadeAudioToZero(audio,durationMs=SOUNDBOARD_MANUAL_FADE_MS){
+function fadeAudioToZero(audio,slot=soundboard.activeSlot,durationMs=SOUNDBOARD_MANUAL_FADE_MS){
  cancelManualSoundFade();
- if(!soundboard.fadeEnabled)return Promise.resolve();
+ if(!soundFadeEnabled(slot))return Promise.resolve();
  const from=Math.max(0,Math.min(1,Number(audio?.volume)||0));
  if(!audio||audio.paused||from<=.001)return Promise.resolve();
  return new Promise(resolve=>{
@@ -350,27 +335,22 @@ function fadeAudioToZero(audio,durationMs=SOUNDBOARD_MANUAL_FADE_MS){
 async function stopSoundboardAudio(reset=true,smooth=true){
  const audio=soundboard.audio,old=soundboard.activeSlot;
  if(!audio)return;
- soundboard.stopping=true;
- cancelSoundEnvelope();
- if(old)renderSoundPad(old);
- if(smooth&&soundboard.fadeEnabled)await fadeAudioToZero(audio);
+ soundboard.stopping=true;cancelSoundEnvelope();if(old)renderSoundPad(old);
+ if(smooth&&soundFadeEnabled(old))await fadeAudioToZero(audio,old);
  if(soundboard.audio!==audio)return;
  try{audio.pause();if(reset)audio.currentTime=0;audio.volume=0}catch{}
- soundboard.audio=null;soundboard.activeSlot=0;soundboard.stopping=false;
- cancelManualSoundFade();
+ soundboard.audio=null;soundboard.activeSlot=0;soundboard.stopping=false;cancelManualSoundFade();
  if(old)renderSoundPad(old);
 }
 async function toggleSound(slot){
  const meta=soundboard.slots.get(slot);
  if(!meta||meta.empty){openSoundPicker(slot);return}
  if(soundboard.activeSlot===slot&&soundboard.audio){
-  if(!soundboard.stopping)await stopSoundboardAudio(true,soundboard.fadeEnabled);
+  if(!soundboard.stopping)await stopSoundboardAudio(true,soundFadeEnabled(slot));
   return;
  }
- if(soundboard.audio)await stopSoundboardAudio(true,soundboard.fadeEnabled);
- const audio=new Audio(meta.url);
- audio.preload='auto';
- audio.volume=soundboard.fadeEnabled?0:1;
+ if(soundboard.audio)await stopSoundboardAudio(true,soundFadeEnabled(soundboard.activeSlot));
+ const audio=new Audio(meta.url);audio.preload='auto';audio.volume=soundFadeEnabled(slot)?0:1;
  soundboard.audio=audio;soundboard.activeSlot=slot;soundboard.stopping=false;
  audio.addEventListener('ended',()=>{
   if(soundboard.audio!==audio)return;
@@ -386,12 +366,35 @@ async function toggleSound(slot){
  try{
   await audio.play();
   if(soundboard.audio!==audio)return;
-  renderSoundPad(slot);
-  startSoundEnvelope(audio);
+  renderSoundPad(slot);startSoundEnvelope(audio,slot);
  }catch{
   soundboard.audio=null;soundboard.activeSlot=0;soundboard.stopping=false;renderSoundPad(slot);toast('No se pudo reproducir ese audio.');
  }
 }
+async function setSoundFade(slot,enabled){
+ const meta=soundboard.slots.get(slot);
+ if(!meta||meta.empty){renderSoundPad(slot);return}
+ const previous=meta.fade!==false;meta.fade=!!enabled;renderSoundPad(slot);
+ try{
+  const r=await fetch('/api/soundboard/fade/'+slot,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({enabled:!!enabled})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw Error(d.error||'No se pudo guardar el ajuste.');
+  soundboard.slots.set(slot,d.slot);
+  if(soundboard.activeSlot===slot&&soundboard.audio&&!soundboard.stopping){
+   cancelSoundEnvelope();cancelManualSoundFade();
+   if(d.slot.fade===false){try{soundboard.audio.volume=1}catch{}}
+   else startSoundEnvelope(soundboard.audio,slot);
+  }
+  renderSoundPad(slot);toast(d.slot.fade===false?'Fade desactivado para Audio '+slot+'.':'Fade activado para Audio '+slot+'.');
+ }catch(e){
+  meta.fade=previous;renderSoundPad(slot);toast(e.message||'No se pudo guardar el fade.');
+ }
+}
+document.querySelectorAll('[data-sound-fade]').forEach(input=>{
+ const slot=Number(input.dataset.soundFade);
+ input.addEventListener('change',()=>setSoundFade(slot,input.checked));
+ input.addEventListener('click',e=>e.stopPropagation());
+});
 function openSoundPicker(slot){
  soundboard.uploadSlot=slot;
  const input=$('soundboardFile');if(!input)return;
@@ -431,7 +434,7 @@ document.querySelectorAll('.sound-pad').forEach(btn=>{
 $('soundboardReplaceCancel')?.addEventListener('click',()=>{$('soundboardReplaceDialog')?.close();soundboard.replaceSlot=0});
 $('soundboardReplaceConfirm')?.addEventListener('click',async()=>{
  const slot=soundboard.replaceSlot;$('soundboardReplaceDialog')?.close();soundboard.replaceSlot=0;
- if(slot){if(soundboard.activeSlot===slot)await stopSoundboardAudio(true,soundboard.fadeEnabled);openSoundPicker(slot)}
+ if(slot){if(soundboard.activeSlot===slot)await stopSoundboardAudio(true,soundFadeEnabled(slot));openSoundPicker(slot)}
 });
 $('soundboardReplaceDialog')?.addEventListener('cancel',()=>{soundboard.replaceSlot=0});
 $('soundboardFile')?.addEventListener('change',async e=>{
@@ -442,15 +445,11 @@ $('soundboardFile')?.addEventListener('change',async e=>{
  if(!['.mp3','.wav','.ogg','.m4a','.aac','.webm'].includes(ext)){toast('Usa MP3, WAV, OGG, M4A, AAC o WEBM.');return}
  const btn=soundPad(slot);btn?.classList.add('uploading');if(btn?.querySelector('small'))btn.querySelector('small').textContent='Guardando audio…';
  try{
-  const r=await fetch('/api/soundboard/slot/'+slot,{
-   method:'POST',
-   headers:{'content-type':file.type||'application/octet-stream','x-grena-filename':encodeURIComponent(file.name)},
-   body:file
-  });
+  const r=await fetch('/api/soundboard/slot/'+slot,{method:'POST',headers:{'content-type':file.type||'application/octet-stream','x-grena-filename':encodeURIComponent(file.name)},body:file});
   const d=await r.json().catch(()=>({}));
   if(!r.ok)throw Error(d.error||'No se pudo guardar el audio.');
   soundboard.slots.set(slot,d.slot);renderSoundPad(slot);toast('Audio '+slot+' guardado.');
  }catch(err){renderSoundPad(slot);toast(err.message||'No se pudo guardar el audio.')}
 });
 
-(async()=>{if(!(await initAccount()))return;initSoundboardFadeSetting();await loadInitial();await loadSoundboard();connectCore();connectChatEngine();const m=moduleFromHash();if(m)openModule(m,{updateHash:false})})();
+(async()=>{if(!(await initAccount()))return;await loadInitial();await loadSoundboard();connectCore();connectChatEngine();const m=moduleFromHash();if(m)openModule(m,{updateHash:false})})();
