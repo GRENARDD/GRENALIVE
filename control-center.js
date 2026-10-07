@@ -185,6 +185,10 @@ function stopBackgroundKeepalive(){
   pingBackgroundEngines();
 }
 function moduleFromHash(){const h=String(location.hash||'').replace(/^#/,'').toLowerCase();return moduleMap[h]?h:''}
+function syncTopNavigation(name=''){
+  document.querySelectorAll('.primary-nav [data-module]').forEach(a=>a.classList.toggle('active',a.dataset.module===name));
+  document.querySelectorAll('.primary-nav [data-home]').forEach(a=>a.classList.toggle('active',!name));
+}
 function openModule(name,{updateHash=true}={}){
   const cfg=moduleMap[name];if(!cfg||!moduleLayer||!moduleFrame)return;
   activeModule=name;
@@ -199,6 +203,7 @@ function openModule(name,{updateHash=true}={}){
   document.body.classList.add('module-open');
   startBackgroundKeepalive();
   document.querySelectorAll('[data-module-switch]').forEach(b=>b.classList.toggle('active',b.dataset.moduleSwitch===name));
+  syncTopNavigation(name);
   if(updateHash&&location.hash!=='#'+name)history.pushState({module:name},'',location.pathname+location.search+'#'+name);
 }
 function closeModule({updateHash=true}={}){
@@ -209,10 +214,16 @@ function closeModule({updateHash=true}={}){
   document.body.classList.remove('module-open');
   stopBackgroundKeepalive();
   document.querySelectorAll('[data-module-switch]').forEach(b=>b.classList.remove('active'));
+  syncTopNavigation('');
   // No descargamos chatFrame. El módulo secundario sí puede quedar cargado.
   if(updateHash&&location.hash)history.pushState({},'',location.pathname+location.search);
 }
 document.querySelectorAll('a[data-module]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();openModule(a.dataset.module)}));
+document.querySelectorAll('a[data-home]').forEach(a=>a.addEventListener('click',e=>{
+  e.preventDefault();
+  closeModule();
+  try{window.scrollTo({top:0,behavior:'smooth'})}catch{}
+}));
 document.querySelectorAll('[data-module-switch]').forEach(b=>b.addEventListener('click',()=>openModule(b.dataset.moduleSwitch)));
 $('closeModuleBtn')?.addEventListener('click',()=>closeModule());
 window.addEventListener('message',e=>{
