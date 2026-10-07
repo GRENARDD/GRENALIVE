@@ -329,6 +329,7 @@ async function sendToAlerts(path,payload,{reliable=false,fromQueue=false}={}) {
 async function flushBridgeQueue(){if(bridgeFlushing||!bridgeQueue.length)return;bridgeFlushing=true;try{while(bridgeQueue.length){const item=bridgeQueue[0];if(Date.now()-item.createdAt>BRIDGE_QUEUE_MAX_AGE){bridgeQueue.shift();continue}const r=await sendToAlerts(item.path,item.payload,{fromQueue:true});if(!r.ok)break;bridgeQueue.shift()}}finally{bridgeFlushing=false}}
 setInterval(()=>flushBridgeQueue().catch(()=>{}),1000).unref?.();
 const twitchMetaCache=new Map();
+const kickMetaCache=new Map();
 async function twitchChatUserMeta(userId){
   const id=String(userId||'').trim();if(!id)return {avatar:'',isFollower:null};
   const hit=twitchMetaCache.get(id);if(hit&&Date.now()-hit.at<5*60e3)return hit.value;
@@ -338,6 +339,19 @@ async function twitchChatUserMeta(userId){
     const d=await r.json().catch(()=>({}));const value={avatar:String(d.avatar||''),isFollower:typeof d.isFollower==='boolean'?d.isFollower:null};
     twitchMetaCache.set(id,{at:Date.now(),value});return value;
   }catch{return hit?.value||{avatar:'',isFollower:null}}
+}
+async function kickChatUserMeta(userId){
+  const id=String(userId||'').trim();if(!id)return {avatar:''};
+  const hit=kickMetaCache.get(id);if(hit&&Date.now()-hit.at<30*60e3)return hit.value;
+  try{
+    const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),1800);
+    const r=await fetch(`${MAIN_ORIGIN}/api/internal/kick-user-meta?user_id=${encodeURIComponent(id)}`,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(timer));
+    const d=await r.json().catch(()=>({}));
+    const value={avatar:String(d.avatar||'')};
+    kickMetaCache.set(id,{at:Date.now(),value});
+    if(kickMetaCache.size>1000){const first=kickMetaCache.keys().next().value;kickMetaCache.delete(first)}
+    return value;
+  }catch{return hit?.value||{avatar:''}}
 }
 
 function ttWho(data={}) {
@@ -816,13 +830,35 @@ function normalizeKickChatPayload(raw){
     const username=sender.username||sender.name||sender.slug||sender.channel_slug||o.username||o.user_name;
     if(typeof content==='string' && content.trim() && username){
       const roleText=JSON.stringify([sender.badges,sender.identity,o.badges,o.identity,o.sender_identity]||[]).toLowerCase();
-      return {user:String(username),nickname:String(sender.username||sender.name||username),text:content.trim(),avatar:String(sender.profile_picture||sender.avatar||sender.profile_pic||''),userId:String(sender.user_id||sender.id||o.user_id||o.sender_id||''),messageId:String(o.message_id||o.id||root?.message_id||root?.id||''),isSubscriber:/subscriber|subscription|subscribed|founder/.test(roleText),isModerator:/moderator|\"mod\"/.test(roleText),isBroadcaster:/broadcaster|channel_owner|owner/.test(roleText)};
+      return {
+        user:String(username),
+        nickname:String(sender.username||sender.name||username),
+        text:content.trim(),
+        avatar:findUrl(
+          sender.profile_picture,
+          sender.profile_picture_url,
+          sender.profilePicture,
+          sender.profilePic,
+          sender.avatar,
+          sender.avatar_url,
+          sender.avatarUrl,
+          o.profile_picture,
+          o.profile_picture_url,
+          o.avatar,
+          o.avatar_url
+        ),
+        userId:String(sender.user_id||sender.userId||sender.id||o.user_id||o.userId||o.sender_id||''),
+        messageId:String(o.message_id||o.id||root?.message_id||root?.id||''),
+        isSubscriber:/subscriber|subscription|subscribed|founder/.test(roleText),
+        isModerator:/moderator|\"mod\"/.test(roleText),
+        isBroadcaster:/broadcaster|channel_owner|owner/.test(roleText)
+      };
     }
   }
   return null;
 }
 
-function deliverKickChat(msg){
+async function deliverKickChat(msg){
   if(!msg?.text||!msg?.user)return;
   const key=`${msg.user.toLowerCase()}|${msg.text}`;
   const now=Date.now(),prev=kickSeenMessages.get(key)||0;
@@ -832,8 +868,35 @@ function deliverKickChat(msg){
   const oldUser=kickUsers.get(msg.user.toLowerCase())||{};
   const isFollower=typeof oldUser.isFollower==='boolean'?oldUser.isFollower:null;
   const isSubscriber=!!msg.isSubscriber||!!oldUser.isSubscriber;
-  kickUsers.set(msg.user.toLowerCase(),{...oldUser,username:msg.user,nickname:msg.nickname||msg.user,userId:msg.userId||oldUser.userId||'',isFollower,isSubscriber,lastSeen:now});
-  broadcastPlatform('kick',{type:'chat',user:msg.user,nickname:msg.nickname||msg.user,text:msg.text,avatar:msg.avatar||'',userId:msg.userId||'',messageId:msg.messageId||'',isFollower,isSubscriber,broadcaster:currentKickChannel,isModerator:!!msg.isModerator,isBroadcaster:!!msg.isBroadcaster||String(msg.user||'').toLowerCase()===String(currentKickChannel||'').toLowerCase()});
+  let avatar=findUrl(msg.avatar,oldUser.avatar);
+  if(!avatar&&msg.userId){
+    const meta=await kickChatUserMeta(msg.userId);
+    avatar=findUrl(meta.avatar);
+  }
+  kickUsers.set(msg.user.toLowerCase(),{
+    ...oldUser,
+    username:msg.user,
+    nickname:msg.nickname||msg.user,
+    userId:msg.userId||oldUser.userId||'',
+    avatar:avatar||oldUser.avatar||'',
+    isFollower,
+    isSubscriber,
+    lastSeen:now
+  });
+  broadcastPlatform('kick',{
+    type:'chat',
+    user:msg.user,
+    nickname:msg.nickname||msg.user,
+    text:msg.text,
+    avatar:avatar||'',
+    userId:msg.userId||'',
+    messageId:msg.messageId||'',
+    isFollower,
+    isSubscriber,
+    broadcaster:currentKickChannel,
+    isModerator:!!msg.isModerator,
+    isBroadcaster:!!msg.isBroadcaster||String(msg.user||'').toLowerCase()===String(currentKickChannel||'').toLowerCase()
+  });
 }
 
 function consumeKickRealtimeFrame(payload){
@@ -856,7 +919,7 @@ function consumeKickRealtimeFrame(payload){
     }
 
     if(/ChatMessage(?:Sent)?Event$/i.test(name)||name==='chat.message.sent'||dataType==='message'||dataType==='chat_message'){
-      const m=normalizeKickChatPayload(d);if(m){deliverKickChat(m);handled=true}continue;
+      const m=normalizeKickChatPayload(d);if(m){void deliverKickChat(m);handled=true}continue;
     }
 
     if(/GiftedSubscriptionsEvent$/i.test(name)||name==='channel.subscription.gifts'||dataType==='gifted_subscriptions'){
