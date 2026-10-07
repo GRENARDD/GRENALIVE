@@ -913,15 +913,20 @@ function kickPerson(d={}){
 function handleKickPusherEvent(ev){consumeKickRealtimeFrame(JSON.stringify(ev))}
 
 function kickFollowerRows(payload){
-  const candidates=[
-    payload?.data,
-    payload?.followers,
-    payload?.data?.data,
-    payload?.data?.followers,
-    payload?.results,
-    payload?.data?.results
-  ];
-  for(const v of candidates)if(Array.isArray(v))return v;
+  if(Array.isArray(payload))return payload;
+  const queue=[payload];const seen=new Set();
+  for(let depth=0;depth<5&&queue.length;depth++){
+    const level=queue.splice(0);
+    for(const v of level){
+      if(!v||typeof v!=='object'||seen.has(v))continue;
+      seen.add(v);
+      for(const key of ['data','followers','results','items']){
+        const x=v[key];
+        if(Array.isArray(x))return x;
+        if(x&&typeof x==='object')queue.push(x);
+      }
+    }
+  }
   return [];
 }
 function normalizeKickFollower(row={}){
