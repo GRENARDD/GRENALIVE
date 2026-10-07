@@ -487,6 +487,8 @@ textarea:focus{
 .mod-reason{display:block;margin:12px 0}.mod-reason input{width:100%;margin-top:6px;background:#090d15;color:#fff;border:1px solid #ffffff18;border-radius:10px;padding:10px 12px}
 .mod-section{margin-top:13px}.mod-section-title{font-size:11px;font-weight:900;letter-spacing:.09em;color:#93a4be;margin-bottom:7px}.mod-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.mod-btn{border:1px solid #ffffff18;background:#141d2b;color:#fff;border-radius:10px;padding:10px;cursor:pointer;text-align:left;font-weight:700}.mod-btn:hover{background:#1b2940}.mod-btn.danger{border-color:#ff5a6d55;background:#40151c}.mod-btn.warn{border-color:#ffcb6655;background:#3a2b12}.mod-btn.safe{border-color:#56e39f55;background:#103727}.mod-btn:disabled{opacity:.4;cursor:not-allowed}
 .mod-note{font-size:12px;line-height:1.45;color:#9aa7bb;background:#ffffff06;border-radius:10px;padding:10px;margin-top:10px}.mod-result{margin-top:12px;padding:10px 12px;border-radius:10px;background:#ffffff08;font-size:13px;display:none}.mod-result.show{display:block}.mod-result.ok{color:#8ff0ba}.mod-result.bad{color:#ff8b98}
+.mod-muted-list{display:flex;flex-direction:column;gap:7px;max-height:220px;overflow:auto}.mod-muted-empty{padding:11px 12px;border:1px dashed #ffffff18;border-radius:10px;color:#8f9bb0;font-size:12px}.mod-muted-item{display:flex;align-items:center;gap:9px;padding:9px 10px;border:1px solid #ffffff12;border-radius:10px;background:#ffffff06}.mod-muted-platform{font-size:10px;font-weight:900;letter-spacing:.07em;color:#aeb9cb;min-width:58px}.mod-muted-user{flex:1;min-width:0}.mod-muted-user b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mod-muted-remove{border:1px solid #56e39f55;background:#103727;color:#fff;border-radius:8px;padding:7px 9px;font-weight:800;cursor:pointer}.mod-muted-remove:disabled{opacity:.45;cursor:not-allowed}
+.chat-tools{display:flex;align-items:center;gap:9px}.muted-manage-btn{height:auto!important;padding:6px 10px!important;border-radius:9px!important;border:1px solid #ffffff18!important;background:#151922!important;color:#d9e1ef!important;font-size:12px!important;font-weight:800!important;cursor:pointer}.muted-manage-btn:hover{background:#1b2230!important}
 @media(max-width:650px){.mod-grid{grid-template-columns:1fr}}
 
 .chat::-webkit-scrollbar-thumb{
@@ -1165,9 +1167,12 @@ html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
 
   </div>
 
-  <span id="count">
-    0 comentarios
-  </span>
+  <div class="chat-tools">
+    <button type="button" id="manageMutedUsers" class="muted-manage-btn">🔇 Silenciados</button>
+    <span id="count">
+      0 comentarios
+    </span>
+  </div>
 
 </div>
 
@@ -4402,6 +4407,7 @@ function openWS(){
           }
 
           if(m.type === 'moderation-update'){
+            if(m.muted){mutedUsersState=normalizeMutedUsersState(m.muted);renderMutedUsers()}
             if(m.action==='mute_local'){
               removeUserRows(String(m.platform||'').toLowerCase(),m.user);
               const platform=String(m.platform||'').toLowerCase();
@@ -4415,6 +4421,11 @@ function openWS(){
               voiceQueue=kept;
               if(isFishVoiceSelected()) pumpFishPrefetch();
             }
+          }
+
+          if(m.type === 'moderation-list'){
+            mutedUsersState=normalizeMutedUsersState(m.muted||{});
+            renderMutedUsers();
           }
 
           if(m.type === 'voice-control' && typeof m.enabled === 'boolean'){
@@ -4460,10 +4471,64 @@ function openWS(){
    MODERADOR INTEGRADO
 ===================================================== */
 let moderationTarget=null;
+let mutedUsersState={tiktok:[],twitch:[],kick:[]};
+function normalizeMutedUsersState(value={}){
+  const out={tiktok:[],twitch:[],kick:[]};
+  for(const platform of Object.keys(out)){
+    const list=Array.isArray(value?.[platform])?value[platform]:[];
+    out[platform]=[...new Set(list.map(v=>String(v||'').trim().replace(/^@/,'').toLowerCase()).filter(Boolean))].sort();
+  }
+  return out;
+}
+function renderMutedUsers(){
+  const host=document.getElementById('mutedUsersList');if(!host)return;
+  host.replaceChildren();
+  const rows=[];
+  for(const platform of ['tiktok','twitch','kick'])for(const user of mutedUsersState[platform]||[])rows.push({platform,user});
+  if(!rows.length){
+    const empty=document.createElement('div');empty.className='mod-muted-empty';empty.textContent='No tienes usuarios silenciados.';host.append(empty);return;
+  }
+  for(const item of rows){
+    const row=document.createElement('div');row.className='mod-muted-item';
+    const badge=document.createElement('span');badge.className='mod-muted-platform';badge.textContent=item.platform.toUpperCase();
+    const userBox=document.createElement('div');userBox.className='mod-muted-user';
+    const name=document.createElement('b');name.textContent='@'+item.user;userBox.append(name);
+    const remove=document.createElement('button');remove.type='button';remove.className='mod-muted-remove';remove.textContent='Quitar';
+    remove.onclick=()=>unmuteListedUser(item.platform,item.user,remove);
+    row.append(badge,userBox,remove);host.append(row);
+  }
+}
+async function refreshMutedUsers(){
+  const host=document.getElementById('mutedUsersList');
+  if(host){host.replaceChildren();const loading=document.createElement('div');loading.className='mod-muted-empty';loading.textContent='Cargando lista…';host.append(loading)}
+  try{
+    const r=await fetch('/api/moderation/muted',{cache:'no-store'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw Error(d.error||'No se pudo cargar la lista.');
+    mutedUsersState=normalizeMutedUsersState(d.muted||{});
+    renderMutedUsers();
+  }catch(e){
+    if(host){host.replaceChildren();const err=document.createElement('div');err.className='mod-muted-empty';err.textContent='⚠ '+e.message;host.append(err)}
+  }
+}
+async function unmuteListedUser(platform,user,button){
+  button.disabled=true;const old=button.textContent;button.textContent='Quitando…';
+  try{
+    const r=await fetch('/api/moderation/action',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({platform,action:'unmute_local',username:user})});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw Error(d.error||'No se pudo quitar el silencio.');
+    mutedUsersState=normalizeMutedUsersState(d.muted||{});
+    renderMutedUsers();
+    const result=document.getElementById('modResult');if(result){result.textContent='✓ '+(d.message||'Usuario quitado de la lista.');result.className='mod-result show ok'}
+  }catch(e){
+    button.disabled=false;button.textContent=old;
+    const result=document.getElementById('modResult');if(result){result.textContent='⚠ '+e.message;result.className='mod-result show bad'}
+  }
+}
 function moderationModal(){
   let back=document.getElementById('moderationBackdrop');if(back)return back;
   back=document.createElement('div');back.id='moderationBackdrop';back.className='mod-backdrop';
-  back.innerHTML=`<div class="mod-card"><div class="mod-head"><div><h3>🛡️ Moderar usuario</h3><small id="modSubtitle">GREÑA Moderador</small></div><button class="mod-close" id="modClose">✕</button></div><div class="mod-user"><b id="modUser">Usuario</b><small id="modPlatform">PLATAFORMA</small></div><label class="mod-reason">Razón (opcional)<input id="modReason" maxlength="100" placeholder="Ej.: spam, insultos, enlaces…"></label><div class="mod-section"><div class="mod-section-title">DENTRO DE GREÑA</div><div class="mod-grid"><button class="mod-btn warn" data-mod-action="mute_local">🔇 Silenciar este LIVE</button><button class="mod-btn safe" data-mod-action="unmute_local">🔊 Quitar silencio</button><button class="mod-btn" data-mod-action="hide_local">👁 Ocultar este mensaje</button></div></div><div id="platformModActions" class="mod-section"></div><div id="modNote" class="mod-note"></div><div id="modResult" class="mod-result"></div></div>`;
+  back.innerHTML=`<div class="mod-card"><div class="mod-head"><div><h3 id="modTitle">🛡️ Moderar usuario</h3><small id="modSubtitle">GREÑA Moderador</small></div><button class="mod-close" id="modClose">✕</button></div><div class="mod-user"><b id="modUser">Usuario</b><small id="modPlatform">PLATAFORMA</small></div><label class="mod-reason" id="modReasonWrap">Razón (opcional)<input id="modReason" maxlength="100" placeholder="Ej.: spam, insultos, enlaces…"></label><div class="mod-section" id="localModActions"><div class="mod-section-title">DENTRO DE GREÑA</div><div class="mod-grid"><button class="mod-btn warn" data-mod-action="mute_local">🔇 Silenciar este usuario</button><button class="mod-btn safe" data-mod-action="unmute_local">🔊 Quitar silencio</button></div></div><div id="platformModActions" class="mod-section"></div><div class="mod-section"><div class="mod-section-title">USUARIOS SILENCIADOS · PERMANENTE</div><div id="mutedUsersList" class="mod-muted-list"><div class="mod-muted-empty">Cargando lista…</div></div></div><div id="modNote" class="mod-note"></div><div id="modResult" class="mod-result"></div></div>`;
   document.body.append(back);back.querySelector('#modClose').onclick=()=>back.classList.remove('show');back.addEventListener('click',e=>{if(e.target===back)back.classList.remove('show')});
   back.querySelectorAll('[data-mod-action]').forEach(b=>b.onclick=()=>runModeration(b.dataset.modAction,b));return back;
 }
@@ -4473,17 +4538,22 @@ function platformActionHtml(platform,m={}){
 }
 function openModerator(m,row){
   const platform=['tiktok','twitch','kick'].includes(String(m.platform||'').toLowerCase())?String(m.platform).toLowerCase():'tiktok';moderationTarget={...m,platform,__row:row};
-  const back=moderationModal();back.querySelector('#modUser').textContent=(m.nickname||m.user||'Usuario')+(m.user&&m.nickname&&m.user!==m.nickname?`  @${m.user}`:'');back.querySelector('#modPlatform').textContent=platform.toUpperCase();back.querySelector('#modReason').value='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';
+  const back=moderationModal();back.querySelector('#modTitle').textContent='🛡️ Moderar usuario';back.querySelector('#modReasonWrap').style.display='';back.querySelector('#localModActions').style.display='';back.querySelector('#modUser').textContent=(m.nickname||m.user||'Usuario')+(m.user&&m.nickname&&m.user!==m.nickname?`  @${m.user}`:'');back.querySelector('#modPlatform').textContent=platform.toUpperCase();back.querySelector('#modReason').value='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';
   const area=back.querySelector('#platformModActions');area.innerHTML=platformActionHtml(platform,m);area.querySelectorAll('[data-real-action]').forEach(b=>b.onclick=()=>runModeration(b.dataset.realAction,b,Number(b.dataset.seconds||0)));
-  back.querySelector('#modNote').textContent=platform==='tiktok'?'TikTok: GREÑA puede ocultar o silenciar al usuario durante este LIVE. La conexión LIVE actual no ofrece ban/timeout oficial desde una app externa.':`${platform==='twitch'?'Twitch':'Kick'}: borrar, timeout, ban y desban se ejecutan en la plataforma si tu cuenta de GREÑA está autorizada con permisos de moderación.`;
-  back.classList.add('show');
+  back.querySelector('#modNote').textContent=platform==='tiktok'?'TikTok: al silenciar un usuario en GREÑA, deja de aparecer en el chat y queda guardado para todos tus próximos LIVE hasta que lo quites de la lista.':`${platform==='twitch'?'Twitch':'Kick'}: silenciar en GREÑA es permanente dentro de tu chat. Borrar, timeout, ban y desban se ejecutan además en la plataforma si tu cuenta está autorizada.`;
+  back.classList.add('show');refreshMutedUsers();
 }
+function openMutedUsersManager(){
+  moderationTarget=null;
+  const back=moderationModal();back.querySelector('#modTitle').textContent='🔇 Usuarios silenciados';back.querySelector('#modUser').textContent='Lista permanente';back.querySelector('#modPlatform').textContent='TIKTOK · TWITCH · KICK';back.querySelector('#modReasonWrap').style.display='none';back.querySelector('#localModActions').style.display='none';back.querySelector('#platformModActions').innerHTML='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';back.querySelector('#modNote').textContent='Todo usuario que silencies queda guardado aquí y seguirá oculto en futuros LIVE. Solo vuelve a aparecer cuando pulses Quitar.';
+  back.classList.add('show');refreshMutedUsers();
+}
+$('manageMutedUsers')?.addEventListener('click',openMutedUsersManager);
 function removeUserRows(platform,user){const key=String(user||'').toLowerCase();document.querySelectorAll('.msg').forEach(el=>{if(el.dataset.platform===platform&&el.dataset.user===key)el.remove()})}
 async function runModeration(action,button,durationSeconds=0){
   const t=moderationTarget;if(!t)return;const back=moderationModal(),result=back.querySelector('#modResult');
-  if(action==='hide_local'){t.__row?.remove();result.textContent='Mensaje ocultado en GREÑA.';result.className='mod-result show ok';return}
   button.disabled=true;const old=button.textContent;button.textContent='Procesando…';
-  try{const payload={platform:t.platform,action,username:t.user||t.nickname||'',userId:t.userId||'',messageId:t.messageId||'',broadcaster:t.broadcaster||'',broadcasterId:t.broadcasterId||'',durationSeconds,reason:back.querySelector('#modReason').value.trim()};const r=await fetch('/api/moderation/action',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'No se pudo ejecutar la moderación.');result.textContent='✓ '+(d.message||'Acción completada.');result.className='mod-result show ok';if(action==='mute_local'||action==='ban'||action==='timeout')removeUserRows(t.platform,t.user||t.nickname);if(action==='delete_message')t.__row?.remove();}
+  try{const payload={platform:t.platform,action,username:t.user||t.nickname||'',userId:t.userId||'',messageId:t.messageId||'',broadcaster:t.broadcaster||'',broadcasterId:t.broadcasterId||'',durationSeconds,reason:back.querySelector('#modReason').value.trim()};const r=await fetch('/api/moderation/action',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'No se pudo ejecutar la moderación.');if(d.muted){mutedUsersState=normalizeMutedUsersState(d.muted);renderMutedUsers()}result.textContent='✓ '+(d.message||'Acción completada.');result.className='mod-result show ok';if(action==='mute_local'||action==='ban'||action==='timeout')removeUserRows(t.platform,t.user||t.nickname);if(action==='delete_message')t.__row?.remove();}
   catch(e){result.textContent='⚠ '+e.message+( /permiso|scope|401|403|autoriza/i.test(e.message)?' Vuelve a vincular esa plataforma en GREÑA para aceptar los permisos nuevos.':'');result.className='mod-result show bad'}finally{button.disabled=false;button.textContent=old}
 }
 

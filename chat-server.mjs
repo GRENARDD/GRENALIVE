@@ -47,12 +47,14 @@ const CHAT_LOG_DIR=join(DATA_DIR,'logs');await mkdir(CHAT_LOG_DIR,{recursive:tru
 const PROFILES_DIR=join(DATA_DIR,'profiles');
 const ACTIVE_PROFILE_FILE=join(DATA_DIR,'active-profile.json');
 const LEGACY_CONNECTIONS_FILE=join(DATA_DIR,'grena-chat-connections.json');
+const LEGACY_MUTED_USERS_FILE=join(DATA_DIR,'grena-chat-muted-users.json');
 const LEGACY_MULTICHAT_SETTINGS_FILE=new URL('./multichat-settings.json', import.meta.url);
 await mkdir(PROFILES_DIR,{recursive:true}).catch(()=>{});
 async function readJson(file,fallback={}){try{return JSON.parse(await readFile(file,'utf8'))}catch{return fallback}}
 let activeProfileId=String((await readJson(ACTIVE_PROFILE_FILE,{})).userId||'');
 let CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
 let MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
+let MUTED_USERS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-muted-users.json'):LEGACY_MUTED_USERS_FILE;
 const connectionDefaults={autoConnect:true,tiktokUrl:'',twitchUrl:'',kickUrl:'',tiktokEnabled:false,twitchEnabled:false,kickEnabled:false};
 let connectionPrefs={...connectionDefaults,...await readJson(CONNECTIONS_FILE,{})};
 async function saveConnectionPrefs(){await safeWriteJson(CONNECTIONS_FILE,connectionPrefs).catch(()=>{})}
@@ -115,8 +117,10 @@ async function loadChatProfile(userId=''){
   if(activeProfileId)await mkdir(join(PROFILES_DIR,activeProfileId),{recursive:true}).catch(()=>{});
   CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
   MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
+  MUTED_USERS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-muted-users.json'):LEGACY_MUTED_USERS_FILE;
   connectionPrefs={...connectionDefaults,...await readJson(CONNECTIONS_FILE,{})};
   multichatSettings=sanitizeMultichatSettings(await readJson(MULTICHAT_SETTINGS_FILE,{}),multichatDefaults);
+  await loadLocalMutedUsers();
 }
 
 
@@ -153,6 +157,37 @@ const kickUsers = new Map();
 const localMutedUsers={tiktok:new Set(),twitch:new Set(),kick:new Set()};
 function moderationKey(v=''){return String(v||'').trim().replace(/^@/,'').toLowerCase()}
 function isLocallyMuted(platform,user){return !!localMutedUsers[String(platform||'').toLowerCase()]?.has(moderationKey(user))}
+function publicLocalMutedUsers(){
+  return {
+    tiktok:[...localMutedUsers.tiktok].sort(),
+    twitch:[...localMutedUsers.twitch].sort(),
+    kick:[...localMutedUsers.kick].sort()
+  };
+}
+async function loadLocalMutedUsers(){
+  const raw=await readJson(MUTED_USERS_FILE,{});
+  const source=raw&&typeof raw==='object'&&raw.users&&typeof raw.users==='object'?raw.users:raw;
+  for(const platform of ['tiktok','twitch','kick']){
+    localMutedUsers[platform].clear();
+    const values=Array.isArray(source?.[platform])?source[platform]:[];
+    for(const value of values){
+      const key=moderationKey(value);
+      if(key)localMutedUsers[platform].add(key);
+    }
+  }
+}
+async function saveLocalMutedUsers(){
+  if(activeProfileId)await mkdir(join(PROFILES_DIR,activeProfileId),{recursive:true}).catch(()=>{});
+  await safeWriteJson(MUTED_USERS_FILE,{version:1,updatedAt:Date.now(),users:publicLocalMutedUsers()}).catch(e=>logChatFault('saveMutedUsers',e));
+}
+function removeMutedUserFromHistory(platform,user){
+  const p=String(platform||'').toLowerCase(),key=moderationKey(user);
+  for(let i=recentChatHistory.length-1;i>=0;i--){
+    const item=recentChatHistory[i];
+    if(String(item?.platform||'').toLowerCase()===p&&moderationKey(item?.user||item?.nickname)===key)recentChatHistory.splice(i,1);
+  }
+}
+await loadLocalMutedUsers();
 
 // =====================================
 // ENVÍO DE DATOS AL NAVEGADOR
@@ -656,7 +691,6 @@ function kickChannelFromUrl(input) {
 }
 
 async function disconnectKick() {
-  localMutedUsers.kick.clear();
   const old=currentKickChannel;
   kickConnected=false;
   currentKickChannel='';
@@ -901,7 +935,6 @@ function timeout(
 // =====================================
 
 async function disconnectTikTok() {
-  localMutedUsers.tiktok.clear();
   if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}
   tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;
   if (tiktokConn) {
@@ -932,7 +965,6 @@ async function disconnectTikTok() {
 // =====================================
 
 async function disconnectTwitch() {
-  localMutedUsers.twitch.clear();
   twitchMetaCache.clear();
   if (twitchClient) {
     try {
@@ -1897,8 +1929,8 @@ const server =
           await disconnectAll();
           await loadChatProfile(String(incoming.userId||''));
           recentChatHistory.splice(0,recentChatHistory.length);
-          for(const set of Object.values(localMutedUsers))set.clear();
           broadcast({type:'multichat-settings',settings:multichatSettings});
+          broadcast({type:'moderation-list',muted:publicLocalMutedUsers()});
           broadcast({type:'profile-changed',profileId:activeProfileId});
           if(connectionPrefs.autoConnect)setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick()},80);
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -1994,6 +2026,11 @@ const server =
         // ===============================
         // MODERACIÓN DESDE GREÑA CHAT
         // ===============================
+        if (url.pathname === '/api/moderation/muted' && request.method === 'GET') {
+          response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+          response.end(JSON.stringify({ok:true,muted:publicLocalMutedUsers()}));
+          return;
+        }
         if (url.pathname === '/api/moderation/action' && request.method === 'POST') {
           let body='';body=await readBody(request);
           try{
@@ -2001,10 +2038,17 @@ const server =
             if(!['tiktok','twitch','kick'].includes(platform))throw Error('Plataforma no válida.');
             if(action==='mute_local'||action==='unmute_local'){
               const key=moderationKey(user);if(!key)throw Error('Falta el usuario.');
-              if(action==='mute_local')localMutedUsers[platform].add(key);else localMutedUsers[platform].delete(key);
-              broadcast({type:'moderation-update',platform,action,user:key});
+              if(action==='mute_local'){
+                localMutedUsers[platform].add(key);
+                removeMutedUserFromHistory(platform,key);
+              }else{
+                localMutedUsers[platform].delete(key);
+              }
+              await saveLocalMutedUsers();
+              const muted=publicLocalMutedUsers();
+              broadcast({type:'moderation-update',platform,action,user:key,muted});
               response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-              response.end(JSON.stringify({ok:true,message:action==='mute_local'?`${user} quedó silenciado en GREÑA durante este LIVE.`:`${user} volvió a estar visible en GREÑA.`}));return;
+              response.end(JSON.stringify({ok:true,muted,message:action==='mute_local'?`${user} quedó silenciado en GREÑA permanentemente, hasta que lo quites de la lista.`:`${user} salió de la lista de silenciados.`}));return;
             }
             const rr=await fetch(`${MAIN_ORIGIN}/api/moderation/action`,{method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify(d)});
             const out=await rr.json().catch(()=>({ok:false,error:`Moderación HTTP ${rr.status}`}));
@@ -2039,7 +2083,8 @@ const server =
           if (request.method === 'GET') {
             const n=Math.max(1,Math.min(30,Number(url.searchParams.get('limit')||multichatSettings.maxMessages||6)));
             response.writeHead(200, {'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-            response.end(JSON.stringify({ok:true,messages:recentChatHistory.slice(-n)}));
+            const visible=recentChatHistory.filter(m=>!isLocallyMuted(m?.platform,m?.user||m?.nickname));
+            response.end(JSON.stringify({ok:true,messages:visible.slice(-n)}));
             return;
           }
           response.writeHead(405); response.end('Método no permitido'); return;

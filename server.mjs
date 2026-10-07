@@ -1994,6 +1994,7 @@ const CHAT_HTTP_ROUTES=new Set([
   '/api/fish-tts',
   '/api/connection-prefs',
   '/api/moderation/action',
+  '/api/moderation/muted',
   '/api/voice-control',
   '/api/multichat-settings',
   '/api/multichat-history',
