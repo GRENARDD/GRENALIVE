@@ -28,6 +28,8 @@ const PORT = 8788;
 const MAIN_PORT = Number(process.env.PORT||8787);
 const MAIN_ORIGIN = `http://127.0.0.1:${MAIN_PORT}`;
 const CLOUD_MODE = process.env.GRENA_CLOUD === '1';
+const EULERSTREAM_API_KEY = String(process.env.EULERSTREAM_API_KEY || process.env.EULER_API_KEY || '').trim();
+let tiktokRateLimitUntil = 0;
 
 async function safeWriteJson(file,data){
   const text=JSON.stringify(data,null,2);
@@ -428,6 +430,23 @@ const getError = error => {
     String(error || 'Error desconocido')
   );
 };
+
+function tiktokRateLimitBackoff(error) {
+  const message = getError(error);
+  if (!/rate_limit_account_day|too many connections started|\[rate limited\]/i.test(message)) return 0;
+  const raw = Number(error?.retryAfter || 0);
+  const waitMs = raw > 0 ? (raw < 1000 ? raw * 1000 : raw) : 60 * 60 * 1000;
+  tiktokRateLimitUntil = Math.max(tiktokRateLimitUntil, Date.now() + waitMs);
+  return waitMs;
+}
+function tiktokRateLimitLabel() {
+  const ms = Math.max(0, tiktokRateLimitUntil - Date.now());
+  if (!ms) return '';
+  const mins = Math.max(1, Math.ceil(ms / 60000));
+  const hours = Math.floor(mins / 60);
+  const rest = mins % 60;
+  return hours ? `${hours}h ${rest}m` : `${mins} min`;
+}
 
 // =====================================
 // PRIMER TEXTO VÁLIDO
@@ -1328,6 +1347,13 @@ async function connectTikTok(input) {
   const username =
     usernameFromTikTokUrl(input);
 
+  if (Date.now() < tiktokRateLimitUntil) {
+    const message = `TikTok temporalmente limitado · reintento en ${tiktokRateLimitLabel()}`;
+    broadcastPlatform('tiktok',{type:'error',message});
+    bridgeStatus('tiktok',false,`@${username} · ${message}`,username,{source:'euler-rate-limit'});
+    return false;
+  }
+
   await disconnectTikTok();
 
   currentTikTokUser =
@@ -1348,6 +1374,9 @@ async function connectTikTok(input) {
     new TikTokLiveConnection(
       username,
       {
+        signApiKey:
+          EULERSTREAM_API_KEY || undefined,
+
         fetchRoomInfoOnConnect:
           true,
 
@@ -1727,10 +1756,14 @@ async function connectTikTok(input) {
     try{await pollTikTokViewers('TikTok room/info bridge inicial')}catch(e){console.warn('[TIKTOK VIEWERS] room/info inicial:',getError(e))}
     if(tiktokViewerPollTimer)clearInterval(tiktokViewerPollTimer);
     tiktokViewerLastSignalAt=Date.now();
-    tiktokViewerPollTimer=setInterval(()=>pollTikTokViewers().catch(e=>console.warn('[TIKTOK VIEWERS] room/info:',getError(e))),5000);
+    tiktokViewerPollTimer=setInterval(()=>{
+      if(tiktokViewerLastSignalAt && Date.now()-tiktokViewerLastSignalAt < 10000) return;
+      pollTikTokViewers().catch(e=>console.warn('[TIKTOK VIEWERS] room/info:',getError(e)));
+    },12000);
     tiktokViewerPollTimer.unref?.();
 
   } catch (error) {
+    const limitedFor=tiktokRateLimitBackoff(error);
     try {
       await connection.disconnect();
     } catch {}
@@ -1746,14 +1779,22 @@ async function connectTikTok(input) {
       tiktokViewerLastPositiveAt=0;
     }
 
+    const message=limitedFor
+      ? `TikTok temporalmente limitado · reintento en ${tiktokRateLimitLabel()}`
+      : getError(error);
+
+    if(limitedFor){
+      console.warn('[TIKTOK RATE LIMIT]',message);
+      bridgeStatus('tiktok',false,`@${username} · ${message}`,username,{source:'euler-rate-limit'});
+    }
+
     broadcastPlatform(
       'tiktok',
       {
         type:
           'error',
 
-        message:
-          getError(error)
+        message
       }
     );
   }
@@ -2755,6 +2796,7 @@ const bridgeHeartbeatTimer=setInterval(bridgeHeartbeat,3000);bridgeHeartbeatTime
 let autoTikTokBusy=false,autoKickBusy=false;
 async function autoConnectTikTok(){
   if(!connectionPrefs.autoConnect||!connectionPrefs.tiktokEnabled||!connectionPrefs.tiktokUrl||tiktokConn||autoTikTokBusy)return;
+  if(Date.now()<tiktokRateLimitUntil)return;
   autoTikTokBusy=true;try{await connectTikTok(connectionPrefs.tiktokUrl)}catch(e){console.log('[AUTO TikTok] LIVE todavía no disponible:',e?.message||e)}finally{autoTikTokBusy=false}
 }
 async function autoConnectTwitch(){
@@ -2783,6 +2825,7 @@ server.listen(
   HOST,
   async () => {
     console.log(`GREÑA CHAT listo: http://${HOST}:${PORT}`);
+    console.log('[TikTok] Eulerstream API key:',EULERSTREAM_API_KEY?'CONFIGURADA':'NO CONFIGURADA');
     console.log('TikTok + Twitch + Kick preparados. Autoconexión:',connectionPrefs.autoConnect?'ACTIVA':'DESACTIVADA');
     console.log('Chat de voz preparado desde el navegador.');
     await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick()]);
