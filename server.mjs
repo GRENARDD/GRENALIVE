@@ -954,6 +954,7 @@ function startTwitchValidation(){
 
 
 let kickAppToken='',kickTokenExpiresAt=0,kickViewerTimer=null,kickViewerRefreshing=false;
+const kickAvatarCache=new Map();
 async function kickAppAccessToken(){
  const c=oauthConfig.kick||{};if(!c.clientId||!c.clientSecret)throw Error(isBrokerProvider('kick')?'Inicia sesión con Kick para activar el contador oficial.':'Falta configurar Kick Client ID / Client Secret.');
  if(kickAppToken&&Date.now()<kickTokenExpiresAt-60000)return kickAppToken;
@@ -975,6 +976,18 @@ async function kickApi(path){
   try{token=await kickAppAccessToken();r=await request(token)}catch{}
  }
  const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||d.error_description||d.error||`Kick API HTTP ${r.status}`);return d;
+}
+async function kickUserAvatar(userId){
+ const id=String(userId||'').trim();if(!id)return '';
+ const hit=kickAvatarCache.get(id);if(hit&&Date.now()-hit.at<30*60e3)return hit.url;
+ try{
+  const d=await kickApi(`/public/v1/users?id=${encodeURIComponent(id)}`);
+  const row=Array.isArray(d?.data)?d.data[0]:d?.data?.[0]||d?.data||{};
+  const url=String(row?.profile_picture||'').trim();
+  kickAvatarCache.set(id,{url,at:Date.now()});
+  if(kickAvatarCache.size>1000){const first=kickAvatarCache.keys().next().value;kickAvatarCache.delete(first)}
+  return url;
+ }catch{return hit?.url||''}
 }
 async function refreshKick(){
  let slug=currentKickSlug();if(!slug||kickViewerRefreshing)return;
@@ -1954,6 +1967,11 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/internal/twitch-user-meta'&&req.method==='GET'){
   if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Forbidden'});
   const userId=String(url.searchParams.get('user_id')||'');return json(res,200,{ok:true,...await twitchUserMeta(userId)});
+ }
+ if(pathname==='/api/internal/kick-user-meta'&&req.method==='GET'){
+  if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Forbidden'});
+  const userId=String(url.searchParams.get('user_id')||'');
+  return json(res,200,{ok:true,avatar:await kickUserAvatar(userId)});
  }
  if(pathname==='/api/internal/loyalty'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
