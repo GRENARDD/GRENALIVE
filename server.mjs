@@ -977,12 +977,27 @@ async function kickApi(path){
  const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||d.error_description||d.error||`Kick API HTTP ${r.status}`);return d;
 }
 async function refreshKick(){
- const slug=currentKickSlug();if(!slug||kickViewerRefreshing)return;
+ let slug=currentKickSlug();if(!slug||kickViewerRefreshing)return;
  kickViewerRefreshing=true;
  try{
-  const ch=await kickApi(`/public/v1/channels?slug=${encodeURIComponent(slug)}`);
-  const channel=Array.isArray(ch?.data)?ch.data[0]:ch?.data?.[0]||ch?.data;
-  const broadcasterId=channel?.broadcaster_user_id||channel?.user_id||channel?.id;
+  let ch=await kickApi(`/public/v1/channels?slug=${encodeURIComponent(slug)}`);
+  let channel=Array.isArray(ch?.data)?ch.data[0]:ch?.data?.[0]||ch?.data;
+  let broadcasterId=channel?.broadcaster_user_id||channel?.user_id||channel?.id;
+  // Las respuestas de /users exponen "name", no el slug del canal. Las versiones
+  // anteriores de GREÑA podían guardar ese nombre como slug. Si ocurre, reparamos
+  // la identidad con GET /channels sin parámetros usando el token del usuario.
+  if(!broadcasterId&&savedAuth.kick?.access_token){
+   const own=await kickCurrentChannel(await kickUserToken());
+   if(own?.slug&&own?.broadcasterId){
+    slug=own.slug;channel=own.channel;broadcasterId=own.broadcasterId;
+    savedAuth.kick={...(savedAuth.kick||{}),slug,username:slug,userId:own.broadcasterId,displayName:savedAuth.kick?.displayName||own.displayName||slug};
+    autoPrefs.enabled=true;autoPrefs.counterKick=`https://kick.com/${slug}`;autoPrefs.counterKickEnabled=true;
+    await Promise.all([persistAuth(),persistAutoPrefs()]);
+    await syncCreatorAccount('kick',slug).catch(()=>{});
+    notifyChatProfile(activeUserId).catch(()=>{});
+    console.log('[KICK] Identidad del canal reparada:',slug);
+   }
+  }
   if(!broadcasterId)throw Error('Kick no encontró ese canal.');
   const ls=await kickApi(`/public/v1/livestreams?broadcaster_user_id=${encodeURIComponent(broadcasterId)}`);
   const stream=Array.isArray(ls?.data)?ls.data[0]:ls?.data?.[0]||ls?.data;
@@ -1313,12 +1328,27 @@ async function disconnectChatPlatform(platform){
 }
 async function kickCurrentUser(token){
  const r=await fetch('https://api.kick.com/public/v1/users',{headers:{Authorization:`Bearer ${token}`,'Accept':'application/json'}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||d.error||`Kick user HTTP ${r.status}`);
- const u=Array.isArray(d?.data)?d.data[0]:d?.data?.[0]||d?.data||{};return {id:u.user_id||u.id||'',username:String(u.channel_slug||u.username||u.name||u.slug||'').trim(),displayName:String(u.username||u.name||u.channel_slug||u.slug||'').trim(),avatar:u.profile_picture||u.profile_picture_url||''};
+ const u=Array.isArray(d?.data)?d.data[0]:d?.data?.[0]||d?.data||{};
+ // Kick /users documenta name como nombre visible; no lo tratamos como slug.
+ return {id:u.user_id||u.id||'',username:String(u.username||u.channel_slug||u.slug||'').trim(),displayName:String(u.name||u.username||u.channel_slug||u.slug||'').trim(),avatar:u.profile_picture||u.profile_picture_url||''};
+}
+async function kickCurrentChannel(token){
+ const r=await fetch('https://api.kick.com/public/v1/channels',{headers:{Authorization:`Bearer ${token}`,'Accept':'application/json'}});
+ const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||d.error||`Kick channel HTTP ${r.status}`);
+ const channel=Array.isArray(d?.data)?d.data[0]:d?.data?.[0]||d?.data||{};
+ const broadcasterId=Number(channel?.broadcaster_user_id||channel?.user_id||channel?.id||0)||0;
+ const slug=String(channel?.slug||channel?.channel_slug||'').trim();
+ return {channel,broadcasterId,slug,displayName:String(channel?.name||channel?.username||slug||'').trim()};
 }
 
-const KICK_EVENT_SUBSCRIPTIONS=['channel.followed','channel.subscription.new','channel.subscription.renewal','channel.subscription.gifts','kicks.gifted','livestream.status.updated'];
+const KICK_EVENT_SUBSCRIPTIONS=['chat.message.sent','channel.followed','channel.subscription.new','channel.subscription.renewal','channel.subscription.gifts','kicks.gifted','livestream.status.updated'];
 async function kickUserToken(){
- let token=String(savedAuth.kick?.access_token||'');if(!token)throw Error('Kick no está vinculado.');return token;
+ let token=String(savedAuth.kick?.access_token||'');if(!token)throw Error('Kick no está vinculado.');
+ const obtained=Number(savedAuth.kick?.obtained_at||0),expires=Math.max(0,Number(savedAuth.kick?.expires_in||0))*1000;
+ if(savedAuth.kick?.refresh_token&&obtained&&expires&&Date.now()>obtained+expires-60000){
+  const fresh=await refreshKickUserToken();token=String(fresh?.access_token||token);
+ }
+ return token;
 }
 async function refreshKickUserToken(){
  const cur=savedAuth.kick||{};
@@ -1340,16 +1370,31 @@ async function kickSubscriptionsRequest(path='',options={}){
 async function ensureKickEventSubscriptions(){
  if(!savedAuth.kick?.access_token)return false;
  try{
-  const me=await kickCurrentUser(await kickUserToken()),broadcasterId=Number(me.id)||undefined;
+  await kickUserToken();
   const current=kickSubscriptionRows(await kickSubscriptionsRequest());
   const existing=new Set(current.map(x=>String(x?.event||x?.name||x?.type||'')));
   const missing=KICK_EVENT_SUBSCRIPTIONS.filter(name=>!existing.has(name));
-  if(missing.length){
-   const body={method:'webhook',events:missing.map(name=>({name,version:1})),...(broadcasterId?{broadcaster_user_id:broadcasterId}:{})};
-   await kickSubscriptionsRequest('',{method:'POST',body:JSON.stringify(body)});
+  const failures=[];
+  // Con User Access Token, Kick infiere el broadcaster. Enviar los eventos uno por
+  // uno evita que un único tipo rechazado bloquee todos los demás y nos deja ver
+  // exactamente cuál falló.
+  for(const name of missing){
+   try{
+    const d=await kickSubscriptionsRequest('',{method:'POST',body:JSON.stringify({method:'webhook',events:[{name,version:1}]})});
+    const rows=Array.isArray(d?.data)?d.data:[];
+    const failed=rows.find(x=>String(x?.name||'')===name&&x?.error);
+    if(failed?.error)failures.push(`${name}: ${failed.error}`);
+   }catch(e){failures.push(`${name}: ${e?.message||e}`)}
   }
-  const after=kickSubscriptionRows(await kickSubscriptionsRequest());const active=[...new Set(after.map(x=>String(x?.event||x?.name||x?.type||'')).filter(x=>KICK_EVENT_SUBSCRIPTIONS.includes(x)))];
-  kickEventHealth.subscriptionsReady=active.length>=4;kickEventHealth.active=active;kickEventHealth.failed=KICK_EVENT_SUBSCRIPTIONS.filter(x=>!active.includes(x));kickEventHealth.lastError='';kickEventHealth.updatedAt=Date.now();pushEventHealth();return kickEventHealth.subscriptionsReady;
+  const after=kickSubscriptionRows(await kickSubscriptionsRequest());
+  const active=[...new Set(after.map(x=>String(x?.event||x?.name||x?.type||'')).filter(x=>KICK_EVENT_SUBSCRIPTIONS.includes(x)))];
+  const failedNames=KICK_EVENT_SUBSCRIPTIONS.filter(x=>!active.includes(x));
+  kickEventHealth.subscriptionsReady=failedNames.length===0;
+  kickEventHealth.active=active;kickEventHealth.failed=failedNames;
+  kickEventHealth.lastError=failures.join(' | ');
+  kickEventHealth.updatedAt=Date.now();pushEventHealth();
+  if(failures.length)console.warn('[KICK EVENTS]',kickEventHealth.lastError);
+  return kickEventHealth.subscriptionsReady;
  }catch(e){kickEventHealth.subscriptionsReady=false;kickEventHealth.lastError=e?.message||String(e);kickEventHealth.updatedAt=Date.now();pushEventHealth();console.warn('[KICK EVENTS]',kickEventHealth.lastError);return false}
 }
 let kickPublicKeyCache={key:'',at:0};const kickWebhookSeen=new Map();
@@ -1450,8 +1495,11 @@ async function finishBrokerOAuth(platform,code,s,res){
   savedAuth.twitch={...tok,obtained_at:Date.now(),mode:'grena-auth'};await persistAuth();await startTwitch(tok.access_token);return callbackPage(res,true,`Twitch conectado como ${twitchCfg?.displayName||twitchCfg?.login||'tu cuenta'}.`)
  }
  if(platform==='kick'){
-  const me=await kickCurrentUser(tok.access_token);const username=me.username;if(!username)throw Error('Kick autorizó GREÑA, pero no pude identificar el canal de la cuenta.');
-  savedAuth.kick={...tok,username,displayName:me.displayName||username,slug:username,userId:me.id,avatar:me.avatar,obtained_at:Date.now(),mode:'grena-auth'};autoPrefs.enabled=true;autoPrefs.counterKick=`https://kick.com/${username}`;autoPrefs.counterKickEnabled=true;await Promise.all([persistAuth(),persistAutoPrefs()]);await syncCreatorAccount('kick',username);setStatus('kick',true,`${username} · cuenta vinculada`,username);startKickPolling();ensureKickEventSubscriptions().catch(()=>{});notifyChatProfile(activeUserId).catch(()=>{});return callbackPage(res,true,`Kick conectado como ${username}.`)
+  const me=await kickCurrentUser(tok.access_token);
+  const own=await kickCurrentChannel(tok.access_token);
+  const username=own.slug||me.username;if(!username)throw Error('Kick autorizó GREÑA, pero no pude identificar el slug del canal de la cuenta.');
+  const userId=own.broadcasterId||me.id;
+  savedAuth.kick={...tok,username,displayName:me.displayName||own.displayName||username,slug:username,userId,avatar:me.avatar,obtained_at:Date.now(),mode:'grena-auth'};autoPrefs.enabled=true;autoPrefs.counterKick=`https://kick.com/${username}`;autoPrefs.counterKickEnabled=true;await Promise.all([persistAuth(),persistAutoPrefs()]);await syncCreatorAccount('kick',username);setStatus('kick',true,`${username} · cuenta vinculada`,username);startKickPolling();ensureKickEventSubscriptions().catch(()=>{});notifyChatProfile(activeUserId).catch(()=>{});return callbackPage(res,true,`Kick conectado como ${username}.`)
  }
  throw Error('Plataforma no compatible con GREÑA Auth.');
 }
