@@ -248,7 +248,8 @@ const soundboard={
  suppressClick:0,
  envelopeFrame:0,
  manualFadeFrame:0,
- stopping:false
+ stopping:false,
+ fadeEnabled:true
 };
 function soundPad(slot){return document.querySelector('.sound-pad[data-sound-slot="'+slot+'"]')}
 function soundName(name='',slot=1){
@@ -267,7 +268,7 @@ function renderSoundPad(slot){
  if(soundboard.activeSlot===slot&&soundboard.audio){
   b.classList.add('playing');
   icon.textContent='■';
-  small.textContent=soundboard.stopping?'Desvaneciendo…':'Sonando · clic para detener';
+  small.textContent=soundboard.stopping?(soundboard.fadeEnabled?'Desvaneciendo…':'Deteniendo…'):'Sonando · clic para detener';
  }else{
   icon.textContent='▶';small.textContent='Clic para reproducir';
  }
@@ -282,6 +283,28 @@ async function loadSoundboard(){
   renderSoundboard();
  }catch(e){console.warn('[soundboard]',e?.message||e)}
 }
+
+function soundboardFadeKey(){return profileKey('grenaSoundboardFade')}
+function applySoundboardFadeSetting(enabled,{save=false}={}){
+ soundboard.fadeEnabled=!!enabled;
+ const input=$('soundboardFadeEnabled');if(input)input.checked=soundboard.fadeEnabled;
+ if(save&&state.profile)localStorage.setItem(soundboardFadeKey(),soundboard.fadeEnabled?'1':'0');
+ if(!soundboard.audio)return;
+ if(!soundboard.fadeEnabled){
+  cancelSoundEnvelope();cancelManualSoundFade();
+  try{soundboard.audio.volume=1}catch{}
+ }else if(!soundboard.stopping){
+  startSoundEnvelope(soundboard.audio);
+ }
+}
+function initSoundboardFadeSetting(){
+ const saved=state.profile?localStorage.getItem(soundboardFadeKey()):null;
+ applySoundboardFadeSetting(saved===null?true:saved==='1');
+}
+$('soundboardFadeEnabled')?.addEventListener('change',e=>{
+ applySoundboardFadeSetting(!!e.currentTarget.checked,{save:true});
+ toast(e.currentTarget.checked?'Desvanecido activado.':'Desvanecido desactivado.');
+});
 function cancelSoundEnvelope(){
  if(soundboard.envelopeFrame)cancelAnimationFrame(soundboard.envelopeFrame);
  soundboard.envelopeFrame=0;
@@ -292,6 +315,7 @@ function cancelManualSoundFade(){
 }
 function startSoundEnvelope(audio){
  cancelSoundEnvelope();
+ if(!soundboard.fadeEnabled){try{audio.volume=1}catch{};return}
  const tick=()=>{
   if(soundboard.audio!==audio||soundboard.stopping||audio.paused||audio.ended){soundboard.envelopeFrame=0;return}
   const t=Math.max(0,Number(audio.currentTime)||0);
@@ -308,6 +332,7 @@ function startSoundEnvelope(audio){
 }
 function fadeAudioToZero(audio,durationMs=SOUNDBOARD_MANUAL_FADE_MS){
  cancelManualSoundFade();
+ if(!soundboard.fadeEnabled)return Promise.resolve();
  const from=Math.max(0,Math.min(1,Number(audio?.volume)||0));
  if(!audio||audio.paused||from<=.001)return Promise.resolve();
  return new Promise(resolve=>{
@@ -328,7 +353,7 @@ async function stopSoundboardAudio(reset=true,smooth=true){
  soundboard.stopping=true;
  cancelSoundEnvelope();
  if(old)renderSoundPad(old);
- if(smooth)await fadeAudioToZero(audio);
+ if(smooth&&soundboard.fadeEnabled)await fadeAudioToZero(audio);
  if(soundboard.audio!==audio)return;
  try{audio.pause();if(reset)audio.currentTime=0;audio.volume=0}catch{}
  soundboard.audio=null;soundboard.activeSlot=0;soundboard.stopping=false;
@@ -339,13 +364,13 @@ async function toggleSound(slot){
  const meta=soundboard.slots.get(slot);
  if(!meta||meta.empty){openSoundPicker(slot);return}
  if(soundboard.activeSlot===slot&&soundboard.audio){
-  if(!soundboard.stopping)await stopSoundboardAudio(true,true);
+  if(!soundboard.stopping)await stopSoundboardAudio(true,soundboard.fadeEnabled);
   return;
  }
- if(soundboard.audio)await stopSoundboardAudio(true,true);
+ if(soundboard.audio)await stopSoundboardAudio(true,soundboard.fadeEnabled);
  const audio=new Audio(meta.url);
  audio.preload='auto';
- audio.volume=0;
+ audio.volume=soundboard.fadeEnabled?0:1;
  soundboard.audio=audio;soundboard.activeSlot=slot;soundboard.stopping=false;
  audio.addEventListener('ended',()=>{
   if(soundboard.audio!==audio)return;
@@ -406,7 +431,7 @@ document.querySelectorAll('.sound-pad').forEach(btn=>{
 $('soundboardReplaceCancel')?.addEventListener('click',()=>{$('soundboardReplaceDialog')?.close();soundboard.replaceSlot=0});
 $('soundboardReplaceConfirm')?.addEventListener('click',async()=>{
  const slot=soundboard.replaceSlot;$('soundboardReplaceDialog')?.close();soundboard.replaceSlot=0;
- if(slot){if(soundboard.activeSlot===slot)await stopSoundboardAudio(true,true);openSoundPicker(slot)}
+ if(slot){if(soundboard.activeSlot===slot)await stopSoundboardAudio(true,soundboard.fadeEnabled);openSoundPicker(slot)}
 });
 $('soundboardReplaceDialog')?.addEventListener('cancel',()=>{soundboard.replaceSlot=0});
 $('soundboardFile')?.addEventListener('change',async e=>{
@@ -428,4 +453,4 @@ $('soundboardFile')?.addEventListener('change',async e=>{
  }catch(err){renderSoundPad(slot);toast(err.message||'No se pudo guardar el audio.')}
 });
 
-(async()=>{if(!(await initAccount()))return;await loadInitial();await loadSoundboard();connectCore();connectChatEngine();const m=moduleFromHash();if(m)openModule(m,{updateHash:false})})();
+(async()=>{if(!(await initAccount()))return;initSoundboardFadeSetting();await loadInitial();await loadSoundboard();connectCore();connectChatEngine();const m=moduleFromHash();if(m)openModule(m,{updateHash:false})})();
