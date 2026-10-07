@@ -216,6 +216,9 @@ let kickChatroomId = 0;
 let kickSeenMessages = new Map();
 let kickPagePollTimer = null;
 let kickRealtimeFrames = 0;
+let kickFollowerSeeded = false;
+const kickSeenFollowers = new Set();
+const kickRealtimeEventNames = new Set();
 
 let currentTikTokUser = '';
 let currentTwitchChannel = '';
@@ -770,6 +773,9 @@ async function disconnectKick() {
   currentKickChannel='';
   kickUsers.clear();
   kickSeenMessages.clear();
+  kickFollowerSeeded=false;
+  kickSeenFollowers.clear();
+  kickRealtimeEventNames.clear();
   if(kickReconnectTimer){clearTimeout(kickReconnectTimer);kickReconnectTimer=null;}
   if(kickPagePollTimer){clearInterval(kickPagePollTimer);kickPagePollTimer=null;}
   if(kickSocket){try{kickSocket.removeAllListeners();kickSocket.close()}catch{}}
@@ -835,31 +841,137 @@ function consumeKickRealtimeFrame(payload){
     if(!ev||typeof ev!=='object')continue;
     const name=String(ev.event||ev.type||'');
     if(name==='pusher:ping'){try{kickSocket?.send(JSON.stringify({event:'pusher:pong',data:{}}))}catch{};continue}
-    if(/ChatMessage(?:Sent)?Event$/i.test(name)||name==='chat.message.sent'){
-      const m=normalizeKickChatPayload(kickEventData(ev));if(m){deliverKickChat(m);handled=true}continue;
+    if(/^pusher(?:_internal)?:/i.test(name))continue;
+    const d=kickEventData(ev);
+    const dataType=String(d?.type||d?.event_type||d?.event||'').toLowerCase();
+    if(name&&!kickRealtimeEventNames.has(name)){
+      kickRealtimeEventNames.add(name);
+      console.log('[KICK RT EVENT]',name);
     }
-    if(/GiftedSubscriptionsEvent$/i.test(name)||name==='channel.subscription.gifts'){
-      const d=kickEventData(ev),who=kickPerson(d),count=Math.max(1,Number(d.count||d.quantity||d.gifts?.length||d.gifted_usernames?.length||d.giftees?.length||1)||1);
-      bridgeAlert('Kick','gift',who,`regaló ${count} suscripción${count===1?'':'es'}`,{count,giftName:'Suscripciones regaladas',giftKind:'subscription',avatar:findUrl(d?.gifter?.profile_picture||d?.sender?.profile_picture||''),kickEvent:name});handled=true;continue;
+
+    if(/ChatMessage(?:Sent)?Event$/i.test(name)||name==='chat.message.sent'||dataType==='message'||dataType==='chat_message'){
+      const m=normalizeKickChatPayload(d);if(m){deliverKickChat(m);handled=true}continue;
     }
-    if(/KicksGiftedEvent$/i.test(name)||/KicksGifted$/i.test(name)||name==='kicks.gifted'){
-      const d=kickEventData(ev),who=kickPerson(d),gift=d.gift||d.data?.gift||{},amount=Math.max(0,Number(gift.amount||d.amount||0)||0),giftName=firstString(gift.name,d.gift_name,d.name,'KICKs');
-      bridgeAlert('Kick','gift',who,`envió ${giftName}${amount>0?' · '+amount.toLocaleString('es-DO')+' KICKs':''}`,{giftName,giftKind:'kicks',amount,kickGiftType:firstString(gift.type,d.type),kickGiftTier:firstString(gift.tier,d.tier),giftMessage:firstString(gift.message,d.message),avatar:findUrl(d?.sender?.profile_picture||d?.gifter?.profile_picture||''),kickEvent:name});handled=true;continue;
+
+    if(/GiftedSubscriptionsEvent$/i.test(name)||name==='channel.subscription.gifts'||dataType==='gifted_subscriptions'){
+      const who=kickPerson(d);
+      const count=Math.max(1,Number(
+        d.count||d.quantity||d.gifts?.length||d.gifted_usernames?.length||
+        d.giftees?.length||d.recipients?.length||1
+      )||1);
+      bridgeAlert('Kick','gift',who,`regaló ${count} suscripción${count===1?'':'es'}`,{
+        count,giftName:'Suscripciones regaladas',giftKind:'subscription',
+        avatar:findUrl(d?.gifter?.profile_picture||d?.sender?.profile_picture||''),
+        kickEvent:name||dataType
+      });handled=true;continue;
     }
-    if(/SubscriptionEvent$/i.test(name)||name==='channel.subscription.new'||name==='channel.subscription.renewal'){
-      const d=kickEventData(ev),who=kickPerson(d),key=String(who||'').toLowerCase();
+
+    if(/KicksGiftedEvent$/i.test(name)||/KicksGifted$/i.test(name)||name==='kicks.gifted'||dataType==='kicks_gifted'){
+      const who=kickPerson(d),gift=d.gift||d.data?.gift||{};
+      const amount=Math.max(0,Number(gift.amount||d.amount||0)||0);
+      const giftName=firstString(gift.name,d.gift_name,d.name,'KICKs');
+      bridgeAlert('Kick','gift',who,`envió ${giftName}${amount>0?' · '+amount.toLocaleString('es-DO')+' KICKs':''}`,{
+        giftName,giftKind:'kicks',amount,
+        kickGiftType:firstString(gift.type,d.type),
+        kickGiftTier:firstString(gift.tier,d.tier),
+        giftMessage:firstString(gift.message,d.message),
+        avatar:findUrl(d?.sender?.profile_picture||d?.gifter?.profile_picture||''),
+        kickEvent:name||dataType
+      });handled=true;continue;
+    }
+
+    if(/SubscriptionEvent$/i.test(name)||name==='channel.subscription.new'||name==='channel.subscription.renewal'||dataType==='subscription'){
+      const who=kickPerson(d),key=String(who||'').toLowerCase();
       if(key){const old=kickUsers.get(key)||{username:who,nickname:who,userId:'',lastSeen:Date.now()};kickUsers.set(key,{...old,isSubscriber:true,lastSeen:Date.now()})}
-      bridgeAlert('Kick','sub',who,name==='channel.subscription.renewal'?'renovó su suscripción':'se suscribió',{avatar:findUrl(d?.subscriber?.profile_picture||d?.sender?.profile_picture||''),kickEvent:name});handled=true;continue;
+      bridgeAlert('Kick','sub',who,name==='channel.subscription.renewal'?'renovó su suscripción':'se suscribió',{
+        avatar:findUrl(d?.subscriber?.profile_picture||d?.sender?.profile_picture||''),
+        kickEvent:name||dataType
+      });handled=true;continue;
     }
-    if(/FollowEvent$/i.test(name)||name==='channel.followed'){
-      const d=kickEventData(ev),who=kickPerson(d),key=String(who||'').toLowerCase();if(key){const old=kickUsers.get(key)||{username:who,nickname:who,userId:'',lastSeen:Date.now()};kickUsers.set(key,{...old,isFollower:true,lastSeen:Date.now()})}bridgeAlert('Kick','follow',who,'te siguió',{kickEvent:name});handled=true;continue;
+
+    if(/FollowEvent$/i.test(name)||name==='channel.followed'||dataType==='follow'||dataType==='followed'){
+      const who=kickPerson(d),key=String(who||'').toLowerCase();
+      if(key){const old=kickUsers.get(key)||{username:who,nickname:who,userId:'',lastSeen:Date.now()};kickUsers.set(key,{...old,isFollower:true,lastSeen:Date.now()})}
+      bridgeAlert('Kick','follow',who,'te siguió',{kickEvent:name||dataType});handled=true;continue;
     }
   }
   return handled;
 }
 function kickEventData(ev){let d=ev?.data;try{if(typeof d==='string')d=JSON.parse(d)}catch{};return d||{}}
-function kickPerson(d={}){const u=d.sender||d.user||d.follower||d.subscriber||d.gifter||d.created_by||{};return String(u.username||u.name||u.slug||d.username||d.user_name||'Usuario')}
+function kickPerson(d={}){
+  const u=d.sender||d.user||d.follower||d.subscriber||d.gifter||d.created_by||{};
+  return String(
+    u.username||u.name||u.slug||
+    d.username||d.user_name||d.gifter_username||
+    (typeof d.gifted_by==='string'?d.gifted_by:'')||
+    (typeof d.gifter==='string'?d.gifter:'')||
+    'Usuario'
+  )
+}
 function handleKickPusherEvent(ev){consumeKickRealtimeFrame(JSON.stringify(ev))}
+
+function kickFollowerRows(payload){
+  const candidates=[
+    payload?.data,
+    payload?.followers,
+    payload?.data?.data,
+    payload?.data?.followers,
+    payload?.results,
+    payload?.data?.results
+  ];
+  for(const v of candidates)if(Array.isArray(v))return v;
+  return [];
+}
+function normalizeKickFollower(row={}){
+  const u=row?.user||row?.follower||row?.followed_by||row||{};
+  const username=String(u.username||u.name||u.slug||u.channel_slug||row?.username||row?.user_name||'').trim();
+  const id=String(u.id||u.user_id||row?.user_id||row?.id||username).trim();
+  const avatar=String(u.profile_picture||u.profile_picture_url||u.avatar||row?.profile_picture||'').trim();
+  return username?{id:id||username,username,avatar}:null;
+}
+async function pollKickFollowers(channel){
+  if(!kickPage||!channel)return;
+  try{
+    const data=await kickPage.evaluate(async slug=>{
+      const urls=[
+        `/api/v1/channels/${encodeURIComponent(slug)}/followers?limit=50`,
+        `/api/v1/channels/${encodeURIComponent(slug)}/followers`
+      ];
+      for(const url of urls){
+        try{
+          const r=await fetch(url,{credentials:'include',cache:'no-store'});
+          if(!r.ok)continue;
+          const d=await r.json();
+          return {ok:true,data:d,url,status:r.status};
+        }catch{}
+      }
+      return {ok:false};
+    },channel);
+    if(!data?.ok)return;
+    const rows=kickFollowerRows(data.data).map(normalizeKickFollower).filter(Boolean);
+    if(!rows.length)return;
+    if(!kickFollowerSeeded){
+      for(const f of rows)kickSeenFollowers.add(f.id||f.username.toLowerCase());
+      kickFollowerSeeded=true;
+      console.log('[KICK FOLLOWERS] respaldo inicializado con',rows.length,'seguidores recientes');
+      return;
+    }
+    for(const f of rows){
+      const key=f.id||f.username.toLowerCase();
+      if(kickSeenFollowers.has(key))continue;
+      kickSeenFollowers.add(key);
+      const k=f.username.toLowerCase(),old=kickUsers.get(k)||{};
+      kickUsers.set(k,{...old,username:f.username,nickname:f.username,isFollower:true,lastSeen:Date.now()});
+      bridgeAlert('Kick','follow',f.username,'te siguió',{avatar:f.avatar,kickEvent:'followers-poll-fallback'});
+    }
+    while(kickSeenFollowers.size>500){
+      const first=kickSeenFollowers.values().next().value;
+      kickSeenFollowers.delete(first);
+    }
+  }catch(e){
+    console.warn('[KICK FOLLOWERS]',e?.message||e);
+  }
+}
 
 async function resolveKickPageState(channel,{keepBrowser=true}={}){
   let browser=kickBrowser,page=kickPage,created=false;
@@ -917,6 +1029,7 @@ async function pollKickPageState(channel){
     const state=await resolveKickPageState(channel,{keepBrowser:true});
     if(state.chatroomId&&state.chatroomId!==kickChatroomId)kickChatroomId=state.chatroomId;
     if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount);
+    await pollKickFollowers(channel);
   }catch{}
 }
 function connectKickPusher(channel,chatroomId,channelId=0){
@@ -927,7 +1040,7 @@ function connectKickPusher(channel,chatroomId,channelId=0){
     ws.on('open',()=>{
       // Kick ha usado más de una variante del canal. Nos suscribimos a las variantes
       // públicas conocidas y el deduplicador evita mensajes repetidos.
-      for(const ch of [`chatrooms.${chatroomId}.v2`,`chatrooms.${chatroomId}`,`chatroom_${chatroomId}`,...(Number(channelId)>0?[`channel.${channelId}`]:[])]){
+      for(const ch of [`chatrooms.${chatroomId}.v2`,`chatrooms.${chatroomId}`,`chatroom_${chatroomId}`,...(Number(channelId)>0?[`channel.${channelId}`,`channel_${channelId}`,`predictions-channel-${channelId}`]:[])]){
         try{ws.send(JSON.stringify({event:'pusher:subscribe',data:{auth:'',channel:ch}}))}catch{}
       }
     });
@@ -946,6 +1059,7 @@ async function launchKickChatReader(channel){
   const state=await resolveKickPageState(channel,{keepBrowser:true});
   kickChatroomId=Number(state.chatroomId)||0;
   if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount);
+  await pollKickFollowers(channel);
   if(kickPagePollTimer)clearInterval(kickPagePollTimer);
   kickPagePollTimer=setInterval(()=>pollKickPageState(channel),10000);
   // Primario: Pusher directo cuando tenemos chatroom ID. Respaldo: los frames de la
