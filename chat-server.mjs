@@ -1076,7 +1076,6 @@ async function pollKickPageState(channel){
     if(state.chatroomId&&state.chatroomId!==kickChatroomId)kickChatroomId=state.chatroomId;
     if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount);
     handleKickFollowerCount(state.followerCount);
-    await pollKickFollowers(channel);
   }catch{}
 }
 function connectKickPusher(channel,chatroomId,channelId=0){
@@ -1107,7 +1106,6 @@ async function launchKickChatReader(channel){
   kickChatroomId=Number(state.chatroomId)||0;
   if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount);
   handleKickFollowerCount(state.followerCount);
-  await pollKickFollowers(channel);
   if(kickPagePollTimer)clearInterval(kickPagePollTimer);
   kickPagePollTimer=setInterval(()=>pollKickPageState(channel),10000);
   // Primario: Pusher directo cuando tenemos chatroom ID. Respaldo: los frames de la
@@ -2691,7 +2689,7 @@ function bridgeHeartbeat(){
 }
 const bridgeHeartbeatTimer=setInterval(bridgeHeartbeat,3000);bridgeHeartbeatTimer.unref?.();setTimeout(bridgeHeartbeat,350);
 
-let autoTikTokBusy=false;
+let autoTikTokBusy=false,autoKickBusy=false;
 async function autoConnectTikTok(){
   if(!connectionPrefs.autoConnect||!connectionPrefs.tiktokEnabled||!connectionPrefs.tiktokUrl||tiktokConn||autoTikTokBusy)return;
   autoTikTokBusy=true;try{await connectTikTok(connectionPrefs.tiktokUrl)}catch(e){console.log('[AUTO TikTok] LIVE todavía no disponible:',e?.message||e)}finally{autoTikTokBusy=false}
@@ -2701,17 +2699,21 @@ async function autoConnectTwitch(){
   try{await connectTwitch(connectionPrefs.twitchUrl)}catch(e){console.log('[AUTO Twitch] reintentará:',e?.message||e)}
 }
 async function autoConnectKick(){
-  if(!connectionPrefs.autoConnect||kickConnected)return;
-  // Si el usuario ya vinculó/configuró Kick en GREÑA principal, recuperamos el canal solos.
-  if(!connectionPrefs.kickUrl){
-    try{
-      const r=await fetch(`${MAIN_ORIGIN}/api/kick/config`,{headers:{'x-grena-internal':BRIDGE_TOKEN}});
-      const d=await r.json();
-      if(d?.slug){connectionPrefs.kickUrl=`https://kick.com/${d.slug}`;connectionPrefs.kickEnabled=true;await saveConnectionPrefs()}
-    }catch{}
-  }
-  if(!connectionPrefs.kickEnabled||!connectionPrefs.kickUrl)return;
-  try{await connectKick(connectionPrefs.kickUrl)}catch(e){console.log('[AUTO Kick] reintentará:',e?.message||e)}
+  if(!connectionPrefs.autoConnect||kickConnected||autoKickBusy)return;
+  autoKickBusy=true;
+  try{
+    // Si el usuario ya vinculó/configuró Kick en GREÑA principal, recuperamos el canal solos.
+    if(!connectionPrefs.kickUrl){
+      try{
+        const r=await fetch(`${MAIN_ORIGIN}/api/kick/config`,{headers:{'x-grena-internal':BRIDGE_TOKEN}});
+        const d=await r.json();
+        if(d?.slug){connectionPrefs.kickUrl=`https://kick.com/${d.slug}`;connectionPrefs.kickEnabled=true;await saveConnectionPrefs()}
+      }catch{}
+    }
+    if(!connectionPrefs.kickEnabled||!connectionPrefs.kickUrl)return;
+    await connectKick(connectionPrefs.kickUrl);
+  }catch(e){console.log('[AUTO Kick] reintentará:',e?.message||e)}
+  finally{autoKickBusy=false}
 }
 server.listen(
   PORT,
