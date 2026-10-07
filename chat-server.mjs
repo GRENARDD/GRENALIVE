@@ -65,32 +65,80 @@ process.on('unhandledRejection',e=>logChatFault('unhandledRejection',e));
 process.on('uncaughtException',e=>logChatFault('uncaughtException',e));
 const BRIDGE_TOKEN=process.env.GRENA_BRIDGE_TOKEN||randomBytes(24).toString('hex');
 if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no definido: arranca con INICIAR_GRENA.vbs (launcher) o con server.mjs para que el puente con el servidor principal funcione.');
-const FISH_AUDIO_API_KEY = process.env.GRENA_FISH_API_KEY || Buffer.from('c2stZmlzaC1PTGJKdExlRzkxeEFXWlFleFlta05UandvSnNlTE9WTUx3OTk2Vnl5Ym9F','base64').toString('utf8');
+const FISH_AUDIO_API_KEY_1 = process.env.GRENA_FISH_API_KEY || Buffer.from('c2stZmlzaC1PTGJKdExlRzkxeEFXWlFleFlta05UandvSnNlTE9WTUx3OTk2Vnl5Ym9F','base64').toString('utf8');
+const FISH_AUDIO_API_KEY_2 = String(process.env.GRENA_FISH_API_KEY_2 || '').trim();
 const FISH_AUDIO_MODEL = 's2.1-pro-free';
 
-// GREÑA Fish Guard: el plan gratuito admite pocas generaciones simultáneas.
-// Este semáforo es GLOBAL para todas las PCs que usen este mismo servidor.
-const FISH_MAX_CONCURRENT = 5;
+// GREÑA Dual Fish Pool:
+// - cada credencial tiene su propio carril de hasta 5 generaciones simultáneas;
+// - las solicitudes se reparten round-robin entre las cuentas disponibles;
+// - ante 429/5xx/autenticación de una cuenta, se prueba la otra sin romper la cola;
+// - si solo existe la cuenta 1, el comportamiento sigue siendo compatible con la versión anterior.
+const FISH_PER_ACCOUNT_MAX_CONCURRENT = 5;
 const FISH_WAIT_MAX_MS = 9000;
-let fishActiveRequests = 0;
+const FISH_FAILOVER_WAIT_MS = 3500;
+const fishAccounts = [
+  {id:'fish-1',key:String(FISH_AUDIO_API_KEY_1||'').trim(),active:0,cooldownUntil:0},
+  {id:'fish-2',key:FISH_AUDIO_API_KEY_2,active:0,cooldownUntil:0}
+].filter(account=>account.key);
+let fishRoundRobin = 0;
 const fishWaiters = [];
-function acquireFishSlot(){
-  if(fishActiveRequests < FISH_MAX_CONCURRENT){ fishActiveRequests++; return Promise.resolve(true); }
+
+function takeFishAccount(excludedIds=new Set()){
+  const total=fishAccounts.length;
+  if(!total)return null;
+  const now=Date.now();
+  for(let step=0;step<total;step++){
+    const index=(fishRoundRobin+step)%total;
+    const account=fishAccounts[index];
+    if(excludedIds.has(account.id))continue;
+    if(account.cooldownUntil>now)continue;
+    if(account.active>=FISH_PER_ACCOUNT_MAX_CONCURRENT)continue;
+    account.active++;
+    fishRoundRobin=(index+1)%total;
+    return account;
+  }
+  return null;
+}
+function pumpFishWaiters(){
+  for(let i=0;i<fishWaiters.length;){
+    const waiter=fishWaiters[i];
+    const account=takeFishAccount(waiter.excludedIds);
+    if(!account){i++;continue;}
+    fishWaiters.splice(i,1);
+    clearTimeout(waiter.timer);
+    waiter.resolve(account);
+  }
+}
+function acquireFishAccount(excludedIds=new Set(),waitMs=FISH_WAIT_MAX_MS){
+  const account=takeFishAccount(excludedIds);
+  if(account)return Promise.resolve(account);
   return new Promise(resolve=>{
-    const waiter={resolve,timer:null};
+    const waiter={resolve,excludedIds:new Set(excludedIds),timer:null};
     waiter.timer=setTimeout(()=>{
-      const i=fishWaiters.indexOf(waiter); if(i>=0) fishWaiters.splice(i,1);
-      resolve(false);
-    },FISH_WAIT_MAX_MS);
+      const i=fishWaiters.indexOf(waiter);
+      if(i>=0)fishWaiters.splice(i,1);
+      resolve(null);
+    },waitMs);
     fishWaiters.push(waiter);
   });
 }
-function releaseFishSlot(){
-  fishActiveRequests=Math.max(0,fishActiveRequests-1);
-  while(fishWaiters.length && fishActiveRequests < FISH_MAX_CONCURRENT){
-    const waiter=fishWaiters.shift(); clearTimeout(waiter.timer);
-    fishActiveRequests++; waiter.resolve(true);
-  }
+function releaseFishAccount(account){
+  if(!account)return;
+  account.active=Math.max(0,account.active-1);
+  pumpFishWaiters();
+}
+function coolDownFishAccount(account,ms){
+  if(!account)return;
+  const until=Date.now()+Math.max(250,Number(ms)||0);
+  account.cooldownUntil=Math.max(account.cooldownUntil,until);
+  const timer=setTimeout(()=>pumpFishWaiters(),Math.max(300,until-Date.now()+25));
+  timer.unref?.();
+}
+function fishRetryDelayMs(response){
+  const raw=String(response?.headers?.get?.('retry-after')||'').trim();
+  if(/^\d+(?:\.\d+)?$/.test(raw))return Math.min(60000,Math.max(1000,Number(raw)*1000));
+  return 8000;
 }
 const ALLOWED_ORIGINS=new Set([MAIN_ORIGIN,`http://localhost:${MAIN_PORT}`,'http://127.0.0.1:8788','http://localhost:8788']);
 const ALLOWED_HOSTS=new Set(['127.0.0.1:8788','localhost:8788']);
@@ -1841,7 +1889,7 @@ const server =
           return;
         }
 
-        // Fish Audio TTS se ejecuta en Node para que la credencial nunca se envíe
+        // Fish Audio TTS se ejecuta en Node para que las credenciales nunca se envíen
         // al navegador. El frontend solo proporciona texto + ID del modelo de voz.
         if (url.pathname === '/api/fish-tts' && request.method === 'POST') {
           let body='';
@@ -1865,96 +1913,122 @@ const server =
             response.end(JSON.stringify({ok:false,error:'El ID del modelo Fish Audio no es válido.'}));
             return;
           }
-          if(!FISH_AUDIO_API_KEY){
+          if(!fishAccounts.length){
             response.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
             response.end(JSON.stringify({ok:false,error:'Fish Audio no está configurado en esta instalación.'}));
             return;
           }
 
-          // Nunca dejamos que una avalancha de chats abra más de 5 generaciones
-          // Fish simultáneas. Si la espera ya es vieja, se descarta en vez de
-          // reproducir voz atrasada muchos segundos después.
-          const gotFishSlot=await acquireFishSlot();
-          if(!gotFishSlot){
+          let fishAccount=await acquireFishAccount();
+          if(!fishAccount){
             response.writeHead(429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-grena-fish-dropped':'stale'});
             response.end(JSON.stringify({ok:false,error:'Mensaje de voz descartado por saturación para mantener el LIVE en tiempo real.'}));
             return;
           }
-          let fishSlotHeld=true;
-          const controller=new AbortController();
+
+          let heldAccount=fishAccount;
+          let upstreamController=null;
           let clientClosed=false;
           const abortUpstream=()=>{
-            if(response.writableEnded) return;
+            if(response.writableEnded)return;
             clientClosed=true;
-            if(!controller.signal.aborted){
-              try{controller.abort();}catch{}
+            if(upstreamController && !upstreamController.signal.aborted){
+              try{upstreamController.abort();}catch{}
             }
           };
-          // Si el navegador descarta un prebuffer o reinicia la cola, cancelamos
-          // también la petición real hacia Fish. Antes podía quedar viva hasta
-          // 45 s y, tras mucho chat, acumular solicitudes huérfanas/concurrencia.
           request.once('aborted',abortUpstream);
           response.once('close',abortUpstream);
-          const timer=setTimeout(()=>controller.abort(),42000);
+
+          const attempted=new Set();
+          let lastFailure=null;
           try{
-            const fish=await fetch('https://api.fish.audio/v1/tts',{
-              method:'POST',
-              headers:{
-                'Authorization':`Bearer ${FISH_AUDIO_API_KEY}`,
-                'Content-Type':'application/json',
-                'model':FISH_AUDIO_MODEL,
-                'Accept':'audio/mpeg,application/octet-stream'
-              },
-              body:JSON.stringify({text,reference_id:referenceId,format:'mp3'}),
-              signal:controller.signal
-            });
+            while(fishAccount && attempted.size<fishAccounts.length){
+              attempted.add(fishAccount.id);
+              upstreamController=new AbortController();
+              const timer=setTimeout(()=>upstreamController.abort(),42000);
+              try{
+                const fish=await fetch('https://api.fish.audio/v1/tts',{
+                  method:'POST',
+                  headers:{
+                    'Authorization':`Bearer ${fishAccount.key}`,
+                    'Content-Type':'application/json',
+                    'model':FISH_AUDIO_MODEL,
+                    'Accept':'audio/mpeg,application/octet-stream'
+                  },
+                  body:JSON.stringify({text,reference_id:referenceId,format:'mp3'}),
+                  signal:upstreamController.signal
+                });
 
-            if(!fish.ok){
-              const upstream=String(await fish.text().catch(()=>''));
-              let friendly=`Fish Audio respondió HTTP ${fish.status}.`;
-              if(fish.status===401||fish.status===403) friendly='Fish Audio rechazó la credencial o el acceso a esa voz.';
-              else if(fish.status===404) friendly='Fish Audio no encontró ese ID de modelo.';
-              else if(fish.status===429) friendly='Fish Audio está limitando temporalmente las solicitudes. Intenta de nuevo en un momento.';
-              else if(upstream && upstream.length<220) friendly += ` ${upstream}`;
-              const outgoingStatus = fish.status===429 ? 429 : (fish.status>=500 ? 502 : 400);
-              if(!response.writableEnded && !response.destroyed){
-                response.writeHead(outgoingStatus,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-                response.end(JSON.stringify({ok:false,error:friendly}));
+                if(fish.ok){
+                  const audio=Buffer.from(await fish.arrayBuffer());
+                  if(!audio.length || audio.length>20*1024*1024){
+                    lastFailure={status:502,error:'Fish Audio devolvió un audio no válido.'};
+                  }else{
+                    if(!response.writableEnded && !response.destroyed){
+                      response.writeHead(200,{
+                        'content-type':'audio/mpeg',
+                        'content-length':audio.length,
+                        'cache-control':'no-store, max-age=0',
+                        'x-content-type-options':'nosniff',
+                        'x-grena-fish-pool':String(fishAccounts.length)
+                      });
+                      response.end(audio);
+                    }
+                    return;
+                  }
+                }else{
+                  const upstream=String(await fish.text().catch(()=>''));
+                  let friendly=`Fish Audio respondió HTTP ${fish.status}.`;
+                  if(fish.status===401||fish.status===403) friendly='Fish Audio rechazó una de las credenciales o el acceso a esa voz.';
+                  else if(fish.status===404) friendly='Fish Audio no encontró ese ID de modelo.';
+                  else if(fish.status===429) friendly='Fish Audio está limitando temporalmente una de las cuentas.';
+                  else if(upstream && upstream.length<220) friendly += ` ${upstream}`;
+                  const outgoingStatus = fish.status===429 ? 429 : (fish.status>=500 ? 502 : 400);
+                  lastFailure={status:outgoingStatus,error:friendly};
+
+                  if(fish.status===429)coolDownFishAccount(fishAccount,fishRetryDelayMs(fish));
+                  else if(fish.status===401||fish.status===403)coolDownFishAccount(fishAccount,5*60*1000);
+                  else if(fish.status>=500)coolDownFishAccount(fishAccount,2500);
+
+                  const retryable=fish.status===401||fish.status===403||fish.status===429||fish.status>=500;
+                  if(!retryable)break;
+                }
+              }catch(error){
+                if(clientClosed || response.destroyed)return;
+                const timedOut=error?.name==='AbortError';
+                lastFailure={status:502,error:timedOut?'Fish Audio tardó demasiado en responder.':'No se pudo conectar con Fish Audio.'};
+                coolDownFishAccount(fishAccount,timedOut?2500:1500);
+              }finally{
+                clearTimeout(timer);
+                upstreamController=null;
+                if(heldAccount){
+                  releaseFishAccount(heldAccount);
+                  heldAccount=null;
+                }
               }
-              return;
+
+              if(clientClosed || response.destroyed)return;
+              if(attempted.size>=fishAccounts.length)break;
+              fishAccount=await acquireFishAccount(attempted,FISH_FAILOVER_WAIT_MS);
+              heldAccount=fishAccount;
             }
 
-            const audio=Buffer.from(await fish.arrayBuffer());
-            if(!audio.length || audio.length>20*1024*1024){
-              response.writeHead(502,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-              response.end(JSON.stringify({ok:false,error:'Fish Audio devolvió un audio no válido.'}));
-              return;
-            }
-            response.writeHead(200,{
-              'content-type':'audio/mpeg',
-              'content-length':audio.length,
-              'cache-control':'no-store, max-age=0',
-              'x-content-type-options':'nosniff'
-            });
-            response.end(audio);
-            return;
-          }catch(error){
-            // Si el cliente local ya canceló la solicitud, no intentamos escribir
-            // una respuesta sobre un socket cerrado. La petición a Fish ya quedó abortada.
-            if(clientClosed || response.destroyed) return;
-            const msg=error?.name==='AbortError'
-              ? 'Fish Audio tardó demasiado en responder.'
-              : 'No se pudo conectar con Fish Audio.';
-            if(!response.writableEnded){
-              response.writeHead(502,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-              response.end(JSON.stringify({ok:false,error:msg}));
+            if(!response.writableEnded && !response.destroyed){
+              const status=lastFailure?.status||502;
+              response.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+              response.end(JSON.stringify({ok:false,error:lastFailure?.error||'No se pudo generar la voz con Fish Audio.'}));
             }
             return;
           }finally{
-            clearTimeout(timer);
             request.off('aborted',abortUpstream);
             response.off('close',abortUpstream);
-            if(fishSlotHeld){ fishSlotHeld=false; releaseFishSlot(); }
+            if(upstreamController && !upstreamController.signal.aborted && clientClosed){
+              try{upstreamController.abort();}catch{}
+            }
+            if(heldAccount){
+              releaseFishAccount(heldAccount);
+              heldAccount=null;
+            }
           }
         }
 
