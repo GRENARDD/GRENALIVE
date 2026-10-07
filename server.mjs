@@ -47,6 +47,26 @@ function readBody(req,limit=bodyLimitFor(req)){
     req.on('close',()=>{if(!req.complete)reject(new Error('Petición cancelada'))});
   });
 }
+
+const MAX_SOUNDBOARD_BYTES=15*1024*1024;
+function readBuffer(req,limit=MAX_SOUNDBOARD_BYTES){
+  return new Promise((resolve,reject)=>{
+    const chunks=[];let size=0,over=false;
+    req.on('data',c=>{
+      if(over)return;
+      const b=Buffer.isBuffer(c)?c:Buffer.from(c);
+      size+=b.length;
+      if(size>limit){over=true;chunks.length=0;return}
+      chunks.push(b);
+    });
+    req.on('end',()=>{
+      if(over){const e=new Error('El audio supera el máximo de 15 MB.');e.statusCode=413;reject(e)}
+      else resolve(Buffer.concat(chunks));
+    });
+    req.on('error',reject);
+    req.on('close',()=>{if(!req.complete)reject(new Error('Carga de audio cancelada'))});
+  });
+}
 const LOCAL_ORIGINS=new Set([`http://127.0.0.1:${PORT}`,`http://localhost:${PORT}`,'http://127.0.0.1:8788','http://localhost:8788']);
 if(PUBLIC_URL)LOCAL_ORIGINS.add(PUBLIC_URL);
 function requestHost(req){return String(req?.headers?.['x-forwarded-host']||req?.headers?.host||'').split(',')[0].trim().toLowerCase()}
@@ -242,6 +262,58 @@ function profileDir(userId=activeUserId){return userId?join(PROFILES_DIR,String(
 function profileFile(name,userId=activeUserId){return join(profileDir(userId),name)}
 function stateFile(name,legacy,userId=activeUserId){return userId?profileFile(name,userId):legacy}
 function currentTikTokProfileDir(){return activeUserId?join(profileDir(),'tiktok-browser-profile'):join(DATA_DIR,'tiktok-browser-profile')}
+
+// ===== GREÑA SOUNDBOARD · 5 botones persistentes por cuenta =====
+const SOUNDBOARD_SLOT_COUNT=5;
+const SOUNDBOARD_EXTS=new Set(['.mp3','.wav','.ogg','.m4a','.aac','.webm']);
+function soundboardDir(userId){return join(profileDir(userId),'soundboard')}
+function soundboardMetaFile(userId){return join(profileDir(userId),'soundboard.json')}
+function soundboardSlotNumber(value){const n=Number(value);return Number.isInteger(n)&&n>=1&&n<=SOUNDBOARD_SLOT_COUNT?n:0}
+function soundboardSafeName(value=''){
+  let name=String(value||'audio').trim();
+  try{name=decodeURIComponent(name)}catch{}
+  name=name.split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,100);
+  return name||'audio';
+}
+function soundboardMime(ext,type=''){
+  const clean=String(type||'').split(';')[0].trim().toLowerCase();
+  if(clean.startsWith('audio/'))return clean;
+  return ({'.mp3':'audio/mpeg','.wav':'audio/wav','.ogg':'audio/ogg','.m4a':'audio/mp4','.aac':'audio/aac','.webm':'audio/webm'})[ext]||'application/octet-stream';
+}
+async function soundboardState(userId){
+  const raw=await readJson(soundboardMetaFile(userId),{version:1,slots:{}});
+  if(!raw.slots||typeof raw.slots!=='object')raw.slots={};
+  const slots=[];
+  for(let slot=1;slot<=SOUNDBOARD_SLOT_COUNT;slot++){
+    const m=raw.slots[String(slot)]||null;
+    slots.push(m?{slot,name:String(m.name||('Audio '+slot)),type:String(m.type||''),size:Number(m.size||0),updatedAt:Number(m.updatedAt||0),url:`/api/soundboard/audio/${slot}?v=${Number(m.updatedAt||0)}`}:{slot,empty:true});
+  }
+  return {version:1,slots,raw};
+}
+async function serveSoundboardAudio(req,res,userId,slot){
+  const state=await soundboardState(userId),meta=state.raw.slots[String(slot)];
+  if(!meta)return json(res,404,{ok:false,error:'Ese botón todavía no tiene audio.'});
+  const ext=String(meta.ext||'').toLowerCase();
+  if(!SOUNDBOARD_EXTS.has(ext))return json(res,404,{ok:false,error:'Audio no disponible.'});
+  const file=join(soundboardDir(userId),`slot-${slot}${ext}`);
+  let st;try{st=await fs.promises.stat(file)}catch{return json(res,404,{ok:false,error:'Archivo de audio no encontrado.'})}
+  const total=st.size,range=String(req.headers.range||'');
+  res.setHeader('Content-Type',soundboardMime(ext,meta.type));
+  res.setHeader('Accept-Ranges','bytes');
+  res.setHeader('Cache-Control','private, max-age=31536000, immutable');
+  if(range){
+    const m=/bytes=(\d*)-(\d*)/.exec(range);
+    if(m){
+      let start=m[1]?Number(m[1]):0,end=m[2]?Number(m[2]):total-1;
+      if(!m[1]&&m[2]){const tail=Math.min(total,Number(m[2])||0);start=Math.max(0,total-tail);end=total-1}
+      start=Math.max(0,Math.min(total-1,start));end=Math.max(start,Math.min(total-1,end));
+      res.writeHead(206,{'Content-Range':`bytes ${start}-${end}/${total}`,'Content-Length':end-start+1});
+      return fs.createReadStream(file,{start,end}).pipe(res);
+    }
+  }
+  res.writeHead(200,{'Content-Length':total});
+  return fs.createReadStream(file).pipe(res);
+}
 function publicUser(u){return u?{id:u.id,username:u.username,displayName:u.displayName||u.username,createdAt:u.createdAt}:null}
 function accountUser(u){return u?{...publicUser(u),email:u.email||'',recoveryEmailConfigured:!!u.email}:null}
 function normalizeGrenaUsername(v){return String(v||'').trim().toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,32)}
@@ -1681,7 +1753,13 @@ function panelGuard(req,res,pathname){
   if(!panelHostOk(req)){res.writeHead(403,{'content-type':'text/plain; charset=utf-8'});res.end('Host no permitido');return false}
   const write=!(method==='GET'||method==='HEAD'||method==='OPTIONS');
   if(write&&!panelOriginOk(req)){if(pathname.startsWith('/api/'))json(res,403,{ok:false,error:'Origen no permitido'});else{res.writeHead(403,{'content-type':'text/plain; charset=utf-8'});res.end('Origen no permitido')}return false}
-  if(write&&pathname!=='/webhooks/kick'){const hasBody=Number(req.headers['content-length']||0)>0||!!req.headers['transfer-encoding'];const type=String(req.headers['content-type']||'').toLowerCase();if(hasBody&&!type.startsWith('application/json')){if(pathname.startsWith('/api/'))json(res,415,{ok:false,error:'Content-Type debe ser application/json.'});else{res.writeHead(415);res.end('Unsupported Media Type')}return false}}
+  if(write&&pathname!=='/webhooks/kick'){
+    const hasBody=Number(req.headers['content-length']||0)>0||!!req.headers['transfer-encoding'];
+    const type=String(req.headers['content-type']||'').toLowerCase();
+    const soundUpload=method==='POST'&&/^\/api\/soundboard\/slot\/[1-5]$/.test(pathname);
+    const allowedBody=soundUpload?(type.startsWith('audio/')||type.startsWith('application/octet-stream')):type.startsWith('application/json');
+    if(hasBody&&!allowedBody){if(pathname.startsWith('/api/'))json(res,415,{ok:false,error:soundUpload?'Selecciona un archivo de audio válido.':'Content-Type debe ser application/json.'});else{res.writeHead(415);res.end('Unsupported Media Type')}return false}
+  }
   if(!pathname.startsWith('/api/'))return true;                // páginas y estáticos: ya los gestiona el router
   if(pathname.startsWith('/api/internal/'))return true;        // llevan su propio token de puente
   if(method==='GET'&&PUBLIC_GET.has(pathname))return true;
@@ -1727,6 +1805,41 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/app/window-closing'&&req.method==='POST'){appWindowClosing();return json(res,200,{ok:true});}
  if(pathname==='/api/app/exit'&&req.method==='POST'){if(CLOUD_MODE)return json(res,200,{ok:true,message:'GREÑA Web continúa en línea. Usa Cerrar sesión para salir de tu cuenta.'});json(res,200,{ok:true,message:'Cerrando GREÑA LIVE PRO…'});setTimeout(()=>requestFullShutdown('boton-salir-de-grena'),120);return;}
  if(pathname==='/api/account/me'&&req.method==='GET'){const u=sessionUser(req);return json(res,200,accountPayload(u));}
+ if(pathname==='/api/soundboard'&&req.method==='GET'){
+   const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
+   const board=await soundboardState(u.id);
+   return json(res,200,{ok:true,slots:board.slots,maxBytes:MAX_SOUNDBOARD_BYTES});
+ }
+ {
+   const audioMatch=/^\/api\/soundboard\/audio\/([1-5])$/.exec(pathname);
+   if(audioMatch&&req.method==='GET'){
+     const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
+     return serveSoundboardAudio(req,res,u.id,Number(audioMatch[1]));
+   }
+ }
+ {
+   const slotMatch=/^\/api\/soundboard\/slot\/([1-5])$/.exec(pathname);
+   if(slotMatch&&req.method==='POST'){
+     const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
+     const slot=soundboardSlotNumber(slotMatch[1]),fileName=soundboardSafeName(req.headers['x-grena-filename']||('audio-'+slot));
+     const ext=extname(fileName).toLowerCase(),type=String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase();
+     if(!SOUNDBOARD_EXTS.has(ext))return json(res,400,{ok:false,error:'Formato no compatible. Usa MP3, WAV, OGG, M4A, AAC o WEBM.'});
+     if(!(type.startsWith('audio/')||type==='application/octet-stream'))return json(res,415,{ok:false,error:'Selecciona un archivo de audio válido.'});
+     const data=await readBuffer(req);
+     if(!data.length)return json(res,400,{ok:false,error:'El archivo de audio está vacío.'});
+     const board=await soundboardState(u.id),old=board.raw.slots[String(slot)];
+     await mkdir(soundboardDir(u.id),{recursive:true});
+     if(old?.ext&&SOUNDBOARD_EXTS.has(String(old.ext).toLowerCase())&&String(old.ext).toLowerCase()!==ext){
+       await unlink(join(soundboardDir(u.id),`slot-${slot}${String(old.ext).toLowerCase()}`)).catch(()=>{});
+     }
+     const target=join(soundboardDir(u.id),`slot-${slot}${ext}`),tmp=target+'.'+Date.now()+'.tmp';
+     await writeFile(tmp,data);await rename(tmp,target);
+     board.raw.version=1;board.raw.slots[String(slot)]={name:fileName,type:soundboardMime(ext,type),ext,size:data.length,updatedAt:Date.now()};
+     await safeWriteJson(soundboardMetaFile(u.id),board.raw);
+     const fresh=await soundboardState(u.id);
+     return json(res,200,{ok:true,slot:fresh.slots[slot-1]});
+   }
+ }
  if(pathname==='/api/account/register'&&req.method==='POST'){
    {const g=authThrottle();if(g)return tooMany(res,g)}
    let raw='';raw=await readBody(req);const body=JSON.parse(raw||'{}');
