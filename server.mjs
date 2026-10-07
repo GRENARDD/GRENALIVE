@@ -1350,6 +1350,14 @@ async function kickUserToken(){
  }
  return token;
 }
+async function kickTokenInfo(){
+ const token=await kickUserToken();
+ const r=await fetch('https://id.kick.com/oauth/token/introspect',{method:'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json'}});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(d.message||d.error||`Kick introspect HTTP ${r.status}`);
+ const info=d?.data&&typeof d.data==='object'?d.data:d;
+ return {active:info?.active!==false,tokenType:String(info?.token_type||''),scope:String(info?.scope||savedAuth.kick?.scope||'').trim()};
+}
 async function refreshKickUserToken(){
  const cur=savedAuth.kick||{};
  if(!cur.refresh_token)throw Error('La sesión de Kick necesita autorización de nuevo.');
@@ -1371,6 +1379,11 @@ async function ensureKickEventSubscriptions(){
  if(!savedAuth.kick?.access_token)return false;
  try{
   await kickUserToken();
+  const tokenInfo=await kickTokenInfo().catch(()=>({active:true,tokenType:'',scope:String(savedAuth.kick?.scope||'').trim()}));
+  console.log('[KICK TOKEN]',JSON.stringify({active:tokenInfo.active,tokenType:tokenInfo.tokenType,scope:tokenInfo.scope}));
+  if(tokenInfo.scope&&!tokenInfo.scope.split(/\s+/).includes('events:subscribe')){
+   kickEventHealth.subscriptionsReady=false;kickEventHealth.lastError='El token actual de Kick no tiene el permiso events:subscribe. Vuelve a autorizar Kick.';kickEventHealth.updatedAt=Date.now();pushEventHealth();console.warn('[KICK EVENTS]',kickEventHealth.lastError);return false;
+  }
   const current=kickSubscriptionRows(await kickSubscriptionsRequest());
   const existing=new Set(current.map(x=>String(x?.event||x?.name||x?.type||'')));
   const missing=KICK_EVENT_SUBSCRIPTIONS.filter(name=>!existing.has(name));
