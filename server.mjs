@@ -1380,7 +1380,18 @@ async function ensureKickEventSubscriptions(){
   // exactamente cuál falló.
   for(const name of missing){
    try{
-    const d=await kickSubscriptionsRequest('',{method:'POST',body:JSON.stringify({method:'webhook',events:[{name,version:1}]})});
+    let d;
+    // Según el OpenAPI, "events" es el único campo obligatorio. Probamos primero
+    // el payload mínimo y, si Kick lo rechaza, la variante explícita webhook.
+    try{
+     d=await kickSubscriptionsRequest('',{method:'POST',body:JSON.stringify({events:[{name,version:1}]})});
+    }catch(first){
+     try{
+      d=await kickSubscriptionsRequest('',{method:'POST',body:JSON.stringify({method:'webhook',events:[{name,version:1}]})});
+     }catch(second){
+      throw Error(`${second?.message||second} (payload mínimo: ${first?.message||first})`);
+     }
+    }
     const rows=Array.isArray(d?.data)?d.data:[];
     const failed=rows.find(x=>String(x?.name||'')===name&&x?.error);
     if(failed?.error)failures.push(`${name}: ${failed.error}`);
@@ -1396,6 +1407,14 @@ async function ensureKickEventSubscriptions(){
   if(failures.length)console.warn('[KICK EVENTS]',kickEventHealth.lastError);
   return kickEventHealth.subscriptionsReady;
  }catch(e){kickEventHealth.subscriptionsReady=false;kickEventHealth.lastError=e?.message||String(e);kickEventHealth.updatedAt=Date.now();pushEventHealth();console.warn('[KICK EVENTS]',kickEventHealth.lastError);return false}
+}
+let kickEventRetryTimer=null;
+function startKickEventRetryLoop(){
+ if(kickEventRetryTimer)clearInterval(kickEventRetryTimer);
+ if(!savedAuth.kick?.access_token)return;
+ ensureKickEventSubscriptions().catch(()=>{});
+ kickEventRetryTimer=setInterval(()=>{if(savedAuth.kick?.access_token)startKickEventRetryLoop()},60000);
+ kickEventRetryTimer.unref?.();
 }
 let kickPublicKeyCache={key:'',at:0};const kickWebhookSeen=new Map();
 async function kickPublicKey(){if(kickPublicKeyCache.key&&Date.now()-kickPublicKeyCache.at<24*60*60e3)return kickPublicKeyCache.key;const r=await fetch('https://api.kick.com/public/v1/public-key',{headers:{Accept:'application/json'}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(`Kick public key HTTP ${r.status}`);const key=String(d?.data?.public_key||d?.public_key||d?.data?.key||d?.key||'');if(!key.includes('BEGIN PUBLIC KEY'))throw Error('Kick no devolvió una clave pública válida.');kickPublicKeyCache={key,at:Date.now()};return key}
@@ -1499,12 +1518,12 @@ async function finishBrokerOAuth(platform,code,s,res){
   const own=await kickCurrentChannel(tok.access_token);
   const username=own.slug||me.username;if(!username)throw Error('Kick autorizó GREÑA, pero no pude identificar el slug del canal de la cuenta.');
   const userId=own.broadcasterId||me.id;
-  savedAuth.kick={...tok,username,displayName:me.displayName||own.displayName||username,slug:username,userId,avatar:me.avatar,obtained_at:Date.now(),mode:'grena-auth'};autoPrefs.enabled=true;autoPrefs.counterKick=`https://kick.com/${username}`;autoPrefs.counterKickEnabled=true;await Promise.all([persistAuth(),persistAutoPrefs()]);await syncCreatorAccount('kick',username);setStatus('kick',true,`${username} · cuenta vinculada`,username);startKickPolling();ensureKickEventSubscriptions().catch(()=>{});notifyChatProfile(activeUserId).catch(()=>{});return callbackPage(res,true,`Kick conectado como ${username}.`)
+  savedAuth.kick={...tok,username,displayName:me.displayName||own.displayName||username,slug:username,userId,avatar:me.avatar,obtained_at:Date.now(),mode:'grena-auth'};autoPrefs.enabled=true;autoPrefs.counterKick=`https://kick.com/${username}`;autoPrefs.counterKickEnabled=true;await Promise.all([persistAuth(),persistAutoPrefs()]);await syncCreatorAccount('kick',username);setStatus('kick',true,`${username} · cuenta vinculada`,username);startKickPolling();startKickEventRetryLoop();notifyChatProfile(activeUserId).catch(()=>{});return callbackPage(res,true,`Kick conectado como ${username}.`)
  }
  throw Error('Plataforma no compatible con GREÑA Auth.');
 }
 async function finishOAuth(platform,url,res){const code=url.searchParams.get('code'),state=url.searchParams.get('state'),err=url.searchParams.get('error');if(err)throw Error(url.searchParams.get('error_description')||err);const s=oauthState.get(state);oauthState.delete(state);if(!s||s.platform!==platform||Date.now()-s.created>10*60e3)throw Error('La sesión de autorización expiró. Inténtalo de nuevo.');if(s.userId&&s.userId!==activeUserId)await activateProfile(s.userId);if(s.mode==='grena-auth')return await finishBrokerOAuth(platform,code,s,res);const redirect=s.redirect||oauthRedirectFor(platform);if(platform==='tiktok'){const tok=await postForm('https://open.tiktokapis.com/v2/oauth/token/',{client_key:oauthConfig.tiktok.clientKey,client_secret:oauthConfig.tiktok.clientSecret,code,grant_type:'authorization_code',redirect_uri:redirect,code_verifier:s.verifier});const headers={Authorization:`Bearer ${tok.access_token}`};let r=await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url,username',{headers}),d=await r.json().catch(()=>({}));if(!r.ok||(d.error?.code&&d.error.code!=='ok')){r=await fetch('https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url',{headers});d=await r.json().catch(()=>({}))}if(!r.ok||(d.error?.code&&d.error.code!=='ok'))throw Error(`TikTok perfil: ${d.error?.message||d.error?.code||`HTTP ${r.status}`}`);const u=d.data?.user||{},username=String(u.username||'').trim(),openId=String(u.open_id||'').trim(),displayName=String(u.display_name||username||'Cuenta TikTok').trim();if(!openId&&!u.display_name)throw Error('TikTok autorizó GREÑA, pero no devolvió datos de identidad del perfil.');savedAuth.tiktok={...tok,username,openId,displayName,avatar:u.avatar_url||'',obtained_at:Date.now()};await persistAuth();if(username){await syncCreatorAccount('tiktok',username);await connectTikTokLive(username).catch(()=>{});return callbackPage(res,true,`TikTok conectado como @${username}.`)}setStatus('tiktok',false,`${displayName} · cuenta vinculada · falta @usuario para LIVE`,displayName);return callbackPage(res,true,`TikTok conectado como ${displayName}. La cuenta quedó vinculada; el @usuario se activará para LIVE cuando TikTok entregue user.info.profile.`)}
- if(platform==='kick'){const tok=await postForm('https://id.kick.com/oauth/token',{grant_type:'authorization_code',code,client_id:oauthConfig.kick.clientId,client_secret:oauthConfig.kick.clientSecret,redirect_uri:redirect,code_verifier:s.verifier});const me=await kickCurrentUser(tok.access_token).catch(()=>({username:currentKickSlug()}));savedAuth.kick={...tok,username:me.username||currentKickSlug(),slug:me.username||currentKickSlug()};if(savedAuth.kick.username){autoPrefs.enabled=true;autoPrefs.counterKick=`https://kick.com/${savedAuth.kick.username}`;autoPrefs.counterKickEnabled=true}await Promise.all([persistAuth(),persistAutoPrefs()]);if(savedAuth.kick.username)await syncCreatorAccount('kick',savedAuth.kick.username);setStatus('kick',true,`${savedAuth.kick.username||'Kick'} · cuenta vinculada`,savedAuth.kick.username||'Kick');startKickPolling();ensureKickEventSubscriptions().catch(()=>{});notifyChatProfile(activeUserId).catch(()=>{});return callbackPage(res,true,'Kick quedó vinculado a GREÑA.')}
+ if(platform==='kick'){const tok=await postForm('https://id.kick.com/oauth/token',{grant_type:'authorization_code',code,client_id:oauthConfig.kick.clientId,client_secret:oauthConfig.kick.clientSecret,redirect_uri:redirect,code_verifier:s.verifier});const me=await kickCurrentUser(tok.access_token).catch(()=>({}));const own=await kickCurrentChannel(tok.access_token).catch(()=>({}));const resolvedSlug=own.slug||me.username||currentKickSlug();savedAuth.kick={...tok,username:resolvedSlug,slug:resolvedSlug,userId:own.broadcasterId||me.id||'',displayName:me.displayName||own.displayName||resolvedSlug,avatar:me.avatar||'',obtained_at:Date.now()};if(savedAuth.kick.username){autoPrefs.enabled=true;autoPrefs.counterKick=`https://kick.com/${savedAuth.kick.username}`;autoPrefs.counterKickEnabled=true}await Promise.all([persistAuth(),persistAutoPrefs()]);if(savedAuth.kick.username)await syncCreatorAccount('kick',savedAuth.kick.username);setStatus('kick',true,`${savedAuth.kick.username||'Kick'} · cuenta vinculada`,savedAuth.kick.username||'Kick');startKickPolling();startKickEventRetryLoop();notifyChatProfile(activeUserId).catch(()=>{});return callbackPage(res,true,'Kick quedó vinculado a GREÑA.')}
  if(platform==='twitch')return twitchImplicitCallback(res)
  throw Error('Plataforma no compatible.');}
 
@@ -1540,7 +1559,7 @@ async function activateProfile(userId,{restart=true}={}){
       try{await restoreTwitchSession()}catch(e){console.warn('Twitch perfil:',e?.message||e)}
       try{await ensureTikTokLiveAuto()}catch{}
       try{await ensureCountersAuto()}catch{}
-      try{if((isBrokerProvider('kick')||oauthConfig.kick?.clientId&&oauthConfig.kick?.clientSecret)&&currentKickSlug())startKickPolling();if(savedAuth.kick?.access_token)ensureKickEventSubscriptions().catch(()=>{})}catch{}
+      try{if((isBrokerProvider('kick')||oauthConfig.kick?.clientId&&oauthConfig.kick?.clientSecret)&&currentKickSlug())startKickPolling();if(savedAuth.kick?.access_token)startKickEventRetryLoop()}catch{}
     },80);
   }
   return user;
@@ -2160,7 +2179,7 @@ server.listen(PORT,HOST,async()=>{
  console.log('Login OAuth:',Object.fromEntries(['tiktok','twitch','kick'].map(p=>[p,configured(p)?'configurado':'pendiente'])));
  await syncAllCreatorAccounts();
  try{await restoreTwitchSession()}catch(e){console.warn('Twitch auto-login:',e?.message||e)}
- try{if(currentKickSlug()&&(savedAuth.kick?.access_token||isBrokerProvider('kick')||oauthConfig.kick?.clientId&&oauthConfig.kick?.clientSecret))startKickPolling();if(savedAuth.kick?.access_token)ensureKickEventSubscriptions().catch(()=>{})}catch(e){console.warn('Kick auto-login:',e?.message||e)}
+ try{if(currentKickSlug()&&(savedAuth.kick?.access_token||isBrokerProvider('kick')||oauthConfig.kick?.clientId&&oauthConfig.kick?.clientSecret))startKickPolling();if(savedAuth.kick?.access_token)startKickEventRetryLoop()}catch(e){console.warn('Kick auto-login:',e?.message||e)}
  await ensureTikTokLiveAuto();
  await ensureCountersAuto();
  pushEventHealth();
