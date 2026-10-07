@@ -4841,9 +4841,17 @@ function addMessage(m){
 
   row.addEventListener('click',e=>{if(e.target.closest('button,a,input,select,textarea'))return;openModerator(m,row)});
 
+  // Una fila nueva nunca debe heredar/arrastrar estado oculto de un filtro visual.
+  row.classList.remove('chat-filter-hidden');
+  row.hidden=false;
+
   $('chat').append(
     row
   );
+
+  // Aplica el filtro actual de forma explícita además del MutationObserver.
+  // Si estamos en "Todos" sin búsqueda, esto garantiza que el comentario sea visible.
+  try{ window.__grenaApplyChatView?.(); }catch{}
 
   // Evita que un directo largo acumule miles de nodos y vuelva lenta la interfaz.
   while ($('chat').children.length > 300) {
@@ -4861,6 +4869,8 @@ function addMessage(m){
 ===================================================== */
 
 async function connectTikTok(){
+  try{ window.__grenaResetChatView?.(); }catch{}
+
 
   const url =
     $('tiktokUrl')
@@ -4926,6 +4936,8 @@ async function connectTikTok(){
 ===================================================== */
 
 async function connectTwitch(){
+  try{ window.__grenaResetChatView?.(); }catch{}
+
 
   const url =
     $('twitchUrl')
@@ -4987,6 +4999,8 @@ async function connectTwitch(){
 
 
 async function connectKick(){
+  try{ window.__grenaResetChatView?.(); }catch{}
+
   const url=$('kickUrl').value.trim();
   if(!url){status('🔴 Pega el enlace o usuario de Kick.','bad');return;}
   saveSettings();
@@ -5357,42 +5371,74 @@ openWS()
   }
 
   // Filtros visuales del chat: no alteran TTS ni WebSocket, solo lo que ves.
+  // FIX VISUAL: al abrir/conectar GREÑA siempre arranca en "Todos" y sin una
+  // búsqueda vieja restaurada por el navegador. Así un filtro no puede dejar
+  // el chat aparentemente vacío mientras la voz sí sigue leyendo.
   const chat=document.getElementById('chat');
   const search=document.getElementById('chatSearchInput');
   const tabs=[...document.querySelectorAll('[data-chat-filter]')];
   let active='all';
+
   function platformOf(el){
+    const fromData=String(el?.dataset?.platform||'').toLowerCase();
+    if(['tiktok','twitch','kick'].includes(fromData))return fromData;
     if(el.classList.contains('tiktok'))return'tiktok';
     if(el.classList.contains('twitch'))return'twitch';
     if(el.classList.contains('kick'))return'kick';
     return'';
   }
+
   function updateCounts(){
+    if(!chat)return;
     const rows=[...chat.querySelectorAll('.msg')];
     const counts={all:rows.length,tiktok:0,twitch:0,kick:0};
     rows.forEach(r=>{const p=platformOf(r);if(p)counts[p]++});
     const ids={all:'chatCountAll',tiktok:'chatCountTikTok',twitch:'chatCountTwitch',kick:'chatCountKick'};
     Object.entries(ids).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.textContent=counts[k]});
   }
+
   function applyChatView(){
     if(!chat)return;
     const q=String(search?.value||'').trim().toLowerCase();
+    const showEverything=active==='all'&&!q;
     chat.querySelectorAll('.msg').forEach(row=>{
+      if(showEverything){
+        row.classList.remove('chat-filter-hidden');
+        row.hidden=false;
+        return;
+      }
       const platform=platformOf(row);
       const okPlatform=active==='all'||platform===active;
       const okSearch=!q||String(row.textContent||'').toLowerCase().includes(q);
       row.classList.toggle('chat-filter-hidden',!(okPlatform&&okSearch));
+      row.hidden=false;
     });
     updateCounts();
   }
+
+  function resetChatView(){
+    active='all';
+    if(search)search.value='';
+    tabs.forEach(b=>b.classList.toggle('active',(b.dataset.chatFilter||'all')==='all'));
+    chat?.querySelectorAll('.msg').forEach(row=>{
+      row.classList.remove('chat-filter-hidden');
+      row.hidden=false;
+    });
+    applyChatView();
+  }
+
   tabs.forEach(b=>b.addEventListener('click',()=>{
     active=b.dataset.chatFilter||'all';
     tabs.forEach(x=>x.classList.toggle('active',x===b));
     applyChatView();
   }));
   search?.addEventListener('input',applyChatView);
-  if(chat)new MutationObserver(applyChatView).observe(chat,{childList:true,subtree:false});
-  applyChatView();
+
+  window.__grenaApplyChatView=applyChatView;
+  window.__grenaResetChatView=resetChatView;
+
+  if(chat)new MutationObserver(()=>queueMicrotask(applyChatView)).observe(chat,{childList:true,subtree:false});
+  resetChatView();
 })();
 </script>
 
