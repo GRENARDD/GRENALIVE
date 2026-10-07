@@ -658,6 +658,40 @@ html.grena-embed .status{margin-top:9px!important;padding:9px!important;font-siz
 html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
 }
 @media(max-width:760px){html.grena-embed .connections,html.grena-embed .voice-grid{grid-template-columns:1fr!important}}
+
+/* ===== GREÑA · CENTRO COMPACTO DE CONFIGURACIÓN DE VOZ ===== */
+.voice-settings-hub{margin:8px 0 12px;padding:10px;border:1px solid rgba(255,255,255,.07);border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.012))}
+.voice-settings-hub-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:0 2px 9px}
+.voice-settings-hub-head b{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#e9edf6}
+.voice-settings-hub-head small{font-size:8px;color:#727d91}
+.voice-settings-launcher{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.voice-settings-card{min-width:0;height:64px!important;padding:8px 9px!important;border:1px solid rgba(255,255,255,.075)!important;border-radius:12px!important;background:#0b0f17!important;color:#dbe2ef!important;display:grid!important;grid-template-columns:26px 1fr!important;grid-template-rows:auto auto!important;column-gap:8px!important;align-items:center!important;text-align:left!important;box-shadow:none!important;transition:.16s ease!important}
+.voice-settings-card:hover{transform:translateY(-1px);border-color:rgba(160,116,255,.34)!important;background:#111724!important;opacity:1!important}
+.voice-settings-card .voice-settings-icon{grid-row:1/3;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:rgba(255,255,255,.045);font-size:14px}
+.voice-settings-card img{width:18px;height:18px;object-fit:contain;display:block}
+.voice-settings-card b{font-size:9px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.voice-settings-card small{font-size:7px;line-height:1.1;color:#6f7a8d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.voice-settings-card.voice small{color:#bba7ff}
+.voice-settings-card.tiktok:hover{border-color:rgba(254,44,85,.40)!important}
+.voice-settings-card.twitch:hover{border-color:rgba(145,70,255,.42)!important}
+.voice-settings-card.kick:hover{border-color:rgba(83,252,24,.34)!important}
+.voice-settings-card.filters:hover{border-color:rgba(255,202,86,.34)!important}
+.voice-grid.voice-settings-collapsed{display:none!important}
+.voice-settings-backdrop{position:fixed;inset:0;z-index:999999;display:none;align-items:center;justify-content:center;padding:18px;background:rgba(3,6,11,.76);backdrop-filter:blur(10px)}
+.voice-settings-backdrop.show{display:flex}
+.voice-settings-dialog{width:min(560px,96vw);max-height:min(760px,90vh);display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(255,255,255,.11);border-radius:18px;background:linear-gradient(180deg,#101621,#090d14);box-shadow:0 28px 90px rgba(0,0,0,.58)}
+.voice-settings-dialog-head{height:58px;flex:0 0 auto;padding:10px 12px 10px 15px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.018)}
+.voice-settings-dialog-head small{display:block;margin-bottom:3px;font-size:7px;letter-spacing:.12em;color:#6d788b;font-weight:900}
+.voice-settings-dialog-head b{display:block;font-size:14px;color:#eef2f8}
+.voice-settings-close{width:32px!important;height:32px!important;min-width:32px!important;padding:0!important;border-radius:9px!important;border:1px solid rgba(255,255,255,.08)!important;background:#151b27!important;color:#aeb8c8!important}
+.voice-settings-dialog-body{padding:14px;overflow:auto}
+.voice-settings-dialog-body>.voice-box{display:block!important;width:100%!important;margin:0!important;padding:2px!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.ui-basic-mode .voice-settings-dialog-body [data-ui-advanced="true"]{display:block!important}
+.voice-settings-dialog-body .voice-field[data-ui-advanced="true"]{display:block!important}
+.voice-settings-dialog-body textarea{min-height:92px}
+body.voice-settings-modal-open{overflow:hidden!important}
+@media(max-width:760px){.voice-settings-launcher{grid-template-columns:repeat(3,minmax(0,1fr))}.voice-settings-card{height:60px!important}}
+@media(max-width:480px){.voice-settings-launcher{grid-template-columns:repeat(2,minmax(0,1fr))}.voice-settings-hub-head small{display:none}}
 </style>
 <script>if(new URLSearchParams(location.search).get('embed')==='1')document.documentElement.classList.add('grena-embed')</script>
 
@@ -5347,27 +5381,96 @@ openWS()
 
 <script>
 (()=>{
-  // GREÑA UI: en el panel principal los filtros avanzados viven en un drawer.
-  // Así Chat + Voz conserva la altura compacta de la maqueta sin perder ninguna función.
-  const filterBox=document.querySelector('.filters-panel');
+  // GREÑA UI · Centro compacto de configuración.
+  // Mantiene los controles reales (mismos IDs y listeners) y solo los mueve
+  // a ventanas flotantes para que Inicio quede limpio.
+  const voiceGrid=document.querySelector('.voice-grid');
+  const voicePanel=document.querySelector('.voice-panel');
   const voiceTitle=document.querySelector('.voice-title');
-  if(filterBox&&voiceTitle&&!document.getElementById('advancedFiltersBtn')){
-    const btn=document.createElement('button');
-    btn.type='button';btn.id='advancedFiltersBtn';btn.className='advanced-filters-btn ui-advanced-only';
-    btn.innerHTML='⚙ <span>Filtros avanzados</span>';
-    const overlay=document.createElement('div');
-    overlay.className='advanced-filters-backdrop';overlay.setAttribute('aria-hidden','true');
-    const dialog=document.createElement('div');dialog.className='advanced-filters-dialog';
-    const head=document.createElement('div');head.className='advanced-filters-head';
-    head.innerHTML='<div><small>CHAT DE VOZ</small><b>Filtros y anti-spam</b></div><button type="button" class="advanced-filters-close">✕</button>';
-    dialog.appendChild(head);dialog.appendChild(filterBox);overlay.appendChild(dialog);document.body.appendChild(overlay);
-    const close=()=>{overlay.classList.remove('show');overlay.setAttribute('aria-hidden','true')};
-    btn.onclick=()=>{overlay.classList.add('show');overlay.setAttribute('aria-hidden','false')};
-    head.querySelector('.advanced-filters-close').onclick=close;
-    overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
-    document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
-    const readUser=voiceTitle.querySelector('.voice-check');
-    voiceTitle.insertBefore(btn,readUser||null);
+  if(voiceGrid&&voicePanel&&voiceTitle&&!document.getElementById('voiceSettingsHub')){
+    const boxes=[...voiceGrid.querySelectorAll(':scope > .voice-box')];
+    const byTitle=pattern=>boxes.find(box=>pattern.test(String(box.querySelector('h3')?.textContent||'')));
+    const voiceBox=byTitle(/configuraci[oó]n de voz/i);
+    const tiktokBox=byTitle(/^\s*tiktok\s*$/i);
+    const twitchBox=byTitle(/^\s*twitch\s*$/i);
+    const kickBox=byTitle(/^\s*kick\s*$/i);
+    const filtersBox=boxes.find(box=>box.classList.contains('filters-panel'))||byTitle(/filtros|anti-spam/i);
+
+    // "Leer nombre del usuario" pertenece a Configuración de voz.
+    const readUsername=voiceTitle.querySelector('.voice-check');
+    if(readUsername&&voiceBox){
+      const h=voiceBox.querySelector('h3');
+      h?.insertAdjacentElement('afterend',readUsername);
+    }
+
+    const hub=document.createElement('div');
+    hub.id='voiceSettingsHub';hub.className='voice-settings-hub';
+    const hubHead=document.createElement('div');hubHead.className='voice-settings-hub-head';
+    hubHead.innerHTML='<b>Configuración</b><small>Toca una sección para abrir sus opciones</small>';
+    const launcher=document.createElement('div');launcher.className='voice-settings-launcher';
+    hub.append(hubHead,launcher);
+    voiceTitle.insertAdjacentElement('afterend',hub);
+
+    const drawers=[];
+    const specs=[
+      {key:'voice',title:'Configuración de voz',subtitle:'Voz, velocidad, volumen y cola',box:voiceBox,icon:'🎙️',cls:'voice'},
+      {key:'tiktok',title:'TikTok',subtitle:'Lectura de mensajes y usuarios',box:tiktokBox,img:'/assets/platforms/tiktok.webp',cls:'tiktok'},
+      {key:'twitch',title:'Twitch',subtitle:'Lectura de mensajes y usuarios',box:twitchBox,img:'/assets/platforms/twitch.webp',cls:'twitch'},
+      {key:'kick',title:'Kick',subtitle:'Lectura de mensajes y usuarios',box:kickBox,img:'/assets/platforms/kick.svg',cls:'kick'},
+      {key:'filters',title:'Filtros avanzados',subtitle:'Anti-spam y bloqueos',box:filtersBox,icon:'🛡️',cls:'filters'}
+    ];
+
+    const closeAll=()=>{
+      for(const d of drawers){d.overlay.classList.remove('show');d.overlay.setAttribute('aria-hidden','true')}
+      document.body.classList.remove('voice-settings-modal-open');
+    };
+
+    for(const spec of specs){
+      if(!spec.box)continue;
+      const card=document.createElement('button');
+      card.type='button';card.className='voice-settings-card '+spec.cls;
+      card.dataset.voiceSettings=spec.key;
+      card.setAttribute('aria-haspopup','dialog');
+      const icon=document.createElement('span');icon.className='voice-settings-icon';
+      if(spec.img){const img=document.createElement('img');img.src=spec.img;img.alt='';icon.append(img)}else icon.textContent=spec.icon||'⚙';
+      const name=document.createElement('b');name.textContent=spec.title;
+      const state=document.createElement('small');state.dataset.voiceSettingsState=spec.key;state.textContent=spec.subtitle;
+      card.append(icon,name,state);launcher.append(card);
+
+      const overlay=document.createElement('div');
+      overlay.className='voice-settings-backdrop';overlay.setAttribute('aria-hidden','true');
+      const dialog=document.createElement('section');dialog.className='voice-settings-dialog';dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');
+      const head=document.createElement('div');head.className='voice-settings-dialog-head';
+      const copy=document.createElement('div');copy.innerHTML='<small>CHAT DE VOZ</small><b></b>';copy.querySelector('b').textContent=spec.title;
+      const close=document.createElement('button');close.type='button';close.className='voice-settings-close';close.setAttribute('aria-label','Cerrar');close.textContent='✕';
+      const body=document.createElement('div');body.className='voice-settings-dialog-body';
+      head.append(copy,close);body.append(spec.box);dialog.append(head,body);overlay.append(dialog);document.body.append(overlay);
+      drawers.push({overlay,card});
+      const open=()=>{closeAll();overlay.classList.add('show');overlay.setAttribute('aria-hidden','false');document.body.classList.add('voice-settings-modal-open');setTimeout(()=>close.focus(),0)};
+      card.addEventListener('click',open);
+      close.addEventListener('click',closeAll);
+      overlay.addEventListener('click',e=>{if(e.target===overlay)closeAll()});
+    }
+
+    voiceGrid.classList.add('voice-settings-collapsed');
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')closeAll()});
+
+    const stateText=(enabled,on,off)=>enabled?on:off;
+    const syncCards=()=>{
+      const map={
+        voice:stateText(!!document.getElementById('voiceEnabled')?.checked,'Chat de voz activo','Chat de voz apagado'),
+        tiktok:stateText(!!document.getElementById('tiktokVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
+        twitch:stateText(!!document.getElementById('twitchVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
+        kick:stateText(!!document.getElementById('kickVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
+        filters:stateText(document.getElementById('smartSpamEnabled')?.checked!==false,'Anti-spam activo','Anti-spam apagado')
+      };
+      for(const [key,value] of Object.entries(map)){
+        const el=launcher.querySelector('[data-voice-settings-state="'+key+'"]');
+        if(el)el.textContent=value;
+      }
+    };
+    ['voiceEnabled','tiktokVoiceEnabled','twitchVoiceEnabled','kickVoiceEnabled','smartSpamEnabled'].forEach(id=>document.getElementById(id)?.addEventListener('change',syncCards));
+    syncCards();
   }
 
   // Filtros visuales del chat: no alteran TTS ni WebSocket, solo lo que ves.
