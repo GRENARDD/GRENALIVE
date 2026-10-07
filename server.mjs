@@ -286,7 +286,7 @@ async function soundboardState(userId){
   const slots=[];
   for(let slot=1;slot<=SOUNDBOARD_SLOT_COUNT;slot++){
     const m=raw.slots[String(slot)]||null;
-    slots.push(m?{slot,name:String(m.name||('Audio '+slot)),type:String(m.type||''),size:Number(m.size||0),updatedAt:Number(m.updatedAt||0),url:`/api/soundboard/audio/${slot}?v=${Number(m.updatedAt||0)}`}:{slot,empty:true});
+    slots.push(m?{slot,name:String(m.name||('Audio '+slot)),type:String(m.type||''),size:Number(m.size||0),updatedAt:Number(m.updatedAt||0),fade:m.fade!==false,url:`/api/soundboard/audio/${slot}?v=${Number(m.updatedAt||0)}`}:{slot,empty:true,fade:true});
   }
   return {version:1,slots,raw};
 }
@@ -1818,6 +1818,20 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    }
  }
  {
+   const fadeMatch=/^\/api\/soundboard\/fade\/([1-5])$/.exec(pathname);
+   if(fadeMatch&&req.method==='POST'){
+     const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
+     const slot=soundboardSlotNumber(fadeMatch[1]);let raw='';raw=await readBody(req);
+     const body=JSON.parse(raw||'{}'),board=await soundboardState(u.id);
+     const meta=board.raw.slots[String(slot)];
+     if(!meta)return json(res,404,{ok:false,error:'Sube un audio antes de configurar el desvanecido.'});
+     meta.fade=body.enabled!==false;
+     await safeWriteJson(soundboardMetaFile(u.id),board.raw);
+     const fresh=await soundboardState(u.id);
+     return json(res,200,{ok:true,slot:fresh.slots[slot-1]});
+   }
+ }
+ {
    const slotMatch=/^\/api\/soundboard\/slot\/([1-5])$/.exec(pathname);
    if(slotMatch&&req.method==='POST'){
      const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
@@ -1834,7 +1848,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
      }
      const target=join(soundboardDir(u.id),`slot-${slot}${ext}`),tmp=target+'.'+Date.now()+'.tmp';
      await writeFile(tmp,data);await rename(tmp,target);
-     board.raw.version=1;board.raw.slots[String(slot)]={name:fileName,type:soundboardMime(ext,type),ext,size:data.length,updatedAt:Date.now()};
+     board.raw.version=1;board.raw.slots[String(slot)]={name:fileName,type:soundboardMime(ext,type),ext,size:data.length,updatedAt:Date.now(),fade:old?.fade!==false};
      await safeWriteJson(soundboardMetaFile(u.id),board.raw);
      const fresh=await soundboardState(u.id);
      return json(res,200,{ok:true,slot:fresh.slots[slot-1]});
