@@ -235,6 +235,8 @@ window.addEventListener('popstate',()=>{const m=moduleFromHash();m?openModule(m,
 
 
 // ===== SOUNDBOARD · 5 AUDIOS RÁPIDOS =====
+const SOUNDBOARD_FADE_SECONDS=.65;
+const SOUNDBOARD_MANUAL_FADE_MS=420;
 const soundboard={
  slots:new Map(),
  activeSlot:0,
@@ -243,7 +245,10 @@ const soundboard={
  replaceSlot:0,
  holdTimer:null,
  holdButton:null,
- suppressClick:0
+ suppressClick:0,
+ envelopeFrame:0,
+ manualFadeFrame:0,
+ stopping:false
 };
 function soundPad(slot){return document.querySelector('.sound-pad[data-sound-slot="'+slot+'"]')}
 function soundName(name='',slot=1){
@@ -260,8 +265,9 @@ function renderSoundPad(slot){
  }
  title.textContent=soundName(meta.name,slot);
  if(soundboard.activeSlot===slot&&soundboard.audio){
-  if(soundboard.audio.paused){b.classList.add('paused');icon.textContent='▶';small.textContent='Pausado · clic para seguir'}
-  else{b.classList.add('playing');icon.textContent='Ⅱ';small.textContent='Sonando · clic para pausar'}
+  b.classList.add('playing');
+  icon.textContent='■';
+  small.textContent=soundboard.stopping?'Desvaneciendo…':'Sonando · clic para detener';
  }else{
   icon.textContent='▶';small.textContent='Clic para reproducir';
  }
@@ -276,25 +282,90 @@ async function loadSoundboard(){
   renderSoundboard();
  }catch(e){console.warn('[soundboard]',e?.message||e)}
 }
-function stopSoundboardAudio(reset=true){
- if(!soundboard.audio)return;
- try{soundboard.audio.pause();if(reset)soundboard.audio.currentTime=0}catch{}
- const old=soundboard.activeSlot;soundboard.audio=null;soundboard.activeSlot=0;if(old)renderSoundPad(old);
+function cancelSoundEnvelope(){
+ if(soundboard.envelopeFrame)cancelAnimationFrame(soundboard.envelopeFrame);
+ soundboard.envelopeFrame=0;
+}
+function cancelManualSoundFade(){
+ if(soundboard.manualFadeFrame)cancelAnimationFrame(soundboard.manualFadeFrame);
+ soundboard.manualFadeFrame=0;
+}
+function startSoundEnvelope(audio){
+ cancelSoundEnvelope();
+ const tick=()=>{
+  if(soundboard.audio!==audio||soundboard.stopping||audio.paused||audio.ended){soundboard.envelopeFrame=0;return}
+  const t=Math.max(0,Number(audio.currentTime)||0);
+  const duration=Number(audio.duration);
+  let level=Math.min(1,t/SOUNDBOARD_FADE_SECONDS);
+  if(Number.isFinite(duration)&&duration>0){
+   const remaining=Math.max(0,duration-t);
+   level=Math.min(level,remaining/SOUNDBOARD_FADE_SECONDS);
+  }
+  try{audio.volume=Math.max(0,Math.min(1,level))}catch{}
+  soundboard.envelopeFrame=requestAnimationFrame(tick);
+ };
+ soundboard.envelopeFrame=requestAnimationFrame(tick);
+}
+function fadeAudioToZero(audio,durationMs=SOUNDBOARD_MANUAL_FADE_MS){
+ cancelManualSoundFade();
+ const from=Math.max(0,Math.min(1,Number(audio?.volume)||0));
+ if(!audio||audio.paused||from<=.001)return Promise.resolve();
+ return new Promise(resolve=>{
+  const started=performance.now();
+  const step=now=>{
+   if(soundboard.audio!==audio){soundboard.manualFadeFrame=0;resolve();return}
+   const p=Math.max(0,Math.min(1,(now-started)/durationMs));
+   try{audio.volume=from*(1-p)}catch{}
+   if(p>=1){soundboard.manualFadeFrame=0;resolve();return}
+   soundboard.manualFadeFrame=requestAnimationFrame(step);
+  };
+  soundboard.manualFadeFrame=requestAnimationFrame(step);
+ });
+}
+async function stopSoundboardAudio(reset=true,smooth=true){
+ const audio=soundboard.audio,old=soundboard.activeSlot;
+ if(!audio)return;
+ soundboard.stopping=true;
+ cancelSoundEnvelope();
+ if(old)renderSoundPad(old);
+ if(smooth)await fadeAudioToZero(audio);
+ if(soundboard.audio!==audio)return;
+ try{audio.pause();if(reset)audio.currentTime=0;audio.volume=0}catch{}
+ soundboard.audio=null;soundboard.activeSlot=0;soundboard.stopping=false;
+ cancelManualSoundFade();
+ if(old)renderSoundPad(old);
 }
 async function toggleSound(slot){
  const meta=soundboard.slots.get(slot);
  if(!meta||meta.empty){openSoundPicker(slot);return}
  if(soundboard.activeSlot===slot&&soundboard.audio){
-  if(soundboard.audio.paused){
-   try{await soundboard.audio.play();renderSoundPad(slot)}catch{toast('El navegador no pudo reproducir este audio.')}
-  }else{soundboard.audio.pause();renderSoundPad(slot)}
+  if(!soundboard.stopping)await stopSoundboardAudio(true,true);
   return;
  }
- stopSoundboardAudio(true);
- const audio=new Audio(meta.url);audio.preload='auto';soundboard.audio=audio;soundboard.activeSlot=slot;
- audio.addEventListener('ended',()=>{if(soundboard.audio!==audio)return;soundboard.audio=null;soundboard.activeSlot=0;renderSoundPad(slot)});
- audio.addEventListener('error',()=>{if(soundboard.audio!==audio)return;soundboard.audio=null;soundboard.activeSlot=0;renderSoundPad(slot);toast('No se pudo reproducir ese audio.')});
- try{await audio.play();renderSoundPad(slot)}catch{soundboard.audio=null;soundboard.activeSlot=0;renderSoundPad(slot);toast('No se pudo reproducir ese audio.')}
+ if(soundboard.audio)await stopSoundboardAudio(true,true);
+ const audio=new Audio(meta.url);
+ audio.preload='auto';
+ audio.volume=0;
+ soundboard.audio=audio;soundboard.activeSlot=slot;soundboard.stopping=false;
+ audio.addEventListener('ended',()=>{
+  if(soundboard.audio!==audio)return;
+  cancelSoundEnvelope();cancelManualSoundFade();
+  try{audio.currentTime=0;audio.volume=0}catch{}
+  soundboard.audio=null;soundboard.activeSlot=0;soundboard.stopping=false;renderSoundPad(slot);
+ });
+ audio.addEventListener('error',()=>{
+  if(soundboard.audio!==audio)return;
+  cancelSoundEnvelope();cancelManualSoundFade();
+  soundboard.audio=null;soundboard.activeSlot=0;soundboard.stopping=false;renderSoundPad(slot);toast('No se pudo reproducir ese audio.');
+ });
+ try{
+  await audio.play();
+  if(soundboard.audio!==audio)return;
+  renderSoundPad(slot);
+  startSoundEnvelope(audio);
+ }catch{
+  soundboard.audio=null;soundboard.activeSlot=0;soundboard.stopping=false;renderSoundPad(slot);toast('No se pudo reproducir ese audio.');
+ }
 }
 function openSoundPicker(slot){
  soundboard.uploadSlot=slot;
@@ -333,9 +404,9 @@ document.querySelectorAll('.sound-pad').forEach(btn=>{
  btn.addEventListener('contextmenu',e=>e.preventDefault());
 });
 $('soundboardReplaceCancel')?.addEventListener('click',()=>{$('soundboardReplaceDialog')?.close();soundboard.replaceSlot=0});
-$('soundboardReplaceConfirm')?.addEventListener('click',()=>{
+$('soundboardReplaceConfirm')?.addEventListener('click',async()=>{
  const slot=soundboard.replaceSlot;$('soundboardReplaceDialog')?.close();soundboard.replaceSlot=0;
- if(slot){if(soundboard.activeSlot===slot)stopSoundboardAudio(true);openSoundPicker(slot)}
+ if(slot){if(soundboard.activeSlot===slot)await stopSoundboardAudio(true,true);openSoundPicker(slot)}
 });
 $('soundboardReplaceDialog')?.addEventListener('cancel',()=>{soundboard.replaceSlot=0});
 $('soundboardFile')?.addEventListener('change',async e=>{
