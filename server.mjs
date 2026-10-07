@@ -1043,64 +1043,26 @@ async function resolveTikTokLiveTarget(input=''){
 function parseTwitchLogin(input=''){const x=String(input).trim();const m=x.match(/twitch\.tv\/([^/?#]+)/i);return (m?.[1]||x).replace(/^@/,'').trim()}
 async function connectCounterTikTok(input){
  const username=parseTikTokUser(input);if(!username)throw Error('Pon el link o usuario de TikTok.');
- if(counterTikTokConnecting)return {username:counterTikTokUser||username,pending:true};
- counterTikTokConnecting=true;
- try{
-  clearTikTokCounterTimers();
-  const previousCounterUser=String(counterTikTokUser||'').toLowerCase();
-  const preserveHealthyCount=previousCounterUser===String(username||'').toLowerCase()&&viewers.tiktok>0&&Date.now()-Number(viewerMeta.tiktok.lastGoodAt||0)<30000;
-  const old=counterTikTok;counterTikTok=null;if(old){try{old.disconnect()}catch{}}
-  if(preserveHealthyCount){viewerMeta.tiktok.source='reconectando contador TikTok';viewerMeta.tiktok.zeroHits=0;viewerMeta.tiktok.lastZeroAt=0}
-  else{viewerMeta.tiktok={lastGood:0,lastGoodAt:0,source:'conectando',zeroHits:0,lastZeroAt:0,spikeValue:0,spikeHits:0,spikeAt:0,spikeSources:[]};setViewers('tiktok',0,'reset contador TikTok')}
-  counterTikTokUser=username;counterTikTokLastSignalAt=Date.now();counterTikTokPollFailures=0;
-  const c=new TikTokLiveConnection(username,{processInitialData:true,fetchRoomInfoOnConnect:true,enableExtendedGiftInfo:false});counterTikTok=c;
-  // Camino 1: evento realtime de TikTok.
-  const update=d=>setTikTokViewersFromEvent(d,'TikTok ROOM_USER');
-  c.on(WebcastEvent.ROOM_USER||'roomUser',update);
-  // Tercer respaldo: MEMBER lleva memberCount en el protocolo v2. Solo se usa si no
-  // hemos recibido una cifra mejor recientemente.
-  // MEMBER trae memberCount, pero TikTok puede usarlo como acumulado/auxiliar. No lo usamos
-  // para el contador OBS; ROOM_USER + room/info son las fuentes de viewers actuales.
-  if(WebcastEvent.STREAM_END)c.on(WebcastEvent.STREAM_END,()=>{
-   if(counterTikTok!==c)return;
-   counterTikTok=null;if(counterTikTokPollTimer){clearInterval(counterTikTokPollTimer);counterTikTokPollTimer=null}
-   counterTikTokLastSignalAt=0;counterTikTokPollFailures=0;
-   setViewers('tiktok',0,'TikTok STREAM_END contador');
-   setStatus('tiktok',false,`@${username} · LIVE terminó · esperando próximo LIVE`,username);
-   try{c.disconnect()}catch{}
-  });
-  c.on('disconnected',()=>{
-   if(counterTikTok!==c)return;
-   counterTikTok=null;if(counterTikTokPollTimer){clearInterval(counterTikTokPollTimer);counterTikTokPollTimer=null}
-   viewerMeta.tiktok.source='contador desconectado · reconectando';
-   if(bridgeRuntime.tiktok)setStatus('tiktok',true,`@${username} · LIVE/chat activo · contador reconectando`,username);
-   else setStatus('tiktok',false,`@${username} · contador reconectando`,username);
-   scheduleTikTokCounterReconnect(username);
-  });
-  c.on('error',e=>{counterTikTokPollFailures++;viewerMeta.tiktok.source='contador error · comprobando reconexión';console.warn('Contador TikTok:',e?.message||e);restartTikTokCounterIfStuck(c,username,e?.message||'error')});
-  const st=await c.connect();
-  let initial=readTikTokViewerCount(st);if(initial!==null)setViewers('tiktok',initial,'TikTok conexión inicial');
-  // Camino 2: room/info. Este endpoint contiene data.user_count y evita depender de ROOM_USER.
-  try{const ok=await refreshCounterTikTok(c,'TikTok room/info inicial');if(ok)initial=viewers.tiktok}catch(e){console.warn('TikTok room/info inicial:',e?.message||e)}
-  counterTikTokPollTimer=setInterval(async()=>{
-   if(counterTikTok!==c)return;
-   // ROOM_USER ya llega en tiempo real. Solo consultamos room/info como respaldo rápido
-   // cuando no hubo una señal reciente, evitando golpear TikTok innecesariamente.
-   if(counterTikTokLastSignalAt&&Date.now()-counterTikTokLastSignalAt<2200)return;
-   try{
-    const ok=await refreshCounterTikTok(c,'TikTok room/info rápido');
-    if(!ok){counterTikTokPollFailures++;restartTikTokCounterIfStuck(c,username,'room/info sin viewer count')}
-   }catch(e){
-    counterTikTokPollFailures++;viewerMeta.tiktok.source='TikTok room/info temporalmente no disponible';console.warn('TikTok room/info:',e?.message||e);restartTikTokCounterIfStuck(c,username,e?.message||'room/info')
-   }
-  },4000);
-  counterTikTokPollTimer.unref?.();
-  setStatus('tiktok',true,`@${username} · contador conectado`,username);return {username,initial};
- }catch(e){
-  if(counterTikTok){const failed=counterTikTok;counterTikTok=null;try{failed.disconnect()}catch{}}
-  if(counterTikTokPollTimer){clearInterval(counterTikTokPollTimer);counterTikTokPollTimer=null}
-  counterTikTokPollFailures++;viewerMeta.tiktok.source=`contador error · ${e?.message||e}`;scheduleTikTokCounterReconnect(username);throw e;
- }finally{counterTikTokConnecting=false}
+ const value=`https://www.tiktok.com/@${username}/live`;
+ if(counterTikTok){
+  const old=counterTikTok;counterTikTok=null;try{old.disconnect()}catch{}
+ }
+ clearTikTokCounterTimers();
+ counterTikTokUser=username;
+ counterTikTokLastSignalAt=0;
+ counterTikTokPollFailures=0;
+ viewerMeta.tiktok.source=bridgeRuntime.tiktok?'TikTok LIVE compartido · chat + contador':'TikTok LIVE compartido · conectando';
+ const r=await fetch('http://127.0.0.1:8788/api/connection-prefs',{
+  method:'POST',
+  headers:{'content-type':'application/json'},
+  body:JSON.stringify({autoConnect:true,tiktokUrl:value,tiktokEnabled:true})
+ });
+ if(!r.ok)throw Error('GREÑA Chat no respondió al activar TikTok compartido.');
+ const label=bridgeRuntime.tiktok
+  ? `@${username} · chat + contador compartidos`
+  : `@${username} · conectando chat + contador compartidos…`;
+ setStatus('tiktok',!!bridgeRuntime.tiktok,label,username);
+ return {username,initial:viewers.tiktok,shared:true,pending:!bridgeRuntime.tiktok};
 }
 async function refreshCounterTwitch(){
  if(!counterTwitchLogin||counterTwitchRefreshing)return;
@@ -1133,82 +1095,12 @@ async function connectCounterTwitch(input){
 // TikTok: Login Kit identifica la cuenta. Los eventos LIVE siguen entrando por el conector LIVE.
 async function connectTikTokLive(username){
  username=String(username||'').trim().replace(/^@/,'');if(!username)throw Error('TikTok no devolvió el nombre de usuario.');
- if(tiktok){try{tiktok.disconnect()}catch{}tiktok=null}
- setStatus('tiktok',false,`@${username} · buscando LIVE…`,username);
- // La lectura del LIVE es anónima: no necesita la cookie de la cuenta vinculada.
- // enableExtendedGiftInfo se mantiene en false porque esa lista requiere una firma premium en la versión actual.
- const c=new TikTokLiveConnection(username,{processInitialData:false,enableExtendedGiftInfo:false});tiktok=c;let likeTotal=0,lastLikeMilestone=0;const who=d=>d.user?.nickname||d.user?.uniqueId||'Usuario';const uid=d=>String(d?.user?.uniqueId||d?.user?.unique_id||d?.user?.id||d?.uniqueId||who(d));const avatar=d=>d.user?.profilePictureUrl||d.user?.avatarThumb?.urlList?.[0]||d.user?.avatarMedium?.urlList?.[0]||d.user?.avatarLarger?.urlList?.[0]||d.profilePictureUrl||'';
- const recentFollow=new Map();const emitFollow=(d,source='follow')=>{const key=uid(d).toLowerCase(),now=Date.now();if(key&&now-(recentFollow.get(key)||0)<7000)return;recentFollow.set(key,now);alert('TikTok','follow',who(d),'te siguió',{avatar:avatar(d),tiktokSource:source,userId:uid(d)})};
- const socialIsFollow=d=>{const parts=[];const walk=(v,key='',depth=0)=>{if(depth>4||v==null)return;if(typeof v==='string'){if(/display|action|label|event|type|pattern|key|text|schema|describe/i.test(key))parts.push(v);return}if(Array.isArray(v)){for(const x of v.slice(0,20))walk(x,key,depth+1);return}if(typeof v==='object'){for(const [k,x] of Object.entries(v))walk(x,k,depth+1)}};walk(d);const text=parts.join(' ').toLowerCase();return /(^|[^a-z])(follow|followed|follows|following)([^a-z]|$)|ttlive[^ ]*follow|sigui[oó]|empez[oó] a seguir|nuevo seguidor/i.test(text)};
- c.on(WebcastEvent.FOLLOW,d=>emitFollow(d,'follow'));
- if(WebcastEvent.SOCIAL)c.on(WebcastEvent.SOCIAL,d=>{if(socialIsFollow(d))emitFollow(d,'social-fallback')});
- const ttSubEvent=WebcastEvent.SUB_NOTIFY||'subNotify';c.on(ttSubEvent,d=>alert('TikTok','sub',who(d),'se suscribió',{avatar:avatar(d),months:Number(d?.subMonth||0)||undefined,tiktokSource:'subNotify',eventId:String(d?.msgId||d?.common?.msgId||d?.id||'')}));
- c.on(WebcastEvent.GIFT,d=>{if((d.giftType??d.giftDetails?.giftType??d.gift?.type)===1&&!d.repeatEnd)return;const g=normalizeTikTokGift(d,c);alert('TikTok','gift',who(d),'',{avatar:avatar(d),...g,giftKind:'tiktok-gift',eventId:String(d?.msgId||d?.common?.msgId||d?.id||d?.repeatCount&&`${uid(d)}:${d?.giftId||d?.gift?.id||''}:${d.repeatCount}:${Date.now()}`||'')})});
- c.on(WebcastEvent.SHARE,d=>alert('TikTok','share',who(d),'compartió el LIVE',{avatar:avatar(d)}));
- c.on(WebcastEvent.LIKE,d=>{const n=Math.max(1,Number(d.likeCount||1)||1);recordTapTap({userId:uid(d),user:uid(d),nickname:who(d),avatar:avatar(d),amount:n});recordLoyaltyEvent({platform:'TikTok',kind:'like',user:uid(d),nickname:who(d),avatar:avatar(d),amount:n});likeTotal+=n;const milestone=Math.floor(likeTotal/100)*100;if(milestone>=100&&milestone>lastLikeMilestone){lastLikeMilestone=milestone;alert('TikTok','like',who(d),`${milestone.toLocaleString()} likes acumulados`,{likes:milestone})}});
- c.on(WebcastEvent.MEMBER,d=>broadcast({type:'activity',activity:{platform:'TikTok',event:'join',name:who(d),message:'Entró al LIVE',receivedAt:Date.now()}}));
- c.on(WebcastEvent.ROOM_USER,d=>{setTikTokViewersFromEvent(d,'TikTok LIVE fallback')});
- if(WebcastEvent.STREAM_END)c.on(WebcastEvent.STREAM_END,()=>{if(tiktok===c)tiktok=null;setViewers('tiktok',0,'TikTok STREAM_END');endTapTapSession();if(!bridgeRuntime.tiktok)setStatus('tiktok',false,`@${username} · LIVE terminó`,username)});
- c.on('disconnected',()=>{
-  if(tiktok===c)tiktok=null;
-  if(!bridgeRuntime.tiktok){
-   if(tiktokDedicatedCounterHealthy())setStatus('tiktok',true,`@${username} · contador activo · LIVE fallback reconectando`,username);
-   else{setStatus('tiktok',false,`@${username} · LIVE reconectando`,username);scheduleTikTokBridgeDisconnectGrace(username)}
-  }
- });c.on('error',e=>console.warn('TikTok LIVE:',e?.message||e));
- try{await c.connect();setStatus('tiktok',true,`@${username} · LIVE conectado`,username)}catch(e){
-  if(tiktok===c)tiktok=null;
-  if(!bridgeRuntime.tiktok&&!tiktokDedicatedCounterHealthy())scheduleTikTokBridgeDisconnectGrace(username);
-  setStatus('tiktok',true,`@${username} · sesión iniciada (sin LIVE)`,username);console.warn('TikTok login correcto; LIVE no disponible:',e?.message||e)
- }
-}
-
-
-// TikTok Desktop Bridge: abre TikTok real en Chrome, conserva un perfil local y reutiliza su sesión.
-// No guarda contraseña. Solo conserva las cookies de sesión necesarias en .grena-auth.json.
-async function beginTikTokBrowserLogin(){
- if(tiktokLoginContext) throw Error('Ya hay una ventana de TikTok abierta para iniciar sesión.');
- setStatus('tiktok',false,'Abriendo TikTok… inicia sesión en la ventana');
- const profileDir=currentTikTokProfileDir();
- let ctx;
- try{
-  ctx=await chromium.launchPersistentContext(profileDir,{channel:'chrome',headless:false,viewport:null,args:['--start-maximized']});
- }catch(e){
-  try{ctx=await chromium.launchPersistentContext(profileDir,{channel:'msedge',headless:false,viewport:null,args:['--start-maximized']})}
-  catch{throw Error('No pude abrir Google Chrome ni Microsoft Edge. Instala uno de los dos y vuelve a intentarlo.')}
- }
- tiktokLoginContext=ctx;
- const page=ctx.pages()[0]||await ctx.newPage();
- await page.goto('https://www.tiktok.com/login',{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>{});
- const deadline=Date.now()+10*60*1000;
- while(Date.now()<deadline){
-  if(!tiktokLoginContext) throw Error('La ventana de TikTok se cerró antes de completar el inicio de sesión.');
-  const cookies=await ctx.cookies('https://www.tiktok.com').catch(()=>[]);
-  const sessionId=cookies.find(c=>c.name==='sessionid')?.value;
-  const ttTargetIdc=cookies.find(c=>c.name==='tt-target-idc')?.value||'useast1a';
-  if(sessionId){
-   let account=null;
-   try{
-    account=await page.evaluate(async()=>{
-      const r=await fetch('/passport/web/account/info/?aid=1988&app_language=es&app_name=tiktok_web',{credentials:'include'});
-      return await r.json();
-    });
-   }catch{}
-   const username=account?.data?.username||account?.data?.user?.username||account?.data?.screen_name||'';
-   if(username){
-    savedAuth.tiktok={mode:'browser-session',username,sessionId,ttTargetIdc};
-    await persistAuth();
-    setStatus('tiktok',true,`@${username} · sesión iniciada`,username);
-    await ctx.close().catch(()=>{});tiktokLoginContext=null;
-    await connectTikTokLive(username);
-    return;
-   }
-   setStatus('tiktok',false,'TikTok detectado · terminando conexión…');
-  }
-  await new Promise(r=>setTimeout(r,1200));
- }
- await ctx.close().catch(()=>{});tiktokLoginContext=null;
- throw Error('Se agotó el tiempo para iniciar sesión en TikTok.');
+ const value=`https://www.tiktok.com/@${username}/live`;
+ autoPrefs.enabled=true;
+ autoPrefs.counterTikTok=value;
+ autoPrefs.counterTikTokEnabled=true;
+ await persistAutoPrefs();
+ return connectCounterTikTok(value);
 }
 
 async function twitchHelix(path,cfg,opts={}){if(!oauthConfig.twitch?.clientId&&AUTH_SERVICE_URL)await loadAuthServiceConfig();if(!oauthConfig.twitch?.clientId)throw Error('GREÑA no tiene disponible el Client ID público de Twitch.');const r=await fetch('https://api.twitch.tv/helix'+path,{...opts,headers:{'Client-Id':oauthConfig.twitch.clientId,'Authorization':`Bearer ${cfg.token}`,'Content-Type':'application/json',...(opts.headers||{})}});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.message||`Twitch HTTP ${r.status}`);return d}
@@ -2011,8 +1903,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/internal/viewers'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
   if(!['tiktok','twitch','kick'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
-  // El bridge y el contador dedicado ahora se respaldan mutuamente. Antes TikTok descartaba
-  // por completo esta cifra cuando existía counterTikTok, causando el 0 permanente visto en LIVE.
+  // TikTok usa una sola conexión LIVE en chat-server. Ese bridge alimenta chat, eventos,
+  // contador y widgets; no se abre un segundo TikTokLiveConnection para el contador.
   const source=String(body.source||'').trim()||(body.platform==='kick'?'Kick browser realtime':body.platform==='tiktok'?'TikTok LIVE bridge':'Twitch IRC bridge');
   const transientTikTokBridgeZero=body.platform==='tiktok'&&Number(body.count)===0&&/bridge disconnected|chat.*desconect|socket.*disconnect/i.test(source)&&tiktokDedicatedCounterHealthy();
   const accepted=transientTikTokBridgeZero?false:setViewers(body.platform,body.count,source);
@@ -2088,7 +1980,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    return json(res,200,{ok:true,username:target.username,url:target.url,message:`TikTok vinculado al LIVE de @${target.username}.`});
   }catch(e){return json(res,400,{ok:false,error:e?.message||String(e)})}
  }
- if(pathname==='/api/easy-connect'&&req.method==='POST'){let b='';b=await readBody(req);try{const body=JSON.parse(b||'{}'),p=String(body.platform||'').toLowerCase(),raw=String(body.value||'').trim();if(!['tiktok','twitch','kick'].includes(p)||!raw)return json(res,400,{ok:false,error:'Falta plataforma o usuario'});let value=raw;if(p==='tiktok'){const u=parseTikTokUser(raw);value=`https://www.tiktok.com/@${u}/live`;autoPrefs.counterTikTok=value;autoPrefs.counterTikTokEnabled=true;await persistAutoPrefs();connectCounterTikTok(value).catch(()=>{})}if(p==='twitch'){const u=parseTwitchLogin(raw);value=`https://www.twitch.tv/${u}`;autoPrefs.counterTwitch=value;autoPrefs.counterTwitchEnabled=true;await persistAutoPrefs();connectCounterTwitch(value).catch(()=>{})}if(p==='kick'){const u=raw.replace(/^https?:\/\/(www\.)?kick\.com\//i,'').split(/[/?#]/)[0].replace(/^@/,'');value=`https://kick.com/${u}`;autoPrefs.counterKick=value;autoPrefs.counterKickEnabled=true;await persistAutoPrefs();startKickPolling()}const r=await fetch('http://127.0.0.1:8788/api/connection-prefs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({autoConnect:true,[p+'Url']:value,[p+'Enabled']:true})});if(!r.ok)throw Error('GREÑA Chat no respondió');return json(res,200,{ok:true,platform:p,value,message:'Guardado. GREÑA conectará esta cuenta automáticamente.'})}catch(e){return json(res,400,{ok:false,error:e?.message||String(e)})}}
+ if(pathname==='/api/easy-connect'&&req.method==='POST'){let b='';b=await readBody(req);try{const body=JSON.parse(b||'{}'),p=String(body.platform||'').toLowerCase(),raw=String(body.value||'').trim();if(!['tiktok','twitch','kick'].includes(p)||!raw)return json(res,400,{ok:false,error:'Falta plataforma o usuario'});let value=raw;if(p==='tiktok'){const u=parseTikTokUser(raw);value=`https://www.tiktok.com/@${u}/live`;autoPrefs.counterTikTok=value;autoPrefs.counterTikTokEnabled=true;await persistAutoPrefs()}if(p==='twitch'){const u=parseTwitchLogin(raw);value=`https://www.twitch.tv/${u}`;autoPrefs.counterTwitch=value;autoPrefs.counterTwitchEnabled=true;await persistAutoPrefs();connectCounterTwitch(value).catch(()=>{})}if(p==='kick'){const u=raw.replace(/^https?:\/\/(www\.)?kick\.com\//i,'').split(/[/?#]/)[0].replace(/^@/,'');value=`https://kick.com/${u}`;autoPrefs.counterKick=value;autoPrefs.counterKickEnabled=true;await persistAutoPrefs();startKickPolling()}const r=await fetch('http://127.0.0.1:8788/api/connection-prefs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({autoConnect:true,[p+'Url']:value,[p+'Enabled']:true})});if(!r.ok)throw Error('GREÑA Chat no respondió');return json(res,200,{ok:true,platform:p,value,message:'Guardado. GREÑA conectará esta cuenta automáticamente.'})}catch(e){return json(res,400,{ok:false,error:e?.message||String(e)})}}
  if(pathname==='/api/moderation/action'&&req.method==='POST'){
   let raw='';raw=await readBody(req);try{const body=JSON.parse(raw||'{}');const out=await moderationAction(body);return json(res,200,out)}catch(e){const msg=e?.message||String(e);const reconnect=/scope|permission|401|403|unauthor|forbidden/i.test(msg);return json(res,400,{ok:false,error:msg,reconnect})}
  }
@@ -2195,8 +2087,15 @@ server.on('upgrade',(req,socket,head)=>{
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
 let autoTikTokBusy=false;
-async function ensureTikTokLiveAuto(){if(!autoPrefs.enabled||savedAuth.tiktok?.mode==='live-link'||bridgeRuntime.tiktok||!savedAuth.tiktok?.username||autoTikTokBusy||tiktok?.roomId)return;autoTikTokBusy=true;try{await connectTikTokLive(savedAuth.tiktok.username)}catch{}finally{autoTikTokBusy=false}}
-async function ensureCountersAuto(){if(!autoPrefs.enabled)return;try{if(autoPrefs.counterTikTokEnabled&&autoPrefs.counterTikTok&&!counterTikTok)await connectCounterTikTok(autoPrefs.counterTikTok)}catch{}try{if(autoPrefs.counterTwitchEnabled&&autoPrefs.counterTwitch&&!counterTwitchLogin)await connectCounterTwitch(autoPrefs.counterTwitch)}catch{}try{if(autoPrefs.counterKickEnabled&&autoPrefs.counterKick&&!kickViewerTimer)startKickPolling()}catch{}}
+async function ensureTikTokLiveAuto(){
+ if(!autoPrefs.enabled||bridgeRuntime.tiktok||autoTikTokBusy)return;
+ const value=String(autoPrefs.counterTikTok||'').trim()||(savedAuth.tiktok?.username?`https://www.tiktok.com/@${String(savedAuth.tiktok.username).replace(/^@/,'')}/live`:'');
+ if(!value)return;
+ autoTikTokBusy=true;
+ try{await connectCounterTikTok(value)}catch(e){console.warn('[TikTok shared bridge]',e?.message||e)}
+ finally{autoTikTokBusy=false}
+}
+async function ensureCountersAuto(){if(!autoPrefs.enabled)return;try{if(autoPrefs.counterTwitchEnabled&&autoPrefs.counterTwitch&&!counterTwitchLogin)await connectCounterTwitch(autoPrefs.counterTwitch)}catch{}try{if(autoPrefs.counterKickEnabled&&autoPrefs.counterKick&&!kickViewerTimer)startKickPolling()}catch{}}
 server.listen(PORT,HOST,async()=>{
  console.log(`GREÑA LIVE PRO WEB FIX14 completo listo: ${BASE}`);
  purgeSessionsAndPersist();setInterval(purgeSessionsAndPersist,6*60*60*1000).unref();
