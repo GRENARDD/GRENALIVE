@@ -233,4 +233,128 @@ window.addEventListener('message',e=>{
 });
 window.addEventListener('popstate',()=>{const m=moduleFromHash();m?openModule(m,{updateHash:false}):closeModule({updateHash:false})});
 
-(async()=>{if(!(await initAccount()))return;await loadInitial();connectCore();connectChatEngine();const m=moduleFromHash();if(m)openModule(m,{updateHash:false})})();
+
+// ===== SOUNDBOARD · 5 AUDIOS RÁPIDOS =====
+const soundboard={
+ slots:new Map(),
+ activeSlot:0,
+ audio:null,
+ uploadSlot:0,
+ replaceSlot:0,
+ holdTimer:null,
+ holdButton:null,
+ suppressClick:0
+};
+function soundPad(slot){return document.querySelector('.sound-pad[data-sound-slot="'+slot+'"]')}
+function soundName(name='',slot=1){
+ const clean=String(name||'').replace(/\.[^.]+$/,'').trim();
+ return clean||('Audio '+slot);
+}
+function renderSoundPad(slot){
+ const b=soundPad(slot);if(!b)return;
+ const meta=soundboard.slots.get(slot);
+ b.classList.remove('empty','playing','paused','uploading','holding');
+ const icon=b.querySelector('.sound-pad-icon'),title=b.querySelector('b'),small=b.querySelector('small');
+ if(!meta||meta.empty){
+  b.classList.add('empty');icon.textContent='＋';title.textContent='Audio '+slot;small.textContent='Vacío · subir';return;
+ }
+ title.textContent=soundName(meta.name,slot);
+ if(soundboard.activeSlot===slot&&soundboard.audio){
+  if(soundboard.audio.paused){b.classList.add('paused');icon.textContent='▶';small.textContent='Pausado · clic para seguir'}
+  else{b.classList.add('playing');icon.textContent='Ⅱ';small.textContent='Sonando · clic para pausar'}
+ }else{
+  icon.textContent='▶';small.textContent='Clic para reproducir';
+ }
+}
+function renderSoundboard(){for(let i=1;i<=5;i++)renderSoundPad(i)}
+async function loadSoundboard(){
+ try{
+  const r=await fetch('/api/soundboard',{cache:'no-store'}),d=await r.json();
+  if(!r.ok)throw Error(d.error||'No se pudieron cargar los audios.');
+  soundboard.slots.clear();
+  for(const item of (d.slots||[]))soundboard.slots.set(Number(item.slot),item);
+  renderSoundboard();
+ }catch(e){console.warn('[soundboard]',e?.message||e)}
+}
+function stopSoundboardAudio(reset=true){
+ if(!soundboard.audio)return;
+ try{soundboard.audio.pause();if(reset)soundboard.audio.currentTime=0}catch{}
+ const old=soundboard.activeSlot;soundboard.audio=null;soundboard.activeSlot=0;if(old)renderSoundPad(old);
+}
+async function toggleSound(slot){
+ const meta=soundboard.slots.get(slot);
+ if(!meta||meta.empty){openSoundPicker(slot);return}
+ if(soundboard.activeSlot===slot&&soundboard.audio){
+  if(soundboard.audio.paused){
+   try{await soundboard.audio.play();renderSoundPad(slot)}catch{toast('El navegador no pudo reproducir este audio.')}
+  }else{soundboard.audio.pause();renderSoundPad(slot)}
+  return;
+ }
+ stopSoundboardAudio(true);
+ const audio=new Audio(meta.url);audio.preload='auto';soundboard.audio=audio;soundboard.activeSlot=slot;
+ audio.addEventListener('ended',()=>{if(soundboard.audio!==audio)return;soundboard.audio=null;soundboard.activeSlot=0;renderSoundPad(slot)});
+ audio.addEventListener('error',()=>{if(soundboard.audio!==audio)return;soundboard.audio=null;soundboard.activeSlot=0;renderSoundPad(slot);toast('No se pudo reproducir ese audio.')});
+ try{await audio.play();renderSoundPad(slot)}catch{soundboard.audio=null;soundboard.activeSlot=0;renderSoundPad(slot);toast('No se pudo reproducir ese audio.')}
+}
+function openSoundPicker(slot){
+ soundboard.uploadSlot=slot;
+ const input=$('soundboardFile');if(!input)return;
+ input.value='';input.click();
+}
+function showReplaceSoundDialog(slot){
+ const meta=soundboard.slots.get(slot);if(!meta||meta.empty)return;
+ soundboard.replaceSlot=slot;
+ $('soundboardReplaceTitle').textContent='Reemplazar Audio '+slot;
+ $('soundboardReplaceName').textContent='Actual: '+String(meta.name||('Audio '+slot))+' · el audio nuevo ocupará este mismo botón.';
+ const dialog=$('soundboardReplaceDialog');
+ if(dialog?.showModal)dialog.showModal();else openSoundPicker(slot);
+}
+function cancelSoundHold(){
+ clearTimeout(soundboard.holdTimer);soundboard.holdTimer=null;
+ if(soundboard.holdButton)soundboard.holdButton.classList.remove('holding');
+ soundboard.holdButton=null;
+}
+document.querySelectorAll('.sound-pad').forEach(btn=>{
+ const slot=Number(btn.dataset.soundSlot);
+ btn.addEventListener('click',e=>{
+  if(soundboard.suppressClick===slot){soundboard.suppressClick=0;e.preventDefault();return}
+  toggleSound(slot);
+ });
+ btn.addEventListener('pointerdown',e=>{
+  if(e.button!==0)return;
+  const meta=soundboard.slots.get(slot);if(!meta||meta.empty)return;
+  cancelSoundHold();soundboard.holdButton=btn;btn.classList.add('holding');
+  soundboard.holdTimer=setTimeout(()=>{
+   soundboard.holdTimer=null;soundboard.suppressClick=slot;btn.classList.remove('holding');soundboard.holdButton=null;
+   showReplaceSoundDialog(slot);
+  },5000);
+ });
+ ['pointerup','pointercancel','pointerleave'].forEach(ev=>btn.addEventListener(ev,cancelSoundHold));
+ btn.addEventListener('contextmenu',e=>e.preventDefault());
+});
+$('soundboardReplaceCancel')?.addEventListener('click',()=>{$('soundboardReplaceDialog')?.close();soundboard.replaceSlot=0});
+$('soundboardReplaceConfirm')?.addEventListener('click',()=>{
+ const slot=soundboard.replaceSlot;$('soundboardReplaceDialog')?.close();soundboard.replaceSlot=0;
+ if(slot){if(soundboard.activeSlot===slot)stopSoundboardAudio(true);openSoundPicker(slot)}
+});
+$('soundboardReplaceDialog')?.addEventListener('cancel',()=>{soundboard.replaceSlot=0});
+$('soundboardFile')?.addEventListener('change',async e=>{
+ const file=e.target.files?.[0],slot=soundboard.uploadSlot;soundboard.uploadSlot=0;
+ if(!file||!slot)return;
+ if(file.size>15*1024*1024){toast('Ese audio pesa más de 15 MB.');return}
+ const ext=(file.name.match(/\.[^.]+$/)?.[0]||'').toLowerCase();
+ if(!['.mp3','.wav','.ogg','.m4a','.aac','.webm'].includes(ext)){toast('Usa MP3, WAV, OGG, M4A, AAC o WEBM.');return}
+ const btn=soundPad(slot);btn?.classList.add('uploading');if(btn?.querySelector('small'))btn.querySelector('small').textContent='Guardando audio…';
+ try{
+  const r=await fetch('/api/soundboard/slot/'+slot,{
+   method:'POST',
+   headers:{'content-type':file.type||'application/octet-stream','x-grena-filename':encodeURIComponent(file.name)},
+   body:file
+  });
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw Error(d.error||'No se pudo guardar el audio.');
+  soundboard.slots.set(slot,d.slot);renderSoundPad(slot);toast('Audio '+slot+' guardado.');
+ }catch(err){renderSoundPad(slot);toast(err.message||'No se pudo guardar el audio.')}
+});
+
+(async()=>{if(!(await initAccount()))return;await loadInitial();await loadSoundboard();connectCore();connectChatEngine();const m=moduleFromHash();if(m)openModule(m,{updateHash:false})})();
