@@ -1388,27 +1388,19 @@ async function ensureKickEventSubscriptions(){
   const existing=new Set(current.map(x=>String(x?.event||x?.name||x?.type||'')));
   const missing=KICK_EVENT_SUBSCRIPTIONS.filter(name=>!existing.has(name));
   const failures=[];
-  // Con User Access Token, Kick infiere el broadcaster. Enviar los eventos uno por
-  // uno evita que un único tipo rechazado bloquee todos los demás y nos deja ver
-  // exactamente cuál falló.
-  for(const name of missing){
+  if(missing.length){
+   const events=missing.map(name=>({name,version:1}));
    try{
-    let d;
-    // Según el OpenAPI, "events" es el único campo obligatorio. Probamos primero
-    // el payload mínimo y, si Kick lo rechaza, la variante explícita webhook.
+    // El contrato actual de Kick acepta varios eventos en un único POST. Con User
+    // Access Token no enviamos broadcaster_user_id: Kick lo infiere del token.
+    await kickSubscriptionsRequest('',{method:'POST',body:JSON.stringify({events})});
+   }catch(first){
     try{
-     d=await kickSubscriptionsRequest('',{method:'POST',body:JSON.stringify({events:[{name,version:1}]})});
-    }catch(first){
-     try{
-      d=await kickSubscriptionsRequest('',{method:'POST',body:JSON.stringify({method:'webhook',events:[{name,version:1}]})});
-     }catch(second){
-      throw Error(`${second?.message||second} (payload mínimo: ${first?.message||first})`);
-     }
+     await kickSubscriptionsRequest('',{method:'POST',body:JSON.stringify({method:'webhook',events})});
+    }catch(second){
+     failures.push(`lote: ${second?.message||second} (payload mínimo: ${first?.message||first})`);
     }
-    const rows=Array.isArray(d?.data)?d.data:[];
-    const failed=rows.find(x=>String(x?.name||'')===name&&x?.error);
-    if(failed?.error)failures.push(`${name}: ${failed.error}`);
-   }catch(e){failures.push(`${name}: ${e?.message||e}`)}
+   }
   }
   const after=kickSubscriptionRows(await kickSubscriptionsRequest());
   const active=[...new Set(after.map(x=>String(x?.event||x?.name||x?.type||'')).filter(x=>KICK_EVENT_SUBSCRIPTIONS.includes(x)))];
@@ -1418,6 +1410,7 @@ async function ensureKickEventSubscriptions(){
   kickEventHealth.lastError=failures.join(' | ');
   kickEventHealth.updatedAt=Date.now();pushEventHealth();
   if(failures.length)console.warn('[KICK EVENTS]',kickEventHealth.lastError);
+  else console.log('[KICK EVENTS]',JSON.stringify({active,failed:failedNames}));
   return kickEventHealth.subscriptionsReady;
  }catch(e){kickEventHealth.subscriptionsReady=false;kickEventHealth.lastError=e?.message||String(e);kickEventHealth.updatedAt=Date.now();pushEventHealth();console.warn('[KICK EVENTS]',kickEventHealth.lastError);return false}
 }
