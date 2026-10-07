@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GREÑA · Super Fans</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Inter,"Segoe UI",Arial,sans-serif;color:#fff}
+:root{--accent:#25f4ee;--accent2:#fe2c55;--muted:#aeb7c8}
+body{padding:10px}
+.stage{width:min(760px,100%);height:190px;position:relative}
+.card{position:relative;height:100%;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,rgba(8,11,18,.92),rgba(16,20,31,.78));border:1px solid rgba(255,255,255,.09);box-shadow:0 14px 44px rgba(0,0,0,.30);backdrop-filter:blur(8px);transition:opacity .28s ease,transform .38s cubic-bezier(.2,.85,.2,1),filter .28s ease}
+.card.switching{opacity:.18;transform:translateX(22px) scale(.985);filter:blur(2px)}
+.card:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 18% 20%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 38%),linear-gradient(90deg,color-mix(in srgb,var(--accent) 7%,transparent),transparent 40%);pointer-events:none}
+.top{height:50px;display:flex;align-items:center;padding:10px 16px;gap:10px;position:relative;z-index:2}
+.logo{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);flex:0 0 auto}.logo img{width:20px;height:20px;object-fit:contain}
+.title{min-width:0;flex:1}.eyebrow{font-size:9px;letter-spacing:.2em;font-weight:1000;color:var(--accent)}.platform{font-size:16px;font-weight:1000;line-height:1.05}.timer{font-size:11px;font-weight:1000;color:var(--accent);padding:6px 9px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);background:rgba(0,0,0,.16)}
+.main{height:104px;display:grid;grid-template-columns:70px minmax(0,1fr) auto;gap:13px;align-items:center;padding:0 16px;position:relative;z-index:2}
+.avatar{width:66px;height:66px;border-radius:20px;display:grid;place-items:center;overflow:hidden;background:#111723;border:2px solid color-mix(in srgb,var(--accent) 55%,transparent);box-shadow:0 0 25px color-mix(in srgb,var(--accent) 18%,transparent);font-size:24px;font-weight:1000}.avatar img{width:100%;height:100%;object-fit:cover}
+.copy{min-width:0}.crown{font-size:10px;color:#ffd76a;font-weight:1000;letter-spacing:.1em;margin-bottom:2px}.name{font-size:22px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 12px rgba(0,0,0,.5)}.level{font-size:10px;color:var(--muted);font-weight:800;margin-top:3px}
+.stats{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.pill{padding:4px 7px;border-radius:9px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.06);font-size:9px;color:#d6dce8;font-weight:900}.pill b{color:#fff}
+.score{text-align:right;min-width:112px}.score strong{display:block;font-size:30px;line-height:.95;font-weight:1000}.score span{font-size:9px;color:var(--accent);letter-spacing:.15em;font-weight:1000}
+.empty{grid-column:1/-1;text-align:center;color:var(--muted);font-weight:800}.empty b{display:block;color:#fff;font-size:17px;margin-bottom:4px}
+.progress{position:absolute;left:16px;right:16px;bottom:12px;height:3px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;z-index:3}.progress i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transform-origin:left center}
+.foot{position:absolute;right:16px;bottom:18px;font-size:8px;color:#7f899c;font-weight:900;letter-spacing:.12em;z-index:3}
+@media(max-width:540px){body{padding:5px}.stage{height:176px}.main{grid-template-columns:58px minmax(0,1fr) auto;padding:0 11px;gap:9px}.avatar{width:55px;height:55px;border-radius:17px}.name{font-size:17px}.score{min-width:78px}.score strong{font-size:23px}.pill:nth-child(n+3){display:none}.top{padding:8px 11px}.progress{left:11px;right:11px}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="card" id="card">
+    <div class="top">
+      <div class="logo"><img id="logo" alt=""></div>
+      <div class="title"><div class="eyebrow">GREÑA · SUPER FANS</div><div class="platform" id="platform">TikTok</div></div>
+      <div class="timer" id="timer">10s</div>
+    </div>
+    <div class="main" id="main"></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="foot">TOP #1 · TIEMPO + INTERACCIONES + APOYO</div>
+  </div>
+</div>
+<script>
+(()=>{
+  const $=id=>document.getElementById(id);
+  const platforms=['tiktok','twitch','kick'];
+  const info={
+    tiktok:{name:'TikTok',logo:'/assets/platforms/tiktok.webp',a:'#25f4ee',b:'#fe2c55'},
+    twitch:{name:'Twitch',logo:'/assets/platforms/twitch.webp',a:'#9146ff',b:'#c8a7ff'},
+    kick:{name:'Kick',logo:'/assets/platforms/kick.svg',a:'#53fc18',b:'#baff9f'}
+  };
+  let state={tops:{tiktok:[],twitch:[],kick:[]}},index=0,remain=10,timer=null;
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const initials=s=>String(s||'?').trim().slice(0,2).toUpperCase();
+  const fmt=n=>Math.round(Number(n)||0).toLocaleString('es-DO');
+  const fmtMin=n=>{const m=Math.round(Number(n)||0);return m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m'};
+  function render(){
+    const p=platforms[index],d=info[p],u=(state.tops?.[p]||[])[0];
+    document.documentElement.style.setProperty('--accent',d.a);
+    document.documentElement.style.setProperty('--accent2',d.b);
+    $('platform').textContent=d.name;$('logo').src=d.logo;$('logo').alt=d.name;
+    if(!u){
+      $('main').innerHTML='<div class="empty"><b>Aún no hay Super Fan</b>Cuando haya actividad, aquí aparecerá el #1 de '+esc(d.name)+'.</div>';
+      return;
+    }
+    const st=u.stats||{};
+    const interaction=(Number(st.comments)||0)+(Number(st.shares)||0)+(Number(st.follows)||0)+(Number(st.subs)||0)+(Number(st.gifts)||0)+(Number(st.raids)||0);
+    const tapLabel=p==='tiktok'?'Tap Taps':'Apoyo';
+    const tapValue=p==='tiktok'?(Number(st.likes)||0):(Number(st.support)||0);
+    const av=u.avatar?'<img src="'+esc(u.avatar)+'" alt="">':esc(initials(u.nickname||u.user));
+    $('main').innerHTML=
+      '<div class="avatar">'+av+'</div>'+
+      '<div class="copy"><div class="crown">👑 SUPER FAN #1</div><div class="name">'+esc(u.nickname||u.user||'Fan')+'</div>'+
+      '<div class="level">'+esc(u.level?.icon||'◇')+' '+esc(u.level?.name||'Bronce')+' · '+fmt(u.activeDays||0)+' días activo</div>'+
+      '<div class="stats"><span class="pill">⏱ <b>'+fmtMin(st.minutes||0)+'</b></span><span class="pill">⚡ <b>'+fmt(interaction)+'</b> interacciones</span><span class="pill">❤ <b>'+fmt(tapValue)+'</b> '+tapLabel+'</span></div></div>'+
+      '<div class="score"><strong>'+fmt(u.score)+'</strong><span>PUNTOS SUPER FAN</span></div>';
+  }
+  function switchPlatform(){
+    const card=$('card');card.classList.add('switching');
+    setTimeout(()=>{index=(index+1)%platforms.length;remain=10;render();$('timer').textContent='10s';restartBar();setTimeout(()=>card.classList.remove('switching'),45)},260);
+  }
+  function restartBar(){
+    const bar=$('bar');bar.style.transition='none';bar.style.transform='scaleX(1)';void bar.offsetWidth;
+    bar.style.transition='transform 10s linear';bar.style.transform='scaleX(0)';
+  }
+  function start(){
+    clearInterval(timer);remain=10;$('timer').textContent='10s';restartBar();
+    timer=setInterval(()=>{remain--;if(remain<=0){switchPlatform();return}$('timer').textContent=remain+'s'},1000);
+  }
+  function apply(data){if(!data)return;state=data;render()}
+  async function load(){
+    try{const r=await fetch('/api/loyalty?limit=1',{cache:'no-store'}),d=await r.json();if(d.ok)apply(d.loyalty)}catch{}
+  }
+  function connect(){
+    const proto=location.protocol==='https:'?'wss':'ws',sock=new WebSocket(proto+'://'+location.host);
+    sock.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='hello'&&d.loyalty)apply(d.loyalty);if(d.type==='loyalty-update'&&d.loyalty)apply(d.loyalty)}catch{}};
+    sock.onclose=()=>setTimeout(connect,1500);sock.onerror=()=>{try{sock.close()}catch{}};
+  }
+  render();load();connect();start();
+})();
+</script>
+</body>
+</html>
