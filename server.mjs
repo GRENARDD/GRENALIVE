@@ -3,6 +3,8 @@ import tls from 'node:tls';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { readFile, writeFile, mkdir, copyFile, unlink, access, rename, chmod, appendFile } from 'node:fs/promises';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { extname, join, normalize, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { randomBytes, randomInt, createHash, createVerify, scryptSync, scrypt, timingSafeEqual } from 'node:crypto';
