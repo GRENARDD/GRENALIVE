@@ -1297,6 +1297,16 @@ let lastVoiceSpamCleanupAt = 0;
 const VOICE_SPAM_HISTORY_MAX = 1500;
 const VOICE_SPAM_HISTORY_TTL_MS = 2 * 60 * 1000;
 
+// GREÑA LIVE VOICE GUARD · protección para chats masivos.
+// La voz debe sonar "ahora", no leer minutos de atraso.
+const VOICE_QUEUE_SOFT_LIMIT = 10;
+const VOICE_QUEUE_HARD_LIMIT = 20;
+const VOICE_STALE_MS = 12000;
+const VOICE_STALE_OVERLOAD_MS = 6500;
+const VOICE_USER_COOLDOWN_MS = 2200;
+const voiceUserLastQueuedAt = new Map();
+let voiceDroppedOverload = 0;
+
 const SMART_SPAM_PROFILES = {
   soft: {
     windowMs: 6000,
@@ -2014,6 +2024,7 @@ function startFishPrefetch(message){
 }
 
 function pumpFishPrefetch(){
+  dropStaleVoiceMessages();
   if(!isFishVoiceSelected() || fishBlockedError || !$('voiceEnabled')?.checked) return;
   if(fishRetryAt > Date.now()) return;
   if(!getConfiguredFishModels().length) return;
@@ -3307,6 +3318,53 @@ function isSmartVoiceSpam(m){
   return duplicateBlocked || similarBlocked;
 }
 
+function looksLikeStickerOrInternalCode(text=''){
+  const s=String(text||'').trim();
+  if(!s) return true;
+  // Tokens que suelen llegar desde stickers/emotes internos de plataformas.
+  if(/^\s*[\[(<{][A-Za-z0-9_:\-./]{4,90}[\])>}]\s*$/.test(s) &&
+     /(?:sticker|emote|emoji|gift|asset|image|animation|webp|png|gif|tt_|tiktok|kick|twitch|id[:_\-]?\d)/i.test(s)) return true;
+  if(/^(?:sticker|emote|emoji|asset|image)[:_\-][A-Za-z0-9_:\-./]{3,100}$/i.test(s)) return true;
+  if(/^\[[A-Za-z0-9_\-]{8,}\]$/.test(s)) return true;
+  return false;
+}
+
+function stripStickerAndInternalCodes(text=''){
+  let s=String(text||'');
+  // Quita tokens internos incrustados sin destruir frases humanas normales.
+  s=s.replace(/[\[(<{](?:sticker|emote|emoji|asset|image|animation|gift|tt_sticker|tiktok_sticker|kick_emote|twitch_emote)[^\])>}]{0,120}[\])>}]/gi,' ');
+  s=s.replace(/\b(?:sticker|emote|emoji|asset|image)[:_\-][A-Za-z0-9_:\-./]{3,100}\b/gi,' ');
+  return s.replace(/\s{2,}/g,' ').trim();
+}
+
+function voiceUserRateKey(m={}){
+  return fishUserKey(m);
+}
+
+function userVoiceRateLimited(m={}){
+  if(m.__voiceTest) return false;
+  const key=voiceUserRateKey(m), now=Date.now();
+  const last=Number(voiceUserLastQueuedAt.get(key)||0);
+  voiceUserLastQueuedAt.set(key,now);
+  // Evita que una sola persona monopolice Fish cuando el chat está explotado.
+  return last && now-last < VOICE_USER_COOLDOWN_MS;
+}
+
+function dropStaleVoiceMessages(){
+  const now=Date.now();
+  const overloaded=voiceQueue.length>=VOICE_QUEUE_SOFT_LIMIT;
+  const maxAge=overloaded?VOICE_STALE_OVERLOAD_MS:VOICE_STALE_MS;
+  const kept=[];
+  for(const item of voiceQueue){
+    const age=now-Number(item?.__voiceQueuedAt||now);
+    if(!item?.__voiceTest && age>maxAge){
+      cleanupFishPreparedMessage(item,true);
+      voiceDroppedOverload++;
+    }else kept.push(item);
+  }
+  voiceQueue=kept;
+}
+
 function shouldIgnoreVoice(m){
 
   const text =
@@ -3326,6 +3384,14 @@ function shouldIgnoreVoice(m){
 
     return true;
 
+  }
+
+  if(looksLikeStickerOrInternalCode(text)){
+    return true;
+  }
+
+  if(userVoiceRateLimited(m)){
+    return true;
   }
 
   if(isSmartVoiceSpam(m)){
@@ -3448,8 +3514,10 @@ function queueVoice(m){
    */
 
   let text =
-    cleanTextForVoice(
-      m.text || ''
+    stripStickerAndInternalCodes(
+      cleanTextForVoice(
+        m.text || ''
+      )
     );
 
   if(!text){
@@ -3478,13 +3546,15 @@ function queueVoice(m){
 
   }
 
-  if(
-    voiceQueue.length >= 20
-  ){
+  // Antes de añadir otro comentario, purgamos los que ya perdieron
+  // relevancia. En una avalancha (400/4000 personas) el motor permanece cerca
+  // del presente y nunca intenta "ponerse al día" leyendo minutos atrasados.
+  dropStaleVoiceMessages();
 
+  while(voiceQueue.length >= VOICE_QUEUE_HARD_LIMIT){
     const dropped = dropLowestPriorityVoice();
     cleanupFishPreparedMessage(dropped,true);
-
+    voiceDroppedOverload++;
   }
 
   insertVoiceByPriority({
@@ -3825,6 +3895,8 @@ async function speakFishMessage(message, spokenText){
 }
 
 function speakNext(){
+
+  dropStaleVoiceMessages();
 
   if(speaking){
     return;
