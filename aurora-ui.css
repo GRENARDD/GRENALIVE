@@ -371,3 +371,16 @@ body.grena-alerts,body.grena-widgets,body.grena-cam-room,body.grena-catalog,body
  .grena-catalog .stats-grid{grid-template-columns:repeat(2,1fr)!important}.grena-catalog .toolbar{grid-template-columns:1fr!important}
  .grena-preview .viewer-strip{grid-template-columns:1fr 1fr!important}
 }
+
+
+/* HERO DE WIDGETS */
+.grena-widgets .widgets-hero{min-height:190px;display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:center;margin-bottom:14px;padding:22px 26px;border:1px solid rgba(111,84,213,.27);border-radius:18px;background:radial-gradient(420px 210px at 88% 35%,rgba(38,200,224,.10),transparent 70%),radial-gradient(500px 220px at 30% 0%,rgba(124,72,235,.18),transparent 72%),linear-gradient(140deg,#11172d,#081020);box-shadow:0 20px 56px rgba(0,0,0,.23),inset 0 1px rgba(255,255,255,.04);overflow:hidden}
+.grena-widgets .widgets-hero .tag{margin-top:0!important}.grena-widgets .widgets-hero h1{font-size:45px!important;margin-top:7px!important}.grena-widgets .widgets-hero .sub{margin-bottom:0!important}
+.grena-widgets .widgets-hero-visual{height:150px;position:relative;border:1px solid rgba(91,112,190,.19);border-radius:16px;background:radial-gradient(circle at center,rgba(108,73,224,.17),transparent 55%),#060c16;overflow:hidden}
+.grena-widgets .widgets-hero-visual::before,.grena-widgets .widgets-hero-visual::after{content:"";position:absolute;border:1px solid rgba(118,89,229,.20);border-radius:50%}.grena-widgets .widgets-hero-visual::before{width:240px;height:240px;left:45px;top:-45px}.grena-widgets .widgets-hero-visual::after{width:160px;height:160px;left:85px;top:-5px}
+.grena-widgets .widgets-hero-visual .whv{position:absolute;width:50px;height:50px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,#432baf,#233e8f);border:1px solid rgba(143,109,255,.35);box-shadow:0 15px 30px rgba(0,0,0,.25),0 0 24px rgba(94,71,223,.19);font-size:20px;z-index:2}.grena-widgets .widgets-hero-visual .one{left:56px;top:50px}.grena-widgets .widgets-hero-visual .two{left:139px;top:22px}.grena-widgets .widgets-hero-visual .three{right:50px;bottom:27px}.grena-widgets .widgets-hero-visual i{position:absolute;left:76px;right:76px;top:73px;height:1px;background:linear-gradient(90deg,#654bff88,#37cae688);box-shadow:0 0 13px #6245ff88;transform:rotate(-10deg)}
+.grena-widgets .widgets-hero .ui-complexity-bar{grid-column:1/-1!important;margin:12px 0 0!important}
+@media(max-width:920px){.grena-widgets .widgets-hero{grid-template-columns:1fr}.grena-widgets .widgets-hero-visual{display:none}}
+
+/* DETALLES EXTRA DEL PREVIEW */
+.grena-preview .brand{min-width:275px!important}.grena-preview .brand small{font-size:8px!important;letter-spacing:.13em!important}.grena-preview .live-meta{padding-left:10px!important}.grena-preview .viewer-card.tt{box-shadow:inset 0 -2px rgba(254,44,85,.22),0 14px 30px rgba(0,0,0,.16)!important}.grena-preview .viewer-card.tw{box-shadow:inset 0 -2px rgba(145,70,255,.28),0 14px 30px rgba(0,0,0,.16)!important}.grena-preview .viewer-card.ki{box-shadow:inset 0 -2px rgba(83,252,24,.22),0 14px 30px rgba(0,0,0,.16)!important}
