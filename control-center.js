@@ -164,7 +164,6 @@ $('onboardingLater')?.addEventListener('click',()=>{localStorage.setItem(onboard
 // permanece montado y activo, por lo que SpeechSynthesis y sus colas no se destruyen.
 const moduleLayer=$('moduleLayer'), moduleFrame=$('moduleFrame'), moduleTitle=$('moduleTitle');
 const moduleMap={
-  radar:{path:'/radar.html?embed=1',title:'GREÑA Radar · Análisis de tendencias'},
   alerts:{path:'/alerts.html?embed=1',title:'Editor de alertas'},
   widgets:{path:'/widgets.html?embed=1',title:'Widgets OBS'},
   cam:{path:'/cam-room.html?embed=1',title:'GREÑA Cam Room · Cámaras para OBS'},
