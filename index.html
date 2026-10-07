@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/control-center.css">
 <link rel="stylesheet" href="/ui-refresh.css">
 <link rel="stylesheet" href="/ui-v2.css">
+<link rel="stylesheet" href="/aurora-ui.css">
 </head>
 <body class="grena-control">
 <div class="app-shell">
@@ -16,15 +17,18 @@
       <div class="brand-mark">G</div>
       <div><strong>GREÑA LIVE PRO</strong><span>CREATOR CONTROL · 4.0</span></div>
     </div>
+    <nav class="primary-nav" aria-label="Navegación principal">
+      <a class="top-link nav-home active" href="/">⌂ <span>Inicio</span></a>
+      <a class="top-link" href="/alerts.html" data-module="alerts">✦ <span>Alertas</span></a>
+      <a class="top-link" href="/widgets.html" data-module="widgets">▦ <span>Widgets OBS</span></a>
+      <a class="top-link" href="/cam-room.html" data-module="cam">▣ <span>Cam Room</span></a>
+      <a class="top-link" href="/gift-catalog.html" data-module="catalog">◉ <span>Catálogo</span></a>
+    </nav>
     <div class="top-status">
       <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
-      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b id="profileName">GREÑA ID</b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div><button id="exitAppBtn" class="app-exit-btn" type="button">Salir de GREÑA</button>
-      <a class="top-link preview-link" href="/preview.html" target="_blank" rel="noopener">Preview LIVE</a>
-      <a class="top-link" href="/radar.html" data-module="radar">GREÑA Radar</a>
-      <a class="top-link" href="/alerts.html" data-module="alerts">Editor de alertas</a>
-      <a class="top-link" href="/widgets.html" data-module="widgets">Widgets OBS</a>
-      <a class="top-link" href="/cam-room.html" data-module="cam">Cam Room</a>
-      <a class="top-link" href="/gift-catalog.html" data-module="catalog">Catálogo</a>
+      <a class="top-link preview-link" href="/preview.html" target="_blank" rel="noopener">◉ Preview LIVE</a>
+      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b id="profileName">GREÑA ID</b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
+      <button id="exitAppBtn" class="app-exit-btn" type="button">Salir de GREÑA</button>
     </div>
   </header>
 
@@ -109,7 +113,6 @@
   <div class="module-bar">
     <div class="module-title"><span class="module-live-dot"></span><b id="moduleTitle">Módulo GREÑA</b><small>Chat, voz y conexiones siguen activos en segundo plano</small></div>
     <div class="module-actions">
-      <button id="moduleRadarBtn" type="button" data-module-switch="radar">Radar</button>
       <button id="moduleAlertsBtn" type="button" data-module-switch="alerts">Alertas</button>
       <button id="moduleWidgetsBtn" type="button" data-module-switch="widgets">Widgets</button>
       <button id="moduleCamBtn" type="button" data-module-switch="cam">Cam Room</button>
