@@ -3340,6 +3340,13 @@ function isSmartVoiceSpam(m){
 function looksLikeStickerOrInternalCode(text=''){
   const s=String(text||'').trim();
   if(!s) return true;
+
+  // TikTok y otras plataformas pueden mandar emotes como texto corto:
+  // [laughcry], [laughcry][laughcry], [heart], etc.
+  // Si el comentario está compuesto SOLO por esos tokens, se muestra en el
+  // chat visual pero jamás entra a la cola del Chat de Voz.
+  if(/^(?:\s*\[[A-Za-z][A-Za-z0-9_:\-]{1,39}\]\s*)+$/.test(s)) return true;
+
   // Tokens que suelen llegar desde stickers/emotes internos de plataformas.
   if(/^\s*[\[(<{][A-Za-z0-9_:\-./]{4,90}[\])>}]\s*$/.test(s) &&
      /(?:sticker|emote|emoji|gift|asset|image|animation|webp|png|gif|tt_|tiktok|kick|twitch|id[:_\-]?\d)/i.test(s)) return true;
@@ -3350,7 +3357,10 @@ function looksLikeStickerOrInternalCode(text=''){
 
 function stripStickerAndInternalCodes(text=''){
   let s=String(text||'');
-  // Quita tokens internos incrustados sin destruir frases humanas normales.
+  // Quita shortcodes de emotes aunque vengan mezclados con texto normal.
+  // Ej.: "jajaja [laughcry]" => "jajaja".
+  s=s.replace(/\[[A-Za-z][A-Za-z0-9_:\-]{1,39}\]/g,' ');
+  // Quita otros tokens internos incrustados sin destruir frases humanas normales.
   s=s.replace(/[\[(<{](?:sticker|emote|emoji|asset|image|animation|gift|tt_sticker|tiktok_sticker|kick_emote|twitch_emote)[^\])>}]{0,120}[\])>}]/gi,' ');
   s=s.replace(/\b(?:sticker|emote|emoji|asset|image)[:_\-][A-Za-z0-9_:\-./]{3,100}\b/gi,' ');
   return s.replace(/\s{2,}/g,' ').trim();
