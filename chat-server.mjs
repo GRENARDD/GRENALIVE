@@ -218,6 +218,8 @@ let kickPagePollTimer = null;
 let kickRealtimeFrames = 0;
 let kickFollowerSeeded = false;
 let kickFollowerProbeLogged = false;
+let kickFollowerListDisabled = false;
+let kickFollowerCountBaseline = null;
 const kickSeenFollowers = new Set();
 const kickRealtimeEventNames = new Set();
 
@@ -776,6 +778,8 @@ async function disconnectKick() {
   kickSeenMessages.clear();
   kickFollowerSeeded=false;
   kickFollowerProbeLogged=false;
+  kickFollowerListDisabled=false;
+  kickFollowerCountBaseline=null;
   kickSeenFollowers.clear();
   kickRealtimeEventNames.clear();
   if(kickReconnectTimer){clearTimeout(kickReconnectTimer);kickReconnectTimer=null;}
@@ -929,6 +933,25 @@ function kickFollowerRows(payload){
   }
   return [];
 }
+function handleKickFollowerCount(value){
+  const n=Number(value);
+  if(!Number.isFinite(n)||n<0)return;
+  if(kickFollowerCountBaseline===null){
+    kickFollowerCountBaseline=n;
+    console.log('[KICK FOLLOWERS COUNT] base',n);
+    return;
+  }
+  const previous=kickFollowerCountBaseline;
+  kickFollowerCountBaseline=n;
+  if(n<=previous)return;
+  const gained=Math.max(1,Math.round(n-previous));
+  if(gained===1){
+    bridgeAlert('Kick','follow','Nuevo seguidor','te siguió en Kick',{count:1,kickEvent:'followers-count-fallback',anonymousFollower:true});
+  }else{
+    bridgeAlert('Kick','follow',`${gained} nuevos seguidores`,'te siguieron en Kick',{count:gained,kickEvent:'followers-count-fallback',anonymousFollower:true});
+  }
+  console.log('[KICK FOLLOWERS COUNT] +'+gained,'→',n);
+}
 function normalizeKickFollower(row={}){
   const u=row?.user||row?.follower||row?.followed_by||row||{};
   const username=String(u.username||u.name||u.slug||u.channel_slug||row?.username||row?.user_name||'').trim();
@@ -937,7 +960,7 @@ function normalizeKickFollower(row={}){
   return username?{id:id||username,username,avatar}:null;
 }
 async function pollKickFollowers(channel){
-  if(!kickPage||!channel)return;
+  if(!kickPage||!channel||kickFollowerListDisabled)return;
   try{
     const data=await kickPage.evaluate(async slug=>{
       const urls=[
@@ -957,9 +980,11 @@ async function pollKickFollowers(channel){
       return {ok:false,attempts};
     },channel);
     if(!data?.ok){
+      const statuses=(data?.attempts||[]).map(x=>Number(x?.status||0));
+      if(statuses.length&&statuses.every(x=>x===404))kickFollowerListDisabled=true;
       if(!kickFollowerProbeLogged){
         kickFollowerProbeLogged=true;
-        console.warn('[KICK FOLLOWERS] endpoint no disponible',JSON.stringify(data?.attempts||[]));
+        console.warn('[KICK FOLLOWERS] lista nominal no disponible; usando followers_count',JSON.stringify(data?.attempts||[]));
       }
       return;
     }
@@ -1015,7 +1040,7 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
     if(!response){try{await browser.close()}catch{};kickBrowser=null;kickPage=null;throw Error('No pude abrir el canal de Kick. Revisa Internet o el nombre del canal.')}
   }
   const state=await page.evaluate(async slug=>{
-    const out={chatroomId:0,viewerCount:null,liveKnown:false,channelId:0,source:''};
+    const out={chatroomId:0,viewerCount:null,liveKnown:false,channelId:0,followerCount:null,source:''};
     const asNum=v=>{const n=Number(v);return Number.isFinite(n)&&n>=0?n:null};
     const absorb=(d,allowRootId=false,src='')=>{
       if(!d||typeof d!=='object')return;
@@ -1024,6 +1049,8 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
       const cr=asNum(chatroom.id??data.chatroom_id??d.chatroom_id??(allowRootId?data.id:null));
       if(cr&&cr>0&&!out.chatroomId){out.chatroomId=cr;out.source=src}
       const cid=asNum(data.id??data.channel_id??d.channel_id);if(cid&&cid>0&&!out.channelId)out.channelId=cid;
+      const fc=asNum(data.followers_count??data.follower_count??d.followers_count??d.follower_count);
+      if(fc!==null)out.followerCount=fc;
       const stream=data.livestream??data.stream??d.livestream??d.stream;
       if(stream!==undefined){out.liveKnown=true;const n=asNum(stream?.viewer_count??stream?.viewers??stream?.viewerCount);if(n!==null)out.viewerCount=n;else if(stream===null)out.viewerCount=0}
       const direct=asNum(data.viewer_count??data.viewerCount);if(direct!==null){out.liveKnown=true;out.viewerCount=direct}
@@ -1038,7 +1065,7 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
       try{const r=await fetch(u,{credentials:'include',cache:'no-store'});if(!r.ok)continue;const d=await r.json();absorb(d,allowRootId,u);if(out.chatroomId&&out.liveKnown)break}catch{}
     }
     return out;
-  },channel).catch(()=>({chatroomId:0,viewerCount:null,liveKnown:false,channelId:0,source:''}));
+  },channel).catch(()=>({chatroomId:0,viewerCount:null,liveKnown:false,channelId:0,followerCount:null,source:''}));
   if(!keepBrowser&&created){try{await browser.close()}catch{};if(kickBrowser===browser){kickBrowser=null;kickPage=null}}
   return state;
 }
@@ -1048,6 +1075,7 @@ async function pollKickPageState(channel){
     const state=await resolveKickPageState(channel,{keepBrowser:true});
     if(state.chatroomId&&state.chatroomId!==kickChatroomId)kickChatroomId=state.chatroomId;
     if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount);
+    handleKickFollowerCount(state.followerCount);
     await pollKickFollowers(channel);
   }catch{}
 }
@@ -1078,6 +1106,7 @@ async function launchKickChatReader(channel){
   const state=await resolveKickPageState(channel,{keepBrowser:true});
   kickChatroomId=Number(state.chatroomId)||0;
   if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount);
+  handleKickFollowerCount(state.followerCount);
   await pollKickFollowers(channel);
   if(kickPagePollTimer)clearInterval(kickPagePollTimer);
   kickPagePollTimer=setInterval(()=>pollKickPageState(channel),10000);
