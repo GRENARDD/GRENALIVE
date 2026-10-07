@@ -6,100 +6,199 @@
 <title>GREÑA · Meta de seguidores</title>
 <style>
 :root{
-  --panel:#090b12ee;
-  --panel2:#141625ee;
-  --white:#fff;
-  --muted:#a7afc2;
-  --gold1:#ffd84a;
-  --gold2:#ff9f18;
-  --pink:#ff1478;
-  --cyan:#21ecff;
-  --purple:#9f50ff;
-  --green:#53ff22;
+  --bg:#070912;
+  --panel:#0b0e17;
+  --panel2:#101521;
+  --text:#fff;
+  --muted:#a6afc1;
+  --gold:#ffd53a;
+  --pink:#ff2b79;
+  --cyan:#21efff;
+  --purple:#9a54ff;
+  --green:#54ff28;
 }
 *{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden;font-family:Inter,Segoe UI,Arial,sans-serif;color:#fff}
+html,body{
+  margin:0;width:100%;height:100%;overflow:hidden;background:transparent;
+  font-family:Inter,Segoe UI,Arial,sans-serif;color:var(--text)
+}
 body{display:flex;align-items:center;justify-content:center}
-.stage{width:100%;padding:10px}
-.shell{position:relative;isolation:isolate}
-.shell:before{
-  content:"";position:absolute;inset:-3px;z-index:-2;border-radius:30px;
-  background:linear-gradient(110deg,#ff1478,#7c3cff,#21ecff,#53ff22,#ffcf33,#ff1478);
-  background-size:260% 260%;animation:borderFlow 7s linear infinite;filter:drop-shadow(0 10px 28px #0009)
+.stage{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:8px}
+
+.goal-template{
+  position:relative;width:100%;
+  background:
+    radial-gradient(circle at 18% 12%,#ff2b7920,transparent 26%),
+    radial-gradient(circle at 78% 0%,#7457ff1b,transparent 24%),
+    linear-gradient(180deg,#0c1020f4,#070912f5);
+  border:3px solid #080a11;border-radius:28px;
+  box-shadow:0 16px 42px #0009,inset 0 0 0 1px #ffffff12;
+  overflow:hidden;
 }
-.shell:after{content:"";position:absolute;inset:0;z-index:-1;border-radius:27px;background:linear-gradient(145deg,#151625f3,#070911f5)}
-.header{display:flex;align-items:center;justify-content:space-between;gap:16px}
-.kicker{font-weight:1000;letter-spacing:.045em;text-transform:uppercase;text-shadow:0 3px 0 #000,0 0 22px #ff147866}
-.livepill{font-size:10px;font-weight:950;letter-spacing:.12em;padding:7px 10px;border-radius:999px;background:#ffffff0d;border:1px solid #ffffff1a;color:#d9dfeb}
-.brand{display:flex;align-items:center;gap:9px;font-weight:1000;text-transform:uppercase}
-.brand img{width:27px;height:27px;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
-.num{font-weight:1000;line-height:.95;letter-spacing:-.04em;color:#fff;text-shadow:0 4px 0 #000,0 0 14px #000}
-.num .current{color:var(--gold1)}
-.sep{opacity:.92;color:#fff}
-.track{position:relative;overflow:hidden;border-radius:999px;background:#10131d;border:2px solid #ffffff25;box-shadow:inset 0 2px 8px #000b}
-.fill{height:100%;width:0;border-radius:inherit;transition:width .75s cubic-bezier(.2,.9,.22,1);position:relative}
-.fill:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,#ffffff88,transparent);transform:translateX(-110%);animation:shine 2.2s ease-in-out infinite}
-.platform-card.bump .num{animation:bump .62s cubic-bezier(.2,.9,.2,1)}
-.platform-card.done{animation:goalGlow 1.25s ease}
-.platform-card.done .track{box-shadow:0 0 24px currentColor,inset 0 2px 8px #000b}
-.remaining{font-size:11px;font-weight:900;color:#c8cfdd}
-.remaining strong{color:#fff}
-.pop{
-  position:absolute;left:50%;top:-15px;transform:translate(-50%,-8px) scale(.85);
-  padding:8px 14px;border-radius:999px;background:#05060aec;border:2px solid #ffffff33;
-  font-size:11px;font-weight:1000;letter-spacing:.08em;opacity:0;pointer-events:none;
-  box-shadow:0 12px 28px #0009;white-space:nowrap
+.goal-template:before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  padding:3px;
+  background:linear-gradient(110deg,#ff2b79,#9b54ff,#20eaff,#53ff27,#ffd43d,#ff2b79);
+  background-size:260% 100%;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  animation:borderShift 8s linear infinite
 }
-.pop.show{animation:popFollower 1.5s ease forwards}
-.tiktok{--accent:#ff286c;--accent2:#21efff}
-.twitch{--accent:#9c5cff;--accent2:#6b35ff}
-.kick{--accent:#53ff22;--accent2:#26c600}
-.platform-card .fill{background:linear-gradient(90deg,var(--accent),var(--accent2));box-shadow:0 0 18px color-mix(in srgb,var(--accent) 70%,transparent)}
-.horizontal{width:min(1080px,98vw);padding:18px 22px 20px;border-radius:27px}
-.horizontal .header{margin-bottom:14px}
-.horizontal .kicker{font-size:26px}
-.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.platform-card{position:relative;min-width:0;border:2px solid #ffffff14;background:linear-gradient(180deg,#070910ec,#111421ec);border-radius:19px;padding:13px 14px 14px;box-shadow:inset 0 1px 0 #ffffff0d,0 12px 28px #0005;overflow:visible}
-.platform-card:before{content:"";position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;border:1px solid color-mix(in srgb,var(--accent) 70%,transparent);box-shadow:inset 0 0 18px color-mix(in srgb,var(--accent) 15%,transparent)}
-.horizontal .platform-card .topline{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.horizontal .brand{font-size:14px}
-.horizontal .num{font-size:31px;margin:9px 0 10px}
-.horizontal .track{height:14px}
-.horizontal .remaining{margin-top:8px}
-.vertical{width:min(720px,96vw);padding:16px 18px 18px;border-radius:29px}
-.vertical .header{margin-bottom:10px}
-.vertical .kicker{font-size:18px}
-.vertical-card{position:relative;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:14px;border-radius:21px;padding:12px 14px;background:linear-gradient(180deg,#070910ee,#111421ee);border:2px solid #ffffff16;overflow:visible}
-.vertical-card .platform-badge{width:68px;height:68px;border-radius:20px;display:grid;place-items:center;background:#05070b;border:2px solid #ffffff19;box-shadow:0 8px 22px #0008,inset 0 0 20px color-mix(in srgb,var(--accent) 16%,transparent)}
-.vertical-card .platform-badge img{width:42px;height:42px;object-fit:contain}
-.vertical-card .brand{font-size:11px;color:#e4e8f0;margin-bottom:5px}
-.vertical-card .num{font-size:46px;margin-bottom:10px}
-.vertical-card .track{height:17px}
-.vertical-card .remaining{margin-top:8px;font-size:12px}
-.mobile-caption{display:none}
-@media(max-width:660px){
-  .horizontal{padding:14px}
-  .horizontal .kicker{font-size:18px}
-  .cards{gap:7px}
-  .platform-card{padding:10px 9px}
-  .horizontal .brand{font-size:10px}
-  .brand img{width:21px;height:21px}
-  .horizontal .num{font-size:23px}
+.goal-template:after{
+  content:"";position:absolute;left:-8%;right:-8%;bottom:-80px;height:130px;
+  background:radial-gradient(ellipse at center,#ff9d1f38,transparent 70%);
+  pointer-events:none
 }
-@media(max-width:470px){
+.header{
+  position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;
+  gap:18px;padding:18px 22px 11px
+}
+.title{
+  font-weight:1000;letter-spacing:.035em;font-size:28px;line-height:1;
+  color:#fff;text-shadow:0 4px 0 #05060a,0 0 22px #ff2b7955
+}
+.live-pill{
+  flex:0 0 auto;font-size:10px;font-weight:1000;letter-spacing:.12em;
+  padding:7px 11px;border-radius:999px;background:#ffffff0c;
+  border:1px solid #ffffff1a;color:#d8deea
+}
+
+.horizontal-template{max-width:none;padding-bottom:18px}
+.cards{
+  position:relative;z-index:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:12px;padding:0 18px
+}
+.card{
+  --accent:#fff;--accent2:#fff;
+  position:relative;min-width:0;padding:13px 14px 15px;border-radius:20px;
+  background:linear-gradient(180deg,#080a11f2,#10131df2);
+  border:2px solid color-mix(in srgb,var(--accent) 70%,#ffffff20);
+  box-shadow:inset 0 0 20px color-mix(in srgb,var(--accent) 8%,transparent),0 10px 24px #0006;
+  transition:opacity .2s ease,transform .2s ease
+}
+.card.off{display:none}
+.card.tiktok{--accent:var(--pink);--accent2:var(--cyan)}
+.card.twitch{--accent:var(--purple);--accent2:#6b39ff}
+.card.kick{--accent:var(--green);--accent2:#1ec700}
+.brand{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:1000;text-transform:uppercase}
+.brand img{width:25px;height:25px;object-fit:contain;filter:drop-shadow(0 3px 5px #0008)}
+.value{
+  margin:9px 0 10px;font-size:32px;font-weight:1000;letter-spacing:-.045em;line-height:1;
+  text-shadow:0 4px 0 #000,0 0 14px #000
+}
+.current{color:var(--gold)}
+.sep{color:#fff;opacity:.96}
+.track{
+  height:15px;padding:2px;border-radius:999px;background:#06070d;
+  border:1px solid #ffffff2b;box-shadow:inset 0 2px 8px #000d
+}
+.fill{
+  width:0;height:100%;border-radius:inherit;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  box-shadow:0 0 16px color-mix(in srgb,var(--accent) 65%,transparent);
+  transition:width .75s cubic-bezier(.2,.9,.2,1)
+}
+.remaining{margin-top:8px;font-size:11px;font-weight:900;color:#aeb7c8}
+.remaining b{color:#fff}
+.value.bump{animation:numberBump .58s ease}
+
+.vertical-template{
+  width:100%;max-width:none;padding-bottom:15px
+}
+.vertical-template .header{padding-bottom:10px}
+.vertical-template .title{font-size:22px}
+.vertical-card{
+  --accent:var(--pink);--accent2:var(--cyan);
+  position:relative;z-index:2;display:grid;grid-template-columns:72px 1fr;align-items:center;gap:15px;
+  margin:0 16px;padding:12px 14px;border-radius:22px;
+  background:linear-gradient(180deg,#080a11f3,#111521f3);
+  border:2px solid color-mix(in srgb,var(--accent) 72%,#ffffff20);
+  box-shadow:inset 0 0 20px color-mix(in srgb,var(--accent) 8%,transparent),0 10px 24px #0006
+}
+.vertical-card.twitch{--accent:var(--purple);--accent2:#6b39ff}
+.vertical-card.kick{--accent:var(--green);--accent2:#1ec700}
+.platform-badge{
+  width:72px;height:72px;border-radius:20px;display:grid;place-items:center;
+  background:#05070b;border:2px solid #ffffff16;
+  box-shadow:0 9px 24px #0008,inset 0 0 20px color-mix(in srgb,var(--accent) 12%,transparent)
+}
+.platform-badge img{width:43px;height:43px;object-fit:contain}
+.vertical-content .brand{font-size:11px;color:#dce2ee;margin-bottom:5px}
+.vertical-content .value{font-size:46px;margin:0 0 10px}
+.vertical-content .track{height:17px}
+.vertical-content .remaining{font-size:12px}
+.pulse-dot{
+  width:7px;height:7px;border-radius:50%;background:#62ffb4;display:inline-block;margin-right:6px;
+  box-shadow:0 0 10px #62ffb4
+}
+
+@media(max-width:720px){
+  .header{padding:14px 14px 10px}
+  .title{font-size:21px}
+  .cards{gap:7px;padding:0 12px}
+  .card{padding:10px 9px 12px}
+  .brand{font-size:10px}.brand img{width:21px;height:21px}
+  .value{font-size:25px}
+  .remaining{font-size:9px}
+}
+@media(max-width:520px){
   .cards{grid-template-columns:1fr}
-  .horizontal .platform-card{display:grid;grid-template-columns:120px 1fr;column-gap:9px;align-items:center}
-  .horizontal .platform-card .topline,.horizontal .platform-card .num{margin:0}
+  .title{font-size:18px}
 }
-@keyframes borderFlow{0%{background-position:0 50%}100%{background-position:260% 50%}}
-@keyframes shine{0%,55%{transform:translateX(-110%)}80%,100%{transform:translateX(110%)}}
-@keyframes bump{0%{transform:scale(1)}38%{transform:scale(1.18) rotate(-1deg);filter:brightness(1.5)}100%{transform:scale(1)}}
-@keyframes goalGlow{0%,100%{filter:none}35%{filter:brightness(1.65);transform:scale(1.018)}}
-@keyframes popFollower{0%{opacity:0;transform:translate(-50%,5px) scale(.78)}18%,70%{opacity:1;transform:translate(-50%,-6px) scale(1)}100%{opacity:0;transform:translate(-50%,-18px) scale(.95)}}
+
+@keyframes borderShift{0%{background-position:0 0}100%{background-position:260% 0}}
+@keyframes numberBump{0%{transform:scale(1)}38%{transform:scale(1.18);filter:brightness(1.6)}100%{transform:scale(1)}}
 </style>
 </head>
 <body>
-<div class="stage" id="stage"></div>
+<div class="stage">
+  <section class="goal-template horizontal-template" id="horizontal">
+    <div class="header">
+      <div class="title">META DE SEGUIDORES</div>
+      <div class="live-pill"><span class="pulse-dot"></span>GREÑA LIVE</div>
+    </div>
+
+    <div class="cards">
+      <article class="card tiktok" data-card="tiktok">
+        <div class="brand"><img src="/assets/platforms/tiktok.webp" alt=""><span>TikTok</span></div>
+        <div class="value" data-value="tiktok"><span class="current">0</span> <span class="sep">/</span> <span class="goal">100</span></div>
+        <div class="track"><div class="fill" data-fill="tiktok"></div></div>
+        <div class="remaining" data-remaining="tiktok"><b>+100</b> para la meta</div>
+      </article>
+
+      <article class="card twitch" data-card="twitch">
+        <div class="brand"><img src="/assets/platforms/twitch.webp" alt=""><span>Twitch</span></div>
+        <div class="value" data-value="twitch"><span class="current">0</span> <span class="sep">/</span> <span class="goal">10</span></div>
+        <div class="track"><div class="fill" data-fill="twitch"></div></div>
+        <div class="remaining" data-remaining="twitch"><b>+10</b> para la meta</div>
+      </article>
+
+      <article class="card kick" data-card="kick">
+        <div class="brand"><img src="/assets/platforms/kick.svg" alt=""><span>Kick</span></div>
+        <div class="value" data-value="kick"><span class="current">0</span> <span class="sep">/</span> <span class="goal">10</span></div>
+        <div class="track"><div class="fill" data-fill="kick"></div></div>
+        <div class="remaining" data-remaining="kick"><b>+10</b> para la meta</div>
+      </article>
+    </div>
+  </section>
+
+  <section class="goal-template vertical-template" id="vertical" hidden>
+    <div class="header">
+      <div class="title">META DE SEGUIDORES</div>
+      <div class="live-pill" id="verticalPlatformName">TIKTOK</div>
+    </div>
+    <article class="vertical-card tiktok" id="verticalCard">
+      <div class="platform-badge"><img id="verticalIcon" src="/assets/platforms/tiktok.webp" alt=""></div>
+      <div class="vertical-content">
+        <div class="brand" id="verticalBrand">TikTok</div>
+        <div class="value" id="verticalValue"><span class="current">0</span> <span class="sep">/</span> <span class="goal">100</span></div>
+        <div class="track"><div class="fill" id="verticalFill"></div></div>
+        <div class="remaining" id="verticalRemaining"><b>+100</b> para la meta</div>
+      </div>
+    </article>
+  </section>
+</div>
+
 <script>
 const defs={
   tiktok:{name:'TikTok',icon:'/assets/platforms/tiktok.webp'},
@@ -114,105 +213,81 @@ let state={
   },
   gained:{tiktok:0,twitch:0,kick:0}
 };
-let prev={};
-let popTimer=null;
+const previous={tiktok:null,twitch:null,kick:null};
 const params=new URLSearchParams(location.search);
+const mode=(params.get('layout')||'horizontal').toLowerCase()==='vertical'?'vertical':'horizontal';
 
-function currentFor(p){
+document.getElementById('horizontal').hidden=mode!=='horizontal';
+document.getElementById('vertical').hidden=mode!=='vertical';
+
+function current(p){
   const s=state.settings?.[p]||{};
   return Math.max(0,Number(s.current ?? (Number(s.start||0)+Number(state.gained?.[p]||0))));
 }
-function goalFor(p){return Math.max(1,Number(state.settings?.[p]?.goal||1))}
+function goal(p){return Math.max(1,Number(state.settings?.[p]?.goal||1))}
 function shown(p){return state.settings?.[p]?.show!==false}
-function pct(p){return Math.max(0,Math.min(100,currentFor(p)/goalFor(p)*100))}
+function percent(p){return Math.max(0,Math.min(100,current(p)/goal(p)*100))}
 function fmt(n){return Number(n||0).toLocaleString('es-DO')}
-function layoutMode(){
-  const q=(params.get('layout')||'auto').toLowerCase();
-  if(q==='vertical'||q==='horizontal')return q;
-  return innerHeight>innerWidth?'vertical':'horizontal';
-}
-function announce(text){
-  const el=document.querySelector('.pop');
+
+function bump(el){
   if(!el)return;
-  el.textContent=text;
-  el.classList.remove('show');
+  el.classList.remove('bump');
   void el.offsetWidth;
-  el.classList.add('show');
-  clearTimeout(popTimer);
-  popTimer=setTimeout(()=>el.classList.remove('show'),1550);
+  el.classList.add('bump');
+  setTimeout(()=>el.classList.remove('bump'),650);
 }
-function cardHtml(p){
-  const cur=currentFor(p),goal=goalFor(p),left=Math.max(0,goal-cur),done=cur>=goal;
-  const bumped=prev[p]!=null&&cur>prev[p];
-  return '<div class="platform-card '+p+(bumped?' bump':'')+(done?' done':'')+'" data-platform="'+p+'">'+
-    '<div class="pop">NUEVO SEGUIDOR +1</div>'+
-    '<div class="topline"><div class="brand"><img src="'+defs[p].icon+'" alt=""><span>'+defs[p].name+'</span></div></div>'+
-    '<div class="num"><span class="current">'+fmt(cur)+'</span> <span class="sep">/</span> '+fmt(goal)+'</div>'+
-    '<div class="track"><div class="fill" style="width:'+pct(p)+'%"></div></div>'+
-    '<div class="remaining">'+(done?'<strong>¡META COMPLETADA!</strong>':'<strong>+'+fmt(left)+'</strong> para la meta')+'</div>'+
-  '</div>';
-}
-function drawHorizontal(){
-  const visible=['tiktok','twitch','kick'].filter(shown);
-  document.getElementById('stage').innerHTML=
-    '<section class="shell horizontal">'+
-      '<div class="header"><div class="kicker">META DE SEGUIDORES</div><div class="livepill">GREÑA LIVE</div></div>'+
-      '<div class="cards">'+visible.map(cardHtml).join('')+'</div>'+
-    '</section>';
-}
-function drawVertical(){
-  const p=['tiktok','twitch','kick'].find(shown)||'tiktok';
-  const cur=currentFor(p),goal=goalFor(p),left=Math.max(0,goal-cur),done=cur>=goal;
-  const bumped=prev[p]!=null&&cur>prev[p];
-  document.getElementById('stage').innerHTML=
-    '<section class="shell vertical '+p+'">'+
-      '<div class="header"><div class="kicker">META DE SEGUIDORES</div><div class="livepill">'+defs[p].name.toUpperCase()+'</div></div>'+
-      '<div class="vertical-card platform-card '+p+(bumped?' bump':'')+(done?' done':'')+'" data-platform="'+p+'">'+
-        '<div class="pop">NUEVO SEGUIDOR +1</div>'+
-        '<div class="platform-badge"><img src="'+defs[p].icon+'" alt=""></div>'+
-        '<div><div class="brand">'+defs[p].name+'</div>'+
-          '<div class="num"><span class="current">'+fmt(cur)+'</span> <span class="sep">/</span> '+fmt(goal)+'</div>'+
-          '<div class="track"><div class="fill" style="width:'+pct(p)+'%"></div></div>'+
-          '<div class="remaining">'+(done?'<strong>¡META COMPLETADA!</strong>':'<strong>+'+fmt(left)+'</strong> para la meta')+'</div>'+
-        '</div>'+
-      '</div>'+
-    '</section>';
-}
-function draw(){
-  const changed=[];
+function updateHorizontal(){
   for(const p of ['tiktok','twitch','kick']){
-    const cur=currentFor(p);
-    if(prev[p]!=null&&cur>prev[p])changed.push(p);
+    const cur=current(p),g=goal(p),left=Math.max(0,g-cur);
+    const card=document.querySelector('[data-card="'+p+'"]');
+    card.classList.toggle('off',!shown(p));
+    card.querySelector('.current').textContent=fmt(cur);
+    card.querySelector('.goal').textContent=fmt(g);
+    document.querySelector('[data-fill="'+p+'"]').style.width=percent(p)+'%';
+    document.querySelector('[data-remaining="'+p+'"]').innerHTML=cur>=g?'<b>¡META COMPLETADA!</b>':'<b>+'+fmt(left)+'</b> para la meta';
+    if(previous[p]!=null&&cur>previous[p])bump(document.querySelector('[data-value="'+p+'"]'));
+    previous[p]=cur;
   }
-  if(layoutMode()==='vertical')drawVertical();else drawHorizontal();
-  if(changed.length){
-    const shownChanged=changed.find(p=>document.querySelector('[data-platform="'+p+'"]'));
-    if(shownChanged)announce('NUEVO SEGUIDOR +'+Math.max(1,currentFor(shownChanged)-(prev[shownChanged]||0)));
-  }
-  for(const p of ['tiktok','twitch','kick'])prev[p]=currentFor(p);
 }
+function updateVertical(){
+  const p=['tiktok','twitch','kick'].find(shown)||'tiktok';
+  const cur=current(p),g=goal(p),left=Math.max(0,g-cur);
+  const card=document.getElementById('verticalCard');
+  card.className='vertical-card '+p;
+  document.getElementById('verticalIcon').src=defs[p].icon;
+  document.getElementById('verticalBrand').textContent=defs[p].name;
+  document.getElementById('verticalPlatformName').textContent=defs[p].name.toUpperCase();
+  document.querySelector('#verticalValue .current').textContent=fmt(cur);
+  document.querySelector('#verticalValue .goal').textContent=fmt(g);
+  document.getElementById('verticalFill').style.width=percent(p)+'%';
+  document.getElementById('verticalRemaining').innerHTML=cur>=g?'<b>¡META COMPLETADA!</b>':'<b>+'+fmt(left)+'</b> para la meta';
+  if(previous[p]!=null&&cur>previous[p])bump(document.getElementById('verticalValue'));
+  previous[p]=cur;
+}
+function update(){mode==='vertical'?updateVertical():updateHorizontal()}
+
 async function load(){
   try{
     const r=await fetch('/api/follower-goals',{cache:'no-store'});
-    if(r.ok){state=await r.json();draw()}
+    if(!r.ok)return;
+    state=await r.json();
+    update();
   }catch{}
 }
-let ws;
 function connectWs(){
   try{
-    ws=new WebSocket((location.protocol==='https:'?'wss':'ws')+'://'+location.host);
+    const ws=new WebSocket((location.protocol==='https:'?'wss':'ws')+'://'+location.host);
     ws.onmessage=e=>{
       try{
         const d=JSON.parse(e.data);
-        if(d.type==='follower-goals'&&d.state){state=d.state;draw()}
+        if(d.type==='follower-goals'&&d.state){state=d.state;update()}
       }catch{}
     };
     ws.onclose=()=>setTimeout(connectWs,1800);
     ws.onerror=()=>{try{ws.close()}catch{}};
   }catch{setTimeout(connectWs,2200)}
 }
-addEventListener('resize',()=>{if((params.get('layout')||'auto')==='auto')draw()});
-draw();
+update();
 load();
 connectWs();
 setInterval(load,12000);
