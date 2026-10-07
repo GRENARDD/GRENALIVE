@@ -34,7 +34,7 @@ function enqueue(a={}){
 }
 function next(){if(playing||!queue.length)return;playing=true;show(queue.shift())}
 function initials(n='U'){const s=String(n??'').trim();if(!s)return 'U';let g='';try{if(typeof Intl!=='undefined'&&Intl.Segmenter){const it=new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(s)[Symbol.iterator]().next();if(!it.done)g=it.value.segment}}catch{}if(!g)g=Array.from(s)[0]||'U';return g.toUpperCase().replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')}
-function eventName(a={}){if(a.event==='gift'&&a.giftName)return `REGALO · ${String(a.giftName).toUpperCase()}`;if(a.event==='cheer'&&Number(a.bits)>0)return `${Number(a.bits).toLocaleString('es-DO')} BITS RECIBIDOS`;return a.eventLabel||({follow:'NUEVO SEGUIDOR',sub:'NUEVA SUSCRIPCIÓN',subrenew:'RENOVÓ SUSCRIPCIÓN',giftsub:'SUSCRIPCIONES REGALADAS',gift:'REGALO RECIBIDO',cheer:'BITS / APOYO',share:'COMPARTIÓ EL LIVE',raid:'RAID',like:'META DE LIKES',milestone:'META ALCANZADA',record:'NUEVO RÉCORD',mega:'MEGA ALERTA'})[a.event]||'EVENTO'}
+function eventName(a={}){if(a.event==='gift'&&a.giftName)return `REGALO · ${String(a.giftName).toUpperCase()}`;if(a.event==='cheer'&&Number(a.bits)>0)return `${Number(a.bits).toLocaleString('es-DO')} BITS RECIBIDOS`;return a.eventLabel||({follow:'NUEVO SEGUIDOR',sub:'NUEVA SUSCRIPCIÓN',subrenew:'RENOVÓ SUSCRIPCIÓN',giftsub:'SUSCRIPCIONES REGALADAS',gift:'REGALO RECIBIDO',cheer:'BITS / APOYO',share:'COMPARTIÓ EL LIVE',raid:'RAID',like:'META DE LIKES',milestone:'META ALCANZADA',record:'NUEVO RÉCORD',mega:'APOYO LEGENDARIO'})[a.event]||'EVENTO'}
 function platformShort(p=''){return /tiktok/i.test(p)?'TikTok':/twitch/i.test(p)?'Twitch':/kick/i.test(p)?'Kick':String(p||'Stream')}
 function platformIconSrc(p=''){
   if(/tiktok/i.test(p))return '/assets/platforms/tiktok.webp';
@@ -241,7 +241,7 @@ function optionAHeadline(a={}){
   if(a.event==='giftsub')return '¡REGALÓ SUSCRIPCIONES!';
   if(a.event==='milestone')return '¡META ALCANZADA!';
   if(a.event==='record')return '¡NUEVO RÉCORD!';
-  if(a.event==='mega')return '¡MEGA ALERTA!';
+  if(a.event==='mega')return '¡MOMENTO LEGENDARIO!';
   if(a.event==='cheer')return Number(a.bits)>0?`¡${Number(a.bits).toLocaleString('es-DO')} BITS!`:'¡NUEVO CHEER!';
   if(a.event==='follow')return '¡NUEVO SEGUIDOR!';
   if(a.event==='share')return '¡COMPARTIÓ EL LIVE!';
@@ -295,7 +295,7 @@ function showOptionA(a={}){
   const v=giftVisual(a);
   if(v.kind==='image'){const im=document.createElement('img');im.src=v.value;im.alt=a.giftName||a.eventLabel||'regalo';im.onerror=()=>{orb.classList.add('oa-fallback');orb.textContent=giftVisual({...a,giftImage:'',giftAnimatedImage:'',animatedImage:'',imageUrl:'',giftIcon:'',iconUrl:''}).value};orb.append(im)}else{orb.classList.add('oa-fallback');orb.textContent=v.value}
   const combo=document.createElement('div');combo.className='oa-combo';combo.textContent=optionACombo(a);
-  const burst=document.createElement('div');burst.className='oa-burst';for(let i=0;i<18;i++){const sp=document.createElement('span');sp.className='oa-particle';const ang=(Math.PI*2*i/18)+(i%3)*.13,dist=70+(i%5)*15;sp.style.setProperty('--x',`${Math.cos(ang)*dist}px`);sp.style.setProperty('--y',`${Math.sin(ang)*dist}px`);sp.style.left=`${45+(i%4)*3}%`;sp.style.top=`${45+(i%3)*4}%`;sp.style.animationDelay=`${(i%7)*.11}s`;burst.append(sp)}
+  const burst=document.createElement('div');burst.className='oa-burst';const particleCount=a.event==='mega'?36:18;for(let i=0;i<particleCount;i++){const sp=document.createElement('span');sp.className='oa-particle';const ang=(Math.PI*2*i/particleCount)+(i%3)*.13,dist=(a.event==='mega'?105:70)+(i%5)*15;sp.style.setProperty('--x',`${Math.cos(ang)*dist}px`);sp.style.setProperty('--y',`${Math.sin(ang)*dist}px`);sp.style.left=`${45+(i%4)*3}%`;sp.style.top=`${45+(i%3)*4}%`;sp.style.animationDelay=`${(i%7)*.11}s`;burst.append(sp)}
   visual.append(ring,ring2,orb,combo,burst);
   card.append(scan,flash,left,visual);root.append(card);
 
