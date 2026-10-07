@@ -91,3 +91,96 @@ body.grena-control *::-webkit-scrollbar-thumb,body.grena-chat *::-webkit-scrollb
 @media(max-width:1320px){.grena-control .topbar{grid-template-columns:auto 1fr!important}.grena-control .primary-nav{grid-column:1/-1;grid-row:2;justify-self:stretch;overflow:auto}.grena-control .top-status{grid-column:2;grid-row:1}.grena-control .workspace{grid-template-columns:minmax(0,1.8fr) minmax(320px,.9fr)!important}}
 @media(max-width:980px){.grena-control .workspace{grid-template-columns:1fr!important}.grena-control .ops-zone{display:grid;grid-template-columns:1fr 1fr}.grena-control .overview-panel{grid-column:1/-1}.grena-control .top-status .health-pill,.grena-control .top-status .preview-link{display:none!important}}
 @media(max-width:720px){.grena-control .topbar{grid-template-columns:1fr auto!important;padding:8px 10px!important}.grena-control .brand-block span,.grena-control .profile-copy{display:none!important}.grena-control .primary-nav{gap:3px}.grena-control .primary-nav .top-link{padding:0 10px!important}.grena-control .workspace{padding:9px!important}.grena-control .ops-zone{grid-template-columns:1fr}.grena-chat .app{padding:9px!important}.grena-alerts .sidebar{box-shadow:none!important}}
+
+
+/* =========================================================
+   MOCKUP MATCH v3 · 2026-10-07
+   Ajuste visual para acercar el producto real a la maqueta
+   aprobada, manteniendo intactos motores, TTS y conexiones.
+========================================================= */
+:root{--mock-blue:#1676ff;--mock-violet:#7948ff;--mock-purple:#a64dff;--mock-pink:#ff2f7e;--mock-cyan:#23dbe7;--mock-green:#39ef91}
+
+.grena-control .topbar{min-height:78px!important;padding:10px 20px!important;grid-template-columns:auto minmax(510px,1fr) auto!important;background:linear-gradient(180deg,rgba(5,9,20,.98),rgba(5,8,17,.94))!important;border-bottom:1px solid rgba(77,104,255,.20)!important;box-shadow:0 12px 38px #0007,0 1px 0 rgba(88,61,255,.16)!important}
+.grena-control .brand-mark{width:48px!important;height:48px!important;border-radius:15px!important;font-size:22px!important;box-shadow:0 0 0 1px #ffffff28,0 0 28px #643cff70,0 14px 34px #0006!important}
+.grena-control .brand-block strong{font-size:20px!important;letter-spacing:.045em!important}.grena-control .brand-block span{font-size:9px!important;color:#7890c4!important}
+.grena-control .primary-nav{justify-self:center!important;min-height:48px;padding:4px!important;border-color:#5267a82b!important;background:linear-gradient(180deg,#0b1325dc,#080e1bdc)!important;border-radius:12px!important}
+.grena-control .primary-nav .top-link{min-height:39px!important;padding:0 17px!important;font-size:11px!important;color:#c0cae3!important}
+.grena-control .primary-nav .top-link.active{color:#fff!important;background:linear-gradient(135deg,#5030b8cc,#382285a8)!important;border-color:#805affaa!important;box-shadow:inset 0 1px #ffffff1a,0 0 24px #6d45ff42!important}
+.grena-control .top-status{gap:8px!important}
+.grena-control .health-pill{height:42px!important;padding:0 14px!important;background:#06342c99!important;border-color:#1ae49b48!important;box-shadow:0 0 24px #16d88a12!important}
+.grena-control .preview-link{width:42px!important;min-width:42px!important;padding:0!important;justify-content:center!important;font-size:0!important}.grena-control .preview-link::before{content:"◉";font-size:16px;color:#b8c6ee}
+.grena-control .profile-pill{height:43px!important;padding:4px 7px!important}.grena-control .profile-avatar{width:32px!important;height:32px!important}.grena-control .app-exit-btn{height:42px!important;padding:0 15px!important;background:#4b0b2b6e!important;border-color:#ff3f824d!important;box-shadow:0 0 22px #ff2e7612!important}
+
+.grena-control .workspace{gap:16px!important;padding:14px 18px 18px!important;grid-template-columns:minmax(0,2.16fr) minmax(390px,.95fr)!important}
+.grena-control .chat-zone{border-radius:19px!important;border-color:#694bce42!important;background:linear-gradient(155deg,#11162ae8,#070c18f2)!important;box-shadow:0 28px 80px #0008,0 0 54px #5226bc12,inset 0 1px #ffffff08!important}
+.grena-control .chat-zone>.panel-head{height:70px!important;flex-basis:70px!important;padding:0 18px!important;background:linear-gradient(90deg,#15152ae0,#0b1428d8)!important}
+.grena-control .main-title-row{display:flex;align-items:baseline;gap:12px}.grena-control .main-title-row h1{font-size:23px!important}.grena-control .main-title-row span{font-size:11px;color:#9faac4;font-weight:600}
+.grena-control .engine-state{padding:8px 12px!important;color:#aab8d4!important;background:#06362f63!important;border-color:#38dfa947!important;box-shadow:0 0 24px #23cf8b0f!important}
+
+.grena-control .overview-panel{border-color:#285eff5c!important;box-shadow:0 22px 58px #0006,0 0 32px #1e55ff18,inset 0 0 42px #173d8d10!important}
+.grena-control .overview-panel>.panel-head{height:140px!important;display:block!important;position:relative!important;padding:16px 16px 12px!important;background:radial-gradient(380px 160px at 88% 0%,#2a28b93b,transparent 66%),linear-gradient(160deg,#111a33,#091022)!important}
+.grena-control .overview-panel>.panel-head>div:first-child h2{font-size:20px!important;margin-top:2px!important}
+.grena-control .viewer-total{position:absolute!important;left:14px!important;right:14px!important;bottom:12px!important;min-height:76px!important;display:grid!important;grid-template-columns:52px 1fr 112px!important;align-items:center!important;gap:12px!important;padding:11px 13px!important;background:linear-gradient(135deg,#151d3be8,#0b1229e8)!important;border:1px solid #5577ff45!important;border-radius:13px!important}
+.grena-control .viewer-total-icon{width:48px!important;height:48px!important;border-radius:12px!important;display:grid!important;place-items:center!important;background:linear-gradient(135deg,#3925b8,#172477)!important;box-shadow:0 0 24px #5e43ff3e!important}.grena-control .viewer-total-icon svg{width:27px!important;height:27px!important}
+.grena-control .viewer-total-copy small{display:block!important;font-size:9px!important;color:#9cadd0!important}.grena-control .viewer-total-copy b{font-size:36px!important;line-height:1!important}.grena-control .viewer-sparkline{width:112px!important;height:44px!important}
+.grena-control .viewer-grid{padding:10px 12px!important;gap:9px!important}.grena-control .viewer-card{min-height:72px!important;padding:10px 12px!important;border-radius:13px!important}
+.grena-control .viewer-card b{font-size:26px!important}.grena-control .viewer-card small{font-size:9px!important}.grena-control .platform-glyph{width:32px!important;height:32px!important}
+.grena-control .ui-dashboard-strip{margin:0 12px 10px!important;border-radius:12px!important;background:#0a1224!important;border:1px solid #ffffff10!important}
+.grena-control .platform-section-head{display:flex;align-items:center;gap:10px;margin:4px 12px 3px;padding:10px 4px 8px;border-top:1px solid #ffffff0d}.grena-control .platform-section-icon{width:29px;height:29px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#522cc4,#1d66bd);box-shadow:0 0 18px #663eff2c}.grena-control .platform-section-head b{display:block;font-size:15px}.grena-control .platform-section-head small{display:block;margin-top:2px;color:#7887a6;font-size:9px}
+.grena-control .platform-stack{padding:0 12px 10px!important}.grena-control .platform-row{min-height:61px!important;margin-top:6px!important;padding:8px 9px!important;border:1px solid #ffffff0e!important;border-radius:11px!important;background:#081021b8!important}.grena-control .platform-row+.platform-row{border-top:1px solid #ffffff0e!important}
+.grena-control .activity-panel,.grena-control .quick-panel{border-color:#724ad43a!important}.grena-control .activity-panel>.panel-head{background:linear-gradient(90deg,#17152ae0,#0a1120d8)!important}.grena-control .quick-panel>.panel-head{background:linear-gradient(90deg,#16132ae0,#0a1120d8)!important}
+
+.grena-chat .ui-complexity-bar{min-height:77px!important;margin:0 0 10px!important;padding:12px 16px!important;border:1px solid #6f57ea44!important;border-radius:14px!important;background:radial-gradient(440px 100px at 28% 50%,#5334d739,transparent 72%),linear-gradient(90deg,#16162fe8,#0b1527e8)!important;box-shadow:inset 0 1px #ffffff0a,0 0 32px #5c31d512!important}
+.grena-chat .ui-complexity-copy i{width:38px!important;height:38px!important;border-radius:10px!important;background:linear-gradient(135deg,#4b31bc,#2b43a1)!important;color:#bdaaff!important;box-shadow:0 0 18px #6146ff38!important}.grena-chat .ui-complexity-copy b{font-size:14px!important}.grena-chat .ui-complexity-copy small{font-size:10px!important;color:#8e9ab7!important}
+.grena-chat .ui-segmented{min-width:210px!important;padding:4px!important;background:#070d19!important;border:1px solid #ffffff10!important;border-radius:11px!important}.grena-chat .ui-segmented button{height:35px!important;font-size:9px!important}.grena-chat .ui-segmented button.on{background:linear-gradient(135deg,#5f39e6,#9a42ff)!important;box-shadow:0 0 24px #8043ff55,inset 0 1px #ffffff22!important}
+
+.grena-chat .autoconnect-strip{min-height:62px!important;margin-bottom:10px!important;padding:10px 13px!important;border:1px solid #10d9c543!important;background:linear-gradient(90deg,#06372f82,#071626d8 56%,#08162fd8)!important;box-shadow:0 0 28px #10c7a40e,inset 0 1px #ffffff08!important}.grena-chat .autoconnect-strip b{font-size:13px!important;color:#63f3c6!important;letter-spacing:.03em}.grena-chat .autoconnect-strip small{color:#9aa8c1!important}.grena-chat .auto-chip{min-height:31px!important;padding:0 11px!important;display:inline-flex!important;align-items:center!important;border-radius:10px!important;font-size:10px!important}.grena-chat #autoTikTok.on{border-color:#ff3d7666!important;box-shadow:0 0 16px #ff2f6b18!important}.grena-chat #autoTwitch.on{border-color:#925cff66!important;box-shadow:0 0 16px #8f54ff18!important}.grena-chat #autoKick.on{border-color:#53fc1866!important;box-shadow:0 0 16px #53fc1818!important}
+
+.grena-chat .voice-panel{position:relative!important;margin-top:10px!important;padding:12px!important;border:1px solid #425fff48!important;border-radius:17px!important;background:radial-gradient(520px 260px at 15% 4%,#3020782b,transparent 70%),linear-gradient(155deg,#11172de8,#08101ff0)!important;box-shadow:0 18px 46px #0005,0 0 42px #2e55ff10,inset 0 1px #ffffff0a!important}
+.grena-chat .voice-title{min-height:53px!important;margin:0 0 10px!important;padding:2px 4px 10px!important;border-bottom:1px solid #6d65ff24!important}.grena-chat .voice-title h2{font-size:20px!important;text-shadow:0 0 18px #4d79ff25}.grena-chat .voice-toggle{font-size:14px!important}.grena-chat .voice-toggle input{width:22px!important;height:22px!important;accent-color:#8354ff!important}
+.grena-chat .advanced-filters-btn{height:34px!important;padding:0 12px!important;border-radius:9px!important;border:1px solid #8b66ff3d!important;background:#251c4b8c!important;color:#d7caff!important;font-size:10px!important}
+.grena-chat .voice-grid{grid-template-columns:1.08fr .95fr .95fr .95fr!important;gap:10px!important}
+.grena-chat .voice-box{min-width:0!important;border:1px solid #306dce3c!important;border-radius:14px!important;background:linear-gradient(155deg,#0c1528f0,#07101ef5)!important;box-shadow:inset 0 1px #ffffff08,0 0 18px #1c5eff0c!important}
+.grena-chat .voice-grid>.voice-box:nth-child(1){background:radial-gradient(280px 180px at 0 100%,#203eaa34,transparent 72%),linear-gradient(155deg,#101a33,#07101e)!important;border-color:#4268d854!important}
+.grena-chat .voice-grid>.voice-box:nth-child(2){border-color:#fa386a50!important;box-shadow:inset 3px 0 #fe2c5577,0 0 18px #fe2c5510!important}.grena-chat .voice-grid>.voice-box:nth-child(3){border-color:#8f5cff50!important;box-shadow:inset 3px 0 #9146ff77,0 0 18px #9146ff10!important}.grena-chat .voice-grid>.voice-box:nth-child(4){border-color:#53fc1850!important;box-shadow:inset 3px 0 #53fc1877,0 0 18px #53fc1810!important}
+.grena-chat .platform-heading img{width:27px!important;height:27px!important;filter:drop-shadow(0 0 10px currentColor)}.grena-chat .platform-heading{font-size:16px!important}
+.grena-chat .voice-box input,.grena-chat .voice-box select,.grena-chat .voice-box textarea{background:#06101f!important;border-color:#5271a62f!important}.grena-chat .voice-box textarea{resize:none!important}
+.grena-chat .fish-paste-model{background:linear-gradient(135deg,#ff2e67,#ff3157)!important;box-shadow:0 0 13px #ff2c5d24!important}
+.grena-chat .voice-status{border-color:#694de437!important;background:#090f1ed9!important;color:#9ba8c1!important}
+.grena-chat .status{border-color:#ffffff0d!important;background:#07101dde!important;color:#98a5bb!important}
+.grena-chat .info{margin:7px 3px!important}.grena-chat .status-pill{background:#081222!important;border-color:#ffffff0f!important}
+
+.grena-chat .live-chat-shell{border:1px solid #3967d43b;border-radius:15px;background:linear-gradient(155deg,#0b1325e8,#060d19f2);box-shadow:inset 0 1px #ffffff06;overflow:hidden;margin-top:7px}
+.grena-chat .live-chat-head{min-height:55px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 11px;border-bottom:1px solid #ffffff0d;background:linear-gradient(90deg,#101a32,#091224)}
+.grena-chat .live-chat-title{display:flex;align-items:center;gap:9px}.grena-chat .live-chat-icon{width:31px;height:31px;border-radius:9px;display:grid;place-items:center;background:linear-gradient(135deg,#5b54ff,#38a7ff);box-shadow:0 0 18px #4d72ff3c}.grena-chat .live-chat-title b{display:block;font-size:14px}.grena-chat .live-chat-title small{display:block;color:#7182a2;font-size:9px;margin-top:2px}
+.grena-chat .live-chat-actions{display:flex;align-items:center;gap:8px}.grena-chat .muted-manage-btn{height:34px!important;padding:0 13px!important;background:#4b0c3068!important;border-color:#ff2f7e70!important;color:#ff8eb7!important;box-shadow:0 0 18px #ff2d7816!important}
+.grena-chat .chat-search{height:34px;min-width:210px;display:flex;align-items:center;gap:7px;padding:0 10px;border:1px solid #4a609c45;border-radius:9px;background:#07101f}.grena-chat .chat-search span{color:#9eb0d8}.grena-chat .chat-search input{border:0!important;background:transparent!important;padding:0!important;box-shadow:none!important;font-size:10px!important}
+.grena-chat .chat-filter-tabs{display:flex;gap:6px;padding:7px 10px;border-bottom:1px solid #ffffff0b;background:#08101f}.grena-chat .chat-filter-tabs button{height:29px;padding:0 11px;border:1px solid #ffffff12;border-radius:8px;background:#0a1426;color:#a8b4cc;font-size:9px;font-weight:800}.grena-chat .chat-filter-tabs button img{width:14px;height:14px;vertical-align:middle;margin-right:4px}.grena-chat .chat-filter-tabs button span{margin-left:3px;color:#7f8ca8}.grena-chat .chat-filter-tabs button.active{color:#fff;background:linear-gradient(135deg,#6d42ec,#9b43ff);border-color:#9a72ff88;box-shadow:0 0 18px #7345ff38}.grena-chat .chat-filter-tabs button.active span{color:#fff}
+.grena-chat .chat{border:0!important;border-radius:0!important;background:#050c17!important;padding:7px 9px!important}.grena-chat .chat-filter-hidden{display:none!important}
+.grena-chat .msg{min-height:42px!important;margin-bottom:4px!important;padding:7px 9px!important;border-radius:9px!important}.grena-chat .avatar{width:30px!important;height:30px!important;min-width:30px!important}.grena-chat .name{font-size:11px!important}.grena-chat .time{font-size:9px!important}.grena-chat .platform-label{font-size:7px!important}.grena-chat .text{margin-top:2px!important;font-size:10px!important;line-height:1.25!important}
+
+.grena-chat .advanced-filters-backdrop{position:fixed;inset:0;z-index:900;background:#02050bd9;backdrop-filter:blur(13px);display:none;align-items:center;justify-content:center;padding:24px}.grena-chat .advanced-filters-backdrop.show{display:flex}.grena-chat .advanced-filters-dialog{width:min(660px,94vw);max-height:88vh;overflow:auto;border:1px solid #865fff4f;border-radius:18px;background:linear-gradient(155deg,#11182d,#070d19);box-shadow:0 35px 100px #000b,0 0 52px #6637ff1e;padding:14px}.grena-chat .advanced-filters-head{display:flex;align-items:center;justify-content:space-between;padding:5px 4px 13px;border-bottom:1px solid #ffffff10;margin-bottom:12px}.grena-chat .advanced-filters-head small{display:block;color:#8c72dd;font-size:8px;letter-spacing:.15em}.grena-chat .advanced-filters-head b{display:block;font-size:18px;margin-top:3px}.grena-chat .advanced-filters-close{width:34px;height:34px;padding:0;border-radius:9px;background:#151c2f;border:1px solid #ffffff12}.grena-chat .advanced-filters-dialog .filters-panel{display:block!important;width:100%!important}
+
+html.grena-embed .app{padding:10px 12px 13px!important}
+html.grena-embed .voice-panel{padding:10px!important}
+html.grena-embed .voice-grid{grid-template-columns:1.06fr .94fr .94fr .94fr!important;gap:8px!important}
+html.grena-embed .voice-box{padding:9px!important}
+html.grena-embed .voice-box h3{margin-bottom:6px!important}
+html.grena-embed .voice-field{margin-bottom:6px!important}
+html.grena-embed #fishModelRows{gap:4px!important;margin-top:5px!important}
+html.grena-embed #fishModelRows>div{gap:5px!important}
+html.grena-embed .fish-model-input{height:28px!important;min-height:28px!important;padding:5px 7px!important;font-size:10px!important}
+html.grena-embed .fish-paste-model{height:28px!important;min-width:34px!important;padding:0 7px!important}
+html.grena-embed #fishModelField>div:last-child{margin-top:5px!important;font-size:9px!important;line-height:1.28!important}
+html.grena-embed .voice-check,html.grena-embed .radio-option{margin:4px 0!important;font-size:10px!important}
+html.grena-embed textarea{height:52px!important;min-height:52px!important}
+html.grena-embed .voice-buttons{margin-top:6px!important}.grena-embed .voice-buttons button{height:30px!important}
+html.grena-embed .voice-status{margin-top:7px!important;padding:6px 8px!important}
+html.grena-embed .status{margin-top:6px!important;padding:6px 9px!important;font-size:9px!important}
+html.grena-embed .info{margin:5px 3px!important}
+html.grena-embed .chat{height:214px!important;min-height:214px!important}
+
+@media(max-width:1450px){
+ .grena-control .topbar{grid-template-columns:auto 1fr auto!important}.grena-control .primary-nav .top-link{padding:0 11px!important}.grena-control .workspace{grid-template-columns:minmax(0,1.9fr) minmax(350px,.9fr)!important}
+ .grena-control .main-title-row span{display:none}.grena-chat .chat-search{min-width:160px}
+}
