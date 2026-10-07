@@ -78,7 +78,7 @@ async function ensureChatServer(){
   if(await chatHealthy())return true;
   if(chatChild && chatChild.exitCode===null)return false;
   try{
-    chatChild=spawn(process.execPath,[join(APP_ROOT,'chat-server.mjs')],{cwd:APP_ROOT,windowsHide:true,stdio:'ignore',env:process.env});
+    chatChild=spawn(process.execPath,[join(APP_ROOT,'chat-server.mjs')],{cwd:APP_ROOT,windowsHide:true,stdio:CLOUD_MODE?['ignore','ignore','inherit']:'ignore',env:process.env});
     chatChild.once('exit',()=>{chatChild=null});
   }catch{chatChild=null}
   return false;
