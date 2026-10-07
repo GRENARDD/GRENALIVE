@@ -67,6 +67,31 @@ const BRIDGE_TOKEN=process.env.GRENA_BRIDGE_TOKEN||randomBytes(24).toString('hex
 if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no definido: arranca con INICIAR_GRENA.vbs (launcher) o con server.mjs para que el puente con el servidor principal funcione.');
 const FISH_AUDIO_API_KEY = process.env.GRENA_FISH_API_KEY || Buffer.from('c2stZmlzaC1PTGJKdExlRzkxeEFXWlFleFlta05UandvSnNlTE9WTUx3OTk2Vnl5Ym9F','base64').toString('utf8');
 const FISH_AUDIO_MODEL = 's2.1-pro-free';
+
+// GREÑA Fish Guard: el plan gratuito admite pocas generaciones simultáneas.
+// Este semáforo es GLOBAL para todas las PCs que usen este mismo servidor.
+const FISH_MAX_CONCURRENT = 5;
+const FISH_WAIT_MAX_MS = 9000;
+let fishActiveRequests = 0;
+const fishWaiters = [];
+function acquireFishSlot(){
+  if(fishActiveRequests < FISH_MAX_CONCURRENT){ fishActiveRequests++; return Promise.resolve(true); }
+  return new Promise(resolve=>{
+    const waiter={resolve,timer:null};
+    waiter.timer=setTimeout(()=>{
+      const i=fishWaiters.indexOf(waiter); if(i>=0) fishWaiters.splice(i,1);
+      resolve(false);
+    },FISH_WAIT_MAX_MS);
+    fishWaiters.push(waiter);
+  });
+}
+function releaseFishSlot(){
+  fishActiveRequests=Math.max(0,fishActiveRequests-1);
+  while(fishWaiters.length && fishActiveRequests < FISH_MAX_CONCURRENT){
+    const waiter=fishWaiters.shift(); clearTimeout(waiter.timer);
+    fishActiveRequests++; waiter.resolve(true);
+  }
+}
 const ALLOWED_ORIGINS=new Set([MAIN_ORIGIN,`http://localhost:${MAIN_PORT}`,'http://127.0.0.1:8788','http://localhost:8788']);
 const ALLOWED_HOSTS=new Set(['127.0.0.1:8788','localhost:8788']);
 function hostAllowed(h){return ALLOWED_HOSTS.has(String(h||'').toLowerCase())}
@@ -1846,6 +1871,16 @@ const server =
             return;
           }
 
+          // Nunca dejamos que una avalancha de chats abra más de 5 generaciones
+          // Fish simultáneas. Si la espera ya es vieja, se descarta en vez de
+          // reproducir voz atrasada muchos segundos después.
+          const gotFishSlot=await acquireFishSlot();
+          if(!gotFishSlot){
+            response.writeHead(429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-grena-fish-dropped':'stale'});
+            response.end(JSON.stringify({ok:false,error:'Mensaje de voz descartado por saturación para mantener el LIVE en tiempo real.'}));
+            return;
+          }
+          let fishSlotHeld=true;
           const controller=new AbortController();
           let clientClosed=false;
           const abortUpstream=()=>{
@@ -1919,6 +1954,7 @@ const server =
             clearTimeout(timer);
             request.off('aborted',abortUpstream);
             response.off('close',abortUpstream);
+            if(fishSlotHeld){ fishSlotHeld=false; releaseFishSlot(); }
           }
         }
 
