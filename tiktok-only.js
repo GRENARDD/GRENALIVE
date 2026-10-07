@@ -11,8 +11,6 @@
   // Widgets: contador y redes exclusivamente TikTok.
   ['twLink','kiLink'].forEach(id=>hideClosest(id,'.row'));
   ['sgTwitch','sgKick'].forEach(id=>hideClosest(id,'.setting'));
-  // Radar: solo selector TikTok.
-  ['pTwitch','pKick'].forEach(id=>hideClosest(id,'.pcheck'));
   document.querySelectorAll('.pulse-card').forEach(card=>{const t=(card.textContent||'').toLowerCase();if(t.includes('twitch')||t.includes('kick'))hide(card)});
   // Alertas: ocultar tarjetas explícitamente de otras plataformas y sus filas de estado.
   document.querySelectorAll('[data-platform="Twitch"],[data-platform="Kick"],[data-onboard="twitch"],[data-onboard="kick"],[data-alert-event="sub"],[data-alert-event="cheer"],[data-alert-event="raid"]').forEach(hide);
