@@ -1,6 +1,9 @@
 const root=document.getElementById('overlayRoot');
 let socket,reconnectTimer,playing=false,activeAlertStyle='classic';const queue=[];
-const MAX_QUEUE=30;
+const MAX_QUEUE=40;
+const ALERT_PRIORITY={mega:100,raid:90,giftsub:85,gift:80,cheer:80,subrenew:75,sub:70,milestone:65,record:65,follow:40,share:25,like:15};
+const smartSvg=(kind)=>{const icons={follow:'%E2%99%A5',sub:'%E2%99%9B',subrenew:'%E2%86%BB',giftsub:'%F0%9F%8E%81',share:'%E2%86%97',raid:'%E2%9A%A1',like:'%E2%99%A5',milestone:'%E2%98%85',record:'%E2%86%91',mega:'%E2%9C%A6',cheer:'%E2%97%86'};const t=icons[kind]||'%E2%9C%A6';return `data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 96 96%22%3E%3Ccircle cx=%2248%22 cy=%2248%22 r=%2242%22 fill=%22%23101622%22 stroke=%22%23fff%22 stroke-width=%224%22/%3E%3Ctext x=%2248%22 y=%2262%22 text-anchor=%22middle%22 font-size=%2244%22 fill=%22%23fff%22%3E${t}%3C/text%3E%3C/svg%3E`};
+function priorityOf(a={}){if(a.mega||a.priority==='mega')return ALERT_PRIORITY.mega;return ALERT_PRIORITY[String(a.event||'').toLowerCase()]||50}
 
 function connect(){
   socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);
@@ -27,11 +30,11 @@ function enqueue(a={}){
     const low=queue.findIndex(x=>['like','share','follow'].includes(String(x.event||'')));
     if(low>=0)queue.splice(low,1);else queue.shift();
   }
-  queue.push(a);next()
+  const p=priorityOf(a);let at=queue.findIndex(x=>priorityOf(x)<p);if(at<0)queue.push(a);else queue.splice(at,0,a);next()
 }
 function next(){if(playing||!queue.length)return;playing=true;show(queue.shift())}
 function initials(n='U'){const s=String(n??'').trim();if(!s)return 'U';let g='';try{if(typeof Intl!=='undefined'&&Intl.Segmenter){const it=new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(s)[Symbol.iterator]().next();if(!it.done)g=it.value.segment}}catch{}if(!g)g=Array.from(s)[0]||'U';return g.toUpperCase().replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')}
-function eventName(a={}){if(a.event==='gift'&&a.giftName)return `REGALO · ${String(a.giftName).toUpperCase()}`;if(a.event==='cheer'&&Number(a.bits)>0)return `${Number(a.bits).toLocaleString('es-DO')} BITS RECIBIDOS`;return a.eventLabel||({follow:'NUEVO SEGUIDOR',sub:'SUSCRIPCIÓN',gift:'REGALO RECIBIDO',cheer:'BITS / APOYO',share:'COMPARTIÓ EL LIVE',raid:'RAID',like:'LIKES'})[a.event]||'EVENTO'}
+function eventName(a={}){if(a.event==='gift'&&a.giftName)return `REGALO · ${String(a.giftName).toUpperCase()}`;if(a.event==='cheer'&&Number(a.bits)>0)return `${Number(a.bits).toLocaleString('es-DO')} BITS RECIBIDOS`;return a.eventLabel||({follow:'NUEVO SEGUIDOR',sub:'NUEVA SUSCRIPCIÓN',subrenew:'RENOVÓ SUSCRIPCIÓN',giftsub:'SUSCRIPCIONES REGALADAS',gift:'REGALO RECIBIDO',cheer:'BITS / APOYO',share:'COMPARTIÓ EL LIVE',raid:'RAID',like:'META DE LIKES',milestone:'META ALCANZADA',record:'NUEVO RÉCORD',mega:'MEGA ALERTA'})[a.event]||'EVENTO'}
 function platformShort(p=''){return /tiktok/i.test(p)?'TikTok':/twitch/i.test(p)?'Twitch':/kick/i.test(p)?'Kick':String(p||'Stream')}
 function platformIconSrc(p=''){
   if(/tiktok/i.test(p))return '/assets/platforms/tiktok.webp';
@@ -68,10 +71,12 @@ function metaChips(a={}){
   }
   if(a.event==='cheer'&&Number(a.bits)>0)chips.push(`${Number(a.bits).toLocaleString('es-DO')} Bits`);
   if(a.event==='raid'&&Number(a.viewers)>0)chips.push(`${Number(a.viewers).toLocaleString('es-DO')} viewers`);
-  if(a.event==='sub'){
+  if(['sub','subrenew','giftsub'].includes(a.event)){
     if(a.tier)chips.push(String(a.tier));
     if(Number(a.months)>0)chips.push(`${Number(a.months)} meses`);
+    if(Number(a.count)>1)chips.push(`${Number(a.count)} suscripciones`);
   }
+  if(['milestone','record','mega','like'].includes(a.event)&&Number(a.value)>0)chips.push(Number(a.value).toLocaleString('es-DO'));
   return chips;
 }
 function metaText(a={}){return metaChips(a).join(' · ')}
@@ -89,14 +94,9 @@ function giftVisual(a={}){
   if(platform.includes('twitch')&&a.giftKind==='subscription')return {kind:'emoji',value:'👑'};
   if(platform.includes('kick')&&a.giftKind==='subscription')return {kind:'emoji',value:'👑'};
   if(platform.includes('kick')&&a.giftKind==='kicks')return {kind:'emoji',value:'💚'};
-  if(a.event==='gift')return {kind:'emoji',value:'🎁'};
-  if(a.event==='cheer')return {kind:'emoji',value:'💎'};
-  if(a.event==='raid')return {kind:'emoji',value:'⚡'};
-  if(a.event==='share')return {kind:'emoji',value:'↗'};
-  if(a.event==='follow')return {kind:'emoji',value:'✨'};
-  if(a.event==='sub')return {kind:'emoji',value:'👑'};
-  if(a.event==='like')return {kind:'emoji',value:'❤️'};
-  return {kind:'emoji',value:'★'};
+  if(a.event==='gift')return {kind:'image',value:smartSvg('giftsub')};
+  if(['cheer','raid','share','follow','sub','subrenew','giftsub','like','milestone','record','mega'].includes(a.event))return {kind:'image',value:smartSvg(a.event)};
+  return {kind:'image',value:smartSvg('mega')};
 }
 function createParticles(){
   const box=document.createElement('div');
@@ -237,6 +237,11 @@ function showClassic(a={}){
 function optionAHeadline(a={}){
   if(a.event==='gift')return '¡NUEVO REGALO!';
   if(a.event==='sub')return '¡NUEVA SUSCRIPCIÓN!';
+  if(a.event==='subrenew')return '¡RENOVÓ SUSCRIPCIÓN!';
+  if(a.event==='giftsub')return '¡REGALÓ SUSCRIPCIONES!';
+  if(a.event==='milestone')return '¡META ALCANZADA!';
+  if(a.event==='record')return '¡NUEVO RÉCORD!';
+  if(a.event==='mega')return '¡MEGA ALERTA!';
   if(a.event==='cheer')return Number(a.bits)>0?`¡${Number(a.bits).toLocaleString('es-DO')} BITS!`:'¡NUEVO CHEER!';
   if(a.event==='follow')return '¡NUEVO SEGUIDOR!';
   if(a.event==='share')return '¡COMPARTIÓ EL LIVE!';
