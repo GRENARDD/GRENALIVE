@@ -1056,7 +1056,7 @@ html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
 
     <!-- FILTROS -->
 
-    <div class="voice-box">
+    <div class="voice-box filters-panel">
 
       <h3>🛡️ Filtros y anti-spam</h3>
 
@@ -1169,10 +1169,7 @@ html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
   </div>
 
   <div class="chat-tools">
-    <button type="button" id="manageMutedUsers" class="muted-manage-btn">🔇 Silenciados</button>
-    <span id="count">
-      0 comentarios
-    </span>
+    <span id="count">0 comentarios</span>
   </div>
 
 </div>
@@ -1181,6 +1178,21 @@ html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
      CHAT
 ========================= -->
 
+<section class="live-chat-shell">
+  <div class="live-chat-head">
+    <div class="live-chat-title"><span class="live-chat-icon">💬</span><div><b>Chat en vivo</b><small>Mensajes del público en tiempo real.</small></div></div>
+    <div class="live-chat-actions">
+      <button type="button" id="manageMutedUsers" class="muted-manage-btn">⊘ Silenciados</button>
+      <label class="chat-search"><span>⌕</span><input id="chatSearchInput" type="search" placeholder="Buscar mensajes…" autocomplete="off"></label>
+    </div>
+  </div>
+  <div class="chat-filter-tabs" role="tablist" aria-label="Filtrar chat">
+    <button type="button" class="active" data-chat-filter="all">✦ Todos <span id="chatCountAll">0</span></button>
+    <button type="button" data-chat-filter="tiktok"><img src="/assets/platforms/tiktok.webp" alt=""> TikTok <span id="chatCountTikTok">0</span></button>
+    <button type="button" data-chat-filter="twitch"><img src="/assets/platforms/twitch.webp" alt=""> Twitch <span id="chatCountTwitch">0</span></button>
+    <button type="button" data-chat-filter="kick"><img src="/assets/platforms/kick.svg" alt=""> Kick <span id="chatCountKick">0</span></button>
+  </div>
+
 <div id="chat" class="chat">
 
   <div id="empty" class="empty">
@@ -1188,6 +1200,7 @@ html.grena-embed .info{margin:8px 3px!important;font-size:11px!important}
   </div>
 
 </div>
+</section>
 
 </main>
 
@@ -5245,5 +5258,71 @@ openWS()
 </script>
 
 <script src="/ui-v2.js"></script>
+
+<script>
+(()=>{
+  // GREÑA UI: en el panel principal los filtros avanzados viven en un drawer.
+  // Así Chat + Voz conserva la altura compacta de la maqueta sin perder ninguna función.
+  const filterBox=document.querySelector('.filters-panel');
+  const voiceTitle=document.querySelector('.voice-title');
+  if(filterBox&&voiceTitle&&!document.getElementById('advancedFiltersBtn')){
+    const btn=document.createElement('button');
+    btn.type='button';btn.id='advancedFiltersBtn';btn.className='advanced-filters-btn ui-advanced-only';
+    btn.innerHTML='⚙ <span>Filtros avanzados</span>';
+    const overlay=document.createElement('div');
+    overlay.className='advanced-filters-backdrop';overlay.setAttribute('aria-hidden','true');
+    const dialog=document.createElement('div');dialog.className='advanced-filters-dialog';
+    const head=document.createElement('div');head.className='advanced-filters-head';
+    head.innerHTML='<div><small>CHAT DE VOZ</small><b>Filtros y anti-spam</b></div><button type="button" class="advanced-filters-close">✕</button>';
+    dialog.appendChild(head);dialog.appendChild(filterBox);overlay.appendChild(dialog);document.body.appendChild(overlay);
+    const close=()=>{overlay.classList.remove('show');overlay.setAttribute('aria-hidden','true')};
+    btn.onclick=()=>{overlay.classList.add('show');overlay.setAttribute('aria-hidden','false')};
+    head.querySelector('.advanced-filters-close').onclick=close;
+    overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+    const readUser=voiceTitle.querySelector('.voice-check');
+    voiceTitle.insertBefore(btn,readUser||null);
+  }
+
+  // Filtros visuales del chat: no alteran TTS ni WebSocket, solo lo que ves.
+  const chat=document.getElementById('chat');
+  const search=document.getElementById('chatSearchInput');
+  const tabs=[...document.querySelectorAll('[data-chat-filter]')];
+  let active='all';
+  function platformOf(el){
+    if(el.classList.contains('tiktok'))return'tiktok';
+    if(el.classList.contains('twitch'))return'twitch';
+    if(el.classList.contains('kick'))return'kick';
+    return'';
+  }
+  function updateCounts(){
+    const rows=[...chat.querySelectorAll('.msg')];
+    const counts={all:rows.length,tiktok:0,twitch:0,kick:0};
+    rows.forEach(r=>{const p=platformOf(r);if(p)counts[p]++});
+    const ids={all:'chatCountAll',tiktok:'chatCountTikTok',twitch:'chatCountTwitch',kick:'chatCountKick'};
+    Object.entries(ids).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.textContent=counts[k]});
+  }
+  function applyChatView(){
+    if(!chat)return;
+    const q=String(search?.value||'').trim().toLowerCase();
+    chat.querySelectorAll('.msg').forEach(row=>{
+      const platform=platformOf(row);
+      const okPlatform=active==='all'||platform===active;
+      const okSearch=!q||String(row.textContent||'').toLowerCase().includes(q);
+      row.classList.toggle('chat-filter-hidden',!(okPlatform&&okSearch));
+    });
+    updateCounts();
+  }
+  tabs.forEach(b=>b.addEventListener('click',()=>{
+    active=b.dataset.chatFilter||'all';
+    tabs.forEach(x=>x.classList.toggle('active',x===b));
+    applyChatView();
+  }));
+  search?.addEventListener('input',applyChatView);
+  if(chat)new MutationObserver(applyChatView).observe(chat,{childList:true,subtree:false});
+  applyChatView();
+})();
+</script>
+
 </body>
 </html>
