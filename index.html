@@ -45,13 +45,28 @@
         <iframe id="chatFrame" title="GREÑA Chat" src="about:blank" allow="autoplay"></iframe>
       </div>
       <div class="soundboard-strip" id="soundboardStrip" aria-label="Audios rápidos">
-        <div class="soundboard-meta"><b>🎧 AUDIOS RÁPIDOS</b><div class="soundboard-meta-actions"><span>Clic: reproducir/detener · Mantén 5 s: reemplazar</span><label class="sound-fade-toggle" title="Sube y baja el volumen suavemente al entrar y salir"><input id="soundboardFadeEnabled" type="checkbox" checked><i aria-hidden="true"></i><em>Desvanecido</em></label></div></div>
+        <div class="soundboard-meta"><b>🎧 AUDIOS RÁPIDOS</b><span>Clic: reproducir/detener · Mantén 5 s: reemplazar · Fade individual</span></div>
         <div class="soundboard-buttons">
-          <button class="sound-pad empty" type="button" data-sound-slot="1"><span class="sound-pad-icon">＋</span><b>Audio 1</b><small>Vacío · subir</small></button>
-          <button class="sound-pad empty" type="button" data-sound-slot="2"><span class="sound-pad-icon">＋</span><b>Audio 2</b><small>Vacío · subir</small></button>
-          <button class="sound-pad empty" type="button" data-sound-slot="3"><span class="sound-pad-icon">＋</span><b>Audio 3</b><small>Vacío · subir</small></button>
-          <button class="sound-pad empty" type="button" data-sound-slot="4"><span class="sound-pad-icon">＋</span><b>Audio 4</b><small>Vacío · subir</small></button>
-          <button class="sound-pad empty" type="button" data-sound-slot="5"><span class="sound-pad-icon">＋</span><b>Audio 5</b><small>Vacío · subir</small></button>
+          <div class="sound-slot" data-sound-wrap="1">
+            <button class="sound-pad empty" type="button" data-sound-slot="1"><span class="sound-pad-icon">＋</span><b>Audio 1</b><small>Vacío · subir</small></button>
+            <label class="sound-slot-fade" title="Desvanecido para Audio 1"><input type="checkbox" data-sound-fade="1" checked><i aria-hidden="true"></i><em>Fade</em></label>
+          </div>
+          <div class="sound-slot" data-sound-wrap="2">
+            <button class="sound-pad empty" type="button" data-sound-slot="2"><span class="sound-pad-icon">＋</span><b>Audio 2</b><small>Vacío · subir</small></button>
+            <label class="sound-slot-fade" title="Desvanecido para Audio 2"><input type="checkbox" data-sound-fade="2" checked><i aria-hidden="true"></i><em>Fade</em></label>
+          </div>
+          <div class="sound-slot" data-sound-wrap="3">
+            <button class="sound-pad empty" type="button" data-sound-slot="3"><span class="sound-pad-icon">＋</span><b>Audio 3</b><small>Vacío · subir</small></button>
+            <label class="sound-slot-fade" title="Desvanecido para Audio 3"><input type="checkbox" data-sound-fade="3" checked><i aria-hidden="true"></i><em>Fade</em></label>
+          </div>
+          <div class="sound-slot" data-sound-wrap="4">
+            <button class="sound-pad empty" type="button" data-sound-slot="4"><span class="sound-pad-icon">＋</span><b>Audio 4</b><small>Vacío · subir</small></button>
+            <label class="sound-slot-fade" title="Desvanecido para Audio 4"><input type="checkbox" data-sound-fade="4" checked><i aria-hidden="true"></i><em>Fade</em></label>
+          </div>
+          <div class="sound-slot" data-sound-wrap="5">
+            <button class="sound-pad empty" type="button" data-sound-slot="5"><span class="sound-pad-icon">＋</span><b>Audio 5</b><small>Vacío · subir</small></button>
+            <label class="sound-slot-fade" title="Desvanecido para Audio 5"><input type="checkbox" data-sound-fade="5" checked><i aria-hidden="true"></i><em>Fade</em></label>
+          </div>
         </div>
         <input id="soundboardFile" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.webm" hidden>
         <dialog class="soundboard-replace-dialog" id="soundboardReplaceDialog">
