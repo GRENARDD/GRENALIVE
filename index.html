@@ -98,7 +98,7 @@
         <div class="viewer-grid">
           <div class="viewer-card tiktok"><img class="platform-glyph" src="/assets/platforms/tiktok.webp" alt="TikTok"><div><small>TikTok</small><b id="tiktokViewers">0</b></div></div>
           <div class="viewer-card twitch"><img class="platform-glyph" src="/assets/platforms/twitch.webp" alt="Twitch"><div><small>Twitch</small><b id="twitchViewers">0</b></div></div>
-          <div class="viewer-card kick"><img class="platform-glyph" src="/assets/platforms/kick.svg" alt="Kick"><div><small>Kick</small><b id="kickViewers">0</b></div></div>
+          <div class="viewer-card kick"><img class="platform-glyph" src="/assets/platforms/kick.svg" alt="Kick"><div><small>Kick</small><b id="kickViewers">0</b></div></div><div class="viewer-card youtube"><span style="color:#ff3030;font-weight:900;font-size:24px">▶</span><div><small>YouTube</small><b id="youtubeViewers">0</b></div></div>
         </div>
         <div class="platform-section-head"><div class="platform-section-icon">◉</div><div><b>Plataformas</b><small>Gestiona tus conexiones y estado en tiempo real.</small></div></div>
         <div class="platform-stack">
@@ -109,6 +109,10 @@
           <article class="platform-row" data-platform="twitch">
             <div class="platform-id"><span class="platform-logo tw"><img src="/assets/platforms/twitch.webp" alt="Twitch"></span><div><b>Twitch</b><small id="twitchAccount">Cuenta no vinculada</small></div></div>
             <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="twitchAuth">Cuenta</span><span class="state-chip" id="twitchLive">Chat</span><span class="state-chip" id="twitchEvents">Eventos</span></div><button id="loginTwitch" class="platform-action">Conectar</button></div>
+          </article>
+          <article class="platform-row" data-platform="youtube">
+            <div class="platform-id"><span class="platform-logo" style="color:#ff3030;font-weight:900">▶</span><div><b>YouTube</b><small id="youtubeAccount">Enlace LIVE no configurado</small></div></div>
+            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="youtubeAuth">Enlace</span><span class="state-chip" id="youtubeLive">Chat</span><span class="state-chip" id="youtubeEvents">Eventos</span></div><button id="loginYouTube" class="platform-action">Configurar</button></div>
           </article>
           <article class="platform-row" data-platform="kick">
             <div class="platform-id"><span class="platform-logo"><img src="/assets/platforms/kick.svg" alt="Kick"></span><div><b>Kick</b><small id="kickAccount">Cuenta no vinculada</small></div></div>
