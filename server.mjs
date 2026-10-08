@@ -2205,8 +2205,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    let body={};try{body=JSON.parse(raw||'{}')}catch{}
    // La firma verifica el origen Kick, pero no significa que el evento sea del creador activo.
    const linkedId=String(savedAuth.kick?.userId||'').trim(),receivedId=String(body.broadcaster?.user_id??body.broadcaster?.id??'').trim();
-   const linkedSlug=normalizeKickSlug(savedAuth.kick?.slug||savedAuth.kick?.username||'');
-   const receivedSlug=normalizeKickSlug(body.broadcaster?.channel_slug||body.broadcaster?.username||'');
+   const linkedSlug=normalizeKickSlug(savedAuth.kick?.slug||savedAuth.kick?.username||'').toLowerCase();
+   const receivedSlug=normalizeKickSlug(body.broadcaster?.channel_slug||body.broadcaster?.username||'').toLowerCase();
    const sameChannel=linkedId&&receivedId?linkedId===receivedId:!!(linkedSlug&&receivedSlug&&linkedSlug===receivedSlug);
    if(!activeUserId||!sameChannel)return json(res,202,{ok:true,ignored:'webhook-for-different-creator'});
    kickEventHealth.lastWebhookAt=Date.now();noteBridgeSignal('kick',eventType,{official:true});pushEventHealth();
