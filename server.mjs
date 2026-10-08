@@ -235,6 +235,13 @@ function upsertCatalogItem(raw,{preferName=false}={}){
 }
 function ensureBuiltInGiftCatalog(){
  const now=Date.now();
+ // Catalog event categories supported by YouTube, not an inventory of all paid stickers.
+ if(!giftCatalogCache.items.some(x=>x.platform==='YouTube')){
+  for(const [id,name,unit] of [['superchat','Super Chat','USD'],['supersticker','Super Sticker','USD'],['membership','Nueva membresía','membership'],['membershipgift','Membresías regaladas','membership'],['membermilestone','Hito de membresía','membership']]){
+   upsertCatalogItem({id:'youtube:'+id,platform:'YouTube',name,nameEs:name,amount:0,unit,giftKind:id,category:id,source:'YouTube event types',observed:false});
+  }
+ }
+
  if(!giftCatalogCache.items.some(x=>x.platform==='TikTok')){
   const fallback=[
    ['Cake Slice',1],['Club Cheers',1],['Congratulations',1],['Creeper',1],['Freestyle',1],['GG',1],['Glow Stick',1],['Go Popular',1],['Guardian Wings',1],['Heart',1],['Heart Me',1],['Ice Cream Cone',1],["It's corn",1],['Love you',1],['Love you so much',1],['Maracas',1],['Music Album',1],['Oldies',1],['Pop',1],['Rose',1],['So Cute',1],['Thumbs Up',1],['TikTok',1],['White Rose',1],['Wink Charm',1],['Wink wink',1],["You're awesome",1],['Team Bracelet',2],['Finger Heart',5],['Wave Firework',5],['Cheer You Up',9],['Club Power',9],['Super Popular',9],['Balloons',10],['Chocolate',10],['Friendship Necklace',10],['Furious Fire',10],['Heart Gaze',10],['Lucky Pony',10],['Rosa',10],['Bravo!',15],['Perfume',20],['Capybara',30],['Doughnut',30],['Bubble Gum',99],['Cap',99],['Hat and Mustache',99],['Little Crown',99],['Confetti',100],['Game Controller',100],['Hand Hearts',100],['Super GG',100],['Gold Medal',200],['Rose Bear',214],['Candy Bouquet',249],['Cheer Mic',249],['Star Goggles',249],['Boxing Gloves',299],['Butterfly for You',299],['LIVE Ranking Crown',299],['Music Mate',299],['Rock Star',299],['TikTok Crown',299],['United Heart',299],['Air Dancer',300],['Sunglasses',199],['Night Star',199]
