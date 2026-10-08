@@ -2201,6 +2201,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/webhooks/kick'&&req.method==='POST'){
    let raw='';raw=await readBody(req);
    const verified=await verifyKickWebhook(req,raw).catch(e=>{console.warn('[KICK WEBHOOK VERIFY]',e?.message||e);return false});if(verified==='duplicate')return json(res,200,{ok:true,duplicate:true});if(!verified)return json(res,403,{ok:false,error:'Firma Kick inválida'});
+   // El cambio de perfil no puede interrumpir un webhook ya verificado.
+   return withAccountTransition(async()=>{
    const eventType=String(req.headers['kick-event-type']||'');
    let body={};try{body=JSON.parse(raw||'{}')}catch{}
    // La firma verifica el origen Kick, pero no significa que el evento sea del creador activo.
@@ -2221,6 +2223,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    }else if(eventType==='livestream.status.updated'){const live=!!body.is_live,slug=String(body?.broadcaster?.channel_slug||body?.broadcaster?.username||currentKickSlug()||'Kick');setStatus('kick',true,live?`${slug} · cuenta vinculada · LIVE activo`:`${slug} · cuenta vinculada · offline`,slug);if(!live)setViewers('kick',0,'Kick livestream.status.updated · offline');
    }
    return json(res,200,{ok:true,event:eventType});
+   });
  }
  if(pathname==='/api/kick/config'&&req.method==='GET')return json(res,200,{ok:true,slug:currentKickSlug()});
  if(pathname==='/api/kick/config'&&req.method==='POST'){let body='';body=await readBody(req);try{const d=JSON.parse(body||'{}');oauthConfig.kick={...(oauthConfig.kick||{}),clientId:String(d.clientId??oauthConfig.kick?.clientId??'').trim(),clientSecret:String(d.clientSecret??oauthConfig.kick?.clientSecret??'').trim()};const slug=normalizeKickSlug(d.slug??currentKickSlug());if(slug){autoPrefs.counterKick=`https://kick.com/${slug}`;autoPrefs.counterKickEnabled=true;await persistAutoPrefs()}await persistOAuthConfig();kickAppToken='';kickTokenExpiresAt=0;if(slug)startKickPolling();return json(res,200,{ok:true,slug})}catch(e){return json(res,400,{error:e.message||'Configuración Kick inválida'})}}
