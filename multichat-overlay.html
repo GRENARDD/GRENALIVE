@@ -185,13 +185,14 @@
   .theme-streamer .name{color:#fff;text-shadow:0 0 14px var(--soft)}
   .theme-streamer .avatar,.theme-streamer .fallback{box-shadow:0 0 0 2px var(--soft),0 4px 18px rgba(0,0,0,.35)}
 
-  .tiktok{--accent:#fe2c55;--soft:rgba(254,44,85,.22);--soft2:rgba(254,44,85,.08)}
+  .tiktok{--accent:#25F4EE;--soft:rgba(37,244,238,.22);--soft2:rgba(37,244,238,.08)}
+.youtube{--accent:#FF0033;--soft:rgba(255,0,51,.22);--soft2:rgba(255,0,51,.08)}
   .twitch{--accent:#9146ff;--soft:rgba(145,70,255,.22);--soft2:rgba(145,70,255,.08)}
   .kick{--accent:#53fc18;--soft:rgba(83,252,24,.22);--soft2:rgba(83,252,24,.08)}
 
   .theme-neon.tiktok,.theme-glass.tiktok{background:linear-gradient(120deg,var(--soft),rgba(9,11,18,var(--bubble-alpha,0.82)) 36%,rgba(9,11,18,var(--bubble-alpha,0.9)))}
   .theme-neon.twitch,.theme-glass.twitch{background:linear-gradient(120deg,var(--soft),rgba(9,11,18,var(--bubble-alpha,0.82)) 36%,rgba(9,11,18,var(--bubble-alpha,0.9)))}
-  .theme-neon.kick,.theme-glass.kick{background:linear-gradient(120deg,var(--soft),rgba(9,11,18,var(--bubble-alpha,0.82)) 36%,rgba(9,11,18,var(--bubble-alpha,0.9)))}
+  .theme-neon.youtube,.theme-glass.youtube,.theme-neon.kick,.theme-glass.kick{background:linear-gradient(120deg,var(--soft),rgba(9,11,18,var(--bubble-alpha,0.82)) 36%,rgba(9,11,18,var(--bubble-alpha,0.9)))}
   .theme-neon{box-shadow:0 14px 34px rgba(0,0,0,.34),0 0 18px var(--soft2)}
   .theme-glass{box-shadow:0 14px 34px rgba(0,0,0,.30),0 0 24px var(--soft2)}
   .theme-minimal{background:rgba(9,11,18,var(--bubble-alpha,0.92))}
@@ -200,8 +201,8 @@
   .theme-cyberline{background:linear-gradient(90deg,rgba(8,11,18,var(--bubble-alpha,.93)),rgba(8,11,18,var(--bubble-alpha,.72)));box-shadow:0 9px 20px rgba(0,0,0,.34)}
   .theme-streamer{background:linear-gradient(120deg,var(--soft),rgba(11,13,22,var(--bubble-alpha,.92)) 28%,rgba(11,13,22,var(--bubble-alpha,.98)));box-shadow:0 16px 36px rgba(0,0,0,.38),0 0 28px var(--soft2)}
 
-  .tiktok .platform{color:#ff8ea3}.twitch .platform{color:#cfb5ff}.kick .platform{color:#a6ff87}
-  .tiktok .name,.tiktok .handle{color:#ff7d97}.twitch .name,.twitch .handle{color:#cdb0ff}.kick .name,.kick .handle{color:#8cff64}
+  .tiktok .platform{color:#25F4EE}.youtube .platform{color:#ff5476}.twitch .platform{color:#cfb5ff}.kick .platform{color:#a6ff87}
+  .tiktok .name,.tiktok .handle{color:#25F4EE}.youtube .name,.youtube .handle{color:#ff5476}.twitch .name,.twitch .handle{color:#cdb0ff}.kick .name,.kick .handle{color:#8cff64}
 
   @keyframes enterLeft{from{opacity:0;transform:translateX(-34px) translateY(6px) scale(.96)}to{opacity:1;transform:none}}
   @keyframes enterRight{from{opacity:0;transform:translateX(34px) translateY(6px) scale(.96)}to{opacity:1;transform:none}}
@@ -303,9 +304,9 @@ function applyStage(){
   }
 }
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function platformLabel(platform){return platform==='tiktok'?'TIKTOK':(platform==='twitch'?'TWITCH':'KICK')}
+function platformLabel(platform){return platform==='tiktok'?'TIKTOK':(platform==='twitch'?'TWITCH':platform==='youtube'?'YOUTUBE':'KICK')}
 function add(d){
-  if(!d||d.type!=='chat'||!['tiktok','twitch','kick'].includes(d.platform))return;
+  if(!d||d.type!=='chat'||!['tiktok','twitch','kick','youtube'].includes(d.platform))return;
   if(d._historyId){
     if(seenHistory.has(d._historyId)&&stage.querySelector(`[data-hid="${CSS.escape(d._historyId)}"]`))return;
     seenHistory.add(d._historyId);
