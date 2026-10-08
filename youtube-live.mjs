@@ -39,14 +39,26 @@ export class YouTubeLiveReader {
   async start(input){
     await this.stop();
     if(!this.apiKey)throw new Error('Falta GRENA_YOUTUBE_API_KEY en Railway.');
-    const id=youtubeVideoId(input);if(!id)throw new Error('Pega el enlace de un video LIVE de YouTube.');
-    const data=await this.request('videos',{part:'liveStreamingDetails,snippet',id});
-    const v=data.items?.[0];if(!v?.liveStreamingDetails?.activeLiveChatId)throw new Error('El video no tiene chat LIVE activo o accesible.');
-    this.videoId=id;this.chatId=v.liveStreamingDetails.activeLiveChatId;
-    this.running=true;this.nextPageToken='';this.seen.clear();this.backoff=0;
-    this.onStatus({connected:true,videoId:id,title:v.snippet?.title||''});
-    this.poll().catch(e=>this.onStatus({connected:false,error:String(e.message||e)}));
-    return {videoId:id,chatId:this.chatId,title:v.snippet?.title||''};
+    const id=youtubeVideoId(input);if(!id)throw new Error('Introduce el enlace público de YouTube (Compartir → Copiar enlace), no el enlace de Studio.');
+    this.videoId=id;this.running=true;this.nextPageToken='';this.seen.clear();this.backoff=0;
+    try {await this.discoverChat();} catch(e){await this.stop();throw e}
+    return {videoId:id,chatId:this.chatId,waiting:!this.chatId};
+  }
+  async discoverChat(){
+    if(!this.running)return;
+    try{
+      const data=await this.request('videos',{part:'liveStreamingDetails,snippet,status',id:this.videoId});
+      const v=data.items?.[0];
+      if(!v)throw new Error('No se encuentra este vídeo. Comprueba que es público o no listado y que la URL es correcta.');
+      const chat=v.liveStreamingDetails?.activeLiveChatId||'';
+      if(chat){
+        this.chatId=chat;this.nextPageToken='';this.seen.clear();
+        this.onStatus({connected:true,videoId:this.videoId,title:v.snippet?.title||''});
+        void this.poll();return;
+      }
+      this.onStatus({connected:false,waiting:true,videoId:this.videoId,error:'Directo guardado. Esperando que YouTube active el chat LIVE; inicia la emisión desde OBS.'});
+      this.timer=setTimeout(()=>this.discoverChat().catch(e=>this.onStatus({connected:false,error:String(e.message||e)})),30000);
+    }catch(e){this.onStatus({connected:false,error:String(e.message||e)});throw e}
   }
   async poll(){
     if(!this.running)return;
