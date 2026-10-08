@@ -1454,14 +1454,15 @@ function oauthBaseForRequest(req){
  return OAUTH_BASE;
 }
 function oauthRedirectFor(platform,req){const base=oauthBaseForRequest(req);return platform==='twitch'?`${base}/oauth/twitch/callback`:`${base}/oauth/${platform}/callback`}
-async function beginBrokerOAuth(platform,req,res){
+async function beginBrokerOAuth(platform,req,res,ownerId){
  if(!AUTH_SERVICE_URL)return callbackPage(res,false,'GREÑA Auth todavía no está configurado por el administrador.');
  if(!authService.reachable||Date.now()-Number(authService.checkedAt||0)>5*60e3)await loadAuthServiceConfig();
  if(!isBrokerProvider(platform))return callbackPage(res,false,`GREÑA Auth todavía no tiene ${platform} habilitado.`);
  const state=b64url(randomBytes(24)),redirect=oauthRedirectFor(platform,req);let verifier='',challenge='';
  if(platform==='tiktok'){verifier=b64url(randomBytes(48));challenge=createHash('sha256').update(verifier).digest('hex')}
  if(platform==='kick'){verifier=b64url(randomBytes(48));challenge=b64url(createHash('sha256').update(verifier).digest())}
- oauthState.set(state,{platform,verifier,created:Date.now(),userId:activeUserId,mode:'grena-auth',redirect});
+ if(ownerId!==activeUserId||sessionUser(req)?.id!==ownerId)return callbackPage(res,false,'La sesión cambió. Vuelve a iniciar la vinculación.');
+  oauthState.set(state,{platform,verifier,created:Date.now(),userId:ownerId,mode:'grena-auth',redirect});
  const u=new URL(`${AUTH_SERVICE_URL}/v1/authorize/${platform}`);u.searchParams.set('redirect_uri',redirect);u.searchParams.set('state',state);if(challenge)u.searchParams.set('code_challenge',challenge);
  res.writeHead(302,{location:u});res.end();
 }
@@ -1491,11 +1492,12 @@ async function pollTwitchDeviceSession(id){
  }
  if(session.status==='pending'){session.status='expired';session.message='El código de Twitch venció. Pulsa Conectar Twitch otra vez.'}
 }
-async function beginTwitchDeviceOAuth(res){
+async function beginTwitchDeviceOAuth(res,ownerId,req){
  const clientId=String(oauthConfig.twitch?.clientId||'').trim();if(!clientId)return callbackPage(res,false,'GREÑA no tiene configurado el Client ID público de Twitch.');
  const r=await fetch('https://id.twitch.tv/oauth2/device',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','accept':'application/json'},body:new URLSearchParams({client_id:clientId,scopes:TWITCH_SCOPES})});
  const d=await r.json().catch(()=>({}));if(!r.ok||!d.device_code)throw Error(d.message||d.error_description||d.error||`Twitch Device OAuth HTTP ${r.status}`);
- const id=b64url(randomBytes(24)),session={id,userId:activeUserId,deviceCode:d.device_code,userCode:d.user_code||'',verificationUri:d.verification_uri||`https://www.twitch.tv/activate?public=true&device-code=${encodeURIComponent(d.user_code||'')}`,interval:Math.max(2,Number(d.interval||5)),expiresAt:Date.now()+Math.max(60,Number(d.expires_in||1800))*1000,status:'pending',message:'Esperando que autorices GREÑA en Twitch…'};
+ if(ownerId!==activeUserId||sessionUser(req)?.id!==ownerId)return callbackPage(res,false,'La sesión GREÑA cambió. Vuelve a vincular Twitch.');
+  const id=b64url(randomBytes(24)),session={id,userId:ownerId,deviceCode:d.device_code,userCode:d.user_code||'',verificationUri:d.verification_uri||`https://www.twitch.tv/activate?public=true&device-code=${encodeURIComponent(d.user_code||'')}`,interval:Math.max(2,Number(d.interval||5)),expiresAt:Date.now()+Math.max(60,Number(d.expires_in||1800))*1000,status:'pending',message:'Esperando que autorices GREÑA en Twitch…'};
  twitchDeviceSessions.set(id,session);void pollTwitchDeviceSession(id);return twitchDevicePage(res,session);
 }
 function beginOAuth(platform,req,res){
@@ -1508,12 +1510,12 @@ function beginOAuth(platform,req,res){
   const u=new URL('https://accounts.google.com/o/oauth2/v2/auth');u.search=new URLSearchParams({client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,redirect_uri:redirect,response_type:'code',scope:'https://www.googleapis.com/auth/youtube.readonly',access_type:'offline',prompt:'select_account consent',state});
   res.writeHead(302,{location:u.toString()});return res.end();
  }
- if(platform==='twitch')return beginTwitchDeviceOAuth(res);
- if(['tiktok','kick'].includes(platform)&&AUTH_SERVICE_URL)return beginBrokerOAuth(platform,req,res);
+ if(platform==='twitch')return beginTwitchDeviceOAuth(res,currentOwner.id,req);
+ if(['tiktok','kick'].includes(platform)&&AUTH_SERVICE_URL)return beginBrokerOAuth(platform,req,res,currentOwner.id);
  if(!configured(platform))return callbackPage(res,false,'Esta plataforma todavía no tiene sus credenciales configuradas.');
  const state=b64url(randomBytes(24));const redirect=oauthRedirectFor(platform,req);
- if(platform==='tiktok'){const verifier=b64url(randomBytes(48)),challenge=createHash('sha256').update(verifier).digest('hex');oauthState.set(state,{platform,verifier,created:Date.now(),userId:activeUserId,redirect});const u=new URL('https://www.tiktok.com/v2/auth/authorize/');u.search=new URLSearchParams({client_key:oauthConfig.tiktok.clientKey,response_type:'code',scope:'user.info.basic,user.info.profile',redirect_uri:redirect,state,code_challenge:challenge,code_challenge_method:'S256'});res.writeHead(302,{location:u});return res.end()}
- if(platform==='kick'){const verifier=b64url(randomBytes(48)),challenge=b64url(createHash('sha256').update(verifier).digest());oauthState.set(state,{platform,verifier,created:Date.now(),userId:activeUserId,redirect});const u=new URL('https://id.kick.com/oauth/authorize');u.search=new URLSearchParams({response_type:'code',client_id:oauthConfig.kick.clientId,redirect_uri:redirect,scope:KICK_SCOPES,state,code_challenge:challenge,code_challenge_method:'S256'});res.writeHead(302,{location:u});return res.end()}
+ if(platform==='tiktok'){const verifier=b64url(randomBytes(48)),challenge=createHash('sha256').update(verifier).digest('hex');oauthState.set(state,{platform,verifier,created:Date.now(),userId:currentOwner.id,redirect});const u=new URL('https://www.tiktok.com/v2/auth/authorize/');u.search=new URLSearchParams({client_key:oauthConfig.tiktok.clientKey,response_type:'code',scope:'user.info.basic,user.info.profile',redirect_uri:redirect,state,code_challenge:challenge,code_challenge_method:'S256'});res.writeHead(302,{location:u});return res.end()}
+ if(platform==='kick'){const verifier=b64url(randomBytes(48)),challenge=b64url(createHash('sha256').update(verifier).digest());oauthState.set(state,{platform,verifier,created:Date.now(),userId:currentOwner.id,redirect});const u=new URL('https://id.kick.com/oauth/authorize');u.search=new URLSearchParams({response_type:'code',client_id:oauthConfig.kick.clientId,redirect_uri:redirect,scope:KICK_SCOPES,state,code_challenge:challenge,code_challenge_method:'S256'});res.writeHead(302,{location:u});return res.end()}
  throw Error('Plataforma no compatible.');
 }
 function twitchImplicitCallback(res){res.writeHead(200,{'content-type':'text/html; charset=utf-8'});res.end(`<!doctype html><meta charset="utf-8"><title>GREÑA · Twitch</title><body style="background:#090b10;color:white;font-family:Arial;text-align:center;padding:70px"><h2 id="t">Conectando Twitch…</h2><p id="m">Terminando la autorización.</p><script>(async()=>{try{const p=new URLSearchParams(location.hash.slice(1));const token=p.get('access_token'),state=p.get('state'),error=p.get('error');if(error)throw Error(p.get('error_description')||error);if(!token)throw Error('Twitch no devolvió el token de autorización.');const r=await fetch('/api/twitch/token',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({token,state})});const d=await r.json();if(!r.ok||!d.ok)throw Error(d.error||'No se pudo conectar Twitch');document.getElementById('t').textContent='✓ Twitch conectado';document.getElementById('m').textContent=d.message||'Ya puedes cerrar esta ventana.';setTimeout(()=>window.close(),1400)}catch(e){document.getElementById('t').textContent='No se pudo conectar';document.getElementById('m').textContent=e.message}})()</script></body>`)}
