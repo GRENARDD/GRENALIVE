@@ -2124,6 +2124,14 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   try{results.twitch=await refreshTwitchGiftCatalog(true)}catch(e){results.twitch={ok:false,error:e?.message||String(e)}}
   ensureBuiltInGiftCatalog();return json(res,200,{ok:true,results,...publicGiftCatalog()});
  }
+ if(pathname==='/api/chat/live-messages'&&req.method==='GET'){
+  try{
+   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),1600);
+   try{const upstream=await fetch('http://127.0.0.1:8788/api/live-messages',{signal:controller.signal,cache:'no-store'});
+    if(!upstream.ok)throw Error('chat offline');const payload=await upstream.json();return json(res,200,payload);
+   }finally{clearTimeout(timeout)}
+  }catch{return json(res,503,{ok:false,messages:[],error:'El motor de chat está reconectando'})}
+ }
  if(pathname==='/api/status')return json(res,200,{ok:true,profile:publicUser(usersStore.users.find(u=>u.id===activeUserId)),status:publicStatus(),bridgeRuntime,eventHealth:eventHealthSnapshot(),authService:{configured:authService.configured,reachable:authService.reachable,url:AUTH_SERVICE_URL?AUTH_SERVICE_URL.replace(/\/\/[^/]+/,'//'+new URL(AUTH_SERVICE_URL).host):'',providers:authService.providers,lastError:authService.lastError},oauthConfigured:{tiktok:configured('tiktok'),twitch:configured('twitch'),kick:configured('kick')}});
  if(pathname==='/api/event-health'&&req.method==='GET')return json(res,200,{ok:true,eventHealth:eventHealthSnapshot()});
  if(pathname==='/api/auth-service/refresh'&&req.method==='POST'){await loadAuthServiceConfig();return json(res,200,{ok:true,authService});}
