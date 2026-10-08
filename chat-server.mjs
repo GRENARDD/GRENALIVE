@@ -2447,6 +2447,7 @@ const server =
           if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){response.writeHead(403);response.end('Forbidden');return;}
           let body='';body=await readBody(request);
           let incoming={};try{incoming=JSON.parse(body||'{}')}catch{}
+          for(const client of [...clients])try{client.close(4001,'GRENA profile changed')}catch{}
           await disconnectAll();
           await loadChatProfile(String(incoming.userId||''));
           tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';
