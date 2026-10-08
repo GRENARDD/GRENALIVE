@@ -2916,6 +2916,6 @@ server.listen(
     console.log('TikTok + Twitch + Kick preparados. Autoconexión:',connectionPrefs.autoConnect?'ACTIVA':'DESACTIVADA');
     console.log('Chat de voz preparado desde el navegador.');
     await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick(),autoConnectYouTube()]);
-    setInterval(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick()},30000);
+    setInterval(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube()},30000);
   }
 );
