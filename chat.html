@@ -764,12 +764,18 @@ body.voice-settings-modal-open{overflow:hidden!important}
   <button id="disconnect">DESCONECTAR TODAS LAS REDES</button>
 </div>
 
-<div class="youtube-connect-panel" style="display:none"></div>
+
 <!-- =========================
      CHAT DE VOZ
 ========================= -->
 
 <section class="voice-panel">
+<div style="padding:12px;border:1px solid #912525;border-radius:12px;margin-bottom:12px">
+ <strong style="color:#ff6969">▶ YouTube · voz</strong>
+ <label style="display:block;margin:10px 0"><input id="youtubeVoiceEnabled" type="checkbox" checked> Leer mensajes de YouTube</label>
+ <label>Modo <select id="youtubeVoiceMode"><option value="all">Todos</option><option value="selected">Seleccionados</option></select></label>
+ <textarea id="youtubeSelectedUsers" placeholder="Un canal por línea" style="display:block;width:100%;min-height:45px;margin-top:8px"></textarea>
+</div>
 
   <div class="voice-title">
 
@@ -2306,7 +2312,7 @@ function isUserAllowed(m){
   }
 
   const mode =
-    getSelectedMode(platform);
+    platform==='youtube'?$('youtubeVoiceMode').value:getSelectedMode(platform);
 
   const username =
     String(
