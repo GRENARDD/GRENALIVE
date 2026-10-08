@@ -4946,7 +4946,7 @@ function addMessage(m){
    CONECTAR TIKTOK
 ===================================================== */
 
-async function connectTikTok(){
+async async function connectTikTok(){
   try{ window.__grenaResetChatView?.(); }catch{}
 
 
@@ -5013,7 +5013,7 @@ async function connectTikTok(){
    CONECTAR TWITCH
 ===================================================== */
 
-async function connectTwitch(){
+async async function connectTwitch(){
   try{ window.__grenaResetChatView?.(); }catch{}
 
 
@@ -5138,10 +5138,10 @@ $('connectTwitch')
   connectTwitch;
 
 $('connectKick').onclick=connectKick;
-$('connectYouTube').onclick=()=>{
+$('connectYouTube').onclick=async()=>{
  const url=$('youtubeUrl').value.trim();
  if(!url)return alert('Pega el enlace del directo de YouTube.');
- if(typeof ws==='undefined'||!ws||ws.readyState!==1)return alert('Chat sin conexión; comprueba el servidor.');
+ try{if(!ws||ws.readyState!==1)await openWS()}catch{return alert('Chat sin conexión; comprueba el servidor.')}
  ws.send(JSON.stringify({type:'connect',platform:'youtube',url}));
 };
 $('youtubeUrl').onkeydown=e=>{if(e.key==='Enter')$('connectYouTube').click()};
