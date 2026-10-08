@@ -71,8 +71,10 @@ export class YouTubeLiveReader {
       this.nextPageToken=data.nextPageToken||this.nextPageToken;
       for(const item of data.items||[]){
         if(!item.id||this.seen.has(item.id))continue;this.seen.add(item.id);
-        // Do not replay historical chat/paid events on the first fetch.
-        if(!initial){const mapped=normalizeYouTubeMessage(item);if(mapped)this.onMessage(mapped)}
+        // Show the most recent messages when joining a live chat; skip older history.
+        const items=data.items||[];
+        const displayOnInitial=!initial||items.indexOf(item)>=Math.max(0,items.length-25);
+        if(displayOnInitial){const mapped=normalizeYouTubeMessage(item);if(mapped)this.onMessage(mapped)}
       }
       if(this.seen.size>1500)this.seen=new Set([...this.seen].slice(-700));
       interval=Math.max(2000,Number(data.pollingIntervalMillis)||5000);
