@@ -384,3 +384,21 @@ body.grena-alerts,body.grena-widgets,body.grena-cam-room,body.grena-catalog,body
 
 /* DETALLES EXTRA DEL PREVIEW */
 .grena-preview .brand{min-width:275px!important}.grena-preview .brand small{font-size:8px!important;letter-spacing:.13em!important}.grena-preview .live-meta{padding-left:10px!important}.grena-preview .viewer-card.tt{box-shadow:inset 0 -2px rgba(254,44,85,.22),0 14px 30px rgba(0,0,0,.16)!important}.grena-preview .viewer-card.tw{box-shadow:inset 0 -2px rgba(145,70,255,.28),0 14px 30px rgba(0,0,0,.16)!important}.grena-preview .viewer-card.ki{box-shadow:inset 0 -2px rgba(83,252,24,.22),0 14px 30px rgba(0,0,0,.16)!important}
+
+
+/* GREÑA · colores oficiales de identificación por plataforma */
+:root{--grena-tiktok:#25F4EE;--grena-youtube:#FF0033}
+.grena-control .viewer-card.tiktok{background:linear-gradient(145deg,rgba(37,244,238,.12),rgba(12,17,31,.88))!important;border-color:rgba(37,244,238,.3)!important}
+.grena-control .viewer-card.youtube{background:linear-gradient(145deg,rgba(255,0,51,.12),rgba(12,17,31,.88))!important;border-color:rgba(255,0,51,.3)!important}
+.grena-chat .msg.tiktok{border-left-color:var(--grena-tiktok)!important;background:linear-gradient(90deg,rgba(37,244,238,.14),rgba(10,15,27,.88) 30%)!important}
+.grena-chat .msg.youtube{border-left-color:var(--grena-youtube)!important;background:linear-gradient(90deg,rgba(255,0,51,.14),rgba(10,15,27,.88) 30%)!important}
+.grena-chat .msg.tiktok .name,.grena-chat .msg.tiktok .platform-label{color:var(--grena-tiktok)!important}
+.grena-chat .msg.youtube .name,.grena-chat .msg.youtube .platform-label{color:#ff5476!important}
+.grena-chat .msg.tiktok .avatar{border-color:var(--grena-tiktok)!important}
+.grena-chat .msg.youtube .avatar{border-color:var(--grena-youtube)!important}
+.grena-chat #connectTikTok,.grena-chat .tiktok-connect{background:linear-gradient(135deg,#12b8b4,#078c91)!important;color:#061419!important}
+.grena-chat #connectYouTube,.grena-chat .youtube-connect{background:linear-gradient(135deg,#FF0033,#b70025)!important;color:#fff!important}
+.grena-chat [data-chat-filter="tiktok"].active{color:var(--grena-tiktok)!important;border-color:rgba(37,244,238,.6)!important;background:rgba(37,244,238,.1)!important}
+.grena-chat [data-chat-filter="youtube"].active{color:#ff5476!important;border-color:rgba(255,0,51,.6)!important;background:rgba(255,0,51,.1)!important}
+.grena-chat #tiktokStatus{border-color:var(--grena-tiktok)!important}
+.grena-chat #youtubeStatus{border-color:var(--grena-youtube)!important}
