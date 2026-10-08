@@ -155,11 +155,11 @@ function appWindowClosing(){
 // Antes FIX7 interpretaba 12 s sin heartbeat como cierre y podía apagar la app sola.
 // El cierre normal sigue cubierto por pagehide + appWindowClosing y por el botón Salir.
 
-const status={tiktok:{connected:false,label:'No conectado'},twitch:{connected:false,label:'No conectado'},kick:{connected:false,label:'No conectado'}};
+const status={tiktok:{connected:false,label:'No conectado'},twitch:{connected:false,label:'No conectado'},kick:{connected:false,label:'No conectado'},youtube:{connected:false,label:'No conectado'}};
 let tiktok=null,tiktokLoginContext=null,twitchWS=null,twitchCfg=null,twitchViewerTimer=null,twitchViewerRefreshing=false,twitchValidationTimer=null;
 let counterTikTok=null,counterTikTokUser='',counterTikTokPollTimer=null,counterTikTokReconnectTimer=null,counterTikTokConnecting=false,counterTikTokPollBusy=false,counterTikTokLastSignalAt=0,counterTikTokPollFailures=0,tiktokBridgeDisconnectGraceTimer=null,counterTwitchLogin='',counterTwitchTimer=null,counterTwitchRefreshing=false;
-const viewers={tiktok:0,twitch:0,kick:0};
-const viewerMeta={tiktok:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0,spikeValue:0,spikeHits:0,spikeAt:0,spikeSources:[]},twitch:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},kick:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0}};
+const viewers={tiktok:0,twitch:0,kick:0,youtube:0};
+const viewerMeta={youtube:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},tiktok:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0,spikeValue:0,spikeHits:0,spikeAt:0,spikeSources:[]},twitch:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},kick:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0}};
 const viewerTest={enabled:false,tiktok:0,twitch:0,kick:0};
 let viewerTestTimer=null;
 const clients=new Set(), oauthState=new Map(), twitchAvatarCache=new Map();
@@ -587,13 +587,14 @@ function recordLoyaltyEvent(evt={}){
 }
 
 
-const bridgeRuntime={tiktok:false,twitch:false,kick:false};
+const bridgeRuntime={tiktok:false,twitch:false,kick:false,youtube:false};
 const bridgeSignals={
  tiktok:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
  twitch:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
- kick:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}}
+ kick:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
+ youtube:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}}
 };
-function bridgeKey(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick'].includes(p)?p:''}
+function bridgeKey(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube'].includes(p)?p:''}
 function noteBridgeSignal(platform,kind,meta={}){
  const p=bridgeKey(platform);if(!p)return;
  const s=bridgeSignals[p],k=String(kind||'signal').toLowerCase(),now=Date.now();
@@ -649,7 +650,7 @@ function tapTapPreviewState(amount=0){const names=['GreñaFan','TapMaster','Luna
 const activityHistory=[];
 const recentAlerts=new Map();
 function accountFromAuth(p){if(p==='tiktok')return savedAuth.tiktok?.username||'';if(p==='twitch')return twitchCfg?.displayName||twitchCfg?.login||savedAuth.twitch?.displayName||savedAuth.twitch?.login||'';if(p==='kick')return savedAuth.kick?.username||savedAuth.kick?.slug||'';return ''}
-function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel}}return out}
+function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel}}return out}
 function pushStatus(){broadcast({type:'platform-status',status:publicStatus()})}
 function normalizeCounterWidgetSettings(input={}){
  const style=['classic','trio','vertical'].includes(String(input.counterStyle||input.style||''))?String(input.counterStyle||input.style):'classic';
@@ -1937,7 +1938,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/internal/status'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;
   let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
-  if(!['tiktok','twitch','kick'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
+  if(!['tiktok','twitch','kick','youtube'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   const p=body.platform,wasConnected=!!bridgeRuntime[p],label=String(body.label||'');
   bridgeRuntime[p]=!!body.connected;
   if(p==='kick')console.log('[KICK BRIDGE]',JSON.stringify({connected:!!body.connected,label,account:String(body.account||''),source:String(body.source||'')}));
@@ -1974,14 +1975,14 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  if(pathname==='/api/internal/event'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const platform=String(body.platform||''),event=String(body.event||'');
-  if(!['TikTok','Twitch','Kick'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
+  if(!['TikTok','Twitch','Kick','YouTube','youtube'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
   if(bridgeMessageDuplicate(body.bridgeEventId))return json(res,200,{ok:true,duplicate:true});
   if(platform==='Twitch'&&twitchCfg){
    const officialFor={follow:['channel.follow'],sub:['channel.subscribe','channel.subscription.message'],gift:['channel.subscription.gift'],cheer:['channel.cheer'],raid:['channel.raid']};
    const covered=!!(twitchWS&&twitchWS.readyState===1)&&(officialFor[event]||[]).some(x=>twitchEventHealth.active.includes(x));
    if(covered)return json(res,200,{ok:true,ignored:'eventsub-is-primary'});
   }
-  alert(platform,event,body.name,body.action||'',body);return json(res,200,{ok:true});
+  alert(platform.toLowerCase()==='youtube'?'YouTube':platform,event,body.name||body.user||body.nickname,body.action||'',body);return json(res,200,{ok:true});
  }
  if(pathname==='/api/internal/twitch-user-meta'&&req.method==='GET'){
   if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Forbidden'});
@@ -2029,7 +2030,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  if(pathname==='/api/internal/viewers'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
-  if(!['tiktok','twitch','kick'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
+  if(!['tiktok','twitch','kick','youtube'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   // TikTok usa una sola conexión LIVE en chat-server. Ese bridge alimenta chat, eventos,
   // contador y widgets; no se abre un segundo TikTokLiveConnection para el contador.
   const source=String(body.source||'').trim()||(body.platform==='kick'?'Kick browser realtime':body.platform==='tiktok'?'TikTok LIVE bridge':'Twitch IRC bridge');
