@@ -1832,6 +1832,7 @@ function bridgeMessageDuplicate(id){id=String(id||'').trim();if(!id)return false
 const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!safeReqPath(req.url))throw 0;url=new URL(req.url,'http://127.0.0.1');pathname=url.pathname}catch{res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});return res.end('Solicitud no válida')}try{
  if(pathname==='/chat'||pathname.startsWith('/chat/'))return proxyChatHttp(req,res,url);
  if(!panelGuard(req,res,pathname))return;
+ if(pathname==='/favicon.ico'&&(req.method==='GET'||req.method==='HEAD')){res.writeHead(302,{location:'/favicon.svg','cache-control':'public, max-age=3600'});return res.end()}
  if(CHAT_HTTP_ROUTES.has(pathname))return proxyChatHttp(req,res,url,false);
  if(pathname==='/health')return json(res,200,{ok:true,app:'GREÑA LIVE PRO',status});
  if(pathname==='/api/app/window-heartbeat'&&req.method==='POST'){appWindowHeartbeat();return json(res,200,{ok:true});}
