@@ -2583,7 +2583,7 @@ const server =
             let body=''; body=await readBody(request);
             let incoming={};
             try { incoming=JSON.parse(body||'{}'); } catch {}
-            const platform=['tiktok','twitch','kick'].includes(String(incoming.platform||'').toLowerCase())
+            const platform=['tiktok','twitch','kick','youtube'].includes(String(incoming.platform||'').toLowerCase())
               ? String(incoming.platform).toLowerCase()
               : 'tiktok';
             const demo={
