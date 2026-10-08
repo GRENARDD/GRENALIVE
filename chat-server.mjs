@@ -2658,6 +2658,9 @@ wss.on(
       }
     );
 
+    // Send a snapshot only for display (never replay it to text-to-speech).
+    send(ws,{type:'chat-history',messages:recentChatHistory.slice(-30)});
+
     if(typeof voiceControlState==='boolean') send(ws,{type:'voice-control',enabled:voiceControlState,source:'preview-live'});
 
     ws.on(
