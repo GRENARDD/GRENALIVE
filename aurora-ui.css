@@ -409,3 +409,12 @@ body.grena-alerts,body.grena-widgets,body.grena-cam-room,body.grena-catalog,body
 .grena-chat .msg.tiktok .avatar{border:2px solid #25F4EE!important;box-shadow:0 0 12px rgba(37,244,238,.24)!important}
 .grena-chat .msg.youtube .avatar{border:2px solid #FF0033!important;box-shadow:0 0 12px rgba(255,0,51,.24)!important}
 .grena-chat .msg.tiktok .platform-label{color:#25F4EE!important;border-color:rgba(37,244,238,.48)!important;background:rgba(37,244,238,.10)!important}
+
+/* GREÑA · TikTok 100 % cian: ninguna capa rosada heredada */
+.grena-chat .msg.tiktok{--accent:#25F4EE!important;--soft:rgba(37,244,238,.18)!important;--soft2:rgba(37,244,238,.08)!important;border:1px solid rgba(37,244,238,.44)!important;border-left:4px solid #25F4EE!important;background:linear-gradient(90deg,rgba(37,244,238,.15),rgba(10,14,28,.92) 38%,rgba(6,10,22,.96))!important;box-shadow:inset 0 0 0 1px rgba(37,244,238,.1),0 0 16px rgba(37,244,238,.2),0 0 38px rgba(37,244,238,.08)!important}
+.grena-chat .msg.tiktok::before,.grena-chat .msg.tiktok::after{border-color:#25F4EE!important;box-shadow:none!important}
+.grena-chat .msg.tiktok .name,.grena-chat .msg.tiktok .handle,.grena-chat .msg.tiktok .username{color:#25F4EE!important;text-shadow:0 0 8px rgba(37,244,238,.2)!important}
+.grena-chat .msg.tiktok .platform-label,.grena-chat .msg.tiktok .platform{color:#7ffbf6!important;background:rgba(37,244,238,.1)!important;border-color:rgba(37,244,238,.45)!important;box-shadow:inset 0 0 0 1px rgba(37,244,238,.07)!important}
+.grena-chat .msg.tiktok .avatar{border-color:#25F4EE!important;box-shadow:0 0 0 2px rgba(37,244,238,.12),0 0 12px rgba(37,244,238,.24)!important}
+.grena-chat .msg.tiktok .time{color:#8adcd8!important}
+.grena-chat .msg.tiktok .mod,.grena-chat .msg.tiktok .role,.grena-chat .msg.tiktok .tag{border-color:rgba(37,244,238,.35)!important;background:rgba(37,244,238,.08)!important;color:#7ffbf6!important}
