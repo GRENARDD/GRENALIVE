@@ -1345,6 +1345,7 @@ async function disconnectTwitch() {
 const youtubeReader=new YouTubeLiveReader({
   onMessage:m=>{
     if(m.kind==='chat'){
+      console.log('[YouTube CHAT RECEIVED]',JSON.stringify({videoId:youtubeReader.videoId,hasText:!!m.message,userIdPresent:!!m.userId}));
       broadcastPlatform('youtube',{type:'chat',user:m.user,nickname:m.nickname,userId:m.userId,text:m.message,avatar:m.avatar,isModerator:m.isModerator,isBroadcaster:m.isOwner,isSubscriber:m.isMember,messageId:m.id});
     } else {
       broadcastPlatform('youtube',{type:'event',event:m.event||'gift',eventKind:m.kind,user:m.user,nickname:m.nickname,avatar:m.avatar,text:m.message||'',giftName:m.giftName||m.kind,amount:m.amount||0,currency:m.currency||'',displayAmount:m.displayAmount||'',count:m.count||0});
