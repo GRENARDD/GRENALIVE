@@ -1473,7 +1473,7 @@ function beginOAuth(platform,req,res){
   const owner=sessionUser(req);if(!owner)return callbackPage(res,false,'Inicia sesión en GREÑA primero.');
   const state=b64url(randomBytes(32));const redirect=oauthRedirectFor('youtube',req);
   oauthState.set(state,{platform:'youtube',created:Date.now(),userId:owner.id,redirect});
-  const u=new URL('https://accounts.google.com/o/oauth2/v2/auth');u.search=new URLSearchParams({client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,redirect_uri:redirect,response_type:'code',scope:'https://www.googleapis.com/auth/youtube.readonly',access_type:'offline',prompt:'consent',state});
+  const u=new URL('https://accounts.google.com/o/oauth2/v2/auth');u.search=new URLSearchParams({client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,redirect_uri:redirect,response_type:'code',scope:'https://www.googleapis.com/auth/youtube.readonly',access_type:'offline',prompt:'select_account consent',state});
   res.writeHead(302,{location:u.toString()});return res.end();
  }
  if(platform==='twitch')return beginTwitchDeviceOAuth(res);
