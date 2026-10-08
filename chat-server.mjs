@@ -17,6 +17,7 @@ import {
 } from 'tiktok-live-connector';
 
 import tmi from 'tmi.js';
+import {YouTubeLiveReader} from './youtube-live.mjs';
 import { chromium } from 'playwright-core';
 
 // GREÑA 3.1.7: no usar los fallbacks premium de EulerStream para Room ID / estado LIVE.
@@ -58,7 +59,7 @@ let activeProfileId=String((await readJson(ACTIVE_PROFILE_FILE,{})).userId||'');
 let CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
 let MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
 let MUTED_USERS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-muted-users.json'):LEGACY_MUTED_USERS_FILE;
-const connectionDefaults={autoConnect:true,tiktokUrl:'',twitchUrl:'',kickUrl:'',tiktokEnabled:false,twitchEnabled:false,kickEnabled:false};
+const connectionDefaults={autoConnect:true,tiktokUrl:'',twitchUrl:'',kickUrl:'',youtubeUrl:'',tiktokEnabled:false,twitchEnabled:false,kickEnabled:false,youtubeEnabled:false};
 let connectionPrefs={...connectionDefaults,...await readJson(CONNECTIONS_FILE,{})};
 async function saveConnectionPrefs(){await safeWriteJson(CONNECTIONS_FILE,connectionPrefs).catch(()=>{})}
 
@@ -1339,11 +1340,49 @@ async function disconnectTwitch() {
   }
 }
 
+
+// YouTube LIVE: same WS transport used by GREÑA voice chat and multichat.
+const youtubeReader=new YouTubeLiveReader({
+  onMessage:m=>{
+    if(m.kind==='chat'){
+      broadcastPlatform('youtube',{type:'chat',user:m.user,nickname:m.nickname,userId:m.userId,text:m.message,avatar:m.avatar,isModerator:m.isModerator,isBroadcaster:m.isOwner,isSubscriber:m.isMember,messageId:m.id});
+    } else {
+      broadcastPlatform('youtube',{type:'event',event:m.event||'gift',eventKind:m.kind,user:m.user,nickname:m.nickname,avatar:m.avatar,text:m.message||'',giftName:m.giftName||m.kind,amount:m.amount||0,currency:m.currency||'',displayAmount:m.displayAmount||'',count:m.count||0});
+      sendToAlerts('/api/internal/event',{platform:'youtube',event:m.event||'gift',user:m.user,nickname:m.nickname,avatar:m.avatar,giftName:m.giftName||m.kind,amount:m.amount||0,currency:m.currency||'',displayAmount:m.displayAmount||'',count:m.count||0,bridgeEventId:bridgeMessageId('youtube-'+m.kind)},{reliable:true});
+    }
+  },
+  onStatus:st=>{
+    broadcastPlatform('youtube',{type:st.connected?'status':'error',message:st.connected?'YouTube LIVE conectado':st.error||'Reconectando YouTube'});
+    bridgeStatus('youtube',!!st.connected,st.connected?'YouTube LIVE conectado':st.error||'YouTube en espera',youtubeReader.videoId);
+  },
+  onViewers:n=>{if(n!==null)bridgeViewers('youtube',n)}
+});
+let youtubeViewerTimer=null;
+async function connectYouTube(input){
+  const result=await youtubeReader.start(input);
+  if(youtubeViewerTimer)clearInterval(youtubeViewerTimer);
+  youtubeReader.refreshViewers();
+  youtubeViewerTimer=setInterval(()=>youtubeReader.refreshViewers(),30000);
+  return result;
+}
+async function disconnectYouTube(){
+  if(youtubeViewerTimer)clearInterval(youtubeViewerTimer);
+  youtubeViewerTimer=null;await youtubeReader.stop();
+  bridgeViewers('youtube',0);
+  bridgeStatus('youtube',false,'YouTube desconectado','');
+}
+async function autoConnectYouTube(){
+  if(connectionPrefs.autoConnect&&connectionPrefs.youtubeEnabled&&connectionPrefs.youtubeUrl&&!youtubeReader.running){
+    try{await connectYouTube(connectionPrefs.youtubeUrl)}catch(e){broadcastPlatform('youtube',{type:'error',message:getError(e)})}
+  }
+}
+
 // =====================================
 // DESCONECTAR TODO
 // =====================================
 
 async function disconnectAll() {
+  await disconnectYouTube();
   await disconnectTikTok();
   await disconnectTwitch();
   await disconnectKick();
@@ -2351,7 +2390,7 @@ const server =
           broadcast({type:'multichat-settings',settings:multichatSettings});
           broadcast({type:'moderation-list',muted:publicLocalMutedUsers()});
           broadcast({type:'profile-changed',profileId:activeProfileId});
-          if(connectionPrefs.autoConnect)setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick()},80);
+          if(connectionPrefs.autoConnect)setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube()},80);
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
           response.end(JSON.stringify({ok:true,profileId:activeProfileId,prefs:connectionPrefs}));
           return;
@@ -2362,11 +2401,12 @@ const server =
           if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){response.writeHead(403);response.end('Forbidden');return;}
           let body='';body=await readBody(request);
           const platform=String((JSON.parse(body||'{}')).platform||'').toLowerCase();
-          if(!['tiktok','twitch','kick'].includes(platform)){response.writeHead(400,{'content-type':'application/json'});response.end(JSON.stringify({ok:false,error:'Plataforma no válida'}));return;}
+          if(!['tiktok','twitch','kick','youtube'].includes(platform)){response.writeHead(400,{'content-type':'application/json'});response.end(JSON.stringify({ok:false,error:'Plataforma no válida'}));return;}
           connectionPrefs[platform+'Enabled']=false;connectionPrefs[platform+'Url']='';await saveConnectionPrefs();
           if(platform==='tiktok')await disconnectTikTok();
           if(platform==='twitch')await disconnectTwitch();
           if(platform==='kick')await disconnectKick();
+          if(platform==='youtube')await disconnectYouTube();
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
           response.end(JSON.stringify({ok:true,platform,prefs:connectionPrefs}));return;
         }
@@ -2384,14 +2424,14 @@ const server =
             response.end(JSON.stringify({
               ok:true,
               prefs:connectionPrefs,
-              runtime:{tiktok:!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected}
+              runtime:{tiktok:!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running}
             }));
             return;
           }
           if(request.method==='POST'){
             let body='';body=await readBody(request);
             const incoming=JSON.parse(body||'{}');
-            const allowed=['autoConnect','tiktokUrl','twitchUrl','kickUrl','tiktokEnabled','twitchEnabled','kickEnabled'];
+            const allowed=['autoConnect','tiktokUrl','twitchUrl','kickUrl','youtubeUrl','youtubeEnabled','tiktokEnabled','twitchEnabled','kickEnabled'];
             const next={...connectionPrefs};
             for(const key of allowed){
               if(!(key in incoming))continue;
@@ -2727,6 +2767,11 @@ wss.on(
             try{await connectTwitch(message.url)}
             catch(error){broadcastPlatform('twitch',{type:'error',message:getError(error)})}
 
+          } else if (platform === 'youtube') {
+            connectionPrefs.youtubeUrl=String(message.url||'').trim();
+            connectionPrefs.youtubeEnabled=true;connectionPrefs.autoConnect=true;
+            await saveConnectionPrefs();
+            try{await connectYouTube(message.url)}catch(error){broadcastPlatform('youtube',{type:'error',message:getError(error)})}
           } else if (platform === 'kick') {
             connectionPrefs.kickUrl=String(message.url||'').trim();
             connectionPrefs.kickEnabled=true;
@@ -2752,7 +2797,7 @@ wss.on(
           message.type ===
           'disconnect'
         ) {
-          connectionPrefs.tiktokEnabled=false;connectionPrefs.twitchEnabled=false;connectionPrefs.kickEnabled=false;await saveConnectionPrefs();
+          connectionPrefs.tiktokEnabled=false;connectionPrefs.twitchEnabled=false;connectionPrefs.kickEnabled=false;connectionPrefs.youtubeEnabled=false;await saveConnectionPrefs();
           await disconnectAll();
 
           return;
@@ -2851,7 +2896,7 @@ server.listen(
     console.log('[TikTok] Eulerstream API key:',EULERSTREAM_API_KEY?'CONFIGURADA':'NO CONFIGURADA');
     console.log('TikTok + Twitch + Kick preparados. Autoconexión:',connectionPrefs.autoConnect?'ACTIVA':'DESACTIVADA');
     console.log('Chat de voz preparado desde el navegador.');
-    await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick()]);
+    await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick(),autoConnectYouTube()]);
     setInterval(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick()},30000);
   }
 );
