@@ -1354,6 +1354,7 @@ const youtubeReader=new YouTubeLiveReader({
   onStatus:st=>{
     const waiting=!!st.waiting;
     const label=st.connected?'YouTube LIVE conectado':waiting?(st.error||'YouTube: esperando inicio desde OBS'):(st.error||'Reconectando YouTube');
+    console.log('[YouTube LIVE]',JSON.stringify({connected:!!st.connected,waiting,videoId:youtubeReader.videoId||'',status:label.slice(0,180)}));
     broadcastPlatform('youtube',{type:st.connected||waiting?'status':'error',message:label});
     bridgeStatus('youtube',!!st.connected,label,youtubeReader.videoId,{waiting});
   },
