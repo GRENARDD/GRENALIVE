@@ -402,3 +402,10 @@ body.grena-alerts,body.grena-widgets,body.grena-cam-room,body.grena-catalog,body
 .grena-chat [data-chat-filter="youtube"].active{color:#ff5476!important;border-color:rgba(255,0,51,.6)!important;background:rgba(255,0,51,.1)!important}
 .grena-chat #tiktokStatus{border-color:var(--grena-tiktok)!important}
 .grena-chat #youtubeStatus{border-color:var(--grena-youtube)!important}
+
+/* GREÑA chat: resplandor uniforme por plataforma */
+.grena-chat .msg.tiktok{border:1px solid rgba(37,244,238,.42)!important;border-left:4px solid #25F4EE!important;background:linear-gradient(90deg,rgba(37,244,238,.14),rgba(10,14,28,.92) 38%,rgba(6,10,22,.96))!important;box-shadow:inset 0 0 0 1px rgba(37,244,238,.1),0 0 16px rgba(37,244,238,.18),0 0 38px rgba(37,244,238,.08)!important}
+.grena-chat .msg.youtube{border:1px solid rgba(255,0,51,.42)!important;border-left:4px solid #FF0033!important;background:linear-gradient(90deg,rgba(255,0,51,.14),rgba(10,14,28,.92) 38%,rgba(6,10,22,.96))!important;box-shadow:inset 0 0 0 1px rgba(255,0,51,.1),0 0 16px rgba(255,0,51,.18),0 0 38px rgba(255,0,51,.08)!important}
+.grena-chat .msg.tiktok .avatar{border:2px solid #25F4EE!important;box-shadow:0 0 12px rgba(37,244,238,.24)!important}
+.grena-chat .msg.youtube .avatar{border:2px solid #FF0033!important;box-shadow:0 0 12px rgba(255,0,51,.24)!important}
+.grena-chat .msg.tiktok .platform-label{color:#25F4EE!important;border-color:rgba(37,244,238,.48)!important;background:rgba(37,244,238,.10)!important}
