@@ -1,13 +1,14 @@
 const $=id=>document.getElementById(id);
 const state={items:[],allStats:{},platform:'',query:'',animatedOnly:false,sources:{},updatedAt:0};
-const platformIcons={TikTok:'/assets/platforms/tiktok.webp',Twitch:'/assets/platforms/twitch.webp',Kick:'/assets/platforms/kick.svg',YouTube:''};
+const platformIcons={TikTok:'/assets/platforms/tiktok.webp',Twitch:'/assets/platforms/twitch.webp',Kick:'/assets/platforms/kick.svg',YouTube:'/assets/youtube-logo.svg'};
 const kickPresetAmounts=new Set([1,10,50,100,500,1000,2000,5000,10000,50000]);
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function fmt(n){return Number(n||0).toLocaleString('es-DO')}
 function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2200)}
 function sourceTime(t){if(!t)return 'Sin sincronizar';try{return new Date(t).toLocaleString('es-DO',{dateStyle:'short',timeStyle:'short'})}catch{return ''}}
 function kickLocalMedia(x={}){if(x.platform!=='Kick')return '';if(x.giftKind==='subscription'||x.category==='subscription')return '/assets/kick-gifts/subscription-gift.svg';if(x.giftKind==='kicks'||String(x.unit||'').toLowerCase()==='kicks'){const n=Number(x.amount||0);return kickPresetAmounts.has(n)?`/assets/kick-gifts/kicks-${n}.svg`:'/assets/kick-gifts/kicks-generic.svg'}return '/assets/kick-gifts/kicks-generic.svg'}
-function mediaFor(x){return x.animatedImage||x.image||kickLocalMedia(x)||platformIcons[x.platform]||''}
+function youtubeEventMedia(x={}){if(x.platform!=='YouTube')return '';const key=String(x.giftKind||x.category||'').toLowerCase().replace(/[^a-z]/g,'');return ['superchat','supersticker','membership','membershipgift','membermilestone'].includes(key)?'/assets/youtube-events/'+key+'.svg':'/assets/youtube-logo.svg'}
+function mediaFor(x){return x.animatedImage||x.image||youtubeEventMedia(x)||kickLocalMedia(x)||platformIcons[x.platform]||''}
 function fallbackFor(x={}){if(x.platform==='TikTok')return '🎁';if(x.platform==='Twitch')return '💎';if(x.platform==='YouTube')return '▶️';if(x.platform==='Kick'&&(x.giftKind==='subscription'||x.category==='subscription'))return '🎁';return '💚'}
 function card(x,i){const media=mediaFor(x),different=x.nameEs&&x.name&&x.nameEs!==x.name,fb=fallbackFor(x);return `<article class="gift-card">
   <div class="gift-media"><span class="platform-chip ${esc(x.platform)}">${esc(x.platform)}</span><div class="media-badges">${x.animatedImage?'<i class="anim">ANIMADO</i>':'<i>ESTÁTICO</i>'}${x.observed?'<i class="live">LIVE</i>':''}</div>${media?`<img loading="lazy" src="${esc(media)}" alt="${esc(x.nameEs||x.name)}" data-gift-media data-fallback="${esc(fb)}">`:`<span class="gift-fallback">${fb}</span>`}</div>
