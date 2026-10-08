@@ -359,7 +359,7 @@ let savedAuth={},savedAlertDesigns={},socialSettings={...socialDefaults},autoPre
 
 // ===== GREÑA FIDELIDAD · ESTADO =====
 const loyaltyDefaults={rotateSeconds:8,topN:5,activeWindowMinutes:10};
-let loyaltyState={version:1,settings:{...loyaltyDefaults},users:{tiktok:{},twitch:{},kick:{}}};
+let loyaltyState={version:1,settings:{...loyaltyDefaults},users:{tiktok:{},twitch:{},kick:{},youtube:{}}};
 const loyaltyRuntime=new Map();
 
 async function loadProfileState(userId=activeUserId){
@@ -539,13 +539,13 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
 // ===== GREÑA FIDELIDAD =====
 // Ranking separado por plataforma. El "tiempo" es tiempo activo estimado entre señales del usuario,
 // no tiempo de visualización exacto: TikTok/Twitch/Kick no exponen una identidad fiable de cada viewer silencioso.
-function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return p==='tiktok'?'tiktok':p==='twitch'?'twitch':p==='kick'?'kick':''}
+function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube'].includes(p)?p:''}
 function loyaltyKey(v=''){return String(v||'').trim().replace(/^@/,'').toLowerCase().slice(0,80)}
 function loyaltyDay(ts=Date.now()){const d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function loyaltyLevel(score=0){const n=Number(score)||0;if(n>=6000)return {name:'Leyenda',icon:'★',next:null};if(n>=3000)return {name:'Diamante',icon:'◆',next:6000};if(n>=1500)return {name:'Platino',icon:'⬟',next:3000};if(n>=700)return {name:'Oro',icon:'●',next:1500};if(n>=250)return {name:'Plata',icon:'◈',next:700};return {name:'Bronce',icon:'◇',next:250}}
 function publicLoyaltyUser(u={}){const score=Math.round((Number(u.score)||0)*10)/10;return {...u,score,level:loyaltyLevel(score)}}
 function loyaltyTop(platform,limit=10){const p=loyaltyPlatform(platform);if(!p)return [];return Object.values(loyaltyState.users[p]||{}).map(publicLoyaltyUser).sort((a,b)=>(b.score-a.score)||(b.lastSeen-a.lastSeen)).slice(0,Math.max(1,Math.min(50,Number(limit)||10))).map((u,i)=>({...u,rank:i+1,platform:p}))}
-function publicLoyaltyState(limit=10){return {settings:{...loyaltyState.settings},tops:{tiktok:loyaltyTop('tiktok',limit),twitch:loyaltyTop('twitch',limit),kick:loyaltyTop('kick',limit)},updatedAt:Date.now()}}
+function publicLoyaltyState(limit=10){return {settings:{...loyaltyState.settings},tops:{tiktok:loyaltyTop('tiktok',limit),twitch:loyaltyTop('twitch',limit),kick:loyaltyTop('kick',limit),youtube:loyaltyTop('youtube',limit)},updatedAt:Date.now()}}
 async function persistLoyalty(){if(activeUserId)await safeWriteJson(profileFile('loyalty.json'),loyaltyState).catch(()=>{})}
 let loyaltySaveTimer=null;
 function scheduleLoyaltySave(){clearTimeout(loyaltySaveTimer);loyaltySaveTimer=setTimeout(()=>persistLoyalty(),700)}
@@ -649,8 +649,8 @@ function resetTapTap(){tapTapUsers.clear();tapTapUpdatedAt=Date.now();const stat
 function tapTapPreviewState(amount=0){const names=['GreñaFan','TapMaster','LunaXF','TeamGreña','JugadorRD'];const leaderboard=names.map((name,i)=>({userId:`preview_${i}`,name,avatar:'',likes:Math.max(1,Number(amount)||((5-i)*137+i*19)),updatedAt:Date.now(),rank:i+1}));return {type:'taptap',leaderboard,updatedAt:Date.now(),preview:true,sessionRoomId:tapTapSessionRoomId}}
 const activityHistory=[];
 const recentAlerts=new Map();
-function accountFromAuth(p){if(p==='tiktok')return savedAuth.tiktok?.username||'';if(p==='twitch')return twitchCfg?.displayName||twitchCfg?.login||savedAuth.twitch?.displayName||savedAuth.twitch?.login||'';if(p==='kick')return savedAuth.kick?.username||savedAuth.kick?.slug||'';return ''}
-function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel}}return out}
+function accountFromAuth(p){if(p==='youtube')return status.youtube?.account||'';if(p==='tiktok')return savedAuth.tiktok?.username||'';if(p==='twitch')return twitchCfg?.displayName||twitchCfg?.login||savedAuth.twitch?.displayName||savedAuth.twitch?.login||'';if(p==='kick')return savedAuth.kick?.username||savedAuth.kick?.slug||'';return ''}
+function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!(raw.connected||raw.account):false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel}}return out}
 function pushStatus(){broadcast({type:'platform-status',status:publicStatus()})}
 function normalizeCounterWidgetSettings(input={}){
  const style=['classic','trio','vertical'].includes(String(input.counterStyle||input.style||''))?String(input.counterStyle||input.style):'classic';
@@ -659,8 +659,8 @@ function normalizeCounterWidgetSettings(input={}){
  return {style,counterCardColor};
 }
 function publicCounterSettings(){return normalizeCounterWidgetSettings({counterStyle:autoPrefs.counterStyle,counterCardColor:autoPrefs.counterCardColor})}
-function currentViewers(){return viewerTest.enabled?{tiktok:viewerTest.tiktok,twitch:viewerTest.twitch,kick:viewerTest.kick}:{...viewers}}
-function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,total:v.tiktok+v.twitch+v.kick,testMode:viewerTest.enabled,updatedAt:Date.now()})}
+function currentViewers(){return viewerTest.enabled?{tiktok:viewerTest.tiktok,twitch:viewerTest.twitch,kick:viewerTest.kick,youtube:viewers.youtube}:{...viewers}}
+function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,total:v.tiktok+v.twitch+v.kick+(v.youtube||0),testMode:viewerTest.enabled,updatedAt:Date.now()})}
 function tiktokViewerSourceFamily(source=''){
  const x=String(source||'').toLowerCase();
  if(x.includes('room_user')||x.includes('room user')||x.includes('live fallback'))return 'roomUser';
@@ -914,7 +914,7 @@ function enrichAlertMedia(platform,event,extra={}){
 }
 function publicGiftCatalog({platform='',q='',animatedOnly=false}={}){
  const pf=catalogPlatform(platform),query=giftTextKey(q);let items=giftCatalogCache.items.slice();if(platform)items=items.filter(x=>x.platform===pf);if(query)items=items.filter(x=>[x.name,x.nameEs,x.unit,x.giftKind].some(v=>giftTextKey(v).includes(query)));if(animatedOnly)items=items.filter(x=>x.animatedImage);items.sort((a,b)=>a.platform.localeCompare(b.platform)||Number(a.amount)-Number(b.amount)||a.nameEs.localeCompare(b.nameEs,'es'));
- const stats={total:items.length,tiktok:items.filter(x=>x.platform==='TikTok').length,twitch:items.filter(x=>x.platform==='Twitch').length,kick:items.filter(x=>x.platform==='Kick').length,animated:items.filter(x=>x.animatedImage).length,observed:items.filter(x=>x.observed).length};return {version:1,updatedAt:giftCatalogCache.updatedAt,sources:giftCatalogCache.sources,stats,items};
+ const stats={total:items.length,tiktok:items.filter(x=>x.platform==='TikTok').length,twitch:items.filter(x=>x.platform==='Twitch').length,kick:items.filter(x=>x.platform==='Kick').length,youtube:items.filter(x=>x.platform==='YouTube').length,animated:items.filter(x=>x.animatedImage).length,observed:items.filter(x=>x.observed).length};return {version:1,updatedAt:giftCatalogCache.updatedAt,sources:giftCatalogCache.sources,stats,items};
 }
 function rememberActivity(a){activityHistory.unshift(a);if(activityHistory.length>120)activityHistory.length=120}
 const FOLLOWER_GOALS_FILE=path.join(DATA_DIR,'follower-goals.json');
@@ -2026,7 +2026,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  if(pathname==='/api/loyalty/reset'&&req.method==='POST'){
   const su=sessionUser(req);if(!su)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const p=loyaltyPlatform(body.platform||'');
-  if(p)loyaltyState.users[p]={};else loyaltyState.users={tiktok:{},twitch:{},kick:{}};loyaltyRuntime.clear();await persistLoyalty();pushLoyalty();return json(res,200,{ok:true,loyalty:publicLoyaltyState(10)});
+  if(p)loyaltyState.users[p]={};else loyaltyState.users={tiktok:{},twitch:{},kick:{},youtube:{}};loyaltyRuntime.clear();await persistLoyalty();pushLoyalty();return json(res,200,{ok:true,loyalty:publicLoyaltyState(10)});
  }
  if(pathname==='/api/internal/viewers'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
