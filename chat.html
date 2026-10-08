@@ -4778,7 +4778,7 @@ function addMessage(m){
     );
 
   const platform =
-    ['tiktok','twitch','kick'].includes(String(m.platform||'').toLowerCase())
+    ['tiktok','twitch','kick','youtube'].includes(String(m.platform||'').toLowerCase())
       ? String(m.platform).toLowerCase()
       : 'tiktok';
 
