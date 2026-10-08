@@ -1374,10 +1374,26 @@ async function disconnectYouTube(){
   bridgeViewers('youtube',0);
   bridgeStatus('youtube',false,'YouTube desconectado','');
 }
+let youtubeDiscoveryBusy=false,youtubeDiscoveryLastError='';
 async function autoConnectYouTube(){
-  if(connectionPrefs.autoConnect&&connectionPrefs.youtubeEnabled&&connectionPrefs.youtubeUrl&&!youtubeReader.running){
-    try{await connectYouTube(connectionPrefs.youtubeUrl)}catch(e){broadcastPlatform('youtube',{type:'error',message:getError(e)})}
+ if(!connectionPrefs.autoConnect||youtubeDiscoveryBusy)return;
+ youtubeDiscoveryBusy=true;
+ try{
+  const response=await fetch(MAIN_ORIGIN+'/api/internal/youtube/live',{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(9000)});
+  const result=await response.json();
+  if(!result.ok){const reason=String(result.error||'Error detectando YouTube');if(reason!==youtubeDiscoveryLastError){console.warn('[YouTube DISCOVERY]',reason);broadcastPlatform('youtube',{type:'error',message:reason})}youtubeDiscoveryLastError=reason;return}
+  youtubeDiscoveryLastError='';
+  if(result.live&&result.videoId){
+   const target='https://www.youtube.com/watch?v='+result.videoId;
+   if(youtubeReader.videoId!==result.videoId||!youtubeReader.running){
+    console.log('[YouTube DISCOVERY] LIVE detectado',result.videoId);
+    await connectYouTube(target);connectionPrefs.youtubeUrl=target;connectionPrefs.youtubeEnabled=true;await saveConnectionPrefs();
+   }
+  }else if(result.linked&&!youtubeReader.running){
+   bridgeStatus('youtube',false,'Canal vinculado · esperando transmisión en vivo',result.channel||'');
   }
+ }catch(e){console.warn('[YouTube DISCOVERY]',String(e.message||e))}
+ finally{youtubeDiscoveryBusy=false}
 }
 
 // =====================================
