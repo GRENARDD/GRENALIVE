@@ -1948,7 +1948,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    }
  }
  if(pathname==='/api/account/register'&&req.method==='POST'){
-  return withAccountTransition(async()=>{
+  return await withAccountTransition(async()=>{
    {const g=authThrottle();if(g)return tooMany(res,g)}
    let raw='';raw=await readBody(req);const body=JSON.parse(raw||'{}');
    const username=normalizeGrenaUsername(body.username),displayName=String(body.displayName||body.username||'').trim().slice(0,40),password=String(body.password||''),email=normalizeEmail(body.email);
