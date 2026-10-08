@@ -1609,7 +1609,7 @@ async function activateProfile(userId,{restart=true}={}){
 }
 async function deactivateProfile(){disconnectPrivateSockets();await stopProfileRuntime();await loadProfileState('');await notifyChatProfile('');broadcast({type:'profile-changed',profile:null});broadcast({type:'counter-settings',settings:publicCounterSettings()});broadcast({type:'social-settings',settings:socialSettings})}
 async function persistUsers(){await safeWriteJson(USERS_FILE,usersStore)}
-function accountPayload(user){return {ok:true,authenticated:!!user,user:accountUser(user),activeUserId,active:!!user&&user.id===activeUserId,needsRecoveryEmail:!!user&&!user.email,mailConfigured:mailConfigured()}}
+function accountPayload(user){return {ok:true,authenticated:!!user,user:accountUser(user),activeUserId:user?activeUserId:null,active:!!user&&user.id===activeUserId,needsRecoveryEmail:!!user&&!user.email,mailConfigured:mailConfigured()}}
 
 
 // ===== GREÑA CAM ROOM · SALAS DE CÁMARA PARA OBS =====
@@ -1824,7 +1824,7 @@ function panelGuard(req,res,pathname){
   if(!pathname.startsWith('/api/'))return true;                // páginas y estáticos: ya los gestiona el router
   if(pathname.startsWith('/api/internal/'))return true;        // llevan su propio token de puente
   if(method==='GET'&&PUBLIC_GET.has(pathname)&&(!CLOUD_MODE||PUBLIC_GET_CLOUD.has(pathname)))return true;
-  if(method==='POST'&&PUBLIC_POST.has(pathname))return true;
+  if(method==='POST'&&PUBLIC_POST.has(pathname)&&(!CLOUD_MODE||pathname!=='/api/viewers/test'))return true;
   if(internalBridgeAllowed(req))return true;                    // chat-server -> server con token por arranque
   if(sessionUser(req))return true;
   if(method==='GET'&&OBS_PUBLIC_API.has(pathname)&&obsAuthorized(req))return true;
@@ -1869,7 +1869,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(!panelGuard(req,res,pathname))return;
  if(pathname==='/favicon.ico'&&(req.method==='GET'||req.method==='HEAD')){res.writeHead(302,{location:'/favicon.svg','cache-control':'public, max-age=3600'});return res.end()}
  if(CHAT_HTTP_ROUTES.has(pathname))return proxyChatHttp(req,res,url,false);
- if(pathname==='/health')return json(res,200,{ok:true,app:'GREÑA LIVE PRO',status});
+ if(pathname==='/health')return json(res,200,{ok:true,app:'GREÑA LIVE PRO'});
  if(pathname==='/api/app/window-heartbeat'&&req.method==='POST'){appWindowHeartbeat();return json(res,200,{ok:true});}
  if(pathname==='/api/app/window-closing'&&req.method==='POST'){appWindowClosing();return json(res,200,{ok:true});}
  if(pathname==='/api/app/exit'&&req.method==='POST'){if(CLOUD_MODE)return json(res,200,{ok:true,message:'GREÑA Web continúa en línea. Usa Cerrar sesión para salir de tu cuenta.'});json(res,200,{ok:true,message:'Cerrando GREÑA LIVE PRO…'});setTimeout(()=>requestFullShutdown('boton-salir-de-grena'),120);return;}
@@ -1948,6 +1948,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    }
  }
  if(pathname==='/api/account/register'&&req.method==='POST'){
+  return withAccountTransition(async()=>{
    {const g=authThrottle();if(g)return tooMany(res,g)}
    let raw='';raw=await readBody(req);const body=JSON.parse(raw||'{}');
    const username=normalizeGrenaUsername(body.username),displayName=String(body.displayName||body.username||'').trim().slice(0,40),password=String(body.password||''),email=normalizeEmail(body.email);
@@ -1958,7 +1959,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    if(usersStore.users.some(u=>normalizeEmail(u.email)===email))return json(res,409,{ok:false,error:'Ese correo ya está vinculado a otra cuenta GREÑA.'});
    const first=usersStore.users.length===0,salt=randomBytes(16).toString('hex');
    const user={id:createHash('sha256').update(username+Date.now()+randomBytes(8).toString('hex')).digest('hex').slice(0,20),username,displayName:displayName||username,email,salt,passwordHash:hashPassword(password,salt),createdAt:Date.now()};
-   usersStore.users.push(user);await persistUsers();if(first)await migrateLegacyIntoProfile(user.id);await withAccountTransition(async()=>{sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user)});return json(res,201,accountPayload(user));
+   usersStore.users.push(user);await persistUsers();if(first&&!CLOUD_MODE)await migrateLegacyIntoProfile(user.id);sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user);return json(res,201,accountPayload(user));
+  });
  }
  if(pathname==='/api/account/login'&&req.method==='POST'){
    let raw='';raw=await readBody(req);const body=JSON.parse(raw||'{}'),username=normalizeGrenaUsername(body.username),password=String(body.password||'');
