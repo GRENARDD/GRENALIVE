@@ -148,14 +148,7 @@ function platformAction(platform,label){return state.status[platform]?.authentic
 $('loginTikTok').onclick=()=>platformAction('tiktok','TikTok');
 $('loginTwitch').onclick=()=>platformAction('twitch','Twitch');
 $('loginKick').onclick=()=>platformAction('kick','Kick');
-$('loginYouTube').onclick=()=>{
- const frame=$('chatFrame');
- const url=prompt('Pega el enlace PUBLICO del directo de YouTube (Compartir → Copiar enlace)');
- if(!url)return;
- if(!frame?.contentWindow){toast('Motor de chat no disponible. Recarga GREÑA.');return}
- frame.contentWindow.postMessage({type:'grena-youtube-connect',url},location.origin);
- toast('Solicitando conexión de YouTube…');
-};
+$('loginYouTube').onclick=()=>platformAction('youtube','YouTube');
 
 function onboardingKey(){return profileKey('grenaOnboardingDismissedV4')}
 function maybeOnboarding(){
