@@ -98,7 +98,7 @@ body.grena-chat .info{font-size:12px!important;margin:15px 3px!important}
 body.grena-chat .status-pill{border:1px solid rgba(255,255,255,.06)!important;background:rgba(255,255,255,.04)!important;border-radius:999px!important;padding:6px 10px!important}
 body.grena-chat .chat{height:600px!important;border-radius:20px!important;padding:12px!important}
 body.grena-chat .msg{margin-bottom:7px!important;border:1px solid transparent!important;border-left-width:3px!important;border-radius:12px!important;padding:10px 11px!important;contain:content}
-body.grena-chat .msg.tiktok{background:linear-gradient(90deg,rgba(254,44,85,.095),rgba(255,255,255,.018) 45%,transparent)!important;border-color:rgba(254,44,85,.1)!important;border-left-color:#fe2c55!important}
+body.grena-chat .msg.tiktok{background:linear-gradient(90deg,rgba(37,244,238,.095),rgba(255,255,255,.018) 45%,transparent)!important;border-color:rgba(37,244,238,.1)!important;border-left-color:#25F4EE!important}
 body.grena-chat .msg.twitch{background:linear-gradient(90deg,rgba(145,70,255,.11),rgba(255,255,255,.018) 45%,transparent)!important;border-color:rgba(145,70,255,.12)!important;border-left-color:#9c63ff!important}
 body.grena-chat .avatar{border:1px solid rgba(255,255,255,.1)}
 body.grena-chat .name{font-size:13px!important}
