@@ -4725,8 +4725,12 @@ async function runModeration(action,button,durationSeconds=0){
    AGREGAR MENSAJE
 ===================================================== */
 
+const receivedChatIds=new Set();
 function addMessage(m){
-
+  const id=String(m?._historyId||'');
+  if(id){if(receivedChatIds.has(id))return;receivedChatIds.add(id);
+    if(receivedChatIds.size>800){const oldest=receivedChatIds.values().next().value;receivedChatIds.delete(oldest)}
+  }
   $('empty')?.remove();
 
   total++;
