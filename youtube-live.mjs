@@ -28,7 +28,7 @@ export function normalizeYouTubeMessage(item){
 export class YouTubeLiveReader {
   constructor({apiKey=process.env.GRENA_YOUTUBE_API_KEY,onMessage=()=>{},onStatus=()=>{},onViewers=()=>{}}={}){
     this.apiKey=String(apiKey||'').trim();this.onMessage=onMessage;this.onStatus=onStatus;this.onViewers=onViewers;
-    this.running=false;this.timer=null;this.nextPageToken='';this.seen=new Set();this.chatId='';this.videoId='';this.backoff=0;
+    this.running=false;this.timer=null;this.nextPageToken='';this.seen=new Set();this.chatId='';this.videoId='';this.backoff=0;this.pollCount=0;
   }
   async request(resource,params){
     const u=new URL(API+'/'+resource);for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v));
@@ -66,6 +66,8 @@ export class YouTubeLiveReader {
     try{
       const data=await this.request('liveChat/messages',{liveChatId:this.chatId,part:'id,snippet,authorDetails',maxResults:200,pageToken:this.nextPageToken});
       const initial=!this.nextPageToken;
+      this.pollCount=(this.pollCount||0)+1;
+      if(this.pollCount<=3||this.pollCount%12===0)console.log('[YouTube CHAT POLL]',JSON.stringify({videoId:this.videoId,chatFound:!!this.chatId,items:(data.items||[]).length,initial,hasNextPage:!!data.nextPageToken,poll:this.pollCount}));
       this.nextPageToken=data.nextPageToken||this.nextPageToken;
       for(const item of data.items||[]){
         if(!item.id||this.seen.has(item.id))continue;this.seen.add(item.id);
@@ -78,6 +80,7 @@ export class YouTubeLiveReader {
       this.onStatus({connected:true,videoId:this.videoId});
     }catch(e){
       this.backoff=Math.min(60000,this.backoff?this.backoff*2:5000);interval=this.backoff;
+      console.warn('[YouTube CHAT POLL ERROR]',String(e.message||e).slice(0,250));
       this.onStatus({connected:false,error:String(e.message||e),retryMs:interval});
     }
     if(this.running)this.timer=setTimeout(()=>this.poll().catch(()=>{}),interval);
