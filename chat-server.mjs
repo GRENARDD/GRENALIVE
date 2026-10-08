@@ -292,7 +292,7 @@ const broadcast = data => {
   // Conservamos los mensajes recientes para que un overlay que se abra o recargue
   // no quede vacío hasta que llegue el siguiente mensaje. Esto es especialmente
   // útil para OBS, que puede recargar la Fuente de navegador en cualquier momento.
-  if (data?.type === 'chat' && ['tiktok','twitch','kick'].includes(String(data?.platform||'').toLowerCase())) {
+  if (data?.type === 'chat' && ['tiktok','twitch','kick','youtube'].includes(String(data?.platform||'').toLowerCase())) {
     const item = {...data, _historyId: data._historyId || `${Date.now()}-${Math.random().toString(36).slice(2,9)}`};
     recentChatHistory.push(item);
     if (recentChatHistory.length > CHAT_HISTORY_LIMIT) recentChatHistory.splice(0, recentChatHistory.length - CHAT_HISTORY_LIMIT);
