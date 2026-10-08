@@ -1231,6 +1231,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
     <button type="button" data-chat-filter="tiktok"><img src="/assets/platforms/tiktok.webp" alt=""> TikTok <span id="chatCountTikTok">0</span></button>
     <button type="button" data-chat-filter="twitch"><img src="/assets/platforms/twitch.webp" alt=""> Twitch <span id="chatCountTwitch">0</span></button>
     <button type="button" data-chat-filter="kick"><img src="/assets/platforms/kick.svg" alt=""> Kick <span id="chatCountKick">0</span></button>
+    <button type="button" data-chat-filter="youtube">▶ YouTube <span id="chatCountYouTube">0</span></button>
   </div>
 
 <div id="chat" class="chat">
@@ -5479,6 +5480,7 @@ openWS()
     const tiktokBox=byTitle(/^\s*tiktok\s*$/i);
     const twitchBox=byTitle(/^\s*twitch\s*$/i);
     const kickBox=byTitle(/^\s*kick\s*$/i);
+    const youtubeBox=boxes.find(box=>box.classList.contains('youtube-voice-card'));
     const filtersBox=boxes.find(box=>box.classList.contains('filters-panel'))||byTitle(/filtros|anti-spam/i);
 
     // "Leer nombre del usuario" pertenece a Configuración de voz.
@@ -5502,6 +5504,7 @@ openWS()
       {key:'tiktok',title:'TikTok',subtitle:'Lectura de mensajes y usuarios',box:tiktokBox,img:'/assets/platforms/tiktok.webp',cls:'tiktok'},
       {key:'twitch',title:'Twitch',subtitle:'Lectura de mensajes y usuarios',box:twitchBox,img:'/assets/platforms/twitch.webp',cls:'twitch'},
       {key:'kick',title:'Kick',subtitle:'Lectura de mensajes y usuarios',box:kickBox,img:'/assets/platforms/kick.svg',cls:'kick'},
+      {key:'youtube',title:'YouTube',subtitle:'Lectura de mensajes y usuarios',box:youtubeBox,icon:'▶',cls:'youtube'},
       {key:'filters',title:'Filtros avanzados',subtitle:'Anti-spam y bloqueos',box:filtersBox,icon:'🛡️',cls:'filters'}
     ];
 
@@ -5547,6 +5550,7 @@ openWS()
         tiktok:stateText(!!document.getElementById('tiktokVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
         twitch:stateText(!!document.getElementById('twitchVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
         kick:stateText(!!document.getElementById('kickVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
+        youtube:stateText(!!document.getElementById('youtubeVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
         filters:stateText(document.getElementById('smartSpamEnabled')?.checked!==false,'Anti-spam activo','Anti-spam apagado')
       };
       for(const [key,value] of Object.entries(map)){
@@ -5554,7 +5558,7 @@ openWS()
         if(el)el.textContent=value;
       }
     };
-    ['voiceEnabled','tiktokVoiceEnabled','twitchVoiceEnabled','kickVoiceEnabled','smartSpamEnabled'].forEach(id=>document.getElementById(id)?.addEventListener('change',syncCards));
+    ['voiceEnabled','tiktokVoiceEnabled','twitchVoiceEnabled','kickVoiceEnabled','youtubeVoiceEnabled','smartSpamEnabled'].forEach(id=>document.getElementById(id)?.addEventListener('change',syncCards));
     syncCards();
   }
 
@@ -5569,19 +5573,20 @@ openWS()
 
   function platformOf(el){
     const fromData=String(el?.dataset?.platform||'').toLowerCase();
-    if(['tiktok','twitch','kick'].includes(fromData))return fromData;
+    if(['tiktok','twitch','kick','youtube'].includes(fromData))return fromData;
     if(el.classList.contains('tiktok'))return'tiktok';
     if(el.classList.contains('twitch'))return'twitch';
     if(el.classList.contains('kick'))return'kick';
+    if(el.classList.contains('youtube'))return'youtube';
     return'';
   }
 
   function updateCounts(){
     if(!chat)return;
     const rows=[...chat.querySelectorAll('.msg')];
-    const counts={all:rows.length,tiktok:0,twitch:0,kick:0};
+    const counts={all:rows.length,tiktok:0,twitch:0,kick:0,youtube:0};
     rows.forEach(r=>{const p=platformOf(r);if(p)counts[p]++});
-    const ids={all:'chatCountAll',tiktok:'chatCountTikTok',twitch:'chatCountTwitch',kick:'chatCountKick'};
+    const ids={all:'chatCountAll',tiktok:'chatCountTikTok',twitch:'chatCountTwitch',kick:'chatCountKick',youtube:'chatCountYouTube'};
     Object.entries(ids).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.textContent=counts[k]});
   }
 
