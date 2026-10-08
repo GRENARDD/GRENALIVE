@@ -953,11 +953,23 @@ function publicGiftCatalog({platform='',q='',animatedOnly=false}={}){
  const stats={total:items.length,tiktok:items.filter(x=>x.platform==='TikTok').length,twitch:items.filter(x=>x.platform==='Twitch').length,kick:items.filter(x=>x.platform==='Kick').length,youtube:items.filter(x=>x.platform==='YouTube').length,animated:items.filter(x=>x.animatedImage).length,observed:items.filter(x=>x.observed).length};return {version:1,updatedAt:giftCatalogCache.updatedAt,sources:giftCatalogCache.sources,stats,items};
 }
 function rememberActivity(a){activityHistory.unshift(a);if(activityHistory.length>120)activityHistory.length=120}
-const FOLLOWER_GOALS_FILE=path.join(DATA_DIR,'follower-goals.json');
-let followerGoals={settings:{tiktok:{start:0,goal:100,show:true},twitch:{start:0,goal:10,show:true},kick:{start:0,goal:10,show:true}},gained:{tiktok:0,twitch:0,kick:0}};
-try{const fg=JSON.parse(fs.readFileSync(FOLLOWER_GOALS_FILE,'utf8'));followerGoals={settings:{...followerGoals.settings,...(fg.settings||{})},gained:{...followerGoals.gained,...(fg.gained||{})}}}catch{}
+const LEGACY_FOLLOWER_GOALS_FILE=path.join(DATA_DIR,'follower-goals.json');
+function followerGoalsFile(userId=activeUserId){return userId?profileFile('follower-goals.json',userId):LEGACY_FOLLOWER_GOALS_FILE}
+function freshFollowerGoals(){return {settings:{tiktok:{start:0,goal:100,show:true},twitch:{start:0,goal:10,show:true},kick:{start:0,goal:10,show:true}},gained:{tiktok:0,twitch:0,kick:0}}}
+let followerGoals=freshFollowerGoals();
+async function loadFollowerGoalsForProfile(){
+ let fg=activeUserId?await readJson(followerGoalsFile(),null):(!CLOUD_MODE?await readJson(LEGACY_FOLLOWER_GOALS_FILE,null):null);
+ // Migrar únicamente si existe UN SOLO usuario: nunca atribuir datos globales al usuario incorrecto.
+ if(!fg&&activeUserId&&usersStore.users.length===1){
+   fg=await readJson(LEGACY_FOLLOWER_GOALS_FILE,null);
+   if(fg)await safeWriteJson(followerGoalsFile(),fg);
+ }
+ const defaults=freshFollowerGoals();
+ followerGoals={settings:{...defaults.settings,...(fg?.settings||{})},gained:{...defaults.gained,...(fg?.gained||{})}};
+}
+await loadFollowerGoalsForProfile();
 function publicFollowerGoals(){return {settings:followerGoals.settings,gained:followerGoals.gained}}
-async function persistFollowerGoals(){await safeWriteJson(FOLLOWER_GOALS_FILE,followerGoals).catch(()=>{})}
+async function persistFollowerGoals(){if(activeUserId||!CLOUD_MODE)await safeWriteJson(followerGoalsFile(),followerGoals).catch(()=>{})}
 function followerGoalFollow(platform){const p=String(platform||'').toLowerCase();if(!(p in followerGoals.gained))return;followerGoals.gained[p]=Math.max(0,Number(followerGoals.gained[p]||0))+1;persistFollowerGoals();broadcast({type:'follower-goals',state:publicFollowerGoals()})}
 function alert(platform,event,name,message='',extra={}){
  extra=enrichAlertMedia(platform,event,extra);
@@ -1594,6 +1606,7 @@ async function activateProfile(userId,{restart=true}={}){
   const user=usersStore.users.find(u=>u.id===String(userId||''));if(!user)throw Error('Perfil de GREÑA no encontrado.');
   if(restart)await stopProfileRuntime();
   await loadProfileState(user.id);
+  await loadFollowerGoalsForProfile();
   await notifyChatProfile(user.id);
   await syncAllCreatorAccounts();
   broadcast({type:'profile-changed',profile:publicUser(user)});
@@ -1609,7 +1622,7 @@ async function activateProfile(userId,{restart=true}={}){
   }
   return user;
 }
-async function deactivateProfile(){disconnectPrivateSockets();await stopProfileRuntime();await loadProfileState('');await notifyChatProfile('');broadcast({type:'profile-changed',profile:null});broadcast({type:'counter-settings',settings:publicCounterSettings()});broadcast({type:'social-settings',settings:socialSettings})}
+async function deactivateProfile(){disconnectPrivateSockets();await stopProfileRuntime();await loadProfileState('');await loadFollowerGoalsForProfile();await notifyChatProfile('');broadcast({type:'profile-changed',profile:null});broadcast({type:'counter-settings',settings:publicCounterSettings()});broadcast({type:'social-settings',settings:socialSettings})}
 async function persistUsers(){await safeWriteJson(USERS_FILE,usersStore)}
 function accountPayload(user){return {ok:true,authenticated:!!user,user:accountUser(user),activeUserId:user?activeUserId:null,active:!!user&&user.id===activeUserId,needsRecoveryEmail:!!user&&!user.email,mailConfigured:mailConfigured()}}
 
@@ -2051,7 +2064,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  if(pathname==='/api/internal/status'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;
-  let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
+  let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
   if(!['tiktok','twitch','kick','youtube'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   const p=body.platform,wasConnected=!!bridgeRuntime[p],label=String(body.label||'');
   bridgeRuntime[p]=!!body.connected;
@@ -2088,7 +2101,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   pushEventHealth();return json(res,200,{ok:true,status:publicStatus(),eventHealth:eventHealthSnapshot()});
  }
  if(pathname==='/api/internal/event'&&req.method==='POST'){
-  if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const platform=String(body.platform||''),event=String(body.event||'');
+  if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});const platform=String(body.platform||''),event=String(body.event||'');
   if(!['TikTok','Twitch','Kick','YouTube','youtube'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
   if(bridgeMessageDuplicate(body.bridgeEventId))return json(res,200,{ok:true,duplicate:true});
   if(platform==='Twitch'&&twitchCfg){
@@ -2108,7 +2121,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   return json(res,200,{ok:true,avatar:await kickUserAvatar(userId)});
  }
  if(pathname==='/api/internal/loyalty'&&req.method==='POST'){
-  if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
+  if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
   const p=loyaltyPlatform(body.platform);if(!p)return json(res,400,{ok:false,error:'Plataforma de fidelidad no válida'});
   if(bridgeMessageDuplicate(body.bridgeEventId))return json(res,200,{ok:true,duplicate:true});
   noteBridgeSignal(p,String(body.kind||body.event||'loyalty'),{user:body.user||'',amount:Number(body.amount||0)||0});
@@ -2143,7 +2156,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(p)loyaltyState.users[p]={};else loyaltyState.users={tiktok:{},twitch:{},kick:{},youtube:{}};loyaltyRuntime.clear();await persistLoyalty();pushLoyalty();return json(res,200,{ok:true,loyalty:publicLoyaltyState(10)});
  }
  if(pathname==='/api/internal/viewers'&&req.method==='POST'){
-  if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');
+  if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
   if(!['tiktok','twitch','kick','youtube'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   // TikTok usa una sola conexión LIVE en chat-server. Ese bridge alimenta chat, eventos,
   // contador y widgets; no se abre un segundo TikTokLiveConnection para el contador.
@@ -2188,8 +2201,16 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/webhooks/kick'&&req.method==='POST'){
    let raw='';raw=await readBody(req);
    const verified=await verifyKickWebhook(req,raw).catch(e=>{console.warn('[KICK WEBHOOK VERIFY]',e?.message||e);return false});if(verified==='duplicate')return json(res,200,{ok:true,duplicate:true});if(!verified)return json(res,403,{ok:false,error:'Firma Kick inválida'});
+   // El cambio de perfil no puede interrumpir un webhook ya verificado.
+   return withAccountTransition(async()=>{
    const eventType=String(req.headers['kick-event-type']||'');
    let body={};try{body=JSON.parse(raw||'{}')}catch{}
+   // La firma verifica el origen Kick, pero no significa que el evento sea del creador activo.
+   const linkedId=String(savedAuth.kick?.userId||'').trim(),receivedId=String(body.broadcaster?.user_id??body.broadcaster?.id??'').trim();
+   const linkedSlug=normalizeKickSlug(savedAuth.kick?.slug||savedAuth.kick?.username||'').toLowerCase();
+   const receivedSlug=normalizeKickSlug(body.broadcaster?.channel_slug||body.broadcaster?.username||'').toLowerCase();
+   const sameChannel=linkedId&&receivedId?linkedId===receivedId:!!(linkedSlug&&receivedSlug&&linkedSlug===receivedSlug);
+   if(!activeUserId||!sameChannel)return json(res,202,{ok:true,ignored:'webhook-for-different-creator'});
    kickEventHealth.lastWebhookAt=Date.now();noteBridgeSignal('kick',eventType,{official:true});pushEventHealth();
    const person=(x={})=>({name:String(x?.username||x?.name||'Usuario'),avatar:String(x?.profile_picture||x?.profilePicture||'')});
    if(eventType==='chat.message.sent'){
@@ -2202,6 +2223,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    }else if(eventType==='livestream.status.updated'){const live=!!body.is_live,slug=String(body?.broadcaster?.channel_slug||body?.broadcaster?.username||currentKickSlug()||'Kick');setStatus('kick',true,live?`${slug} · cuenta vinculada · LIVE activo`:`${slug} · cuenta vinculada · offline`,slug);if(!live)setViewers('kick',0,'Kick livestream.status.updated · offline');
    }
    return json(res,200,{ok:true,event:eventType});
+   });
  }
  if(pathname==='/api/kick/config'&&req.method==='GET')return json(res,200,{ok:true,slug:currentKickSlug()});
  if(pathname==='/api/kick/config'&&req.method==='POST'){let body='';body=await readBody(req);try{const d=JSON.parse(body||'{}');oauthConfig.kick={...(oauthConfig.kick||{}),clientId:String(d.clientId??oauthConfig.kick?.clientId??'').trim(),clientSecret:String(d.clientSecret??oauthConfig.kick?.clientSecret??'').trim()};const slug=normalizeKickSlug(d.slug??currentKickSlug());if(slug){autoPrefs.counterKick=`https://kick.com/${slug}`;autoPrefs.counterKickEnabled=true;await persistAutoPrefs()}await persistOAuthConfig();kickAppToken='';kickTokenExpiresAt=0;if(slug)startKickPolling();return json(res,200,{ok:true,slug})}catch(e){return json(res,400,{error:e.message||'Configuración Kick inválida'})}}
@@ -2254,10 +2276,10 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname.startsWith('/api/oauth-config/')&&req.method==='GET'){const p=pathname.split('/').pop();if(!['twitch'].includes(p))return json(res,400,{ok:false,error:'Plataforma no válida'});return json(res,200,{ok:true,clientId:oauthConfig[p]?.clientId||'',hasClientSecret:!!oauthConfig[p]?.clientSecret});}
  if(pathname==='/api/oauth-config'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const p=body.platform;if(!['twitch'].includes(p))return json(res,400,{ok:false,error:'Plataforma no válida'});const clientId=String(body.clientId||'').trim();if(!clientId)return json(res,400,{ok:false,error:'Falta el Client ID'});const clientSecret=String(body.clientSecret||'').trim();oauthConfig[p]={...oauthConfig[p],clientId,...(clientSecret?{clientSecret}: {})};await persistOAuthConfig();return json(res,200,{ok:true,configured:configured(p)});}
  if(pathname==='/api/alert-style'&&req.method==='GET')return json(res,200,{ok:true,style:['classic','option-a'].includes(autoPrefs.alertStyle)?autoPrefs.alertStyle:'classic'});
- if(pathname==='/api/alert-style'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const style=String(body.style||'classic');if(!['classic','option-a'].includes(style))return json(res,400,{ok:false,error:'Estilo de alerta no válido.'});autoPrefs.alertStyle=style;await persistAutoPrefs();broadcast({type:'alert-style',style});return json(res,200,{ok:true,style})}
+ if(pathname==='/api/alert-style'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const style=String(body.style||'classic');if(!['classic','option-a'].includes(style))return json(res,400,{ok:false,error:'Estilo de alerta no válido.'});autoPrefs.alertStyle=style;await persistAutoPrefs();broadcast({type:'alert-style',style});return json(res,200,{ok:true,style})});
  if(pathname==='/api/designs'&&req.method==='GET')return json(res,200,{ok:true,designs:savedAlertDesigns});
- if(pathname==='/api/design'&&req.method==='POST'){let b='';b=await readBody(req);const d=JSON.parse(b||'{}');const ev=String(d.event||'follow');savedAlertDesigns[ev]={...d,soundProfileVersion:SOUND_PROFILE_VERSION};await safeWriteJson(stateFile('alert-designs.json',LEGACY_ALERTS_FILE),savedAlertDesigns);return json(res,200,{ok:true,event:ev})}
- if(pathname==='/api/alert'&&req.method==='POST'){let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(a.platform&&a.event&&['follow','sub','gift','cheer','share','raid','like'].includes(String(a.event))){alert(String(a.platform),String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,receivedAt:Date.now()}})}return json(res,200,{ok:true})}
+ if(pathname==='/api/design'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const d=JSON.parse(b||'{}');const ev=String(d.event||'follow');savedAlertDesigns[ev]={...d,soundProfileVersion:SOUND_PROFILE_VERSION};await safeWriteJson(stateFile('alert-designs.json',LEGACY_ALERTS_FILE),savedAlertDesigns);return json(res,200,{ok:true,event:ev})});
+ if(pathname==='/api/alert'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(a.platform&&a.event&&['follow','sub','gift','cheer','share','raid','like'].includes(String(a.event))){alert(String(a.platform),String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,receivedAt:Date.now()}})}return json(res,200,{ok:true})});
  if(pathname==='/api/tiktok/browser-login'&&req.method==='POST'){json(res,202,{ok:true,message:'Abriendo TikTok…'});beginTikTokBrowserLogin().catch(e=>{console.error('TikTok Browser Login:',e);if(tiktokLoginContext){tiktokLoginContext.close().catch(()=>{});tiktokLoginContext=null}setStatus('tiktok',false,'Error de login: '+(e?.message||e))});return}
  const m=pathname.match(/^\/oauth\/(tiktok|twitch|kick|youtube)\/(start|callback)$/);if(m){if(m[2]==='start')return await beginOAuth(m[1],req,res);return await withAccountTransition(()=>finishOAuth(m[1],url,res,req))}
  if(pathname==='/api/twitch/device/status'&&req.method==='GET'){
