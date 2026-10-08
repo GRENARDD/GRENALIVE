@@ -5156,12 +5156,20 @@ $('connectTwitch')
   connectTwitch;
 
 $('connectKick').onclick=connectKick;
+window.addEventListener('message',e=>{
+ if(e.origin!==location.origin||e.data?.type!=='grena-youtube-connect')return;
+ const url=String(e.data.url||'').trim();
+ if(!url)return;
+ $('youtubeUrl').value=url;
+ $('connectYouTube').click();
+});
 $('connectYouTube').onclick=async()=>{
  const url=$('youtubeUrl').value.trim();
  if(!url)return alert('Pega el enlace del directo de YouTube.');
  try{if(!ws||ws.readyState!==1)await openWS()}catch{return alert('Chat sin conexión; comprueba el servidor.')}
  saveSettings();
  ws.send(JSON.stringify({type:'connect',platform:'youtube',url}));
+ status('🟡 Solicitando conexión de YouTube para '+url.replace(/\\?.*$/,'')+'…');
  $('youtubeStatus').textContent='YouTube: comprobando directo…';
 };
 $('youtubeUrl').onkeydown=e=>{if(e.key==='Enter')$('connectYouTube').click()};
