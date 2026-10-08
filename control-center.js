@@ -48,7 +48,18 @@ function renderViewerSparkline(total){
  const [lastX,lastY]=pts[pts.length-1];dot.setAttribute('cx',lastX.toFixed(1));dot.setAttribute('cy',lastY.toFixed(1));
  line.classList.remove('updated');dot.classList.remove('updated');void line.getBoundingClientRect();line.classList.add('updated');dot.classList.add('updated');
 }
-function renderViewers(){const t=Number(state.viewers.tiktok||0),w=Number(state.viewers.twitch||0),k=Number(state.viewers.kick||0),y=Number(state.viewers.youtube||0),total=t+w+k+y;$('tiktokViewers').textContent=t.toLocaleString('es-DO');$('twitchViewers').textContent=w.toLocaleString('es-DO');$('kickViewers').textContent=k.toLocaleString('es-DO');$('youtubeViewers').textContent=y.toLocaleString('es-DO');$('totalViewers').textContent=total.toLocaleString('es-DO');renderViewerSparkline(total)}
+function renderViewers(){
+ const v={tiktok:Math.max(0,Number(state.viewers.tiktok)||0),twitch:Math.max(0,Number(state.viewers.twitch)||0),kick:Math.max(0,Number(state.viewers.kick)||0),youtube:Math.max(0,Number(state.viewers.youtube)||0)};
+ const total=Object.values(v).reduce((a,b)=>a+b,0);
+ for(const p of Object.keys(v)){
+  const el=$(p+'Viewers');if(el)el.textContent=v[p].toLocaleString('es-DO');
+  const card=document.querySelector('.viewer-grid .viewer-card.'+p);
+  if(card)card.classList.toggle('is-hidden',v[p]<1);
+ }
+ document.querySelector('.viewer-grid')?.classList.toggle('is-empty',total<1);
+ $('totalViewers').textContent=total.toLocaleString('es-DO');
+ renderViewerSparkline(total);
+}
 function platformAccount(p){const s=state.status[p]||{};const account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='youtube'?'YouTube':'Kick');return s.authenticated?(account?(p==='tiktok'?`@${String(account).replace(/^@/,'')} · LIVE vinculado`:`${account} · cuenta vinculada`):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada')}
 function renderPlatforms(){
  const labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube'};
@@ -244,6 +255,8 @@ const soundboard={
  audio:null,
  uploadSlot:0,
  replaceSlot:0,
+ configSlot:0,
+ configShortcut:'',
  holdTimer:null,
  holdButton:null,
  suppressClick:0,
@@ -258,27 +271,30 @@ function soundName(name='',slot=1){
  const clean=String(name||'').replace(/\.[^.]+$/,'').trim();
  return clean||('Audio '+slot);
 }
+function formatSoundShortcut(chord=''){
+ return String(chord||'').replace(/Key([A-Z])/g,'$1').replace(/Digit([0-9])/g,'$1').replace(/Numpad([0-9])/g,'Num $1');
+}
 function renderSoundPad(slot){
  const b=soundPad(slot);if(!b)return;
- const meta=soundboard.slots.get(slot);
- const fade=soundFadeInput(slot),fadeLabel=fade?.closest('.sound-slot-fade');
+ const meta=soundboard.slots.get(slot),fade=soundFadeInput(slot),fadeLabel=fade?.closest('.sound-slot-fade');
+ const label=String(meta?.label||'').trim()||soundName(meta?.name,slot);
+ const shortcut=meta?.shortcut?formatSoundShortcut(meta.shortcut):'';
+ const hint=shortcut?' · '+shortcut:'';
  b.classList.remove('empty','playing','paused','uploading','holding');
  const icon=b.querySelector('.sound-pad-icon'),title=b.querySelector('b'),small=b.querySelector('small');
+ title.textContent=label;b.title=label+(shortcut?' · Atajo: '+shortcut:'');
  if(!meta||meta.empty){
-  b.classList.add('empty');icon.textContent='＋';title.textContent='Audio '+slot;small.textContent='Vacío · subir';
+  b.classList.add('empty');icon.textContent='＋';small.textContent='Vacío · subir'+hint;
   if(fade){fade.checked=true;fade.disabled=true}
   fadeLabel?.classList.add('disabled');
   return;
  }
  if(fade){fade.checked=meta.fade!==false;fade.disabled=false}
  fadeLabel?.classList.remove('disabled');
- title.textContent=soundName(meta.name,slot);
  if(soundboard.activeSlot===slot&&soundboard.audio){
   b.classList.add('playing');icon.textContent='■';
-  small.textContent=soundboard.stopping?(soundFadeEnabled(slot)?'Desvaneciendo…':'Deteniendo…'):'Sonando · clic para detener';
- }else{
-  icon.textContent='▶';small.textContent='Clic para reproducir';
- }
+  small.textContent=soundboard.stopping?(soundFadeEnabled(slot)?'Desvaneciendo…':'Deteniendo…'):'Sonando'+hint;
+ }else{icon.textContent='▶';small.textContent='Reproducir'+hint}
 }
 function renderSoundboard(){for(let i=1;i<=5;i++)renderSoundPad(i)}
 async function loadSoundboard(){
@@ -396,6 +412,59 @@ document.querySelectorAll('[data-sound-fade]').forEach(input=>{
  input.addEventListener('change',()=>setSoundFade(slot,input.checked));
  input.addEventListener('click',e=>e.stopPropagation());
 });
+
+function soundChordFromEvent(e){
+ const code=String(e.code||'');
+ if(!/^(Key[A-Z]|Digit[0-9]|Numpad[0-9]|F(?:[1-9]|1[0-2]))$/.test(code))return '';
+ if(!e.ctrlKey&&!e.altKey&&!e.metaKey&&!/^F(?:[1-9]|1[0-2])$/.test(code))return '';
+ return [e.ctrlKey?'Ctrl':null,e.altKey?'Alt':null,e.shiftKey?'Shift':null,e.metaKey?'Meta':null,code].filter(Boolean).join('+');
+}
+function openSoundConfig(slot){
+ soundboard.configSlot=slot;
+ const m=soundboard.slots.get(slot)||{};
+ $('soundboardConfigTitle').textContent='Configurar botón '+slot;
+ $('soundboardCustomName').value=String(m.label||'');
+ soundboard.configShortcut=String(m.shortcut||'');
+ $('soundboardShortcut').value=formatSoundShortcut(soundboard.configShortcut);
+ $('soundboardConfigDialog')?.showModal();
+}
+document.querySelectorAll('[data-sound-config]').forEach(btn=>btn.addEventListener('click',()=>openSoundConfig(Number(btn.dataset.soundConfig))));
+$('soundboardShortcut')?.addEventListener('keydown',e=>{
+ if(e.key==='Escape')return;
+ e.preventDefault();e.stopPropagation();
+ if(e.key==='Backspace'||e.key==='Delete'){soundboard.configShortcut='';$('soundboardShortcut').value='';return}
+ const chord=soundChordFromEvent(e);
+ if(chord){soundboard.configShortcut=chord;$('soundboardShortcut').value=formatSoundShortcut(chord)}
+});
+$('soundboardClearShortcut')?.addEventListener('click',()=>{soundboard.configShortcut='';$('soundboardShortcut').value=''});
+$('soundboardConfigCancel')?.addEventListener('click',()=>{soundboard.configSlot=0;$('soundboardConfigDialog')?.close()});
+$('soundboardConfigDialog')?.addEventListener('close',()=>{soundboard.configSlot=0});
+$('soundboardConfigSave')?.addEventListener('click',async()=>{
+ const slot=soundboard.configSlot;if(!slot)return;
+ const label=$('soundboardCustomName').value.trim().slice(0,32),shortcut=soundboard.configShortcut;
+ const btn=$('soundboardConfigSave');btn.disabled=true;
+ try{
+  const r=await fetch('/api/soundboard/config/'+slot,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({label,shortcut})});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw Error(d.error||'No se pudo guardar la configuración.');
+  soundboard.slots.set(slot,d.slot);renderSoundPad(slot);
+  $('soundboardConfigDialog')?.close();toast('Botón '+slot+' configurado.');
+ }catch(e){toast(e.message||'Error al guardar configuración.')}finally{btn.disabled=false}
+});
+document.addEventListener('keydown',e=>{
+ if(e.repeat||e.isComposing||e.defaultPrevented)return;
+ const target=e.target;
+ if(target?.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(target?.tagName||'')||document.querySelector('dialog[open]'))return;
+ const chord=soundChordFromEvent(e);if(!chord)return;
+ for(let slot=1;slot<=5;slot++){
+  if(soundboard.slots.get(slot)?.shortcut===chord){e.preventDefault();toggleSound(slot);return}
+ }
+});
+document.addEventListener('grena-global-hotkey',e=>{
+ const slot=Number(e.detail?.slot);
+ if(Number.isInteger(slot)&&slot>=1&&slot<=5)toggleSound(slot);
+});
+
 function openSoundPicker(slot){
  soundboard.uploadSlot=slot;
  const input=$('soundboardFile');if(!input)return;
