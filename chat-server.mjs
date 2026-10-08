@@ -209,6 +209,51 @@ let tiktokConn = null;
 let tiktokViewerPollTimer = null;
 let tiktokViewerLastSignalAt = 0;
 let tiktokViewerLastPositiveAt = 0;
+let tiktokViewerPollBusy=false,tiktokViewerPollFailures=0,tiktokViewerNextPollAt=0;
+let tiktokConnectionReady=false;
+const TIKTOK_CONNECTION_LOG=join(CHAT_LOG_DIR,'tiktok-connection.log');
+const tiktokRetry={failures:0,nextAt:0,kind:'',lastOutcome:'',lastAt:0,connectedAt:0};
+const TIKTOK_BACKOFF_MS=[15000,30000,60000,120000,240000,480000,600000];
+function tiktokConnectionLog(event,details={}){
+ const line=JSON.stringify({at:new Date().toISOString(),event,...details});
+ console.info('[GREÑA TikTok]',line);
+ // Registrar solamente categorías y estados: nunca cookies, tokens o mensajes de espectadores.
+ appendFile(TIKTOK_CONNECTION_LOG,line+'\n','utf8').catch(()=>{});
+}
+function tiktokFailureKind(error){
+ const m=String(error?.message||error||'');
+ if(/rate_limit_account_day|too many connections started|\[rate limited\]|rate.limited|rate.limit|too many requests|\b429\b/i.test(m))return 'rate-limit';
+ if(/not (?:currently )?(?:in a )?live|not live|isn.t live|offline|live.*(?:ended|not found)|stream.*(?:ended|not found)|room.*(?:not found|offline)|no live|livestream.*not/i.test(m))return 'offline';
+ if(/\b401\b|\b403\b|unauthori[sz]ed|invalid.*(?:key|token)|access denied|forbidden/i.test(m))return 'authorization';
+ return 'connection';
+}
+function tiktokRetryLabel(){
+ if(tiktokRetry.nextAt<=Date.now())return '';
+ const seconds=Math.max(1,Math.ceil((tiktokRetry.nextAt-Date.now())/1000));
+ return seconds>=60?Math.ceil(seconds/60)+' min':seconds+' s';
+}
+function tiktokScheduleRetry(kind='connection'){
+ if(!connectionPrefs.autoConnect||!connectionPrefs.tiktokEnabled||!connectionPrefs.tiktokUrl)return;
+ const now=Date.now();tiktokRetry.failures+=1;
+ const base=kind==='offline'||kind==='ended'?120000:
+   kind==='authorization'?900000:TIKTOK_BACKOFF_MS[Math.min(TIKTOK_BACKOFF_MS.length-1,tiktokRetry.failures-1)];
+ const delay=kind==='rate-limit'?Math.max(3600000,tiktokRateLimitUntil-now):base;
+ tiktokRetry.nextAt=Math.max(tiktokRetry.nextAt,now+delay,tiktokRateLimitUntil);
+ tiktokRetry.kind=kind;tiktokRetry.lastAt=now;tiktokRetry.lastOutcome=kind;
+ tiktokConnectionLog('retry-scheduled',{kind,attempt:tiktokRetry.failures,waitSeconds:Math.ceil((tiktokRetry.nextAt-now)/1000)});
+ const user=usernameFromTikTokUrl(connectionPrefs.tiktokUrl);
+ const msg=kind==='rate-limit'?'límite temporal':kind==='offline'||kind==='ended'?'LIVE no disponible':kind==='authorization'?'autorización pendiente':'reconexión pendiente';
+ bridgeStatus('tiktok',false,`@${user} · ${msg} · siguiente intento en ${tiktokRetryLabel()}`,user,{source:'tiktok-backoff',retryAt:tiktokRetry.nextAt});
+}
+function tiktokResetRetry(){
+ tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';tiktokRetry.lastAt=Date.now();tiktokRetry.lastOutcome='connected';tiktokRetry.connectedAt=Date.now();
+}
+function tiktokConnectionDiagnostics(){
+ return {connected:tiktokConnectionReady&&!!tiktokConn,connecting:!!tiktokConn&&!tiktokConnectionReady,
+  retryAt:tiktokRetry.nextAt,retryReason:tiktokRetry.kind,retryCount:tiktokRetry.failures,
+  lastOutcome:tiktokRetry.lastOutcome,lastAttemptAt:tiktokRetry.lastAt,lastConnectedAt:tiktokRetry.connectedAt,
+  lastViewerSignalAt:tiktokViewerLastSignalAt,viewerFallbackFailures:tiktokViewerPollFailures};
+}
 let twitchClient = null;
 let kickConnected = false;
 let kickBrowser = null;
@@ -433,12 +478,11 @@ const getError = error => {
 };
 
 function tiktokRateLimitBackoff(error) {
-  const message = getError(error);
-  if (!/rate_limit_account_day|too many connections started|\[rate limited\]/i.test(message)) return 0;
-  const raw = Number(error?.retryAfter || 0);
-  const waitMs = raw > 0 ? (raw < 1000 ? raw * 1000 : raw) : 60 * 60 * 1000;
-  tiktokRateLimitUntil = Math.max(tiktokRateLimitUntil, Date.now() + waitMs);
-  return waitMs;
+ if(tiktokFailureKind(error)!=='rate-limit')return 0;
+ const raw=Number(error?.retryAfter||0);
+ const waitMs=Number.isFinite(raw)&&raw>0?Math.max(60000,Math.min(86400000,raw<1000?raw*1000:raw)):3600000;
+ tiktokRateLimitUntil=Math.max(tiktokRateLimitUntil,Date.now()+waitMs);
+ return waitMs;
 }
 function tiktokRateLimitLabel() {
   const ms = Math.max(0, tiktokRateLimitUntil - Date.now());
@@ -1288,13 +1332,12 @@ function timeout(
 async function disconnectTikTok() {
   if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}
   tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;
+  tiktokViewerPollFailures=0;tiktokViewerNextPollAt=0;tiktokConnectionReady=false;
   if (tiktokConn) {
-    try {
-      await tiktokConn.disconnect();
-    } catch {}
-
-    tiktokConn = null;
-    currentTikTokUser = '';
+    // Invalida antes de cerrar para que un cierre solicitado no programe otra conexión.
+    const old=tiktokConn;tiktokConn=null;currentTikTokUser='';
+    try{await old.disconnect()}catch{}
+    tiktokConnectionLog('disconnect-requested');
 
     tiktokUsers.clear();
 
@@ -1412,10 +1455,10 @@ async function disconnectAll() {
 // CONECTAR TIKTOK
 // =====================================
 
-async function connectTikTok(input) {
-  const username =
-    usernameFromTikTokUrl(input);
-
+async function connectTikTok(input,{automatic=false}={}) {
+  const username=usernameFromTikTokUrl(input);
+  if(!username)throw Error('Pon el enlace o usuario de TikTok.');
+  if(automatic&&Date.now()<tiktokRetry.nextAt)return false;
   if (Date.now() < tiktokRateLimitUntil) {
     const message = `TikTok temporalmente limitado · reintento en ${tiktokRateLimitLabel()}`;
     broadcastPlatform('tiktok',{type:'error',message});
@@ -1424,7 +1467,9 @@ async function connectTikTok(input) {
   }
 
   await disconnectTikTok();
-
+  if(!automatic){tiktokRetry.nextAt=0;tiktokRetry.failures=0;tiktokRetry.kind='';}
+  tiktokRetry.lastAt=Date.now();tiktokRetry.lastOutcome='connecting';
+  tiktokConnectionLog('connect-attempt',{mode:automatic?'automatic':'manual',username});
   currentTikTokUser =
     username;
 
