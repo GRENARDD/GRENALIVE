@@ -916,6 +916,14 @@ function rememberObservedCatalogGift(platform,event,extra={}){
  upsertCatalogItem(raw,{preferName:true});
 }
 function enrichAlertMedia(platform,event,extra={}){
+ if(String(platform).toLowerCase()==='youtube'){
+  const kind=String(extra.eventKind||extra.giftKind||'').toLowerCase();
+  const known=['superchat','supersticker','membership','membershipgift','membermilestone','membershipreceived'];
+  if(known.includes(kind)){
+   const labels={superchat:'Super Chat',supersticker:'Super Sticker',membership:'Nueva membresía',membershipgift:'Membresías regaladas',membermilestone:'Hito de membresía',membershipreceived:'Membresía recibida'};
+   extra={...extra,giftImage:extra.giftImage||'/assets/youtube-events/'+kind+'.svg',giftKind:kind,giftName:labels[kind]};
+  }
+ }
  const p=catalogPlatform(platform),amount=p==='Twitch'?Number(extra.bits||0):p==='Kick'?Number(extra.amount||0):Number(extra.unitDiamonds||0),name=String(extra.giftNameOriginal||extra.giftName||'');const hit=catalogMatch(p,{name,amount,event});if(!hit)return extra;
  const out={...extra};if(!out.giftImage&&hit.image)out.giftImage=hit.image;if(!out.giftAnimatedImage&&hit.animatedImage)out.giftAnimatedImage=hit.animatedImage;if(p==='TikTok'&&hit.nameEs){out.giftNameOriginal=out.giftNameOriginal||out.giftName||hit.name;out.giftName=hit.nameEs}return out;
 }
