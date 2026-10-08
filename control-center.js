@@ -115,7 +115,7 @@ document.querySelectorAll('[data-test]').forEach(b=>b.onclick=async()=>{
  try{await postAlert(payload);toast('Alerta de prueba enviada a OBS')}catch(e){toast(e.message)}
 });
 fetch('/api/obs-token',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{if(d?.token){const u=new URL('/overlay.html',location.origin);u.searchParams.set('obs',d.token);$('overlayUrl').textContent=u.toString()}}).catch(()=>{});
-$('copyOverlay').onclick=async()=>{try{await navigator.clipboard.writeText($('overlayUrl').textContent);toast('Link del overlay copiado')}catch{toast('Copia el link manualmente')}};
+$('copyOverlay').onclick=async()=>{try{if(!new URL($('overlayUrl').textContent,location.origin).searchParams.has('obs')){toast('Preparando tu enlace OBS privado…');return}await navigator.clipboard.writeText($('overlayUrl').textContent);toast('Link del overlay copiado')}catch{toast('Copia el link manualmente')}};
 function openTikTokLinkModal(){
  const modal=$('tiktokLinkModal'),input=$('tiktokLiveUrl'),hint=$('tiktokLinkHint');if(!modal)return;
  hint.textContent='No necesitas iniciar sesión ni autorizar permisos de TikTok.';hint.classList.remove('error');
