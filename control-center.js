@@ -316,10 +316,15 @@ function cancelManualSoundFade(){
 }
 function startSoundEnvelope(audio,slot=soundboard.activeSlot){
  cancelSoundEnvelope();
- if(!soundFadeEnabled(slot)){try{audio.volume=1}catch{};return}
+ // Chrome detiene requestAnimationFrame al minimizar. No inicies un audio invisible a volumen 0.
+ // Con GREÑA oculta reproducimos al volumen normal; el fade sigue intacto con la pestaña visible.
+ if(!soundFadeEnabled(slot)||document.hidden){try{audio.volume=1}catch{};return}
  const tick=()=>{
   if(soundboard.audio!==audio||soundboard.stopping||audio.paused||audio.ended){soundboard.envelopeFrame=0;return}
-  if(!soundFadeEnabled(slot)){try{audio.volume=1}catch{};soundboard.envelopeFrame=0;return}
+  if(!soundFadeEnabled(slot)||document.hidden){
+   try{audio.volume=1}catch{}
+   soundboard.envelopeFrame=0;return;
+  }
   const t=Math.max(0,Number(audio.currentTime)||0);
   const duration=Number(audio.duration);
   let level=Math.min(1,t/SOUNDBOARD_FADE_SECONDS);
@@ -337,13 +342,31 @@ function fadeAudioToZero(audio,slot=soundboard.activeSlot,durationMs=SOUNDBOARD_
  if(!soundFadeEnabled(slot))return Promise.resolve();
  const from=Math.max(0,Math.min(1,Number(audio?.volume)||0));
  if(!audio||audio.paused||from<=.001)return Promise.resolve();
+ if(document.hidden){try{audio.volume=0}catch{};return Promise.resolve()}
  return new Promise(resolve=>{
+  let finished=false;
   const started=performance.now();
+  const finish=()=>{
+   if(finished)return;
+   finished=true;
+   document.removeEventListener('visibilitychange',onVisibility);
+   if(soundboard.manualFadeFrame)cancelAnimationFrame(soundboard.manualFadeFrame);
+   soundboard.manualFadeFrame=0;
+   resolve();
+  };
+  const onVisibility=()=>{
+   if(!document.hidden)return;
+   try{audio.volume=0}catch{}
+   finish();
+  };
+  document.addEventListener('visibilitychange',onVisibility);
   const step=now=>{
-   if(soundboard.audio!==audio){soundboard.manualFadeFrame=0;resolve();return}
+   if(finished)return;
+   if(soundboard.audio!==audio){finish();return}
+   if(document.hidden){onVisibility();return}
    const p=Math.max(0,Math.min(1,(now-started)/durationMs));
    try{audio.volume=from*(1-p)}catch{}
-   if(p>=1){soundboard.manualFadeFrame=0;resolve();return}
+   if(p>=1){finish();return}
    soundboard.manualFadeFrame=requestAnimationFrame(step);
   };
   soundboard.manualFadeFrame=requestAnimationFrame(step);
@@ -359,6 +382,16 @@ async function stopSoundboardAudio(reset=true,smooth=true){
  soundboard.audio=null;soundboard.activeSlot=0;soundboard.stopping=false;cancelManualSoundFade();
  if(old)renderSoundPad(old);
 }
+// Con la página oculta, Chrome no dibuja fotogramas: recuperar inmediatamente el volumen.
+document.addEventListener('visibilitychange',()=>{
+ const audio=soundboard.audio;
+ if(!audio||soundboard.stopping||audio.paused)return;
+ if(document.hidden){
+  cancelSoundEnvelope();
+  try{audio.volume=1}catch{}
+ }else startSoundEnvelope(audio,soundboard.activeSlot);
+});
+
 async function toggleSound(slot){
  const meta=soundboard.slots.get(slot);
  if(!meta||meta.empty){openSoundPicker(slot);return}
