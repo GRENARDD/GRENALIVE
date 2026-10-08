@@ -657,7 +657,7 @@ function tapTapPreviewState(amount=0){const names=['GreñaFan','TapMaster','Luna
 const activityHistory=[];
 const recentAlerts=new Map();
 function accountFromAuth(p){if(p==='youtube')return savedAuth.youtube?.displayName||savedAuth.youtube?.channelId||'';if(p==='tiktok')return savedAuth.tiktok?.username||'';if(p==='twitch')return twitchCfg?.displayName||twitchCfg?.login||savedAuth.twitch?.displayName||savedAuth.twitch?.login||'';if(p==='kick')return savedAuth.kick?.username||savedAuth.kick?.slug||'';return ''}
-function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel}}return out}
+function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected){const showTikTokWait=p==='tiktok'&&/reconexi[oó]n|límite temporal|conectando al LIVE|LIVE no disponible/i.test(runtimeLabel);if(!showTikTokWait)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;}out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel}}return out}
 function pushStatus(){broadcast({type:'platform-status',status:publicStatus()})}
 function normalizeCounterWidgetSettings(input={}){
  const style=['classic','trio','vertical'].includes(String(input.counterStyle||input.style||''))?String(input.counterStyle||input.style):'classic';
@@ -2274,10 +2274,14 @@ server.on('upgrade',(req,socket,head)=>{
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
 let autoTikTokBusy=false;
+let nextTikTokBridgeEnsureAt=0;
 async function ensureTikTokLiveAuto(){
- if(!autoPrefs.enabled||bridgeRuntime.tiktok||autoTikTokBusy)return;
+ // Chat-server controla las reconexiones; aquí evitamos reenviar preferencias
+ // y solicitudes de activación cada 30 segundos cuando la emisión no está activa.
+ if(!autoPrefs.enabled||bridgeRuntime.tiktok||autoTikTokBusy||Date.now()<nextTikTokBridgeEnsureAt)return;
  const value=String(autoPrefs.counterTikTok||'').trim()||(savedAuth.tiktok?.username?`https://www.tiktok.com/@${String(savedAuth.tiktok.username).replace(/^@/,'')}/live`:'');
  if(!value)return;
+ nextTikTokBridgeEnsureAt=Date.now()+120000;
  autoTikTokBusy=true;
  try{await connectCounterTikTok(value)}catch(e){console.warn('[TikTok shared bridge]',e?.message||e)}
  finally{autoTikTokBusy=false}
