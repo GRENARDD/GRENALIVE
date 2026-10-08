@@ -190,3 +190,9 @@ body.grena-alerts .notice{border-radius:13px!important;border-color:rgba(255,255
 @keyframes megaCore{from{transform:scale(.96) rotate(-2deg);filter:brightness(1)}to{transform:scale(1.06) rotate(2deg);filter:brightness(1.28)}}
 @keyframes megaExit{to{opacity:0;transform:scale(1.2);filter:blur(14px) brightness(2)}}
 @media(max-width:760px){.ga-alert.event-mega{min-width:92vw;padding:22px}.ga-alert.event-mega .ga-avatar{width:105px;height:105px}.ga-alert.event-mega .ga-reward{width:145px;height:145px}.oa-alert.event-mega{padding:22px;min-height:0}.oa-alert.event-mega .oa-orb{width:160px;height:160px}.oa-alert.event-mega .oa-headline{font-size:43px}}
+
+
+/* Identidad por plataforma, también en la vista de alertas */
+.tiktok-icon{color:#25F4EE!important}.yt-icon{color:#FF0033!important}
+.ga-alert.platform-tiktok{--platformAccent:#25F4EE;--platformAccent2:#70fff9}
+.ga-alert.platform-youtube{--platformAccent:#FF0033;--platformAccent2:#ff6685}
