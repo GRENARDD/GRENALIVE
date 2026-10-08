@@ -2274,10 +2274,14 @@ server.on('upgrade',(req,socket,head)=>{
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
 let autoTikTokBusy=false;
+let nextTikTokBridgeEnsureAt=0;
 async function ensureTikTokLiveAuto(){
- if(!autoPrefs.enabled||bridgeRuntime.tiktok||autoTikTokBusy)return;
+ // Chat-server controla las reconexiones; aquí evitamos reenviar preferencias
+ // y solicitudes de activación cada 30 segundos cuando la emisión no está activa.
+ if(!autoPrefs.enabled||bridgeRuntime.tiktok||autoTikTokBusy||Date.now()<nextTikTokBridgeEnsureAt)return;
  const value=String(autoPrefs.counterTikTok||'').trim()||(savedAuth.tiktok?.username?`https://www.tiktok.com/@${String(savedAuth.tiktok.username).replace(/^@/,'')}/live`:'');
  if(!value)return;
+ nextTikTokBridgeEnsureAt=Date.now()+120000;
  autoTikTokBusy=true;
  try{await connectCounterTikTok(value)}catch(e){console.warn('[TikTok shared bridge]',e?.message||e)}
  finally{autoTikTokBusy=false}
