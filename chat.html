@@ -770,12 +770,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 ========================= -->
 
 <section class="voice-panel">
-<div style="padding:12px;border:1px solid #912525;border-radius:12px;margin-bottom:12px">
- <strong style="color:#ff6969">▶ YouTube · voz</strong>
- <label style="display:block;margin:10px 0"><input id="youtubeVoiceEnabled" type="checkbox" checked> Leer mensajes de YouTube</label>
- <label>Modo <select id="youtubeVoiceMode"><option value="all">Todos</option><option value="selected">Seleccionados</option></select></label>
- <textarea id="youtubeSelectedUsers" placeholder="Un canal por línea" style="display:block;width:100%;min-height:45px;margin-top:8px"></textarea>
-</div>
+
 
   <div class="voice-title">
 
@@ -1085,6 +1080,20 @@ body.voice-settings-modal-open{overflow:hidden!important}
       <div class="voice-field" style="margin-top:14px"><label>Usuarios seleccionados</label><textarea id="kickSelectedUsers" placeholder="usuario1&#10;usuario2"></textarea></div>
     </div>
 
+    <!-- YOUTUBE: misma tarjeta de voz plegable que las demás plataformas -->
+    <details class="voice-box youtube-voice-card" style="border:1px solid #633137">
+      <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;padding:2px;font-weight:800">
+        <span style="color:#ff6262">▶ YouTube</span><span style="font-size:12px;color:#a9b5c5">Configuración de voz ▾</span>
+      </summary>
+      <div style="padding-top:14px">
+        <label class="voice-check"><input id="youtubeVoiceEnabled" type="checkbox" checked> Leer mensajes de YouTube</label>
+        <div class="radio-group">
+          <label class="radio-option"><input type="radio" name="youtubeMode" value="all" checked> 👥 Todos</label>
+          <label class="radio-option"><input type="radio" name="youtubeMode" value="selected"> 🎯 Solo usuarios seleccionados</label>
+        </div>
+        <div class="voice-field" style="margin-top:14px"><label>Usuarios seleccionados</label><textarea id="youtubeSelectedUsers" placeholder="usuario1&#10;usuario2"></textarea></div>
+      </div>
+    </details>
     <!-- FILTROS -->
 
     <div class="voice-box filters-panel">
@@ -1195,7 +1204,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
     </span>
 
     <span id="twitchStatus" class="status-pill status-twitch">Twitch: desconectado</span>
-    <span id="kickStatus" class="status-pill" style="border-color:#53fc18">Kick: desconectado</span>
+    <span id="kickStatus" class="status-pill" style="border-color:#53fc18">Kick: desconectado</span><span id="youtubeStatus" class="status-pill" style="border-color:#ff3030">YouTube: en espera</span>
 
   </div>
 
@@ -2312,7 +2321,7 @@ function isUserAllowed(m){
   }
 
   const mode =
-    platform==='youtube'?$('youtubeVoiceMode').value:getSelectedMode(platform);
+    getSelectedMode(platform);
 
   const username =
     String(
@@ -5143,6 +5152,7 @@ $('connectYouTube').onclick=async()=>{
  if(!url)return alert('Pega el enlace del directo de YouTube.');
  try{if(!ws||ws.readyState!==1)await openWS()}catch{return alert('Chat sin conexión; comprueba el servidor.')}
  ws.send(JSON.stringify({type:'connect',platform:'youtube',url}));
+ $('youtubeStatus').textContent='YouTube: comprobando directo…';
 };
 $('youtubeUrl').onkeydown=e=>{if(e.key==='Enter')$('connectYouTube').click()};
 
