@@ -1787,7 +1787,7 @@ async function connectTikTok(input,{automatic=false}={}) {
       if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;tiktokConn=null;currentTikTokUser='';
       const wasConnected=tiktokConnectionReady;tiktokConnectionReady=false;
       tiktokConnectionLog('disconnected',{username,wasConnected});
-      if(wasConnected)tiktokScheduleRetry(Date.now()<tiktokRateLimitUntil?'rate-limit':'connection');
+      tiktokScheduleRetry(Date.now()<tiktokRateLimitUntil?'rate-limit':'connection');
       // No forzamos viewers=0 por una desconexión del chat: el contador dedicado de
       // TikTok puede seguir sano. /api/internal/status decide si existe un respaldo activo.
       bridgeStatus('tiktok',false,`@${username} · desconectado`,username);
@@ -1882,22 +1882,15 @@ async function connectTikTok(input,{automatic=false}={}) {
 
   } catch (error) {
     const limitedFor=tiktokRateLimitBackoff(error);
-    try {
-      await connection.disconnect();
-    } catch {}
-
-    if(tiktokConn===connection&&tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}
-
-    if (
-      tiktokConn === connection
-    ) {
-      tiktokConn = null;
-      currentTikTokUser = '';
-      tiktokViewerLastSignalAt=0;
-      tiktokViewerLastPositiveAt=0;
-      tiktokConnectionReady=false;
+    // Invalida primero; desconectar genera eventos y no debe duplicar los reintentos.
+    if(tiktokConn===connection){
+      tiktokConn=null;currentTikTokUser='';tiktokConnectionReady=false;
+      tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;
+      if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}
+      tiktokConnectionLog('connect-failed',{username,kind:tiktokFailureKind(error)});
       tiktokScheduleRetry(limitedFor?'rate-limit':tiktokFailureKind(error));
     }
+    try{await connection.disconnect()}catch{}
 
     const message=limitedFor
       ? `TikTok temporalmente limitado · reintento en ${tiktokRateLimitLabel()}`
@@ -2491,7 +2484,7 @@ const server =
             response.end(JSON.stringify({
               ok:true,
               prefs:connectionPrefs,
-              runtime:{tiktok:!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running}
+              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running},tiktokDiagnostics:tiktokConnectionDiagnostics()
             }));
             return;
           }
@@ -2921,7 +2914,11 @@ wss.on(
 // =====================================
 
 function bridgeHeartbeat(){
-  bridgeStatus('tiktok',!!tiktokConn,!!tiktokConn?`@${currentTikTokUser||'tiktok'} · chat LIVE conectado`:'TikTok chat desconectado',currentTikTokUser||'',{roomId:String(tiktokConn?.roomId||''),heartbeat:true});
+  const ready=tiktokConnectionReady&&!!tiktokConn,waiting=tiktokRetry.nextAt>Date.now();
+  const label=ready?`@${currentTikTokUser||'tiktok'} · chat LIVE conectado`:
+    tiktokConn?'TikTok · conectando al LIVE…':
+    waiting?`TikTok · ${tiktokRetry.kind==='rate-limit'?'límite temporal':'reconexión'} · espera ${tiktokRetryLabel()}`:'TikTok chat desconectado';
+  bridgeStatus('tiktok',ready,label,currentTikTokUser||'',{roomId:ready?String(tiktokConn?.roomId||''):'',heartbeat:true,retryAt:tiktokRetry.nextAt,retryReason:tiktokRetry.kind});
   bridgeStatus('twitch',!!twitchClient,!!twitchClient?`${currentTwitchChannel||'twitch'} · chat conectado`:'Twitch chat desconectado',currentTwitchChannel||'',{heartbeat:true});
   bridgeStatus('kick',!!kickConnected,!!kickConnected?`${currentKickChannel||'kick'} · chat conectado`:'Kick chat desconectado',currentKickChannel||'',{heartbeat:true});
   flushBridgeQueue().catch(()=>{});
@@ -2931,8 +2928,8 @@ const bridgeHeartbeatTimer=setInterval(bridgeHeartbeat,3000);bridgeHeartbeatTime
 let autoTikTokBusy=false,autoKickBusy=false;
 async function autoConnectTikTok(){
   if(!connectionPrefs.autoConnect||!connectionPrefs.tiktokEnabled||!connectionPrefs.tiktokUrl||tiktokConn||autoTikTokBusy)return;
-  if(Date.now()<tiktokRateLimitUntil)return;
-  autoTikTokBusy=true;try{await connectTikTok(connectionPrefs.tiktokUrl)}catch(e){console.log('[AUTO TikTok] LIVE todavía no disponible:',e?.message||e)}finally{autoTikTokBusy=false}
+  if(Date.now()<tiktokRateLimitUntil||Date.now()<tiktokRetry.nextAt)return;
+  autoTikTokBusy=true;try{await connectTikTok(connectionPrefs.tiktokUrl,{automatic:true})}catch(e){tiktokScheduleRetry(tiktokFailureKind(e))}finally{autoTikTokBusy=false}
 }
 async function autoConnectTwitch(){
   if(!connectionPrefs.autoConnect||!connectionPrefs.twitchEnabled||!connectionPrefs.twitchUrl||twitchClient)return;
