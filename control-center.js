@@ -149,15 +149,12 @@ $('loginTikTok').onclick=()=>platformAction('tiktok','TikTok');
 $('loginTwitch').onclick=()=>platformAction('twitch','Twitch');
 $('loginKick').onclick=()=>platformAction('kick','Kick');
 $('loginYouTube').onclick=()=>{
- const frame=$('chatFrame');if(!frame)return;
- frame.contentWindow?.postMessage({type:'grena-open-youtube'},'*');
- const url=prompt('Pega la URL del directo de YouTube (youtube.com/watch?v=...)');
+ const frame=$('chatFrame');
+ const url=prompt('Pega el enlace PUBLICO del directo de YouTube (Compartir → Copiar enlace)');
  if(!url)return;
- const frameDoc=(()=>{try{return frame.contentDocument}catch{return null}})();
- if(frameDoc?.getElementById('youtubeUrl')){
-   frameDoc.getElementById('youtubeUrl').value=url;
-   frameDoc.getElementById('connectYouTube')?.click();
- }else{toast('Abre Chat + Voz y conecta YouTube con este enlace: '+url)}
+ if(!frame?.contentWindow){toast('Motor de chat no disponible. Recarga GREÑA.');return}
+ frame.contentWindow.postMessage({type:'grena-youtube-connect',url},location.origin);
+ toast('Solicitando conexión de YouTube…');
 };
 
 function onboardingKey(){return profileKey('grenaOnboardingDismissedV4')}
