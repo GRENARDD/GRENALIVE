@@ -5395,6 +5395,20 @@ updateRangeLabels();
 
 updateVoiceStatus();
 
+// Respaldo HTTP: mantiene el multichat visible incluso si falla el WebSocket.
+async function pollLiveChat(){
+  try{
+    const res=await fetch('/api/chat/live-messages',{cache:'no-store'});
+    if(!res.ok)return;
+    const payload=await res.json();
+    for(const item of (Array.isArray(payload.messages)?payload.messages:[])){
+      if(item?.type==='chat')addMessage(item);
+    }
+  }catch{}
+}
+setInterval(pollLiveChat,1500);
+pollLiveChat();
+
 openWS()
   .catch(
     () =>
