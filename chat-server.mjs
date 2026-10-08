@@ -2446,6 +2446,7 @@ const server =
           let incoming={};try{incoming=JSON.parse(body||'{}')}catch{}
           await disconnectAll();
           await loadChatProfile(String(incoming.userId||''));
+          tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';
           recentChatHistory.splice(0,recentChatHistory.length);
           broadcast({type:'multichat-settings',settings:multichatSettings});
           broadcast({type:'moderation-list',muted:publicLocalMutedUsers()});
@@ -2463,7 +2464,7 @@ const server =
           const platform=String((JSON.parse(body||'{}')).platform||'').toLowerCase();
           if(!['tiktok','twitch','kick','youtube'].includes(platform)){response.writeHead(400,{'content-type':'application/json'});response.end(JSON.stringify({ok:false,error:'Plataforma no válida'}));return;}
           connectionPrefs[platform+'Enabled']=false;connectionPrefs[platform+'Url']='';await saveConnectionPrefs();
-          if(platform==='tiktok')await disconnectTikTok();
+          if(platform==='tiktok'){tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';await disconnectTikTok();}
           if(platform==='twitch')await disconnectTwitch();
           if(platform==='kick')await disconnectKick();
           if(platform==='youtube')await disconnectYouTube();
@@ -2858,6 +2859,7 @@ wss.on(
           'disconnect'
         ) {
           connectionPrefs.tiktokEnabled=false;connectionPrefs.twitchEnabled=false;connectionPrefs.kickEnabled=false;connectionPrefs.youtubeEnabled=false;await saveConnectionPrefs();
+          tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';
           await disconnectAll();
 
           return;
@@ -2882,6 +2884,7 @@ wss.on(
             'tiktok'
           ) {
             connectionPrefs.tiktokEnabled=false;await saveConnectionPrefs();
+            tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';
             await disconnectTikTok();
           }
 
