@@ -4575,6 +4575,15 @@ function openWS(){
             }
           }
 
+          if(m.type === 'chat-history' && Array.isArray(m.messages)){
+            // Restore visible messages without replaying old audio.
+            if(total===0){
+              for(const item of m.messages.slice(-30)){
+                if(item && item.type==='chat') addMessage(item);
+              }
+            }
+          }
+
           if(
             m.type === 'chat'
           ){
