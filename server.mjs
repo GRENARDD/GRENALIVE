@@ -236,9 +236,9 @@ function upsertCatalogItem(raw,{preferName=false}={}){
 function ensureBuiltInGiftCatalog(){
  const now=Date.now();
  // Catalog event categories supported by YouTube, not an inventory of all paid stickers.
- if(!giftCatalogCache.items.some(x=>x.platform==='YouTube')){
+ {
   for(const [id,name,unit] of [['superchat','Super Chat','USD'],['supersticker','Super Sticker','USD'],['membership','Nueva membresía','membership'],['membershipgift','Membresías regaladas','membership'],['membermilestone','Hito de membresía','membership']]){
-   upsertCatalogItem({id:'youtube:'+id,platform:'YouTube',name,nameEs:name,amount:0,unit,giftKind:id,category:id,source:'YouTube event types',observed:false});
+   upsertCatalogItem({id:'youtube:'+id,platform:'YouTube',name,nameEs:name,amount:0,unit,giftKind:id,category:id,image:'/assets/youtube-events/'+id+'.svg',source:'YouTube event types',observed:false});
   }
  }
 
@@ -254,7 +254,7 @@ function ensureBuiltInGiftCatalog(){
  for(const tier of ['Tier 1','Tier 2','Tier 3'])upsertCatalogItem({platform:'Twitch',id:`sub:${tier.toLowerCase().replace(/\s+/g,'-')}`,name:`Gifted subscription · ${tier}`,nameEs:`Suscripción regalada · ${tier}`,category:'subscription',giftKind:'subscription',amount:1,unit:'sub',source:'Twitch',updatedAt:now});
 }
 ensureBuiltInGiftCatalog();
-const socialDefaults={tiktokUser:'',twitchUser:'',kickUser:'',fontFamily:'Segoe UI',fontSize:34,iconSize:46,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true};
+const socialDefaults={tiktokUser:'',twitchUser:'',kickUser:'',youtubeUser:'',fontFamily:'Segoe UI',fontSize:34,iconSize:46,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true};
 const autoDefaults={enabled:true,counterTikTok:'',counterTwitch:'',counterKick:'',counterTikTokEnabled:false,counterTwitchEnabled:false,counterKickEnabled:false,counterStyle:'classic',counterCardColor:'#18232c',alertStyle:'classic'};
 let usersStore=await readJson(USERS_FILE,{version:1,users:[]});
 if(!Array.isArray(usersStore.users))usersStore={version:1,users:[]};
