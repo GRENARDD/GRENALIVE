@@ -953,11 +953,23 @@ function publicGiftCatalog({platform='',q='',animatedOnly=false}={}){
  const stats={total:items.length,tiktok:items.filter(x=>x.platform==='TikTok').length,twitch:items.filter(x=>x.platform==='Twitch').length,kick:items.filter(x=>x.platform==='Kick').length,youtube:items.filter(x=>x.platform==='YouTube').length,animated:items.filter(x=>x.animatedImage).length,observed:items.filter(x=>x.observed).length};return {version:1,updatedAt:giftCatalogCache.updatedAt,sources:giftCatalogCache.sources,stats,items};
 }
 function rememberActivity(a){activityHistory.unshift(a);if(activityHistory.length>120)activityHistory.length=120}
-const FOLLOWER_GOALS_FILE=path.join(DATA_DIR,'follower-goals.json');
-let followerGoals={settings:{tiktok:{start:0,goal:100,show:true},twitch:{start:0,goal:10,show:true},kick:{start:0,goal:10,show:true}},gained:{tiktok:0,twitch:0,kick:0}};
-try{const fg=JSON.parse(fs.readFileSync(FOLLOWER_GOALS_FILE,'utf8'));followerGoals={settings:{...followerGoals.settings,...(fg.settings||{})},gained:{...followerGoals.gained,...(fg.gained||{})}}}catch{}
+const LEGACY_FOLLOWER_GOALS_FILE=path.join(DATA_DIR,'follower-goals.json');
+function followerGoalsFile(userId=activeUserId){return userId?profileFile('follower-goals.json',userId):LEGACY_FOLLOWER_GOALS_FILE}
+function freshFollowerGoals(){return {settings:{tiktok:{start:0,goal:100,show:true},twitch:{start:0,goal:10,show:true},kick:{start:0,goal:10,show:true}},gained:{tiktok:0,twitch:0,kick:0}}}
+let followerGoals=freshFollowerGoals();
+async function loadFollowerGoalsForProfile(){
+ let fg=activeUserId?await readJson(followerGoalsFile(),null):(!CLOUD_MODE?await readJson(LEGACY_FOLLOWER_GOALS_FILE,null):null);
+ // Migrar únicamente si existe UN SOLO usuario: nunca atribuir datos globales al usuario incorrecto.
+ if(!fg&&activeUserId&&usersStore.users.length===1){
+   fg=await readJson(LEGACY_FOLLOWER_GOALS_FILE,null);
+   if(fg)await safeWriteJson(followerGoalsFile(),fg);
+ }
+ const defaults=freshFollowerGoals();
+ followerGoals={settings:{...defaults.settings,...(fg?.settings||{})},gained:{...defaults.gained,...(fg?.gained||{})}};
+}
+await loadFollowerGoalsForProfile();
 function publicFollowerGoals(){return {settings:followerGoals.settings,gained:followerGoals.gained}}
-async function persistFollowerGoals(){await safeWriteJson(FOLLOWER_GOALS_FILE,followerGoals).catch(()=>{})}
+async function persistFollowerGoals(){if(activeUserId||!CLOUD_MODE)await safeWriteJson(followerGoalsFile(),followerGoals).catch(()=>{})}
 function followerGoalFollow(platform){const p=String(platform||'').toLowerCase();if(!(p in followerGoals.gained))return;followerGoals.gained[p]=Math.max(0,Number(followerGoals.gained[p]||0))+1;persistFollowerGoals();broadcast({type:'follower-goals',state:publicFollowerGoals()})}
 function alert(platform,event,name,message='',extra={}){
  extra=enrichAlertMedia(platform,event,extra);
@@ -1594,6 +1606,7 @@ async function activateProfile(userId,{restart=true}={}){
   const user=usersStore.users.find(u=>u.id===String(userId||''));if(!user)throw Error('Perfil de GREÑA no encontrado.');
   if(restart)await stopProfileRuntime();
   await loadProfileState(user.id);
+  await loadFollowerGoalsForProfile();
   await notifyChatProfile(user.id);
   await syncAllCreatorAccounts();
   broadcast({type:'profile-changed',profile:publicUser(user)});
@@ -1609,7 +1622,7 @@ async function activateProfile(userId,{restart=true}={}){
   }
   return user;
 }
-async function deactivateProfile(){disconnectPrivateSockets();await stopProfileRuntime();await loadProfileState('');await notifyChatProfile('');broadcast({type:'profile-changed',profile:null});broadcast({type:'counter-settings',settings:publicCounterSettings()});broadcast({type:'social-settings',settings:socialSettings})}
+async function deactivateProfile(){disconnectPrivateSockets();await stopProfileRuntime();await loadProfileState('');await loadFollowerGoalsForProfile();await notifyChatProfile('');broadcast({type:'profile-changed',profile:null});broadcast({type:'counter-settings',settings:publicCounterSettings()});broadcast({type:'social-settings',settings:socialSettings})}
 async function persistUsers(){await safeWriteJson(USERS_FILE,usersStore)}
 function accountPayload(user){return {ok:true,authenticated:!!user,user:accountUser(user),activeUserId:user?activeUserId:null,active:!!user&&user.id===activeUserId,needsRecoveryEmail:!!user&&!user.email,mailConfigured:mailConfigured()}}
 
