@@ -74,7 +74,12 @@ export class YouTubeLiveReader {
         // Show the most recent messages when joining a live chat; skip older history.
         const items=data.items||[];
         const displayOnInitial=!initial||items.indexOf(item)>=Math.max(0,items.length-25);
-        if(displayOnInitial){const mapped=normalizeYouTubeMessage(item);if(mapped)this.onMessage(mapped)}
+        if(displayOnInitial){
+          const mapped=normalizeYouTubeMessage(item);
+          // Al reconectar se recuperan comentarios recientes para el chat,
+          // pero nunca se vuelven a lanzar alertas de pagos o membresías antiguos.
+          if(mapped&&(!initial||mapped.kind==='chat'))this.onMessage(mapped);
+        }
       }
       if(this.seen.size>1500)this.seen=new Set([...this.seen].slice(-700));
       interval=Math.max(2000,Number(data.pollingIntervalMillis)||5000);
