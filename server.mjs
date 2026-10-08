@@ -1969,11 +1969,11 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
     token=refreshed.access_token;yt.access_token=token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
    }
-   const uri='https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,snippet,status&mine=true&broadcastStatus=active&maxResults=5';
+   const uri='https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,snippet,status&mine=true&maxResults=50';
    const response=await fetch(uri,{headers:{Authorization:'Bearer '+token}});
    const payload=await response.json().catch(()=>({}));
    if(!response.ok)throw Error('YouTube '+response.status+': '+String(payload.error?.message||'Error API'));
-   const live=(payload.items||[]).find(x=>x.id);
+   const live=(payload.items||[]).find(x=>x.id&&(x.status?.lifeCycleStatus==='live'||x.snippet?.actualStartTime)&&!x.snippet?.actualEndTime);
    return json(res,200,{ok:true,linked:true,live:!!live,videoId:live?.id||'',channel:yt.displayName||''});
   }catch(e){console.warn('[YouTube detection]',e.message);return json(res,200,{ok:false,linked:true,live:false,error:String(e.message||e).slice(0,180)})}
  }
