@@ -89,3 +89,16 @@ body.module-open .topbar,body.module-open .workspace{ /* mantener renderizado: N
 /* Identidad de las tarjetas y estados de las plataformas */
 .viewer-card.tiktok{border-color:rgba(37,244,238,.34)!important;background:linear-gradient(145deg,rgba(37,244,238,.1),rgba(10,15,25,.88))!important}
 .viewer-card.youtube{border-color:rgba(255,0,51,.34)!important;background:linear-gradient(145deg,rgba(255,0,51,.1),rgba(10,15,25,.88))!important}
+
+/* GREÑA: ocultar tarjetas de 0 viewers en el panel, sin tocar el contador total */
+.grena-control .viewer-grid.is-empty,.grena-control .viewer-grid .viewer-card.is-hidden{display:none!important}
+/* Configuraciones de los cinco botones de sonido */
+.grena-control .sound-slot-settings{position:absolute;right:7px;bottom:4px;z-index:5;width:21px;height:21px;padding:0;border:1px solid #ffffff27;border-radius:7px;background:#121927;color:#b6a2f7;cursor:pointer;font-size:13px;line-height:1}
+.grena-control .sound-slot-settings:hover{color:#fff;border-color:#b6a2f7;background:#2e224a}
+.grena-control .soundboard-config-card{display:flex;flex-direction:column;gap:12px;width:min(440px,90vw);padding:22px;border:1px solid #ffffff23;border-radius:15px;background:#0f1524;color:#e7e9f5}
+.grena-control .soundboard-config-card>b{font-size:18px}
+.grena-control .soundboard-config-card label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700;color:#c7c9da}
+.grena-control .soundboard-config-card input{width:100%;padding:10px 12px;border:1px solid #ffffff30;border-radius:9px;background:#0a0f19;color:#fff;font-size:13px}
+.grena-control .soundboard-config-card p{margin:0;color:#909ab0;font-size:11px;line-height:1.6}
+.grena-control .soundboard-config-card .soundboard-replace-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.grena-control .soundboard-config-card button{cursor:pointer}
