@@ -1662,7 +1662,7 @@ async function connectTikTok(input,{automatic=false}={}) {
     if(tiktokConn!==connection||tiktokViewerPollBusy||Date.now()<tiktokViewerNextPollAt)return false;
     tiktokViewerPollBusy=true;tiktokViewerNextPollAt=Date.now()+25000;
     try{
-      const info=await connection.fetchRoomInfo();
+      const info=await timeout(connection.fetchRoomInfo(),8000,'TikTok room/info tardó demasiado.');
       if(tiktokConn!==connection)return false;
       const count=tiktokViewerCount(info);
       if(count===null)throw Error('room/info sin espectadores');
@@ -1678,6 +1678,7 @@ async function connectTikTok(input,{automatic=false}={}) {
     }finally{tiktokViewerPollBusy=false}
   };
   if (WebcastEvent.ROOM_USER) connection.on(WebcastEvent.ROOM_USER, data => {
+    if(tiktokConn!==connection)return;
     const count=tiktokViewerCount(data,{roomUser:true});
     if(count!==null){tiktokViewerLastSignalAt=Date.now();if(count>0)tiktokViewerLastPositiveAt=tiktokViewerLastSignalAt;tiktokViewerPollFailures=0;bridgeViewers('tiktok',count,'TikTok ROOM_USER bridge')}
   });
@@ -1761,6 +1762,8 @@ async function connectTikTok(input,{automatic=false}={}) {
       if(tiktokConn!==connection)return;
       if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;tiktokConn=null;currentTikTokUser='';tiktokConnectionReady=false;
       tiktokConnectionLog('stream-ended',{username});tiktokScheduleRetry('ended');
+      // Cerrar el WebSocket del LIVE terminado; los eventos posteriores son obsoletos.
+      try{Promise.resolve(connection.disconnect()).catch(()=>{})}catch{}
       bridgeViewers('tiktok',0,'TikTok STREAM_END');
       bridgeStatus('tiktok',false,`@${username} · LIVE terminó`,username,{ended:true});
       broadcastPlatform(
