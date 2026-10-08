@@ -42,13 +42,14 @@ body{padding:10px}
 <script>
 (()=>{
   const $=id=>document.getElementById(id);
-  const platforms=['tiktok','twitch','kick'];
+  const platforms=['tiktok','twitch','kick','youtube'];
   const info={
     tiktok:{name:'TikTok',logo:'/assets/platforms/tiktok.webp',a:'#25f4ee',b:'#fe2c55'},
     twitch:{name:'Twitch',logo:'/assets/platforms/twitch.webp',a:'#9146ff',b:'#c8a7ff'},
-    kick:{name:'Kick',logo:'/assets/platforms/kick.svg',a:'#53fc18',b:'#baff9f'}
+    kick:{name:'Kick',logo:'/assets/platforms/kick.svg',a:'#53fc18',b:'#baff9f'},
+    youtube:{name:'YouTube',logo:'/assets/youtube-logo.svg',a:'#FF0033',b:'#ff738e'}
   };
-  let state={tops:{tiktok:[],twitch:[],kick:[]}},index=0,remain=10,timer=null;
+  let state={tops:{tiktok:[],twitch:[],kick:[],youtube:[]}},index=0,remain=10,timer=null;
   const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const initials=s=>String(s||'?').trim().slice(0,2).toUpperCase();
   const fmt=n=>Math.round(Number(n)||0).toLocaleString('es-DO');
