@@ -162,7 +162,7 @@ const viewers={tiktok:0,twitch:0,kick:0,youtube:0};
 const viewerMeta={youtube:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},tiktok:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0,spikeValue:0,spikeHits:0,spikeAt:0,spikeSources:[]},twitch:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},kick:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0}};
 const viewerTest={enabled:false,tiktok:0,twitch:0,kick:0};
 let viewerTestTimer=null;
-const clients=new Set(), oauthState=new Map(), twitchAvatarCache=new Map();
+const clients=new Set(), chatProxyClients=new Set(), oauthState=new Map(), twitchAvatarCache=new Map();
 const camRooms=new Map(), camSocketMeta=new Map(), camRoomPeers=new Map(), camHostGraceTimers=new Map();
 const TWITCH_SCOPES='moderator:read:followers channel:read:subscriptions bits:read moderator:manage:banned_users moderator:manage:chat_messages';
 const KICK_SCOPES='user:read channel:read events:subscribe moderation:ban moderation:chat_message:manage kicks:read';
@@ -352,10 +352,16 @@ function tooMany(res,secs){res.setHeader('Retry-After',String(secs));return json
 function sessionHash(token){return createHash('sha256').update(String(token||'')).digest('hex')}
 function codeHash(code,id){return createHash('sha256').update(`${id}:${String(code||'')}`).digest('hex')}
 function parseCookies(req){const out=Object.create(null),dec=x=>{try{return decodeURIComponent(x)}catch{return x}};for(const part of String(req.headers.cookie||'').split(';')){const i=part.indexOf('=');if(i>0)out[dec(part.slice(0,i).trim())]=dec(part.slice(i+1).trim())}return out}
-function sessionUser(req){const token=parseCookies(req).grena_session;if(!token)return null;const rec=sessionsStore.sessions[sessionHash(token)];if(!rec||Number(rec.expiresAt||0)<Date.now())return null;return usersStore.users.find(u=>u.id===rec.userId)||null}
+function sessionUser(req){const token=parseCookies(req).grena_session;if(!token)return null;const rec=sessionsStore.sessions[sessionHash(token)];if(!rec||Number(rec.expiresAt||0)<Date.now()||!activeUserId||rec.userId!==activeUserId)return null;return usersStore.users.find(u=>u.id===rec.userId)||null}
+function safeTokenEqual(a,b){const x=Buffer.from(String(a||'')),y=Buffer.from(String(b||''));return x.length===y.length&&x.length>0&&timingSafeEqual(x,y)}
+function obsAuthorized(req){if(!CLOUD_MODE||!activeUserId||!obsToken)return false;let supplied='';try{supplied=new URL(req.url||'/','http://127.0.0.1').searchParams.get('obs')||''}catch{};return safeTokenEqual(supplied||parseCookies(req).grena_obs,obsToken)}
+function assignObsCookie(req,res){let token='';try{token=new URL(req.url||'/','http://127.0.0.1').searchParams.get('obs')||''}catch{};if(token&&safeTokenEqual(token,obsToken))res.setHeader('Set-Cookie',`grena_obs=${encodeURIComponent(obsToken)}; HttpOnly; SameSite=Lax; Secure; Path=/`)}
+let accountTransition=Promise.resolve();
+async function withAccountTransition(fn){let release;const prev=accountTransition;accountTransition=new Promise(resolve=>{release=resolve});await prev;try{return await fn()}finally{release()}}
+function disconnectPrivateSockets(){for(const ws of [...clients,...chatProxyClients])try{ws.close(4001,'GRENA profile changed')}catch{try{ws.terminate()}catch{}}}
 function purgeExpiredSessions(){const now=Date.now();let n=0;for(const [k,v] of Object.entries(sessionsStore.sessions||{}))if(!v||Number(v.expiresAt||0)<now){delete sessionsStore.sessions[k];n++}return n}
 async function purgeSessionsAndPersist(){try{if(purgeExpiredSessions())await safeWriteJson(SESSIONS_FILE,sessionsStore);const now=Date.now();for(const [k,r] of loginRate)if(now-r.last>30*60e3)loginRate.delete(k)}catch(e){console.warn('Purga de sesiones:',e?.message||e)}}
-async function createSession(res,user){const token=randomBytes(32).toString('base64url'),expiresAt=Date.now()+30*24*60*60*1000;/* GREÑA es de perfil activo único: invalida sesiones anteriores para que una pestaña vieja no controle otro perfil. */sessionsStore.sessions={};sessionsStore.sessions[sessionHash(token)]={userId:user.id,expiresAt};await safeWriteJson(SESSIONS_FILE,sessionsStore);res.setHeader('Set-Cookie',`grena_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${30*24*60*60}${CLOUD_MODE?'; Secure':''}`);return token}
+async function createSession(res,user){if(!activeUserId||user.id!==activeUserId)throw Error('El perfil activo no coincide con esta sesión.');const token=randomBytes(32).toString('base64url'),expiresAt=Date.now()+30*24*60*60*1000;/* GREÑA es de perfil activo único: invalida sesiones anteriores para que una pestaña vieja no controle otro perfil. */sessionsStore.sessions={};sessionsStore.sessions[sessionHash(token)]={userId:user.id,expiresAt};await safeWriteJson(SESSIONS_FILE,sessionsStore);res.setHeader('Set-Cookie',`grena_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${30*24*60*60}${CLOUD_MODE?'; Secure':''}`);return token}
 async function destroySession(req,res){const token=parseCookies(req).grena_session;if(token)delete sessionsStore.sessions[sessionHash(token)];await safeWriteJson(SESSIONS_FILE,sessionsStore).catch(()=>{});res.setHeader('Set-Cookie',`grena_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${CLOUD_MODE?'; Secure':''}`)}
 async function migrateLegacyIntoProfile(userId){
   const copies=[
@@ -371,7 +377,7 @@ async function migrateLegacyIntoProfile(userId){
   // Solo el primer perfil puede importar el antiguo localStorage del chat de voz.
   await writeFile(profileFile('migrate-legacy-chat.flag',userId),'1','utf8').catch(()=>{});
 }
-let savedAuth={},savedAlertDesigns={},socialSettings={...socialDefaults},autoPrefs={...autoDefaults};
+let savedAuth={},savedAlertDesigns={},socialSettings={...socialDefaults},autoPrefs={...autoDefaults},obsToken='';
 
 // ===== GREÑA FIDELIDAD · ESTADO =====
 const loyaltyDefaults={rotateSeconds:8,topN:5,activeWindowMinutes:10};
@@ -385,6 +391,12 @@ async function loadProfileState(userId=activeUserId){
   savedAlertDesigns=activeUserId?await readJson(profileFile('alert-designs.json'),{}):await readJsonWithLegacy(LEGACY_ALERTS_FILE,join(ROOT,'.grena-alert-designs.json'),{});
   socialSettings={...socialDefaults,...(activeUserId?await readJson(profileFile('social.json'),{}):await readJsonWithLegacy(LEGACY_SOCIAL_FILE,join(ROOT,'.grena-social-gadget.json'),{}))};
   autoPrefs={...autoDefaults,...(activeUserId?await readJson(profileFile('auto-connect.json'),{}):await readJson(LEGACY_AUTO_FILE,{}))};
+  obsToken='';
+  if(activeUserId){
+    const record=await readJson(profileFile('obs-token.json'),{});
+    obsToken=typeof record.token==='string'&&/^[A-Za-z0-9_-]{40,}$/.test(record.token)?record.token:'';
+    if(!obsToken){obsToken=randomBytes(32).toString('base64url');await safeWriteJson(profileFile('obs-token.json'),{token:obsToken,createdAt:Date.now()})}
+  }
   const savedLoyalty=activeUserId?await readJson(profileFile('loyalty.json'),{}):{};
   loyaltyState={version:1,settings:{...loyaltyDefaults,...(savedLoyalty.settings||{})},users:{tiktok:{...(savedLoyalty.users?.tiktok||{})},twitch:{...(savedLoyalty.users?.twitch||{})},kick:{...(savedLoyalty.users?.kick||{})}}};
   loyaltyRuntime.clear();
@@ -1469,9 +1481,11 @@ async function pollTwitchDeviceSession(id){
    const d=await r.json().catch(()=>({}));
    if(!r.ok){const msg=String(d.message||d.error_description||d.error||'');if(/authorization_pending/i.test(msg))continue;if(/slow_down/i.test(msg)){session.interval=Math.min(30,Number(session.interval||5)+5);continue}throw Error(msg||`Twitch OAuth HTTP ${r.status}`)}
    if(!d.access_token)throw Error('Twitch no devolvió un access token.');
-   if(session.userId&&session.userId!==activeUserId)await activateProfile(session.userId);
-   savedAuth.twitch={...d,obtained_at:Date.now(),mode:'device-code-public'};await persistAuth();await startTwitch(d.access_token);
-   session.status='connected';session.account=twitchCfg?.displayName||twitchCfg?.login||'';session.message=`✓ Twitch conectado como ${session.account||'tu cuenta'}.`;
+   await withAccountTransition(async()=>{
+     if(!session.userId||session.userId!==activeUserId)throw Error('Cambiaste de cuenta GREÑA. Vuelve a conectar Twitch desde tu perfil actual.');
+     savedAuth.twitch={...d,obtained_at:Date.now(),mode:'device-code-public'};await persistAuth();await startTwitch(d.access_token);
+     session.status='connected';session.account=twitchCfg?.displayName||twitchCfg?.login||'';session.message=`✓ Twitch conectado como ${session.account||'tu cuenta'}.`;
+   });
    setTimeout(()=>{if(twitchDeviceSessions.get(id)===session)twitchDeviceSessions.delete(id)},5*60*1000);return;
   }catch(e){session.status='error';session.message=e?.message||String(e);return}
  }
@@ -1485,6 +1499,7 @@ async function beginTwitchDeviceOAuth(res){
  twitchDeviceSessions.set(id,session);void pollTwitchDeviceSession(id);return twitchDevicePage(res,session);
 }
 function beginOAuth(platform,req,res){
+ const currentOwner=sessionUser(req);if(!currentOwner||currentOwner.id!==activeUserId)return callbackPage(res,false,'Inicia sesión en tu propia cuenta GREÑA antes de vincular plataformas.');
  if(platform==='youtube'){
   if(!configured('youtube'))return callbackPage(res,false,'Configura las credenciales OAuth de YouTube en Railway.');
   const owner=sessionUser(req);if(!owner)return callbackPage(res,false,'Inicia sesión en GREÑA primero.');
@@ -1538,7 +1553,7 @@ async function finishBrokerOAuth(platform,code,s,res){
  }
  throw Error('Plataforma no compatible con GREÑA Auth.');
 }
-async function finishOAuth(platform,url,res){const code=url.searchParams.get('code'),state=url.searchParams.get('state'),err=url.searchParams.get('error');if(err)throw Error(url.searchParams.get('error_description')||err);const s=oauthState.get(state);oauthState.delete(state);if(!s||s.platform!==platform||Date.now()-s.created>10*60e3)throw Error('La sesión de autorización expiró. Inténtalo de nuevo.');if(s.userId&&s.userId!==activeUserId)await activateProfile(s.userId);if(s.mode==='grena-auth')return await finishBrokerOAuth(platform,code,s,res);const redirect=s.redirect||oauthRedirectFor(platform);if(platform==='youtube'){
+async function finishOAuth(platform,url,res,req){const code=url.searchParams.get('code'),state=url.searchParams.get('state'),err=url.searchParams.get('error');if(err)throw Error(url.searchParams.get('error_description')||err);const s=oauthState.get(state);oauthState.delete(state);if(!s||s.platform!==platform||Date.now()-s.created>10*60e3)throw Error('La sesión de autorización expiró. Inténtalo de nuevo.');const owner=sessionUser(req);if(!s.userId||!owner||owner.id!==s.userId||owner.id!==activeUserId)throw Error('La autorización pertenece a otra sesión GREÑA. Inicia de nuevo desde tu cuenta.');if(s.mode==='grena-auth')return await finishBrokerOAuth(platform,code,s,res);const redirect=s.redirect||oauthRedirectFor(platform);if(platform==='youtube'){
   const tok=await postForm('https://oauth2.googleapis.com/token',{code,client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,redirect_uri:redirect,grant_type:'authorization_code'});
   const response=await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',{headers:{Authorization:'Bearer '+tok.access_token}});
   const details=await response.json();if(!response.ok||!details.items?.length)throw Error('No se pudo consultar tu canal de YouTube.');
@@ -1573,6 +1588,7 @@ async function notifyChatProfile(userId=activeUserId){
   try{await fetch('http://127.0.0.1:8788/api/profile-reload',{method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify({userId:String(userId||'')})})}catch{}
 }
 async function activateProfile(userId,{restart=true}={}){
+  disconnectPrivateSockets();
   const user=usersStore.users.find(u=>u.id===String(userId||''));if(!user)throw Error('Perfil de GREÑA no encontrado.');
   if(restart)await stopProfileRuntime();
   await loadProfileState(user.id);
@@ -1591,7 +1607,7 @@ async function activateProfile(userId,{restart=true}={}){
   }
   return user;
 }
-async function deactivateProfile(){await stopProfileRuntime();await loadProfileState('');await notifyChatProfile('');broadcast({type:'profile-changed',profile:null});broadcast({type:'counter-settings',settings:publicCounterSettings()});broadcast({type:'social-settings',settings:socialSettings})}
+async function deactivateProfile(){disconnectPrivateSockets();await stopProfileRuntime();await loadProfileState('');await notifyChatProfile('');broadcast({type:'profile-changed',profile:null});broadcast({type:'counter-settings',settings:publicCounterSettings()});broadcast({type:'social-settings',settings:socialSettings})}
 async function persistUsers(){await safeWriteJson(USERS_FILE,usersStore)}
 function accountPayload(user){return {ok:true,authenticated:!!user,user:accountUser(user),activeUserId,active:!!user&&user.id===activeUserId,needsRecoveryEmail:!!user&&!user.email,mailConfigured:mailConfigured()}}
 
@@ -1783,6 +1799,9 @@ function camWsMessageInner(ws,req,data){
 // ===== GREÑA FIX4: guard central del puerto 8787 (Host/Origin + sesión) =====
 // Rutas que usan los overlays de OBS (sin cookie) o que deben ser públicas por diseño.
 const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/twitch/device/status','/auth/twitch/callback']);
+const PUBLIC_GET_CLOUD=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite']);
+const OBS_PUBLIC_API=new Set(['/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
+const OBS_PUBLIC_PAGES=new Set(['/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/loyalty-overlay.html','/super-fans-overlay.html','/taptap-race.html']);
 const PUBLIC_POST=new Set(['/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
 function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())}
@@ -1804,10 +1823,11 @@ function panelGuard(req,res,pathname){
   }
   if(!pathname.startsWith('/api/'))return true;                // páginas y estáticos: ya los gestiona el router
   if(pathname.startsWith('/api/internal/'))return true;        // llevan su propio token de puente
-  if(method==='GET'&&PUBLIC_GET.has(pathname))return true;
+  if(method==='GET'&&PUBLIC_GET.has(pathname)&&(!CLOUD_MODE||PUBLIC_GET_CLOUD.has(pathname)))return true;
   if(method==='POST'&&PUBLIC_POST.has(pathname))return true;
   if(internalBridgeAllowed(req))return true;                    // chat-server -> server con token por arranque
   if(sessionUser(req))return true;
+  if(method==='GET'&&OBS_PUBLIC_API.has(pathname)&&obsAuthorized(req))return true;
   json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});return false;
 }
 // ===== GREÑA WEB: proxy interno del motor de chat (8788) sobre el mismo HTTPS público =====
@@ -1839,7 +1859,13 @@ const bridgeMessageSeen=new Map();
 function bridgeMessageDuplicate(id){id=String(id||'').trim();if(!id)return false;const now=Date.now(),prev=bridgeMessageSeen.get(id)||0;if(prev&&now-prev<2*60*1000)return true;bridgeMessageSeen.set(id,now);for(const [k,t] of bridgeMessageSeen)if(now-t>2*60*1000)bridgeMessageSeen.delete(k);return false}
 
 const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!safeReqPath(req.url))throw 0;url=new URL(req.url,'http://127.0.0.1');pathname=url.pathname}catch{res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});return res.end('Solicitud no válida')}try{
- if(pathname==='/chat'||pathname.startsWith('/chat/'))return proxyChatHttp(req,res,url);
+ if(pathname==='/chat'||pathname.startsWith('/chat/')){
+    const chatOverlay=pathname==='/chat/multichat-overlay.html';
+    const chatApi=pathname==='/chat/api/multichat-settings'||pathname==='/chat/api/multichat-history';
+    if(!sessionUser(req)&&!(CLOUD_MODE&&obsAuthorized(req)&&req.method==='GET'&&(chatOverlay||chatApi))){return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'})}
+    if(chatOverlay)assignObsCookie(req,res);
+    return proxyChatHttp(req,res,url);
+  }
  if(!panelGuard(req,res,pathname))return;
  if(pathname==='/favicon.ico'&&(req.method==='GET'||req.method==='HEAD')){res.writeHead(302,{location:'/favicon.svg','cache-control':'public, max-age=3600'});return res.end()}
  if(CHAT_HTTP_ROUTES.has(pathname))return proxyChatHttp(req,res,url,false);
@@ -1847,7 +1873,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/app/window-heartbeat'&&req.method==='POST'){appWindowHeartbeat();return json(res,200,{ok:true});}
  if(pathname==='/api/app/window-closing'&&req.method==='POST'){appWindowClosing();return json(res,200,{ok:true});}
  if(pathname==='/api/app/exit'&&req.method==='POST'){if(CLOUD_MODE)return json(res,200,{ok:true,message:'GREÑA Web continúa en línea. Usa Cerrar sesión para salir de tu cuenta.'});json(res,200,{ok:true,message:'Cerrando GREÑA LIVE PRO…'});setTimeout(()=>requestFullShutdown('boton-salir-de-grena'),120);return;}
- if(pathname==='/api/account/me'&&req.method==='GET'){const u=sessionUser(req);return json(res,200,accountPayload(u));}
+ if(pathname==='/api/account/me'&&req.method==='GET'){const u=sessionUser(req);res.setHeader('Cache-Control','no-store');return json(res,200,accountPayload(u));}
+  if(pathname==='/api/obs-token'&&req.method==='GET'){const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Sesión requerida.'});res.setHeader('Cache-Control','no-store');return json(res,200,{ok:true,token:obsToken});}
  if(pathname==='/api/soundboard'&&req.method==='GET'){
    const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
    const board=await soundboardState(u.id);
@@ -1931,7 +1958,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    if(usersStore.users.some(u=>normalizeEmail(u.email)===email))return json(res,409,{ok:false,error:'Ese correo ya está vinculado a otra cuenta GREÑA.'});
    const first=usersStore.users.length===0,salt=randomBytes(16).toString('hex');
    const user={id:createHash('sha256').update(username+Date.now()+randomBytes(8).toString('hex')).digest('hex').slice(0,20),username,displayName:displayName||username,email,salt,passwordHash:hashPassword(password,salt),createdAt:Date.now()};
-   usersStore.users.push(user);await persistUsers();if(first)await migrateLegacyIntoProfile(user.id);await activateProfile(user.id);await createSession(res,user);return json(res,201,accountPayload(user));
+   usersStore.users.push(user);await persistUsers();if(first)await migrateLegacyIntoProfile(user.id);await withAccountTransition(async()=>{sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user)});return json(res,201,accountPayload(user));
  }
  if(pathname==='/api/account/login'&&req.method==='POST'){
    let raw='';raw=await readBody(req);const body=JSON.parse(raw||'{}'),username=normalizeGrenaUsername(body.username),password=String(body.password||'');
@@ -1941,9 +1968,9 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    const passOk=user?await verifyPasswordAsync(password,user):(await scryptAsync(password,DUMMY_SALT).catch(()=>0),false);
    if(!user||!passOk){loginFailed(username);return json(res,401,{ok:false,error:'Usuario o contraseña incorrectos.'})}
    loginRate.delete(username);
-   await activateProfile(user.id);await createSession(res,user);return json(res,200,accountPayload(user));
+   await withAccountTransition(async()=>{sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user)});return json(res,200,accountPayload(user));
  }
- if(pathname==='/api/account/logout'&&req.method==='POST'){const u=sessionUser(req);await destroySession(req,res);if(u?.id&&u.id===activeUserId)await deactivateProfile();return json(res,200,{ok:true});}
+ if(pathname==='/api/account/logout'&&req.method==='POST'){await withAccountTransition(async()=>{const u=sessionUser(req);await destroySession(req,res);if(u?.id&&u.id===activeUserId)await deactivateProfile()});return json(res,200,{ok:true});}
  if(pathname==='/api/account/recovery-email'&&req.method==='POST'){
    const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión para vincular el correo de recuperación.'});
    let raw='';raw=await readBody(req);const body=JSON.parse(raw||'{}'),email=normalizeEmail(body.email);
@@ -1977,7 +2004,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    const [id,rq]=entry;if(Number(rq.expiresAt||0)<Date.now()){delete recoveryStore.requests[id];await persistRecovery();return json(res,400,{ok:false,error:'El código venció. Solicita uno nuevo.'})}
    rq.attempts=Number(rq.attempts||0)+1;if(rq.attempts>5){delete recoveryStore.requests[id];await persistRecovery();return json(res,429,{ok:false,error:'Demasiados intentos. Solicita un código nuevo.'})}
    const got=Buffer.from(codeHash(code,id),'hex'),want=Buffer.from(String(rq.codeHash||''),'hex');if(got.length!==want.length||!timingSafeEqual(got,want)){await persistRecovery();return json(res,400,{ok:false,error:'Código inválido o vencido.'})}
-   const salt=randomBytes(16).toString('hex');user.salt=salt;user.passwordHash=hashPassword(password,salt);user.passwordChangedAt=Date.now();rq.used=true;await persistUsers();invalidateUserSessions(user.id);await safeWriteJson(SESSIONS_FILE,sessionsStore);delete recoveryStore.requests[id];await persistRecovery();await activateProfile(user.id);await createSession(res,user);return json(res,200,{...accountPayload(user),message:'Contraseña cambiada correctamente.'});
+   const salt=randomBytes(16).toString('hex');user.salt=salt;user.passwordHash=hashPassword(password,salt);user.passwordChangedAt=Date.now();rq.used=true;await persistUsers();invalidateUserSessions(user.id);await safeWriteJson(SESSIONS_FILE,sessionsStore);delete recoveryStore.requests[id];await persistRecovery();await withAccountTransition(async()=>{sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user)});return json(res,200,{...accountPayload(user),message:'Contraseña cambiada correctamente.'});
  }
 
 
@@ -2228,13 +2255,13 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/design'&&req.method==='POST'){let b='';b=await readBody(req);const d=JSON.parse(b||'{}');const ev=String(d.event||'follow');savedAlertDesigns[ev]={...d,soundProfileVersion:SOUND_PROFILE_VERSION};await safeWriteJson(stateFile('alert-designs.json',LEGACY_ALERTS_FILE),savedAlertDesigns);return json(res,200,{ok:true,event:ev})}
  if(pathname==='/api/alert'&&req.method==='POST'){let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(a.platform&&a.event&&['follow','sub','gift','cheer','share','raid','like'].includes(String(a.event))){alert(String(a.platform),String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,receivedAt:Date.now()}})}return json(res,200,{ok:true})}
  if(pathname==='/api/tiktok/browser-login'&&req.method==='POST'){json(res,202,{ok:true,message:'Abriendo TikTok…'});beginTikTokBrowserLogin().catch(e=>{console.error('TikTok Browser Login:',e);if(tiktokLoginContext){tiktokLoginContext.close().catch(()=>{});tiktokLoginContext=null}setStatus('tiktok',false,'Error de login: '+(e?.message||e))});return}
- const m=pathname.match(/^\/oauth\/(tiktok|twitch|kick|youtube)\/(start|callback)$/);if(m){if(m[2]==='start')return await beginOAuth(m[1],req,res);return await finishOAuth(m[1],url,res)}
+ const m=pathname.match(/^\/oauth\/(tiktok|twitch|kick|youtube)\/(start|callback)$/);if(m){if(m[2]==='start')return await beginOAuth(m[1],req,res);return await withAccountTransition(()=>finishOAuth(m[1],url,res,req))}
  if(pathname==='/api/twitch/device/status'&&req.method==='GET'){
-  const id=String(url.searchParams.get('id')||''),session=twitchDeviceSessions.get(id);if(!session)return json(res,404,{ok:false,error:'Esta autorización de Twitch ya no existe o venció.'});
+  const id=String(url.searchParams.get('id')||''),session=twitchDeviceSessions.get(id);if(!session||sessionUser(req)?.id!==session.userId)return json(res,404,{ok:false,error:'Esta autorización de Twitch ya no existe o venció.'});
   return json(res,200,{ok:true,status:session.status,message:session.message||'',account:session.account||'',expiresAt:session.expiresAt});
  }
  if(pathname==='/auth/twitch/callback')return twitchImplicitCallback(res);
- if(pathname==='/api/twitch/token'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}'),st=oauthState.get(body.state);oauthState.delete(body.state);if(!st||st.platform!=='twitch'||Date.now()-st.created>10*60e3)throw Error('La autorización de Twitch expiró. Pulsa Iniciar sesión de nuevo.');if(st.userId&&st.userId!==activeUserId)await activateProfile(st.userId);if(!body.token)throw Error('Twitch no devolvió un token.');savedAuth.twitch={access_token:body.token,mode:'implicit'};await persistAuth();await startTwitch(body.token);return json(res,200,{ok:true,message:`Twitch conectado como ${twitchCfg?.login||'tu cuenta'}.`})}
+ if(pathname==='/api/twitch/token'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}'),st=oauthState.get(body.state);oauthState.delete(body.state);if(!st||st.platform!=='twitch'||Date.now()-st.created>10*60e3)throw Error('La autorización de Twitch expiró. Pulsa Iniciar sesión de nuevo.');const owner=sessionUser(req);if(!st.userId||!owner||owner.id!==st.userId||owner.id!==activeUserId)throw Error('La autorización de Twitch no corresponde a la sesión activa.');if(!body.token)throw Error('Twitch no devolvió un token.');savedAuth.twitch={access_token:body.token,mode:'implicit'};await persistAuth();await startTwitch(body.token);return json(res,200,{ok:true,message:`Twitch conectado como ${twitchCfg?.login||'tu cuenta'}.`})}
  if(pathname.startsWith('/api/disconnect/')&&req.method==='POST'){
   const p=pathname.split('/').pop();delete savedAuth[p];await persistAuth();
   if(['tiktok','twitch','kick'].includes(p))await disconnectChatPlatform(p);
@@ -2252,6 +2279,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
  const interactive=new Set(['/','/index.html','/preview.html','/alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html']);
+  if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
+  if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);if(!su){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
  const file=resolveStaticFile(pathname);if(!file){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});return res.end('No encontrado')}const abs=join(ROOT,file);if(!abs.startsWith(ROOT)){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});return res.end('No encontrado')}const data=await readFile(abs);res.writeHead(200,{'content-type':mime[extname(file).toLowerCase()]||'application/octet-stream','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(req.method==='HEAD'?undefined:data)
  }catch(e){console.error(pathname,e);if(pathname.startsWith('/oauth/'))return callbackPage(res,false,e?.message||String(e));if(pathname.startsWith('/api/'))return json(res,e?.statusCode||400,{ok:false,error:e?.message||String(e)});res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});res.end('No encontrado')}});
@@ -2290,17 +2319,19 @@ const wss=new WebSocketServer({noServer:true,maxPayload:256*1024});wss.on('conne
 
 const chatProxyWss=new WebSocketServer({noServer:true,maxPayload:256*1024});
 chatProxyWss.on('connection',(client)=>{
+   chatProxyClients.add(client);
   const upstream=new WebSocket('ws://127.0.0.1:8788/ws',{headers:{Origin:`http://127.0.0.1:${PORT}`,Host:'127.0.0.1:8788'}});
   const pending=[];
   client.on('message',(data,isBinary)=>{if(upstream.readyState===WebSocket.OPEN)upstream.send(data,{binary:isBinary});else if(upstream.readyState===WebSocket.CONNECTING&&pending.length<100)pending.push([data,isBinary])});
   upstream.on('open',()=>{for(const [data,isBinary] of pending.splice(0))if(upstream.readyState===WebSocket.OPEN)upstream.send(data,{binary:isBinary})});
   upstream.on('message',(data,isBinary)=>{if(client.readyState===WebSocket.OPEN)client.send(data,{binary:isBinary})});
   const closeBoth=()=>{try{if(client.readyState===WebSocket.OPEN||client.readyState===WebSocket.CONNECTING)client.close()}catch{};try{if(upstream.readyState===WebSocket.OPEN||upstream.readyState===WebSocket.CONNECTING)upstream.close()}catch{}};
-  client.on('close',closeBoth);client.on('error',closeBoth);upstream.on('close',closeBoth);upstream.on('error',closeBoth);
+  client.on('close',()=>{chatProxyClients.delete(client);closeBoth()});client.on('error',()=>{chatProxyClients.delete(client);closeBoth()});upstream.on('close',closeBoth);upstream.on('error',closeBoth);
 });
 server.on('upgrade',(req,socket,head)=>{
   let pathname='/';try{pathname=new URL(req.url||'/','http://127.0.0.1').pathname}catch{return socket.destroy()}
   if(!panelHostOk(req)||!localOriginOk(req.headers.origin,req))return socket.destroy();
+   if(CLOUD_MODE&&!sessionUser(req)&&!obsAuthorized(req))return socket.destroy();
   if(pathname==='/chat-ws')return chatProxyWss.handleUpgrade(req,socket,head,ws=>chatProxyWss.emit('connection',ws,req));
   if(pathname!=='/')return socket.destroy();
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
