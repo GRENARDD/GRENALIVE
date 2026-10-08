@@ -284,7 +284,7 @@ const send = (ws, data) => {
 };
 
 const recentChatHistory = [];
-const CHAT_HISTORY_LIMIT = 30;
+const CHAT_HISTORY_LIMIT = 300;
 let voiceControlState = null; // null = usa la preferencia local del navegador; boolean = orden del Preview LIVE
 
 const broadcast = data => {
@@ -584,6 +584,9 @@ function extractTikTokChat(data) {
     user.username,
     user.userName,
     user.handle,
+    user?.user?.uniqueId,
+    data?.data?.user?.uniqueId,
+    data?.data?.user?.unique_id,
 
     data?.uniqueId,
     data?.unique_id,
@@ -601,7 +604,9 @@ function extractTikTokChat(data) {
     data?.nickname,
     data?.nickName,
     data?.displayName,
-    data?.display_name
+    data?.display_name,
+    data?.data?.user?.nickname,
+    data?.data?.nickname
   );
 
   const text = firstString(
@@ -615,7 +620,12 @@ function extractTikTokChat(data) {
 
     data?.data?.comment,
     data?.data?.message,
-    data?.data?.text
+    data?.data?.text,
+    data?.data?.content,
+    data?.data?.commentText,
+    data?.comment?.text,
+    data?.message?.text,
+    data?.content?.text
   );
 
   const avatar = findUrl(
@@ -1457,6 +1467,10 @@ async function connectTikTok(input) {
         );
       }
 
+      if(!chat.text){
+        console.log('[TIKTOK CHAT OMITIDO: sin texto]',JSON.stringify({keys:Object.keys(data||{}).slice(0,25),nestedKeys:Object.keys(data?.data||{}).slice(0,25)}));
+        return;
+      }
       console.log(
         '[TIKTOK CHAT]',
         chat.user,
@@ -2174,7 +2188,7 @@ const server =
 
         if(url.pathname==='/api/live-messages' && request.method==='GET'){
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-          response.end(JSON.stringify({ok:true,messages:recentChatHistory.slice(-30)}));
+          response.end(JSON.stringify({ok:true,messages:recentChatHistory.slice(-300)}));
           return;
         }
 
@@ -2665,7 +2679,7 @@ wss.on(
     );
 
     // Send a snapshot only for display (never replay it to text-to-speech).
-    send(ws,{type:'chat-history',messages:recentChatHistory.slice(-30)});
+    send(ws,{type:'chat-history',messages:recentChatHistory.slice(-300)});
 
     if(typeof voiceControlState==='boolean') send(ws,{type:'voice-control',enabled:voiceControlState,source:'preview-live'});
 
