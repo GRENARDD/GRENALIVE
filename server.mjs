@@ -237,7 +237,7 @@ function ensureBuiltInGiftCatalog(){
  const now=Date.now();
  // Catalog event categories supported by YouTube, not an inventory of all paid stickers.
  {
-  for(const [id,name,unit] of [['superchat','Super Chat','USD'],['supersticker','Super Sticker','USD'],['membership','Nueva membresía','membership'],['membershipgift','Membresías regaladas','membership'],['membermilestone','Hito de membresía','membership']]){
+  for(const [id,name,unit] of [['superchat','Super Chat','USD'],['supersticker','Super Sticker','USD'],['membership','Nueva membresía','membership'],['membershipgift','Membresías regaladas','membership'],['membermilestone','Hito de membresía','membership'],['membershipreceived','Membresía recibida','membership']]){
    upsertCatalogItem({id:'youtube:'+id,platform:'YouTube',name,nameEs:name,amount:0,unit,giftKind:id,category:id,image:'/assets/youtube-events/'+id+'.svg',source:'YouTube event types',observed:false});
   }
  }
