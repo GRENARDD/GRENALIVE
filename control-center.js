@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-const state={status:{},bridge:{tiktok:false,twitch:false,kick:false},eventHealth:{},viewers:{tiktok:0,twitch:0,kick:0},activity:[],chatConnected:false,profile:null};
+const state={status:{},bridge:{tiktok:false,twitch:false,kick:false,youtube:false},eventHealth:{},viewers:{tiktok:0,twitch:0,kick:0,youtube:0},activity:[],chatConnected:false,profile:null};
 const icons={follow:'＋',gift:'🎁',cheer:'◆',sub:'★',share:'↗',raid:'⚡',like:'♥'};
 
 async function initAccount(){
@@ -48,12 +48,12 @@ function renderViewerSparkline(total){
  const [lastX,lastY]=pts[pts.length-1];dot.setAttribute('cx',lastX.toFixed(1));dot.setAttribute('cy',lastY.toFixed(1));
  line.classList.remove('updated');dot.classList.remove('updated');void line.getBoundingClientRect();line.classList.add('updated');dot.classList.add('updated');
 }
-function renderViewers(){const t=Number(state.viewers.tiktok||0),w=Number(state.viewers.twitch||0),k=Number(state.viewers.kick||0),total=t+w+k;$('tiktokViewers').textContent=t.toLocaleString('es-DO');$('twitchViewers').textContent=w.toLocaleString('es-DO');$('kickViewers').textContent=k.toLocaleString('es-DO');$('totalViewers').textContent=total.toLocaleString('es-DO');renderViewerSparkline(total)}
-function platformAccount(p){const s=state.status[p]||{};const account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':'Kick');return s.authenticated?(account?(p==='tiktok'?`@${String(account).replace(/^@/,'')} · LIVE vinculado`:`${account} · cuenta vinculada`):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada')}
+function renderViewers(){const t=Number(state.viewers.tiktok||0),w=Number(state.viewers.twitch||0),k=Number(state.viewers.kick||0),y=Number(state.viewers.youtube||0),total=t+w+k+y;$('tiktokViewers').textContent=t.toLocaleString('es-DO');$('twitchViewers').textContent=w.toLocaleString('es-DO');$('kickViewers').textContent=k.toLocaleString('es-DO');$('youtubeViewers').textContent=y.toLocaleString('es-DO');$('totalViewers').textContent=total.toLocaleString('es-DO');renderViewerSparkline(total)}
+function platformAccount(p){const s=state.status[p]||{};const account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='youtube'?'YouTube':'Kick');return s.authenticated?(account?(p==='tiktok'?`@${String(account).replace(/^@/,'')} · LIVE vinculado`:`${account} · cuenta vinculada`):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada')}
 function renderPlatforms(){
- const labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick'};
+ const labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube'};
  const chipClass=status=>status==='ready'?' on':status==='degraded'||status==='connecting'?' warn':status==='fallback'?' fallback':status==='waiting'?' waiting':' off';
- for(const p of ['tiktok','twitch','kick']){
+ for(const p of ['tiktok','twitch','kick','youtube']){
   const s=state.status[p]||{},health=state.eventHealth[p]||{},auth=!!s.authenticated;
   const runtimeLive=p==='kick'?!!(s.runtimeConnected||state.bridge[p]):!!state.bridge[p];
   const chatState=String(health.chat||(runtimeLive?'ready':auth?'waiting':'off'));
@@ -148,6 +148,17 @@ function platformAction(platform,label){return state.status[platform]?.authentic
 $('loginTikTok').onclick=()=>platformAction('tiktok','TikTok');
 $('loginTwitch').onclick=()=>platformAction('twitch','Twitch');
 $('loginKick').onclick=()=>platformAction('kick','Kick');
+$('loginYouTube').onclick=()=>{
+ const frame=$('chatFrame');if(!frame)return;
+ frame.contentWindow?.postMessage({type:'grena-open-youtube'},'*');
+ const url=prompt('Pega la URL del directo de YouTube (youtube.com/watch?v=...)');
+ if(!url)return;
+ const frameDoc=(()=>{try{return frame.contentDocument}catch{return null}})();
+ if(frameDoc?.getElementById('youtubeUrl')){
+   frameDoc.getElementById('youtubeUrl').value=url;
+   frameDoc.getElementById('connectYouTube')?.click();
+ }else{toast('Abre Chat + Voz y conecta YouTube con este enlace: '+url)}
+};
 
 function onboardingKey(){return profileKey('grenaOnboardingDismissedV4')}
 function maybeOnboarding(){
