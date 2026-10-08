@@ -4715,7 +4715,7 @@ function platformActionHtml(platform,m={}){
   return `<div class="mod-section-title">EN TIKTOK</div>`;
 }
 function openModerator(m,row){
-  const platform=['tiktok','twitch','kick'].includes(String(m.platform||'').toLowerCase())?String(m.platform).toLowerCase():'tiktok';moderationTarget={...m,platform,user:moderationIdentity(m)||m.user||m.nickname||'',__row:row};
+  const platform=['tiktok','twitch','kick','youtube'].includes(String(m.platform||'').toLowerCase())?String(m.platform).toLowerCase():'tiktok';moderationTarget={...m,platform,user:moderationIdentity(m)||m.user||m.nickname||'',__row:row};
   const back=moderationModal();back.querySelector('#modTitle').textContent='🛡️ Moderar usuario';back.querySelector('#modReasonWrap').style.display='';back.querySelector('#localModActions').style.display='';back.querySelector('#modUser').textContent=(m.nickname||m.user||'Usuario')+(m.user&&m.nickname&&m.user!==m.nickname?`  @${m.user}`:'');back.querySelector('#modPlatform').textContent=platform.toUpperCase();back.querySelector('#modReason').value='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';
   const area=back.querySelector('#platformModActions');area.innerHTML=platformActionHtml(platform,m);area.querySelectorAll('[data-real-action]').forEach(b=>b.onclick=()=>runModeration(b.dataset.realAction,b,Number(b.dataset.seconds||0)));
   back.querySelector('#modNote').textContent=platform==='tiktok'?'TikTok: al silenciar un usuario en GREÑA, deja de aparecer en el chat y queda guardado para todos tus próximos LIVE hasta que lo quites de la lista.':`${platform==='twitch'?'Twitch':'Kick'}: silenciar en GREÑA es permanente dentro de tu chat. Borrar, timeout, ban y desban se ejecutan además en la plataforma si tu cuenta está autorizada.`;
@@ -4886,7 +4886,8 @@ function addMessage(m){
 
   platformLabel.textContent =
     platform === 'twitch' ? 'TWITCH' :
-    platform === 'kick' ? 'KICK' : 'TIKTOK';
+    platform === 'kick' ? 'KICK' :
+    platform === 'youtube' ? 'YOUTUBE' : 'TIKTOK';
 
   const time =
     document.createElement(
