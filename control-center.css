@@ -84,3 +84,8 @@ body.module-open .topbar,body.module-open .workspace{ /* mantener renderizado: N
 .app-exit-btn:hover{color:#fff;border-color:rgba(255,91,115,.38);background:rgba(255,68,92,.12)}
 .app-exit-btn:disabled{opacity:.55;cursor:wait}
 @media(max-width:1050px){.app-exit-btn{display:none}}
+
+
+/* Identidad de las tarjetas y estados de las plataformas */
+.viewer-card.tiktok{border-color:rgba(37,244,238,.34)!important;background:linear-gradient(145deg,rgba(37,244,238,.1),rgba(10,15,25,.88))!important}
+.viewer-card.youtube{border-color:rgba(255,0,51,.34)!important;background:linear-gradient(145deg,rgba(255,0,51,.1),rgba(10,15,25,.88))!important}
