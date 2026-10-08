@@ -43,6 +43,7 @@ html,body{
 .tt{border-color:rgba(37,244,238,.22)}
 .tw{border-color:rgba(145,70,255,.30)}
 .ki{border-color:rgba(83,252,24,.30)}
+.yt{border-color:rgba(255,0,51,.35)}
 .counter.is-hidden{display:none!important}
 .pulse{animation:pulse .32s ease}
 @keyframes pulse{50%{transform:scale(1.06)}}
@@ -137,6 +138,7 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
       <strong id="tw" class="count">0</strong>
     </section>
 
+    <section class="counter yt is-hidden"><div class="platform"><img src="/assets/youtube-logo.svg" alt="YouTube"><span>YouTube</span></div><strong id="yt" class="count">0</strong></section>
     <section class="counter ki is-hidden">
       <div class="platform">
         <img src="/assets/platforms/kick-viewer.png" alt="Kick">
@@ -148,7 +150,7 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
 </main>
 
 <script>
-const old={tiktok:-1,twitch:-1,kick:-1};
+const old={tiktok:-1,twitch:-1,kick:-1,youtube:-1};
 const counterDefaults={style:'classic',counterCardColor:'#18232c'};
 let counterSettings={...counterDefaults};
 let previewOverride=false;
@@ -164,7 +166,7 @@ function platformIsLive(platform,count,meta={}){
 }
 
 function updatePlatformVisibility(v={},meta=latestMeta){
-  for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki']]){
+  for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki'],['youtube','.counter.yt']]){
     const card=document.querySelector(selector);
     if(!card)continue;
     card.classList.toggle('is-hidden',!platformIsLive(k,v[k],meta));
@@ -184,7 +186,7 @@ function applyCounterSettings(v={}){
 }
 function draw(v={},meta){
   if(meta&&typeof meta==='object')latestMeta=meta;
-  for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki']]){
+  for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki'],['youtube','yt']]){
     const n=Math.max(0,Math.floor(Number(v[k])||0));
     const e=document.getElementById(id);
     if(old[k]!==n){
