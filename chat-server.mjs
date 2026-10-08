@@ -2172,6 +2172,12 @@ const server =
           );
 
 
+        if(url.pathname==='/api/live-messages' && request.method==='GET'){
+          response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+          response.end(JSON.stringify({ok:true,messages:recentChatHistory.slice(-30)}));
+          return;
+        }
+
         if (url.pathname === '/health') {
           response.writeHead(200, {'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
           response.end(JSON.stringify({ok:true, app:'GREÑA Chat'}));
