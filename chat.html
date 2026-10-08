@@ -4407,9 +4407,21 @@ $('maxCharacters').oninput =
    WEBSOCKET
 ===================================================== */
 
+let chatReconnectTimer=null;
+let chatConnectingPromise=null;
+let chatReconnectDelay=1000;
+function scheduleChatReconnect(){
+  if(chatReconnectTimer)return;
+  chatReconnectTimer=setTimeout(()=>{
+    chatReconnectTimer=null;
+    openWS().catch(()=>{});
+  },chatReconnectDelay);
+  chatReconnectDelay=Math.min(15000,Math.round(chatReconnectDelay*1.6));
+}
 function openWS(){
-
-  return new Promise(
+  if(ws && ws.readyState===WebSocket.OPEN)return Promise.resolve();
+  if(chatConnectingPromise)return chatConnectingPromise;
+  chatConnectingPromise=new Promise(
     (resolve,reject) => {
 
       ws =
@@ -4422,11 +4434,20 @@ function openWS(){
           + '/chat-ws'
         );
 
-      ws.onopen =
-        resolve;
+      ws.onopen = () => {
+        if(chatReconnectTimer){clearTimeout(chatReconnectTimer);chatReconnectTimer=null;}
+        chatReconnectDelay=1000;
+        resolve();
+      };
 
-      ws.onerror =
-        () => reject();
+      ws.onerror = () => {
+        reject(new Error('No se pudo establecer el canal del chat'));
+      };
+
+      ws.onclose = () => {
+        status('🟡 Canal del chat desconectado. Reconectando automáticamente…');
+        scheduleChatReconnect();
+      };
 
       ws.onmessage =
         event => {
@@ -4576,7 +4597,7 @@ function openWS(){
         };
 
     }
-  );
+  ).finally(()=>{ chatConnectingPromise=null; });
 
 }
 
