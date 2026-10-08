@@ -2121,7 +2121,7 @@ async function connectTwitch(input) {
     'join',
     joinedChannel => {
       console.log(
-        `[TWITCH] Unido a #${joinedChannel}`
+        `[TWITCH] Unido a #${String(joinedChannel||'').replace(/^#+/,'')}`
       );
     }
   );
