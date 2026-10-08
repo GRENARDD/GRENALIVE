@@ -1352,8 +1352,10 @@ const youtubeReader=new YouTubeLiveReader({
     }
   },
   onStatus:st=>{
-    broadcastPlatform('youtube',{type:st.connected?'status':'error',message:st.connected?'YouTube LIVE conectado':st.error||'Reconectando YouTube'});
-    bridgeStatus('youtube',!!st.connected,st.connected?'YouTube LIVE conectado':st.error||'YouTube en espera',youtubeReader.videoId);
+    const waiting=!!st.waiting;
+    const label=st.connected?'YouTube LIVE conectado':waiting?(st.error||'YouTube: esperando inicio desde OBS'):(st.error||'Reconectando YouTube');
+    broadcastPlatform('youtube',{type:st.connected||waiting?'status':'error',message:label});
+    bridgeStatus('youtube',!!st.connected,label,youtubeReader.videoId,{waiting});
   },
   onViewers:n=>{if(n!==null)bridgeViewers('youtube',n)}
 });
