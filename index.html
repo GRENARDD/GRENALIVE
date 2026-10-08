@@ -45,26 +45,31 @@
         <iframe id="chatFrame" title="GREÑA Chat" src="about:blank" allow="autoplay"></iframe>
       </div>
       <div class="soundboard-strip" id="soundboardStrip" aria-label="Audios rápidos">
-        <div class="soundboard-meta"><b>🎧 AUDIOS RÁPIDOS</b><span>Clic: reproducir/detener · Mantén 5 s: reemplazar · Fade individual</span></div>
+        <div class="soundboard-meta"><b>🎧 AUDIOS RÁPIDOS</b><span>Clic: reproducir/detener · Mantén 5 s: reemplazar · ⚙ Nombre y teclado · Fade individual</span></div>
         <div class="soundboard-buttons">
           <div class="sound-slot" data-sound-wrap="1">
             <button class="sound-pad empty" type="button" data-sound-slot="1"><span class="sound-pad-icon">＋</span><b>Audio 1</b><small>Vacío · subir</small></button>
+            <button class="sound-slot-settings" type="button" data-sound-config="1" title="Nombre y atajo del botón 1" aria-label="Configurar botón 1">⚙</button>
             <label class="sound-slot-fade" title="Desvanecido para Audio 1"><input type="checkbox" data-sound-fade="1" checked><i aria-hidden="true"></i><em>Fade</em></label>
           </div>
           <div class="sound-slot" data-sound-wrap="2">
             <button class="sound-pad empty" type="button" data-sound-slot="2"><span class="sound-pad-icon">＋</span><b>Audio 2</b><small>Vacío · subir</small></button>
+            <button class="sound-slot-settings" type="button" data-sound-config="2" title="Nombre y atajo del botón 2" aria-label="Configurar botón 2">⚙</button>
             <label class="sound-slot-fade" title="Desvanecido para Audio 2"><input type="checkbox" data-sound-fade="2" checked><i aria-hidden="true"></i><em>Fade</em></label>
           </div>
           <div class="sound-slot" data-sound-wrap="3">
             <button class="sound-pad empty" type="button" data-sound-slot="3"><span class="sound-pad-icon">＋</span><b>Audio 3</b><small>Vacío · subir</small></button>
+            <button class="sound-slot-settings" type="button" data-sound-config="3" title="Nombre y atajo del botón 3" aria-label="Configurar botón 3">⚙</button>
             <label class="sound-slot-fade" title="Desvanecido para Audio 3"><input type="checkbox" data-sound-fade="3" checked><i aria-hidden="true"></i><em>Fade</em></label>
           </div>
           <div class="sound-slot" data-sound-wrap="4">
             <button class="sound-pad empty" type="button" data-sound-slot="4"><span class="sound-pad-icon">＋</span><b>Audio 4</b><small>Vacío · subir</small></button>
+            <button class="sound-slot-settings" type="button" data-sound-config="4" title="Nombre y atajo del botón 4" aria-label="Configurar botón 4">⚙</button>
             <label class="sound-slot-fade" title="Desvanecido para Audio 4"><input type="checkbox" data-sound-fade="4" checked><i aria-hidden="true"></i><em>Fade</em></label>
           </div>
           <div class="sound-slot" data-sound-wrap="5">
             <button class="sound-pad empty" type="button" data-sound-slot="5"><span class="sound-pad-icon">＋</span><b>Audio 5</b><small>Vacío · subir</small></button>
+            <button class="sound-slot-settings" type="button" data-sound-config="5" title="Nombre y atajo del botón 5" aria-label="Configurar botón 5">⚙</button>
             <label class="sound-slot-fade" title="Desvanecido para Audio 5"><input type="checkbox" data-sound-fade="5" checked><i aria-hidden="true"></i><em>Fade</em></label>
           </div>
         </div>
@@ -74,6 +79,15 @@
             <span class="soundboard-replace-icon">🎧</span>
             <div><b id="soundboardReplaceTitle">Reemplazar audio</b><small id="soundboardReplaceName">Elige un archivo nuevo para este botón.</small></div>
             <div class="soundboard-replace-actions"><button type="button" id="soundboardReplaceCancel">Cancelar</button><button type="button" class="primary" id="soundboardReplaceConfirm">Reemplazar audio</button></div>
+          </div>
+        </dialog>
+        <dialog class="soundboard-replace-dialog" id="soundboardConfigDialog">
+          <div class="soundboard-config-card">
+            <b id="soundboardConfigTitle">Configurar botón</b>
+            <label>Nombre del botón <input type="text" id="soundboardCustomName" maxlength="32" placeholder="Ej.: Risa, Suspenso, Victoria"></label>
+            <label>Atajo de teclado (cuando GREÑA tiene foco) <input type="text" id="soundboardShortcut" readonly placeholder="Pulsa F8 o Ctrl + Alt + una tecla"></label>
+            <p>Pulsa el campo y luego tu combinación. Supr o Retroceso para borrar. Para atajos con Chrome minimizado, instala el complemento GREÑA y configura sus teclas globales en chrome://extensions/shortcuts.</p>
+            <div class="soundboard-replace-actions"><button type="button" id="soundboardClearShortcut">Quitar atajo</button><button type="button" id="soundboardConfigCancel">Cancelar</button><button type="button" class="primary" id="soundboardConfigSave">Guardar</button></div>
           </div>
         </dialog>
       </div>

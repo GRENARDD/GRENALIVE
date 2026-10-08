@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "GREÑA Live - Atajos globales",
+  "version": "1.0.0",
+  "description": "Controla los cinco botones de audio de GREÑA Live incluso con Chrome minimizado.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Vincular GREÑA Live",
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "sound-1": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+1"
+      },
+      "description": "Audio 1",
+      "global": true
+    },
+    "sound-2": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+2"
+      },
+      "description": "Audio 2",
+      "global": true
+    },
+    "sound-3": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+3"
+      },
+      "description": "Audio 3",
+      "global": true
+    },
+    "sound-4": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+4"
+      },
+      "description": "Audio 4",
+      "global": true
+    },
+    "sound-5": {
+      "description": "Audio 5 (asignar combinación en Chrome)",
+      "global": true
+    }
+  }
+}

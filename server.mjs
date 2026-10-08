@@ -282,6 +282,12 @@ function soundboardSafeName(value=''){
   name=name.split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,100);
   return name||'audio';
 }
+function soundboardLabel(value=''){return String(value||'').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,32)}
+function soundboardShortcut(value=''){
+ const chord=String(value||'').trim();if(!chord)return '';
+ if(chord.length>64||!/^(?:(?:Ctrl|Alt|Shift|Meta)\+){0,4}(?:Key[A-Z]|Digit[0-9]|Numpad[0-9]|F(?:[1-9]|1[0-2]))$/.test(chord))return null;
+ return chord;
+}
 function soundboardMime(ext,type=''){
   const clean=String(type||'').split(';')[0].trim().toLowerCase();
   if(clean.startsWith('audio/'))return clean;
@@ -293,13 +299,16 @@ async function soundboardState(userId){
   const slots=[];
   for(let slot=1;slot<=SOUNDBOARD_SLOT_COUNT;slot++){
     const m=raw.slots[String(slot)]||null;
-    slots.push(m?{slot,name:String(m.name||('Audio '+slot)),type:String(m.type||''),size:Number(m.size||0),updatedAt:Number(m.updatedAt||0),fade:m.fade!==false,url:`/api/soundboard/audio/${slot}?v=${Number(m.updatedAt||0)}`}:{slot,empty:true,fade:true});
+    const uploaded=!!(m?.ext&&SOUNDBOARD_EXTS.has(String(m.ext).toLowerCase()));
+     const item={slot,empty:!uploaded,label:soundboardLabel(m?.label),shortcut:soundboardShortcut(m?.shortcut)||'',fade:m?.fade!==false};
+     if(uploaded)Object.assign(item,{name:String(m.name||('Audio '+slot)),type:String(m.type||''),size:Number(m.size||0),updatedAt:Number(m.updatedAt||0),url:`/api/soundboard/audio/${slot}?v=${Number(m.updatedAt||0)}`});
+     slots.push(item);
   }
   return {version:1,slots,raw};
 }
 async function serveSoundboardAudio(req,res,userId,slot){
   const state=await soundboardState(userId),meta=state.raw.slots[String(slot)];
-  if(!meta)return json(res,404,{ok:false,error:'Ese botón todavía no tiene audio.'});
+  if(!meta?.ext)return json(res,404,{ok:false,error:'Ese botón todavía no tiene audio.'});
   const ext=String(meta.ext||'').toLowerCase();
   if(!SOUNDBOARD_EXTS.has(ext))return json(res,404,{ok:false,error:'Audio no disponible.'});
   const file=join(soundboardDir(userId),`slot-${slot}${ext}`);
@@ -1852,6 +1861,29 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    }
  }
  {
+   const configMatch=/^\/api\/soundboard\/config\/([1-5])$/.exec(pathname);
+   if(configMatch&&req.method==='POST'){
+     const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
+     const slot=soundboardSlotNumber(configMatch[1]);
+     const body=JSON.parse(await readBody(req)||'{}');
+     const label=soundboardLabel(body.label);
+     const shortcut=soundboardShortcut(body.shortcut);
+     if(shortcut===null)return json(res,400,{ok:false,error:'Atajo inválido. Usa F1–F12 o una combinación con Ctrl o Alt.'});
+     const board=await soundboardState(u.id);
+     if(shortcut){
+       for(let i=1;i<=SOUNDBOARD_SLOT_COUNT;i++){
+         if(i!==slot&&soundboardShortcut(board.raw.slots[String(i)]?.shortcut)===shortcut)
+           return json(res,409,{ok:false,error:'Este atajo ya está asignado a otro botón.'});
+       }
+     }
+     const meta=board.raw.slots[String(slot)]||{};
+     meta.label=label;meta.shortcut=shortcut;board.raw.slots[String(slot)]=meta;
+     await safeWriteJson(soundboardMetaFile(u.id),board.raw);
+     const fresh=await soundboardState(u.id);
+     return json(res,200,{ok:true,slot:fresh.slots[slot-1]});
+   }
+ }
+ {
    const fadeMatch=/^\/api\/soundboard\/fade\/([1-5])$/.exec(pathname);
    if(fadeMatch&&req.method==='POST'){
      const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
@@ -1882,7 +1914,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
      }
      const target=join(soundboardDir(u.id),`slot-${slot}${ext}`),tmp=target+'.'+Date.now()+'.tmp';
      await writeFile(tmp,data);await rename(tmp,target);
-     board.raw.version=1;board.raw.slots[String(slot)]={name:fileName,type:soundboardMime(ext,type),ext,size:data.length,updatedAt:Date.now(),fade:old?.fade!==false};
+     board.raw.version=1;board.raw.slots[String(slot)]={name:fileName,type:soundboardMime(ext,type),ext,size:data.length,updatedAt:Date.now(),fade:old?.fade!==false,label:soundboardLabel(old?.label),shortcut:soundboardShortcut(old?.shortcut)||''};
      await safeWriteJson(soundboardMetaFile(u.id),board.raw);
      const fresh=await soundboardState(u.id);
      return json(res,200,{ok:true,slot:fresh.slots[slot-1]});

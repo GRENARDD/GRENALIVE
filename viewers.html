@@ -156,21 +156,12 @@ let counterSettings={...counterDefaults};
 let previewOverride=false;
 let latestMeta={};
 
-function platformIsLive(platform,count,meta={}){
-  const n=Math.max(0,Math.floor(Number(count)||0));
-  if(n>0)return true;
-  const source=String(meta?.[platform]?.source||'').toLowerCase();
-  if(!source)return false;
-  if(/waiting|offline|stream_end|desconect|disconnect|apagado|stopped|termin[oó]|sin live|error/.test(source))return false;
-  return true;
-}
-
-function updatePlatformVisibility(v={},meta=latestMeta){
-  for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki'],['youtube','.counter.yt']]){
-    const card=document.querySelector(selector);
-    if(!card)continue;
-    card.classList.toggle('is-hidden',!platformIsLive(k,v[k],meta));
-  }
+function updatePlatformVisibility(v={}){
+ for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki'],['youtube','.counter.yt']]){
+  const card=document.querySelector(selector);if(!card)continue;
+  const n=Number(v[k]);
+  card.classList.toggle('is-hidden',!(Number.isFinite(n)&&n>=1));
+ }
 }
 
 function normalizeCounterSettings(v={}){
