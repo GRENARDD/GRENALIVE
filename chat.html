@@ -1410,6 +1410,9 @@ function saveSettings(){
       getSelectedVoice();
 
     const settings = {
+      youtubeVoiceEnabled:$('youtubeVoiceEnabled').checked,
+      youtubeMode:getSelectedMode('youtube'),
+      youtubeSelectedUsers:$('youtubeSelectedUsers').value,
 
       tiktokUrl:
         $('tiktokUrl').value,
@@ -1574,6 +1577,10 @@ function restoreSettings(){
 
   }
 
+  if(typeof settings.youtubeUrl==='string')$('youtubeUrl').value=settings.youtubeUrl;
+  if(typeof settings.youtubeVoiceEnabled==='boolean')$('youtubeVoiceEnabled').checked=settings.youtubeVoiceEnabled;
+  if(typeof settings.youtubeSelectedUsers==='string')$('youtubeSelectedUsers').value=settings.youtubeSelectedUsers;
+  if(settings.youtubeMode)document.querySelector('input[name="youtubeMode"][value="'+settings.youtubeMode+'"]')?.click();
   if(
     typeof settings.tiktokUrl === 'string'
   ){
@@ -4499,7 +4506,7 @@ function openWS(){
               '🟡 ' +
               m.message
             );
-
+            if(m.platform==='youtube')$('youtubeStatus').textContent='YouTube: '+(/conectado/i.test(m.message||'')?'conectado':'en espera');
           }
 
           if(
@@ -4536,6 +4543,7 @@ function openWS(){
             if(m.platform === 'tiktok') $('tiktokStatus').textContent='TikTok: reintentará automáticamente';
             if(m.platform === 'twitch') $('twitchStatus').textContent='Twitch: reintentará automáticamente';
             if(m.platform === 'kick') $('kickStatus').textContent='Kick: reintentará automáticamente';
+            if(m.platform === 'youtube') $('youtubeStatus').textContent='YouTube: '+String(m.message||'Error').slice(0,95);
 
           }
 
@@ -5151,6 +5159,7 @@ $('connectYouTube').onclick=async()=>{
  const url=$('youtubeUrl').value.trim();
  if(!url)return alert('Pega el enlace del directo de YouTube.');
  try{if(!ws||ws.readyState!==1)await openWS()}catch{return alert('Chat sin conexión; comprueba el servidor.')}
+ saveSettings();
  ws.send(JSON.stringify({type:'connect',platform:'youtube',url}));
  $('youtubeStatus').textContent='YouTube: comprobando directo…';
 };
