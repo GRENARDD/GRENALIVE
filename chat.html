@@ -45,7 +45,7 @@ h1{
 
 .connections{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  grid-template-columns:repeat(4,minmax(0,1fr));
   gap:12px;
   margin-bottom:12px
 }
@@ -752,13 +752,19 @@ body.voice-settings-modal-open{overflow:hidden!important}
       <img class="button-platform-icon" src="/assets/platforms/kick.svg" alt=""> CONECTAR KICK
     </button>
   </div>
-
+  <div class="connection-box youtube">
+    <div class="connection-title">▶ YouTube Gaming</div>
+    <div class="bar"><input id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div>
+    <button id="connectYouTube" class="network-connect youtube-connect">▶ CONECTAR YOUTUBE</button>
+  </div>
 </div>
 
+<style>.msg.youtube{border-left:4px solid #ff3030;background:linear-gradient(90deg,rgba(255,48,48,.16),transparent)}.msg.youtube .name{color:#ff8585}.msg.youtube .avatar{border:2px solid #ff3030}.youtube-connect{background:#d61f2c!important;color:white!important}@media(max-width:800px){.connections{grid-template-columns:repeat(2,minmax(0,1fr))!important}}</style>
 <div class="disconnect-all-wrap">
   <button id="disconnect">DESCONECTAR TODAS LAS REDES</button>
 </div>
 
+<div class="youtube-connect-panel" style="display:none"></div>
 <!-- =========================
      CHAT DE VOZ
 ========================= -->
@@ -1398,6 +1404,7 @@ function saveSettings(){
 
       kickUrl:
         $('kickUrl').value,
+      youtubeUrl:$('youtubeUrl').value,
 
       voiceEnabled:
         $('voiceEnabled').checked,
@@ -2282,13 +2289,14 @@ function getSelectedMode(platform){
 function isUserAllowed(m){
 
   const platform =
-    ['tiktok','twitch','kick'].includes(String(m.platform||'').toLowerCase())
+    ['tiktok','twitch','kick','youtube'].includes(String(m.platform||'').toLowerCase())
       ? String(m.platform).toLowerCase()
       : 'tiktok';
 
   const enabled =
     platform === 'twitch' ? $('twitchVoiceEnabled').checked :
     platform === 'kick' ? $('kickVoiceEnabled').checked :
+    platform === 'youtube' ? $('youtubeVoiceEnabled').checked :
     $('tiktokVoiceEnabled').checked;
 
   if(!enabled){
@@ -2323,6 +2331,7 @@ function isUserAllowed(m){
     const list =
       platform === 'twitch' ? getList($('twitchSelectedUsers').value) :
       platform === 'kick' ? getList($('kickSelectedUsers').value) :
+      platform === 'youtube' ? getList($('youtubeSelectedUsers').value) :
       getList($('tiktokSelectedUsers').value);
 
     if(
@@ -5123,6 +5132,13 @@ $('connectTwitch')
   connectTwitch;
 
 $('connectKick').onclick=connectKick;
+$('connectYouTube').onclick=()=>{
+ const url=$('youtubeUrl').value.trim();
+ if(!url)return alert('Pega el enlace del directo de YouTube.');
+ if(typeof ws==='undefined'||!ws||ws.readyState!==1)return alert('Chat sin conexión; comprueba el servidor.');
+ ws.send(JSON.stringify({type:'connect',platform:'youtube',url}));
+};
+$('youtubeUrl').onkeydown=e=>{if(e.key==='Enter')$('connectYouTube').click()};
 
 $('disconnect')
   .onclick =
@@ -5314,7 +5330,8 @@ function renderAutoConnectPrefs(prefs={}, runtime={}){
   const map=[
     ['autoTikTok','tiktokEnabled','tiktokUrl','tiktok'],
     ['autoTwitch','twitchEnabled','twitchUrl','twitch'],
-    ['autoKick','kickEnabled','kickUrl','kick']
+    ['autoKick','kickEnabled','kickUrl','kick'],
+    ['autoYouTube','youtubeEnabled','youtubeUrl','youtube']
   ];
   for(const [id,enabledKey,urlKey,runtimeKey] of map){
     const el=$(id);
