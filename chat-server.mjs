@@ -360,6 +360,8 @@ const bridgeQueue=[];let bridgeFlushing=false;const BRIDGE_QUEUE_MAX=200,BRIDGE_
 function bridgeMessageId(prefix='evt'){return `${prefix}-${Date.now().toString(36)}-${randomBytes(8).toString('hex')}`}
 function queueBridge(path,payload){const now=Date.now();while(bridgeQueue.length&&(now-bridgeQueue[0].createdAt>BRIDGE_QUEUE_MAX_AGE))bridgeQueue.shift();if(bridgeQueue.length>=BRIDGE_QUEUE_MAX)bridgeQueue.shift();bridgeQueue.push({path,payload,createdAt:now})}
 async function sendToAlerts(path,payload,{reliable=false,fromQueue=false}={}) {
+  // Conserva el dueño original incluso si la solicitud se reintenta después de otro login.
+  if(path.startsWith('/api/internal/'))payload={...payload,profileId:payload.profileId??activeProfileId};
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),2500);
   try {
@@ -2450,6 +2452,7 @@ const server =
           for(const client of [...clients])try{client.close(4001,'GRENA profile changed')}catch{}
           await disconnectAll();
           await loadChatProfile(String(incoming.userId||''));
+          bridgeQueue.length=0; // jamás repetir alertas pendientes de un perfil anterior
           tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';
           recentChatHistory.splice(0,recentChatHistory.length);
           broadcast({type:'multichat-settings',settings:multichatSettings});
