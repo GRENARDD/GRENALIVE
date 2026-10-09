@@ -721,9 +721,12 @@ function setViewers(platform,count,source='live'){
  const raw=Number(count);if(!Number.isFinite(raw)||!viewerMeta[platform])return false;
  const n=Math.max(0,Math.trunc(raw)),meta=viewerMeta[platform],now=Date.now();
  const forceZero=/offline|desconect|disconnect|reset|apagado|stopped|stream_end/i.test(String(source||''));
- if(platform==='kick'&&forceZero)kickViewerStabilizer.reset();
- if(platform==='kick'&&n>0&&!kickViewerStabilizer.shouldAccept({count:n,source,current:viewers.kick,now})){
-   meta.source=`${source} · caída sospechosa pendiente de confirmar`;
+ // Las lecturas antiguas (incluido un 0 por API) no pueden sobrescribir el
+ // contador actual del sitio de Kick. Desconexiones reales y fin de LIVE sí reinician.
+ const kickReset=platform==='kick'&&/livestream\.status\.updated|desconectado por bridge|desconectado contador|reset/i.test(String(source||''));
+ if(kickReset)kickViewerStabilizer.reset();
+ if(platform==='kick'&&!kickReset&&!kickViewerStabilizer.shouldAccept({count:n,source,current:viewers.kick,now})){
+   meta.source=`${source} · lectura de respaldo ignorada (contador de Kick más reciente)`;
    return false;
  }
  // TikTok/Kick a veces entregan un 0 transitorio entre dos cifras reales. No borramos
