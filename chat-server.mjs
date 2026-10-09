@@ -264,6 +264,8 @@ let kickChatroomId = 0;
 let kickSeenMessages = new Map();
 let kickPagePollTimer = null;
 let kickPagePollBusy = false;
+let kickViewerDiagnosticAt = 0;
+let kickViewerDiagnosticSource = '';
 let kickRealtimeFrames = 0;
 let kickFollowerSeeded = false;
 let kickFollowerProbeLogged = false;
@@ -1194,7 +1196,7 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
   }
   const state=await page.evaluate(async slug=>{
     const out={chatroomId:0,viewerCount:null,viewerSource:'',streamId:0,liveKnown:false,channelId:0,followerCount:null,source:''};
-    const asNum=v=>{const n=Number(v);return Number.isFinite(n)&&n>=0?n:null};
+    const asNum=v=>{if(v===null||v===undefined||v==='')return null;const n=Number(v);return Number.isFinite(n)&&n>=0?n:null};
     const absorb=(d,allowRootId=false,src='')=>{
       if(!d||typeof d!=='object')return;
       const data=d.data&&typeof d.data==='object'&&!Array.isArray(d.data)?d.data:d;
@@ -1260,7 +1262,15 @@ async function pollKickPageState(channel){
     const state=await resolveKickPageState(channel,{keepBrowser:true});
     if(currentKickChannel!==channel)return;
     if(state.chatroomId&&state.chatroomId!==kickChatroomId)kickChatroomId=state.chatroomId;
-    if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount,state.viewerSource||'Kick browser realtime');
+    if(state.liveKnown&&state.viewerCount!==null){
+      const src=state.viewerSource||'Kick browser realtime';
+      bridgeViewers('kick',state.viewerCount,src);
+      const now=Date.now();
+      if(src!==kickViewerDiagnosticSource||now-kickViewerDiagnosticAt>=60000){
+        console.log('[KICK VIEWERS SITE]',JSON.stringify({count:state.viewerCount,source:src}));
+        kickViewerDiagnosticAt=now;kickViewerDiagnosticSource=src;
+      }
+    }
     handleKickFollowerCount(state.followerCount);
   }catch{}finally{kickPagePollBusy=false}
 }
