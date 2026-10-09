@@ -935,12 +935,24 @@ function normalizeKickChatPayload(raw){
 }
 
 async function deliverKickChat(msg){
-  if(!msg?.text||!msg?.user)return;
-  const key=`${msg.user.toLowerCase()}|${msg.text}`;
-  const now=Date.now(),prev=kickSeenMessages.get(key)||0;
-  if(now-prev<2500)return;
-  kickSeenMessages.set(key,now);
-  for(const [k,t] of kickSeenMessages) if(now-t>15000) kickSeenMessages.delete(k);
+  if(!msg?.text||!msg?.user)return false;
+  // El mismo mensaje llega por Kick Pusher, WebSocket del navegador y webhook oficial.
+  // Los tres caminos comparten este filtro: ID estable cuando existe; si no,
+  // coincidencia de usuario + texto durante un corto intervalo.
+  const userKey=String(msg.user).trim().toLowerCase();
+  const contentKey=`text:${userKey}|${String(msg.text).trim()}`;
+  const messageId=String(msg.messageId||'').trim();
+  const idKey=messageId?`id:${messageId}|${contentKey}`:'';
+  const now=Date.now();
+  const sameId=idKey?kickSeenMessages.get(idKey):null;
+  const sameText=kickSeenMessages.get(contentKey);
+  if((sameId&&now-sameId.at<120000)||
+     (sameText&&now-sameText.at<6500&&(!messageId||!sameText.id||sameText.id===messageId)))return false;
+  const record={at:now,id:messageId};
+  kickSeenMessages.set(contentKey,record);
+  if(idKey)kickSeenMessages.set(idKey,record);
+  for(const [k,t] of kickSeenMessages) if(now-Number(t?.at||0)>120000)kickSeenMessages.delete(k);
+  while(kickSeenMessages.size>4000)kickSeenMessages.delete(kickSeenMessages.keys().next().value);
   const oldUser=kickUsers.get(msg.user.toLowerCase())||{};
   const isFollower=typeof oldUser.isFollower==='boolean'?oldUser.isFollower:null;
   const isSubscriber=!!msg.isSubscriber||!!oldUser.isSubscriber;
@@ -973,6 +985,7 @@ async function deliverKickChat(msg){
     isModerator:!!msg.isModerator,
     isBroadcaster:!!msg.isBroadcaster||String(msg.user||'').toLowerCase()===String(currentKickChannel||'').toLowerCase()
   });
+  return true;
 }
 
 function consumeKickRealtimeFrame(payload){
@@ -2526,27 +2539,19 @@ const server =
           let body=''; body=await readBody(request);
           const d=JSON.parse(body||'{}');
           const sender=d.sender||{};
-          const broadcaster=d.broadcaster||{};
-          const user=String(sender.username||sender.channel_slug||'Usuario');
-          const nickname=user;
-          const text=String(d.content||d.message||'').trim();
-          if(text){
-            kickUsers.set(user.toLowerCase(),{username:user,nickname,userId:String(sender.user_id||''),isFollower:null,lastSeen:Date.now()});
-            broadcastPlatform('kick',{
-              type:'chat',
-              user,
-              nickname,
-              text,
-              avatar:String(sender.profile_picture||''),
-              userId:String(sender.user_id||''),
-              messageId:String(d.message_id||''),
-              isFollower:null,
-              broadcaster:String(broadcaster.username||broadcaster.channel_slug||currentKickChannel||''),
-              broadcasterId:String(broadcaster.user_id||'')
-            });
-          }
+          const msg=normalizeKickChatPayload(d)||{
+            user:String(sender.username||sender.channel_slug||''),
+            nickname:String(sender.username||sender.channel_slug||''),
+            text:String(d.content||d.message||'').trim(),
+            avatar:String(sender.profile_picture||''),
+            userId:String(sender.user_id||''),
+            messageId:String(d.message_id||'')
+          };
+          // No emitir directamente: reutiliza exactamente la misma deduplicación
+          // del lector realtime para que el webhook no produzca un segundo chat/voz.
+          const delivered=await deliverKickChat(msg);
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-          response.end(JSON.stringify({ok:true,delivered:!!text}));
+          response.end(JSON.stringify({ok:true,delivered:!!delivered}));
           return;
         }
 
