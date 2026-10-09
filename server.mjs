@@ -1185,25 +1185,60 @@ async function connectCounterTikTok(input){
  setStatus('tiktok',!!bridgeRuntime.tiktok,label,username);
  return {username,initial:viewers.tiktok,shared:true,pending:!bridgeRuntime.tiktok};
 }
-async function refreshCounterTwitch(){
- if(!counterTwitchLogin||counterTwitchRefreshing)return;
- counterTwitchRefreshing=true;
- try{
-  const token=savedAuth.twitch?.access_token||twitchCfg?.token;if(!token)throw Error('Primero conecta Twitch una vez en GREÑA Alertas.');
-  const cfg={token};const d=await twitchHelix(`/streams?user_login=${encodeURIComponent(counterTwitchLogin)}`,cfg);
-  const stream=d.data?.[0];
-  if(stream&&Number.isFinite(Number(stream.viewer_count))){viewerMeta.twitch.zeroHits=0;setViewers('twitch',stream.viewer_count,'Twitch Helix rápido');return}
-  // Helix puede devolver data:[] momentáneamente. No borrar un valor real por una sola respuesta vacía.
-  viewerMeta.twitch.zeroHits=(viewerMeta.twitch.zeroHits||0)+1;viewerMeta.twitch.source='Twitch Helix · respuesta vacía';
-  if(viewerMeta.twitch.zeroHits>=3)setViewers('twitch',0,'Twitch Helix · offline confirmado');
- }finally{counterTwitchRefreshing=false}
+let twitchCounterLastError='';
+async function refreshCounterTwitch({strict=false}={}){
+  if(!counterTwitchLogin||counterTwitchRefreshing)return false;
+  const login=counterTwitchLogin,profileId=activeUserId;
+  counterTwitchRefreshing=true;
+  try{
+    let token=savedAuth.twitch?.access_token||twitchCfg?.token;
+    if(!token)throw Error('Para contar espectadores de Twitch, vincula tu cuenta de Twitch en GREÑA > Conexiones.');
+    const request=async(t,path)=>twitchHelix(path,{token:t});
+    const path=`/streams?user_login=${encodeURIComponent(login)}`;
+    let data;
+    try{data=await request(token,path)}
+    catch(e){
+      if(!/401|unauthorized|invalid.*(oauth|token)|token.*(invalid|expired)/i.test(String(e?.message||e))||!savedAuth.twitch?.refresh_token)throw e;
+      await maintainTwitchAuth();
+      token=savedAuth.twitch?.access_token||twitchCfg?.token;
+      if(!token)throw Error('La autorización de Twitch venció. Vuelve a vincular Twitch en GREÑA.');
+      data=await request(token,path);
+    }
+    let stream=data?.data?.[0];
+    // Helix a veces devuelve un stream vacío por login, aunque el canal sí está LIVE.
+    // Si el canal coincide con la cuenta autorizada, probar también por broadcaster ID.
+    if(!stream&&twitchCfg?.userId&&login.toLowerCase()===String(twitchCfg.login||'').toLowerCase()){
+      try{const alt=await request(token,`/streams?user_id=${encodeURIComponent(twitchCfg.userId)}`);stream=alt?.data?.[0]}catch{}
+    }
+    // Una respuesta de un perfil anterior no puede actualizar el contador del nuevo usuario.
+    if(profileId!==activeUserId||login!==counterTwitchLogin)return false;
+    twitchCounterLastError='';
+    if(stream&&Number.isFinite(Number(stream.viewer_count))){
+      viewerMeta.twitch.zeroHits=0;
+      setViewers('twitch',stream.viewer_count,'Twitch Helix · directo');
+      return true;
+    }
+    viewerMeta.twitch.zeroHits=(viewerMeta.twitch.zeroHits||0)+1;
+    viewerMeta.twitch.source='Twitch Helix · respuesta sin stream ('+viewerMeta.twitch.zeroHits+'/3)';
+    if(viewerMeta.twitch.zeroHits>=3)setViewers('twitch',0,'Twitch Helix · offline confirmado');
+    return true;
+  }catch(e){
+    if(profileId===activeUserId&&login===counterTwitchLogin){
+      const reason=String(e?.message||e).slice(0,180);
+      viewerMeta.twitch.source='Twitch contador · '+reason;
+      if(twitchCounterLastError!==reason)console.warn('Contador Twitch:',reason);
+      twitchCounterLastError=reason;
+    }
+    if(strict)throw e;
+    return false;
+  }finally{counterTwitchRefreshing=false}
 }
 async function connectCounterTwitch(input){
  const login=parseTwitchLogin(input);if(!login)throw Error('Pon el link o canal de Twitch.');
  if(counterTwitchTimer)clearInterval(counterTwitchTimer);
  counterTwitchTimer=null;counterTwitchLogin=login;
  try{
-  await refreshCounterTwitch();
+  await refreshCounterTwitch({strict:true});
   counterTwitchTimer=setInterval(()=>refreshCounterTwitch().catch(e=>console.warn('Contador Twitch:',e?.message||e)),5000);
   setStatus('twitch',true,`${login} · chat + contador conectados`,login);
   return {login};
@@ -1259,7 +1294,28 @@ function openTwitchWS(url='wss://eventsub.wss.twitch.tv/ws'){
  ws.on('error',e=>{const msg=e?.message||String(e);console.warn('Twitch WS:',msg);twitchEventHealth.ready=false;twitchEventHealth.lastError=msg;pushEventHealth();if(twitchCfg)setStatus('twitch',false,'Twitch sin conexión · reintentando…',twitchCfg.login)});
  ws.on('close',()=>{twitchEventHealth.ready=false;pushEventHealth();if(twitchCfg){setStatus('twitch',false,'Desconectado · reconectando…',twitchCfg.login);setTimeout(()=>{if(twitchCfg&&twitchWS===ws)openTwitchWS()},5000)}});
 }
-async function refreshTwitchViewers(){if(counterTwitchLogin||!twitchCfg||twitchViewerRefreshing)return;twitchViewerRefreshing=true;try{const d=await twitchHelix(`/streams?user_id=${encodeURIComponent(twitchCfg.userId)}`,twitchCfg);setViewers('twitch',d.data?.[0]?.viewer_count??0,'Twitch Helix rápido')}catch(e){console.warn('Twitch viewers:',e?.message||e)}finally{twitchViewerRefreshing=false}}
+async function refreshTwitchViewers(){
+  if(counterTwitchLogin||!twitchCfg||twitchViewerRefreshing)return;
+  const cfg=twitchCfg,profileId=activeUserId;
+  twitchViewerRefreshing=true;
+  try{
+    const d=await twitchHelix(`/streams?user_id=${encodeURIComponent(cfg.userId)}`,cfg);
+    if(profileId!==activeUserId||twitchCfg!==cfg||counterTwitchLogin)return;
+    const stream=d.data?.[0];
+    if(stream&&Number.isFinite(Number(stream.viewer_count))){
+      viewerMeta.twitch.zeroHits=0;setViewers('twitch',stream.viewer_count,'Twitch Helix · cuenta vinculada');
+    }else{
+      viewerMeta.twitch.zeroHits=(viewerMeta.twitch.zeroHits||0)+1;
+      viewerMeta.twitch.source='Twitch Helix · confirmando offline';
+      if(viewerMeta.twitch.zeroHits>=3)setViewers('twitch',0,'Twitch Helix · offline confirmado');
+    }
+  }catch(e){
+    if(profileId===activeUserId&&twitchCfg===cfg){
+      viewerMeta.twitch.source='Twitch Helix · '+String(e?.message||e).slice(0,180);
+      console.warn('Twitch viewers:',e?.message||e);
+    }
+  }finally{twitchViewerRefreshing=false}
+}
 function startTwitchViewerPolling(){if(twitchViewerTimer)clearInterval(twitchViewerTimer);refreshTwitchViewers();twitchViewerTimer=setInterval(refreshTwitchViewers,5000)}
 async function startTwitch(token){const cfg={token};const me=await twitchHelix('/users',cfg);if(!me.data?.[0])throw Error('No se pudo leer la cuenta de Twitch.');cfg.userId=me.data[0].id;cfg.login=me.data[0].login||me.data[0].display_name;cfg.displayName=me.data[0].display_name||cfg.login;twitchCfg=cfg;savedAuth.twitch={...(savedAuth.twitch||{}),login:cfg.login,displayName:cfg.displayName,userId:cfg.userId};await persistAuth();setStatus('twitch',false,`${cfg.displayName} · autorizando eventos…`,cfg.displayName);await syncCreatorAccount('twitch',cfg.login).catch(()=>{});openTwitchWS();startTwitchViewerPolling();startTwitchValidation();refreshTwitchGiftCatalog(true).catch(e=>console.warn('Catálogo Twitch:',e?.message||e))}
 async function twitchUserByLogin(login,cfg=twitchCfg){
