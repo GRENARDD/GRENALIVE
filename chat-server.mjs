@@ -263,6 +263,7 @@ let kickReconnectTimer = null;
 let kickChatroomId = 0;
 let kickSeenMessages = new Map();
 let kickPagePollTimer = null;
+let kickPagePollBusy = false;
 let kickRealtimeFrames = 0;
 let kickFollowerSeeded = false;
 let kickFollowerProbeLogged = false;
@@ -1192,7 +1193,7 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
     if(!response){try{await browser.close()}catch{};kickBrowser=null;kickPage=null;throw Error('No pude abrir el canal de Kick. Revisa Internet o el nombre del canal.')}
   }
   const state=await page.evaluate(async slug=>{
-    const out={chatroomId:0,viewerCount:null,liveKnown:false,channelId:0,followerCount:null,source:''};
+    const out={chatroomId:0,viewerCount:null,viewerSource:'',streamId:0,liveKnown:false,channelId:0,followerCount:null,source:''};
     const asNum=v=>{const n=Number(v);return Number.isFinite(n)&&n>=0?n:null};
     const absorb=(d,allowRootId=false,src='')=>{
       if(!d||typeof d!=='object')return;
@@ -1204,8 +1205,10 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
       const fc=asNum(data.followers_count??data.follower_count??d.followers_count??d.follower_count);
       if(fc!==null)out.followerCount=fc;
       const stream=data.livestream??data.stream??d.livestream??d.stream;
-      if(stream!==undefined){out.liveKnown=true;const n=asNum(stream?.viewer_count??stream?.viewers??stream?.viewerCount);if(n!==null)out.viewerCount=n;else if(stream===null)out.viewerCount=0}
-      const direct=asNum(data.viewer_count??data.viewerCount);if(direct!==null){out.liveKnown=true;out.viewerCount=direct}
+      const streamId=asNum(stream?.id??stream?.livestream_id);
+      if(streamId>0)out.streamId=streamId;
+      if(stream!==undefined){out.liveKnown=true;const n=asNum(stream?.viewer_count??stream?.viewers??stream?.viewerCount);if(n!==null){out.viewerCount=n;out.viewerSource='Kick browser realtime'}else if(stream===null)out.viewerCount=0}
+      const direct=asNum(data.viewer_count??data.viewerCount);if(direct!==null){out.liveKnown=true;out.viewerCount=direct;out.viewerSource='Kick browser realtime'}
     };
     const urls=[
       [`/api/v2/channels/${encodeURIComponent(slug)}`,false],
@@ -1216,19 +1219,50 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
     for(const [u,allowRootId] of urls){
       try{const r=await fetch(u,{credentials:'include',cache:'no-store'});if(!r.ok)continue;const d=await r.json();absorb(d,allowRootId,u);if(out.chatroomId&&out.liveKnown)break}catch{}
     }
+    // Kick.com toma el conteo mostrado del endpoint "current-viewers" por ID del LIVE.
+    // El perfil de canal es solo el respaldo: puede traer una copia vieja o incompleta.
+    try{
+      const r=await fetch(`/api/v2/channels/${encodeURIComponent(slug)}/livestream`,{credentials:'include',cache:'no-store'});
+      if(r.ok){
+        const body=await r.json();
+        const root=body?.data&&typeof body.data==='object'&&!Array.isArray(body.data)?body.data:body;
+        const stream=root?.livestream??root?.stream??root;
+        const sid=asNum(stream?.id??stream?.livestream_id);
+        if(sid>0)out.streamId=sid;
+        const n=asNum(stream?.viewer_count??stream?.viewerCount??stream?.viewers);
+        if(n!==null){out.viewerCount=n;out.liveKnown=true;out.viewerSource='Kick web livestream'}
+      }
+    }catch{}
+    if(out.streamId>0){
+      try{
+        const r=await fetch(`/current-viewers?ids[]=${encodeURIComponent(out.streamId)}`,{credentials:'include',cache:'no-store'});
+        if(r.ok){
+          const body=await r.json();
+          const rows=Array.isArray(body)?body:Array.isArray(body?.data)?body.data:[body?.data??body];
+          const record=rows.find(x=>{
+            const id=asNum(x?.livestream_id??x?.stream_id??x?.id);
+            return id===null||id===out.streamId;
+          });
+          const n=asNum(record?.viewers??record?.viewer_count??record?.viewerCount??(typeof record==='number'?record:null));
+          if(n!==null){out.viewerCount=n;out.liveKnown=true;out.viewerSource='Kick current-viewers'}
+        }
+      }catch{}
+    }
     return out;
-  },channel).catch(()=>({chatroomId:0,viewerCount:null,liveKnown:false,channelId:0,followerCount:null,source:''}));
+  },channel).catch(()=>({chatroomId:0,viewerCount:null,viewerSource:'',streamId:0,liveKnown:false,channelId:0,followerCount:null,source:''}));
   if(!keepBrowser&&created){try{await browser.close()}catch{};if(kickBrowser===browser){kickBrowser=null;kickPage=null}}
   return state;
 }
 async function pollKickPageState(channel){
-  if(!kickPage||!kickBrowser||currentKickChannel!==channel)return;
+  if(kickPagePollBusy||!kickPage||!kickBrowser||currentKickChannel!==channel)return;
+  kickPagePollBusy=true;
   try{
     const state=await resolveKickPageState(channel,{keepBrowser:true});
+    if(currentKickChannel!==channel)return;
     if(state.chatroomId&&state.chatroomId!==kickChatroomId)kickChatroomId=state.chatroomId;
-    if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount);
+    if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount,state.viewerSource||'Kick browser realtime');
     handleKickFollowerCount(state.followerCount);
-  }catch{}
+  }catch{}finally{kickPagePollBusy=false}
 }
 function connectKickPusher(channel,chatroomId,channelId=0){
   return new Promise((resolve,reject)=>{
@@ -1256,7 +1290,7 @@ function connectKickPusher(channel,chatroomId,channelId=0){
 async function launchKickChatReader(channel){
   const state=await resolveKickPageState(channel,{keepBrowser:true});
   kickChatroomId=Number(state.chatroomId)||0;
-  if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount);
+  if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount,state.viewerSource||'Kick browser realtime');
   handleKickFollowerCount(state.followerCount);
   if(kickPagePollTimer)clearInterval(kickPagePollTimer);
   kickPagePollTimer=setInterval(()=>pollKickPageState(channel),10000);
