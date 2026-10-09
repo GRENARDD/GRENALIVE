@@ -11,6 +11,7 @@ import { randomBytes, randomInt, createHash, createVerify, scryptSync, scrypt, t
 import { WebSocketServer, WebSocket } from 'ws';
 import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfig } from 'tiktok-live-connector';
 import { chromium } from 'playwright-core';
+import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
 
 // GREÑA 3.1.7: evita los fallbacks premium de EulerStream para resolver Room ID / estado LIVE.
 // La conexión de lectura usa primero las rutas públicas/directas de TikTok.
@@ -160,6 +161,7 @@ let tiktok=null,tiktokLoginContext=null,twitchWS=null,twitchCfg=null,twitchViewe
 let counterTikTok=null,counterTikTokUser='',counterTikTokPollTimer=null,counterTikTokReconnectTimer=null,counterTikTokConnecting=false,counterTikTokPollBusy=false,counterTikTokLastSignalAt=0,counterTikTokPollFailures=0,tiktokBridgeDisconnectGraceTimer=null,counterTwitchLogin='',counterTwitchTimer=null,counterTwitchRefreshing=false;
 const viewers={tiktok:0,twitch:0,kick:0,youtube:0};
 const viewerMeta={youtube:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},tiktok:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0,spikeValue:0,spikeHits:0,spikeAt:0,spikeSources:[]},twitch:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},kick:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0}};
+const kickViewerStabilizer=createKickViewerStabilizer();
 const viewerTest={enabled:false,tiktok:0,twitch:0,kick:0};
 let viewerTestTimer=null;
 const clients=new Set(), chatProxyClients=new Set(), oauthState=new Map(), twitchAvatarCache=new Map();
@@ -719,6 +721,11 @@ function setViewers(platform,count,source='live'){
  const raw=Number(count);if(!Number.isFinite(raw)||!viewerMeta[platform])return false;
  const n=Math.max(0,Math.trunc(raw)),meta=viewerMeta[platform],now=Date.now();
  const forceZero=/offline|desconect|disconnect|reset|apagado|stopped|stream_end/i.test(String(source||''));
+ if(platform==='kick'&&forceZero)kickViewerStabilizer.reset();
+ if(platform==='kick'&&n>0&&!kickViewerStabilizer.shouldAccept({count:n,source,current:viewers.kick,now})){
+   meta.source=`${source} · caída sospechosa pendiente de confirmar`;
+   return false;
+ }
  // TikTok/Kick a veces entregan un 0 transitorio entre dos cifras reales. No borramos
  // un dato sano por un único paquete vacío; exigimos tres ceros separados salvo offline real.
  if(n===0&&!forceZero&&(platform==='tiktok'||platform==='kick')&&viewers[platform]>0&&now-Number(meta.lastGoodAt||0)<30000){
@@ -1650,6 +1657,7 @@ async function stopProfileRuntime(){
   if(kickEventRetryTimer)clearInterval(kickEventRetryTimer);kickEventRetryTimer=null;
   kickAppToken='';kickTokenExpiresAt=0;
   for(const p of ['tiktok','twitch','kick']){viewers[p]=0;viewerMeta[p].lastGood=0;viewerMeta[p].lastGoodAt=0;viewerMeta[p].source='waiting'}
+  kickViewerStabilizer.reset();
   for(const p of ['tiktok','twitch','kick'])bridgeRuntime[p]=false;
   for(const p of ['tiktok','twitch','kick'])status[p]={connected:false,label:'No conectado'};
   activityHistory.splice(0);recentAlerts.clear();pushViewers();pushStatus();
@@ -2349,7 +2357,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(['tiktok','twitch','kick'].includes(p))await disconnectChatPlatform(p);
   if(p==='tiktok'){clearTikTokBridgeDisconnectGrace();autoPrefs.counterTikTokEnabled=false;autoPrefs.counterTikTok='';await persistAutoPrefs();const oldCounter=counterTikTok;counterTikTok=null;clearTikTokCounterTimers();counterTikTokUser='';counterTikTokLastSignalAt=0;counterTikTokPollFailures=0;if(oldCounter)try{oldCounter.disconnect()}catch{};setViewers('tiktok',0,'desconectado TikTok manual');if(tiktok){try{tiktok.disconnect()}catch{}tiktok=null}if(tiktokLoginContext){try{await tiktokLoginContext.close()}catch{}tiktokLoginContext=null}}
   if(p==='twitch'){setViewers('twitch',0);if(twitchViewerTimer)clearInterval(twitchViewerTimer);twitchViewerTimer=null;if(twitchValidationTimer)clearInterval(twitchValidationTimer);twitchValidationTimer=null;twitchCfg=null;twitchFollowerCache.clear();twitchEventHealth.ready=false;twitchEventHealth.active=[];twitchEventHealth.failed=[];twitchEventHealth.lastError='';if(twitchWS)try{twitchWS.close()}catch{};twitchWS=null}
-  if(p==='kick'){if(kickViewerTimer)clearInterval(kickViewerTimer);kickViewerTimer=null;kickAppToken='';kickTokenExpiresAt=0;kickEventHealth.subscriptionsReady=false;kickEventHealth.active=[];kickEventHealth.failed=[];kickEventHealth.lastWebhookAt=0;kickEventHealth.lastError='';setViewers('kick',0,'desconectado contador Kick')}
+  if(p==='kick'){kickViewerStabilizer.reset();if(kickViewerTimer)clearInterval(kickViewerTimer);kickViewerTimer=null;kickAppToken='';kickTokenExpiresAt=0;kickEventHealth.subscriptionsReady=false;kickEventHealth.active=[];kickEventHealth.failed=[];kickEventHealth.lastWebhookAt=0;kickEventHealth.lastError='';setViewers('kick',0,'desconectado contador Kick')}
   setStatus(p,false,'No conectado');pushEventHealth();return json(res,200,{ok:true,eventHealth:eventHealthSnapshot()});
  }
  if(req.method!=='GET'&&req.method!=='HEAD'){res.writeHead(405);return res.end('Método no permitido')}
