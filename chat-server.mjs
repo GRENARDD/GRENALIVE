@@ -1213,6 +1213,7 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
       const direct=asNum(data.viewer_count??data.viewerCount);if(direct!==null){out.liveKnown=true;out.viewerCount=direct;out.viewerSource='Kick browser realtime'}
     };
     const urls=[
+      [`/api/v2/channels/${encodeURIComponent(slug)}/info`,false],
       [`/api/v2/channels/${encodeURIComponent(slug)}`,false],
       [`/api/v1/channels/${encodeURIComponent(slug)}`,false],
       [`/api/v2/channels/${encodeURIComponent(slug)}/chatroom`,true],
