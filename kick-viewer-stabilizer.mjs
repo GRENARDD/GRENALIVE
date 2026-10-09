@@ -1,31 +1,40 @@
-// Prioridad: número mostrado por Kick /current-viewers.
-// Si deja de llegar, el contador vuelve automáticamente a las fuentes anteriores.
+// El contador visible de Kick usa /current-viewers y el LIVE del sitio.
+// La API de desarrolladores y lecturas genéricas solo sirven si esas fuentes fallan.
 export function createKickViewerStabilizer() {
   const sources = { official: { value: null, at: 0 }, browser: { value: null, at: 0 } };
   let pending = null;
   let canonicalAt = 0;
+  let livestreamAt = 0;
   return {
     reset() {
       sources.official = { value: null, at: 0 };
       sources.browser = { value: null, at: 0 };
       pending = null;
       canonicalAt = 0;
+      livestreamAt = 0;
     },
     shouldAccept({ count, source, current, now = Date.now() }) {
       const n = Number(count);
       const prev = Math.max(0, Number(current) || 0);
       if (!Number.isFinite(n) || n < 0) return false;
       const label = String(source || '').toLowerCase();
-      // Kick's own current-viewers endpoint powers its displayed live count.
-      // While it supplies fresh readings, older API/page snapshots must not overwrite it.
       if (label.includes('kick current-viewers')) {
         canonicalAt = now;
         pending = null;
         return true;
       }
-      if (canonicalAt && now - canonicalAt < 30000) return false;
+      // Respaldo del mismo sitio Kick, solo si la fuente preferida dejó de llegar.
+      if (label.includes('kick web livestream')) {
+        livestreamAt = now;
+        if (canonicalAt && now - canonicalAt < 30000) return false;
+        pending = null;
+        return true;
+      }
+      // La API de desarrolladores y el perfil genérico pueden tener cifras atrasadas.
+      if ((canonicalAt && now - canonicalAt < 30000) ||
+          (livestreamAt && now - livestreamAt < 24000)) return false;
       const family = label.includes('kick public api') ? 'official'
-        : /kick browser|kick bridge|kick page|kick web livestream/.test(label) ? 'browser' : '';
+        : /kick browser|kick bridge|kick page/.test(label) ? 'browser' : '';
       if (!family || n === 0) {
         pending = null;
         return true;
