@@ -5,8 +5,8 @@ const aliases=new Map([
  ['subscription','sub'],['subscribe','sub'],['sub','sub'],['subscribed','sub'],['subscription.renewed','subrenew'],['subrenew','subrenew'],
  ['gifted_subscription','giftsub'],['subscription_gift','giftsub'],['gift_subscriptions','giftsub'],['giftsub','giftsub'],
  ['raid','raid'],['raid_received','raid'],
- ['starvies','gift'],['starvie','gift'],['donation','gift'],['tip','gift'],['starvies_donated','gift'],
- ['star_shower','shower'],['starshower','shower'],['lluvia_de_estrellas','shower']
+ ['gift','gift'],['starvies','gift'],['starvie','gift'],['donation','gift'],['tip','gift'],['starvies_donated','gift'],
+ ['shower','shower'],['star_shower','shower'],['starshower','shower'],['lluvia_de_estrellas','shower']
 ]);
 export const starviosEventTypes=['follow','sub','subrenew','giftsub','raid','gift','shower'];
 export function finiteStarviosInt(raw,maximum=1000000000){
