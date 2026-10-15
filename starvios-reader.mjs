@@ -2,7 +2,8 @@
 // Usa el popout público de Starvios. Los selectores pertenecen a la web externa
 // y deben validarse con un LIVE real antes de promover esta fase a producción.
 import { chromium } from 'playwright-core';
-import {normalizeStarviosEvent,parseStarviosViewerLabel} from './starvios-events.mjs';
+import {normalizeStarviosEvent} from './starvios-events.mjs';
+import {STARVIOS_LIVE_DIRECTORY_URL,parseStarviosLiveDirectory} from './starvios-viewers.mjs';
 
 export function normalizeStarviosChannel(input) {
   let value=String(input||'').trim();
@@ -41,6 +42,9 @@ export class StarviosReader {
     this.liveScanBusy=false;
     this.liveTimer=null;
     this.lastLive=null;
+    this.liveDirectoryMisses=0;
+    this.lastDirectoryGoodAt=0;
+    this.lastViewerCount=null;
     this.eventKeys=new Map();
     this.timer=null;
     this.running=false;
@@ -56,6 +60,8 @@ export class StarviosReader {
     await this.disconnect();
     this.channel=channel;
     this.running=true;
+    this.lastViewerCount=null;
+    this.onViewers({count:null,source:'Starvios · esperando espectadores',channel});
     const generation=++this.generation;
     try {
       await this.openChatPage(generation);
@@ -111,7 +117,7 @@ export class StarviosReader {
       this.onState({connected:false,channel:this.channel,label:'Starvios · esperando chat de @'+this.channel});
       this.timer=setInterval(()=>this.scan().catch(e=>this.handleScanError(e)),1100);
       // La detección auxiliar del directo usa HTTP ligero, NUNCA un reproductor extra.
-      this.liveTimer=setInterval(()=>this.scanLive().catch(()=>{}),30000);
+      this.liveTimer=setInterval(()=>this.scanLive().catch(()=>{}),15000);
       await this.scan();
       this.scanLive().catch(()=>{});
     } catch(error) {
@@ -288,24 +294,52 @@ export class StarviosReader {
     this.liveScanBusy=true;
     const generation=this.generation;
     try{
-      // No abrir una segunda pestaña con reproducción LIVE en un Railway de 1 GB.
-      const response=await fetch('https://starvios.com/live/'+encodeURIComponent(this.channel),{
-        headers:{accept:'text/html'},
-        signal:AbortSignal.timeout(8500)
+      // Starvios publica el mismo directorio con el que muestra sus cifras en la web.
+      // No abrimos video ni otra pestaña pesada; el contador es independiente del chat.
+      const response=await fetch(STARVIOS_LIVE_DIRECTORY_URL,{
+        headers:{accept:'application/json'},
+        signal:AbortSignal.timeout(10000)
       });
-      if(!response.ok||generation!==this.generation||!this.running)return;
-      const html=(await response.text()).slice(0,200000);
+      if(!response.ok)throw Error('Starvios directory HTTP '+response.status);
+      if(Number(response.headers.get('content-length')||0)>4*1024*1024)throw Error('Respuesta de Starvios demasiado grande');
+      const payload=await response.json();
       if(generation!==this.generation||!this.running)return;
-      // Confirmación conservadora; no inventar viewers cuando no hay cifra fiable.
-      if(/no está en directo ahora|is not live right now|currently offline/i.test(html)){
+      const state=parseStarviosLiveDirectory(payload,this.channel);
+      if(state.state==='unavailable')throw Error('Directorio de Starvios sin datos');
+      this.lastDirectoryGoodAt=Date.now();
+      if(state.state==='offline'){
+        this.liveDirectoryMisses++;
+        // Un directorio recién actualizado puede tardar en incluir al canal.
+        if(this.liveDirectoryMisses<2&&this.lastLive!==false)return;
         if(this.lastLive!==false){
           this.lastLive=false;
-          this.onLive({live:false,channel:this.channel,source:'Starvios live HTML'});
+          this.onLive({live:false,channel:this.channel,source:'Starvios public live directory'});
+        }
+        if(this.lastViewerCount!==0){
+          this.lastViewerCount=0;
           this.onViewers({count:0,source:'Starvios offline verificado',channel:this.channel});
         }
+        return;
+      }
+      this.liveDirectoryMisses=0;
+      if(this.lastLive!==true){
+        this.lastLive=true;
+        this.onLive({live:true,channel:this.channel,source:'Starvios public live directory'});
+      }
+      if(state.count===null){
+        if(this.lastViewerCount!==null){
+          this.lastViewerCount=null;
+          this.onViewers({count:null,source:'Starvios sin cifra verificable',channel:this.channel});
+        }
+      }else{
+        this.lastViewerCount=state.count;
+        this.onViewers({count:state.count,source:'Starvios public live directory',channel:this.channel});
       }
     }catch(error){
-      // Un fallo en el estado auxiliar nunca debe tirar abajo la lectura del chat.
+      if(this.lastDirectoryGoodAt && Date.now()-this.lastDirectoryGoodAt>60000 && this.lastViewerCount!==null){
+        this.lastViewerCount=null;
+        this.onViewers({count:null,source:'Starvios · cifra sin actualizar',channel:this.channel});
+      }
       if(Date.now()-this.lastErrorAt>30000){
         this.lastErrorAt=Date.now();
         this.onError(error);
@@ -321,7 +355,8 @@ export class StarviosReader {
     this.timer=null;this.liveTimer=null;this.reconnectTimer=null;
     this.reconnectFailures=0;
     this.missingContainerSince=0;
-    this.lastLive=null;this.eventKeys.clear();
+    this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;
+    this.lastViewerCount=null;this.eventKeys.clear();
     const old=this.channel;
     this.running=false;
     this.connected=false;
@@ -331,6 +366,10 @@ export class StarviosReader {
     this.page=null;
     this.livePage=null;
     if(browser) try { await browser.close(); } catch {}
-    if(old) this.onState({connected:false,channel:old,label:'Starvios desconectado'});
+    if(old){
+      this.onViewers({count:0,channel:old,source:'Starvios desconectado'});
+      this.onLive({live:false,channel:old,source:'Starvios desconectado'});
+      this.onState({connected:false,channel:old,label:'Starvios desconectado'});
+    }
   }
 }

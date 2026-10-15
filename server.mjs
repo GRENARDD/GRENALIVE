@@ -162,7 +162,7 @@ let tiktok=null,tiktokLoginContext=null,twitchWS=null,twitchCfg=null,twitchViewe
 let counterTikTok=null,counterTikTokUser='',counterTikTokPollTimer=null,counterTikTokReconnectTimer=null,counterTikTokConnecting=false,counterTikTokPollBusy=false,counterTikTokLastSignalAt=0,counterTikTokPollFailures=0,tiktokBridgeDisconnectGraceTimer=null,counterTwitchLogin='',counterTwitchTimer=null,counterTwitchRefreshing=false;
 const viewers={tiktok:0,twitch:0,kick:0,youtube:0,starvios:0};
 let starviosLive={live:false,known:false,updatedAt:0};
-const viewerMeta={youtube:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},tiktok:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0,spikeValue:0,spikeHits:0,spikeAt:0,spikeSources:[]},twitch:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},kick:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0},starvios:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0}};
+const viewerMeta={youtube:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},tiktok:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0,spikeValue:0,spikeHits:0,spikeAt:0,spikeSources:[]},twitch:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},kick:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0},starvios:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,available:false,live:null}};
 const kickViewerStabilizer=createKickViewerStabilizer();
 const viewerTest={enabled:false,tiktok:0,twitch:0,kick:0};
 let viewerTestTimer=null;
@@ -696,7 +696,7 @@ function normalizeCounterWidgetSettings(input={}){
 }
 function publicCounterSettings(){return normalizeCounterWidgetSettings({counterStyle:autoPrefs.counterStyle,counterCardColor:autoPrefs.counterCardColor})}
 function currentViewers(){return viewerTest.enabled?{tiktok:viewerTest.tiktok,twitch:viewerTest.twitch,kick:viewerTest.kick,youtube:viewers.youtube,starvios:viewers.starvios}:{...viewers}}
-function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,updatedAt:Date.now()})}
+function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,meta:viewerMeta,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,updatedAt:Date.now()})}
 function tiktokViewerSourceFamily(source=''){
  const x=String(source||'').toLowerCase();
  if(x.includes('room_user')||x.includes('room user')||x.includes('live fallback'))return 'roomUser';
@@ -726,6 +726,7 @@ function acceptTikTokViewerJump(n,source,meta,now){
 function setViewers(platform,count,source='live'){
  const raw=Number(count);if(!Number.isFinite(raw)||!viewerMeta[platform])return false;
  const n=Math.max(0,Math.trunc(raw)),meta=viewerMeta[platform],now=Date.now();
+ if(platform==='starvios')meta.available=!/desconect|disconnect|unavailable/i.test(source);
  const forceZero=/offline|desconect|disconnect|reset|apagado|stopped|stream_end/i.test(String(source||''));
  // Las lecturas antiguas (incluido un 0 por API) no pueden sobrescribir el
  // contador actual del sitio de Kick. Desconexiones reales y fin de LIVE sí reinician.
@@ -2185,8 +2186,9 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
   if(typeof body.live!=='boolean')return json(res,400,{ok:false,error:'Estado LIVE no válido'});
   starviosLive={live:body.live,known:true,updatedAt:Date.now()};
+  viewerMeta.starvios.live=body.live;
   if(!body.live)setViewers('starvios',0,'Starvios offline verificado');
-  pushStatus();return json(res,200,{ok:true,state:starviosLive});
+  pushStatus();pushViewers();return json(res,200,{ok:true,state:starviosLive});
  }
  if(pathname==='/api/internal/starvios-event'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;
@@ -2271,6 +2273,13 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   // TikTok usa una sola conexión LIVE en chat-server. Ese bridge alimenta chat, eventos,
   // contador y widgets; no se abre un segundo TikTokLiveConnection para el contador.
   const source=String(body.source||'').trim()||(body.platform==='kick'?'Kick browser realtime':body.platform==='tiktok'?'TikTok LIVE bridge':'Twitch IRC bridge');
+  if(body.platform==='starvios'&&body.count===null){
+   viewerMeta.starvios.available=false;
+   viewerMeta.starvios.source=source+' · sin cifra verificable';
+   viewers.starvios=0;
+   pushViewers();
+   return json(res,200,{ok:true,accepted:false,available:false,viewers:currentViewers(),meta:viewerMeta.starvios});
+  }
   const transientTikTokBridgeZero=body.platform==='tiktok'&&Number(body.count)===0&&/bridge disconnected|chat.*desconect|socket.*disconnect/i.test(source)&&tiktokDedicatedCounterHealthy();
   const accepted=transientTikTokBridgeZero?false:setViewers(body.platform,body.count,source);
   if(transientTikTokBridgeZero)viewerMeta.tiktok.source='TikTok chat reconectando · contador dedicado activo';
