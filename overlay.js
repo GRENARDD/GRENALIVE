@@ -48,7 +48,7 @@ function defaultPalette(a={}){
   if(platform.includes('tiktok')) return ['#ff334f','#ff6b81'];
   if(platform.includes('twitch')) return ['#9146ff','#bf94ff'];
   if(platform.includes('kick')) return ['#39ff88','#0bbf5b'];
-  if(platform.includes('starvios')) return ['#bc8cff','#7651d6'];
+  if(platform.includes('starvios')) return ['#ff86c8','#ff4ca6'];
   return ['#a855f7','#22d3ee'];
 }
 function resolveAccents(a={}){
