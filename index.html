@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/ui-refresh.css">
 <link rel="stylesheet" href="/ui-v2.css">
 <link rel="stylesheet" href="/aurora-ui.css">
-</head>
+<style>.platform-row[data-platform="starvios"]{border-color:rgba(255,130,194,.38)!important;background:linear-gradient(90deg,rgba(255,106,185,.085),transparent)!important}.viewer-card.starvios{border-color:rgba(255,137,198,.4)!important}.platform-row[data-platform="starvios"] .platform-id b,.viewer-card.starvios small{color:#ff9cd3!important}</style></head>
 <body class="grena-control">
 <div class="app-shell">
   <header class="topbar">
@@ -26,7 +26,7 @@
     </nav>
     <div class="top-status">
       <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
-      <a class="top-link preview-link" href="/preview.html" target="_blank" rel="noopener">◉ Preview LIVE</a>
+      <a class="top-link" href="/mode.html" title="Elegir versión web o móvil">📱 Cambiar versión</a><a class="top-link preview-link" href="/preview.html" target="_blank" rel="noopener">◉ Preview LIVE</a>
       <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b id="profileName">GREÑA ID</b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
       <button id="exitAppBtn" class="app-exit-btn" type="button">Salir de GREÑA</button>
     </div>
