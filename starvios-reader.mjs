@@ -91,6 +91,7 @@ export class StarviosReader {
   async scan() {
     if(this.busy || !this.page || !this.running) return;
     this.busy=true;
+    const generation=this.generation;
     try {
       const result=await this.page.evaluate(()=>{
         const selector='main div.overscroll-contain.overflow-y-auto';
@@ -149,6 +150,7 @@ export class StarviosReader {
         }
         return {ready:true,messages};
       });
+      if(generation!==this.generation || !this.running)return;
       if(result.ready!==this.connected) {
         this.connected=result.ready;
         this.onState({
@@ -197,6 +199,7 @@ export class StarviosReader {
   }
   async scanLive(){
     if(!this.running||!this.livePage||this.livePage.isClosed())return;
+    const generation=this.generation;
     try{
       const state=await this.livePage.evaluate(()=>{
         const text=String(document.body?.innerText||'').slice(0,15000);
@@ -207,6 +210,7 @@ export class StarviosReader {
           .slice(0,20).map(el=>[el.getAttribute('aria-label'),el.getAttribute('title'),el.textContent].filter(Boolean).join(' ').slice(0,130));
         return {live:offline?false:live?true:null,labels};
       });
+      if(generation!==this.generation||!this.running)return;
       if(typeof state.live==='boolean'&&state.live!==this.lastLive){
         this.lastLive=state.live;
         this.onLive({live:state.live,channel:this.channel,source:'Starvios live page'});
