@@ -19,6 +19,7 @@ import {
 import tmi from 'tmi.js';
 import {YouTubeLiveReader} from './youtube-live.mjs';
 import { chromium } from 'playwright-core';
+import { StarviosReader, normalizeStarviosChannel } from './starvios-reader.mjs';
 
 // GREÑA 3.1.7: no usar los fallbacks premium de EulerStream para Room ID / estado LIVE.
 RoomIdRouteConfig.skipFetchRoomIdFromEulerRoute = true;
@@ -59,7 +60,7 @@ let activeProfileId=String((await readJson(ACTIVE_PROFILE_FILE,{})).userId||'');
 let CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
 let MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
 let MUTED_USERS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-muted-users.json'):LEGACY_MUTED_USERS_FILE;
-const connectionDefaults={autoConnect:true,tiktokUrl:'',twitchUrl:'',kickUrl:'',youtubeUrl:'',tiktokEnabled:false,twitchEnabled:false,kickEnabled:false,youtubeEnabled:false};
+const connectionDefaults={autoConnect:true,tiktokUrl:'',twitchUrl:'',kickUrl:'',youtubeUrl:'',starviosUrl:'',tiktokEnabled:false,twitchEnabled:false,kickEnabled:false,youtubeEnabled:false,starviosEnabled:false};
 let connectionPrefs={...connectionDefaults,...await readJson(CONNECTIONS_FILE,{})};
 async function saveConnectionPrefs(){await safeWriteJson(CONNECTIONS_FILE,connectionPrefs).catch(()=>{})}
 
@@ -340,7 +341,7 @@ const broadcast = data => {
   // Conservamos los mensajes recientes para que un overlay que se abra o recargue
   // no quede vacío hasta que llegue el siguiente mensaje. Esto es especialmente
   // útil para OBS, que puede recargar la Fuente de navegador en cualquier momento.
-  if (data?.type === 'chat' && ['tiktok','twitch','kick','youtube'].includes(String(data?.platform||'').toLowerCase())) {
+  if (data?.type === 'chat' && ['tiktok','twitch','kick','youtube','starvios'].includes(String(data?.platform||'').toLowerCase())) {
     const item = {...data, _historyId: data._historyId || `${Date.now()}-${Math.random().toString(36).slice(2,9)}`};
     recentChatHistory.push(item);
     if (recentChatHistory.length > CHAT_HISTORY_LIMIT) recentChatHistory.splice(0, recentChatHistory.length - CHAT_HISTORY_LIMIT);
@@ -354,7 +355,7 @@ const broadcastPlatform = (platform, data) => {
   const payload={...data,platform};
   broadcast(payload);
   // Fidelidad usa exactamente la misma fuente real de chat de TikTok/Twitch/Kick.
-  if(data?.type==='chat')bridgeLoyalty(platform,'chat',data.user||data.nickname,{nickname:data.nickname||data.user,text:data.text||'',avatar:data.avatar||''});
+  if(data?.type==='chat' && platform!=='starvios')bridgeLoyalty(platform,'chat',data.user||data.nickname,{nickname:data.nickname||data.user,text:data.text||'',avatar:data.avatar||''});
 };
 
 // Puente interno: GREÑA Chat es la fuente de eventos LIVE de TikTok y de eventos IRC de Twitch.
@@ -1500,11 +1501,43 @@ async function autoConnectYouTube(){
  finally{youtubeDiscoveryBusy=false}
 }
 
+
+// ===== STARVIOS · chat público (fase 1) =====
+// El chat de Starvios se conecta sin credenciales mediante el popout público.
+// No enviamos eventos Starvies/alertas al servidor principal hasta validar sus contratos.
+const starviosReader=new StarviosReader({
+  cloud:CLOUD_MODE,
+  chromiumPath:process.env.GRENA_CHROMIUM_PATH||'/usr/bin/chromium',
+  onChat:message=>broadcastPlatform('starvios',{
+    type:'chat',user:message.user,nickname:message.user,userId:message.user,
+    text:message.text,avatar:'',isFollower:false,isModerator:false,
+    isBroadcaster:message.user.toLowerCase()===starviosReader.channel.toLowerCase(),
+    starvies:message.starvies||0
+  }),
+  onState:state=>broadcastPlatform('starvios',{
+    type:state.connected?'connected':'status',message:state.label
+  }),
+  onError:error=>console.warn('[STARVIOS]',String(error?.message||error).slice(0,180))
+});
+async function connectStarvios(input){
+  const channel=normalizeStarviosChannel(input);
+  if(!channel)throw Error('Introduce el usuario o enlace válido de Starvios.');
+  if(starviosReader.running && starviosReader.channel.toLowerCase()===channel.toLowerCase())return;
+  await starviosReader.connect(channel);
+}
+async function disconnectStarvios(){await starviosReader.disconnect()}
+async function autoConnectStarvios(){
+  if(!connectionPrefs.autoConnect||!connectionPrefs.starviosEnabled||!connectionPrefs.starviosUrl||starviosReader.running)return;
+  try{await connectStarvios(connectionPrefs.starviosUrl)}
+  catch(e){console.warn('[AUTO Starvios]',String(e?.message||e).slice(0,150))}
+}
+
 // =====================================
 // DESCONECTAR TODO
 // =====================================
 
 async function disconnectAll() {
+  await disconnectStarvios();
   await disconnectYouTube();
   await disconnectTikTok();
   await disconnectTwitch();
@@ -2516,7 +2549,7 @@ const server =
           broadcast({type:'multichat-settings',settings:multichatSettings});
           broadcast({type:'moderation-list',muted:publicLocalMutedUsers()});
           broadcast({type:'profile-changed',profileId:activeProfileId});
-          if(connectionPrefs.autoConnect)setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube()},80);
+          if(connectionPrefs.autoConnect)setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube();autoConnectStarvios()},80);
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
           response.end(JSON.stringify({ok:true,profileId:activeProfileId,prefs:connectionPrefs}));
           return;
@@ -2527,12 +2560,13 @@ const server =
           if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){response.writeHead(403);response.end('Forbidden');return;}
           let body='';body=await readBody(request);
           const platform=String((JSON.parse(body||'{}')).platform||'').toLowerCase();
-          if(!['tiktok','twitch','kick','youtube'].includes(platform)){response.writeHead(400,{'content-type':'application/json'});response.end(JSON.stringify({ok:false,error:'Plataforma no válida'}));return;}
+          if(!['tiktok','twitch','kick','youtube','starvios'].includes(platform)){response.writeHead(400,{'content-type':'application/json'});response.end(JSON.stringify({ok:false,error:'Plataforma no válida'}));return;}
           connectionPrefs[platform+'Enabled']=false;connectionPrefs[platform+'Url']='';await saveConnectionPrefs();
           if(platform==='tiktok'){tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';await disconnectTikTok();}
           if(platform==='twitch')await disconnectTwitch();
           if(platform==='kick')await disconnectKick();
           if(platform==='youtube')await disconnectYouTube();
+          if(platform==='starvios')await disconnectStarvios();
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
           response.end(JSON.stringify({ok:true,platform,prefs:connectionPrefs}));return;
         }
@@ -2550,14 +2584,14 @@ const server =
             response.end(JSON.stringify({
               ok:true,
               prefs:connectionPrefs,
-              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running},tiktokDiagnostics:tiktokConnectionDiagnostics()
+              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running,starvios:starviosReader.connected},tiktokDiagnostics:tiktokConnectionDiagnostics()
             }));
             return;
           }
           if(request.method==='POST'){
             let body='';body=await readBody(request);
             const incoming=JSON.parse(body||'{}');
-            const allowed=['autoConnect','tiktokUrl','twitchUrl','kickUrl','youtubeUrl','youtubeEnabled','tiktokEnabled','twitchEnabled','kickEnabled'];
+            const allowed=['autoConnect','tiktokUrl','twitchUrl','kickUrl','youtubeUrl','youtubeEnabled','tiktokEnabled','twitchEnabled','kickEnabled','starviosUrl','starviosEnabled'];
             const next={...connectionPrefs};
             for(const key of allowed){
               if(!(key in incoming))continue;
@@ -2567,7 +2601,7 @@ const server =
             connectionPrefs=next;
             await saveConnectionPrefs();
             if(connectionPrefs.autoConnect){
-              setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick()},50);
+              setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectStarvios()},50);
             }
             response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
             response.end(JSON.stringify({ok:true,prefs:connectionPrefs}));
@@ -2890,6 +2924,14 @@ wss.on(
             connectionPrefs.youtubeEnabled=true;connectionPrefs.autoConnect=true;
             await saveConnectionPrefs();
             try{await connectYouTube(message.url)}catch(error){broadcastPlatform('youtube',{type:'error',message:getError(error)})}
+          } else if (platform === 'starvios') {
+            const channel=normalizeStarviosChannel(message.url);
+            if(!channel){broadcastPlatform('starvios',{type:'error',message:'Usuario o enlace Starvios no válido.'});return;}
+            connectionPrefs.starviosUrl=channel;
+            connectionPrefs.starviosEnabled=true;
+            connectionPrefs.autoConnect=true;
+            await saveConnectionPrefs();
+            try{await connectStarvios(channel)}catch(error){broadcastPlatform('starvios',{type:'error',message:getError(error)})}
           } else if (platform === 'kick') {
             connectionPrefs.kickUrl=String(message.url||'').trim();
             connectionPrefs.kickEnabled=true;
@@ -2915,7 +2957,7 @@ wss.on(
           message.type ===
           'disconnect'
         ) {
-          connectionPrefs.tiktokEnabled=false;connectionPrefs.twitchEnabled=false;connectionPrefs.kickEnabled=false;connectionPrefs.youtubeEnabled=false;await saveConnectionPrefs();
+          connectionPrefs.tiktokEnabled=false;connectionPrefs.twitchEnabled=false;connectionPrefs.kickEnabled=false;connectionPrefs.youtubeEnabled=false;connectionPrefs.starviosEnabled=false;await saveConnectionPrefs();
           tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';
           await disconnectAll();
 
@@ -2955,6 +2997,10 @@ wss.on(
           if (platform === 'kick') {
             connectionPrefs.kickEnabled=false;await saveConnectionPrefs();
             await disconnectKick();
+          }
+          if(platform==='starvios'){
+            connectionPrefs.starviosEnabled=false;await saveConnectionPrefs();
+            await disconnectStarvios();
           }
         }
       }
@@ -3020,7 +3066,7 @@ server.listen(
     console.log('[TikTok] Eulerstream API key:',EULERSTREAM_API_KEY?'CONFIGURADA':'NO CONFIGURADA');
     console.log('TikTok + Twitch + Kick preparados. Autoconexión:',connectionPrefs.autoConnect?'ACTIVA':'DESACTIVADA');
     console.log('Chat de voz preparado desde el navegador.');
-    await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick(),autoConnectYouTube()]);
-    setInterval(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube()},30000);
+    await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick(),autoConnectYouTube(),autoConnectStarvios()]);
+    setInterval(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube();autoConnectStarvios()},30000);
   }
 );
