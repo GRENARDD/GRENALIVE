@@ -112,7 +112,13 @@ const tests={
  'tw-sub':{platform:'Twitch',event:'sub',name:'USUARIO_PRUEBA',action:'se suscribió · Tier 1'},
  'tw-bits':{platform:'Twitch',event:'cheer',name:'USUARIO_PRUEBA',bits:500,action:'envió 500 Bits'},
  'ki-follow':{platform:'Kick',event:'follow',name:'USUARIO_PRUEBA',action:'te siguió'},
- 'ki-sub':{platform:'Kick',event:'sub',name:'USUARIO_PRUEBA',action:'se suscribió'}
+ 'ki-sub':{platform:'Kick',event:'sub',name:'USUARIO_PRUEBA',action:'se suscribió'},
+ 'sv-follow':{platform:'Starvios',event:'follow',name:'USUARIO_PRUEBA',giftImage:'/assets/starvios-events/follow.svg',action:'siguió el canal'},
+ 'sv-starvies':{platform:'Starvios',event:'gift',name:'USUARIO_PRUEBA',amount:100,giftKind:'gift',giftName:'Starvies',giftImage:'/assets/starvios-events/starvies.svg',action:'donó 100 Starvies'},
+ 'sv-sub':{platform:'Starvios',event:'sub',name:'USUARIO_PRUEBA',giftImage:'/assets/starvios-events/sub.svg',action:'se suscribió'},
+ 'sv-giftsub':{platform:'Starvios',event:'gift',name:'USUARIO_PRUEBA',giftKind:'giftsub',giftName:'Suscripciones regaladas',count:3,giftImage:'/assets/starvios-events/giftsub.svg',action:'regaló 3 suscripciones'},
+ 'sv-raid':{platform:'Starvios',event:'raid',name:'USUARIO_PRUEBA',viewers:25,giftImage:'/assets/starvios-events/raid.svg',action:'envió una raid de 25 espectadores'},
+ 'sv-shower':{platform:'Starvios',event:'gift',name:'USUARIO_PRUEBA',giftKind:'shower',giftName:'Lluvia de Estrellas',giftImage:'/assets/starvios-events/shower.svg',action:'activó Lluvia de Estrellas'}
 };
 document.querySelectorAll('[data-test]').forEach(b=>b.onclick=async()=>{
  const payload=tests[b.dataset.test];
