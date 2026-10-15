@@ -260,7 +260,7 @@ function ensureBuiltInGiftCatalog(){
  for(const tier of ['Tier 1','Tier 2','Tier 3'])upsertCatalogItem({platform:'Twitch',id:`sub:${tier.toLowerCase().replace(/\s+/g,'-')}`,name:`Gifted subscription · ${tier}`,nameEs:`Suscripción regalada · ${tier}`,category:'subscription',giftKind:'subscription',amount:1,unit:'sub',source:'Twitch',updatedAt:now});
 }
 ensureBuiltInGiftCatalog();
-const socialDefaults={tiktokUser:'',twitchUser:'',kickUser:'',youtubeUser:'',fontFamily:'Segoe UI',fontSize:34,iconSize:46,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true};
+const socialDefaults={tiktokUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',fontFamily:'Segoe UI',fontSize:34,iconSize:46,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true};
 const autoDefaults={enabled:true,counterTikTok:'',counterTwitch:'',counterKick:'',counterTikTokEnabled:false,counterTwitchEnabled:false,counterKickEnabled:false,counterStyle:'classic',counterCardColor:'#18232c',alertStyle:'classic'};
 let usersStore=await readJson(USERS_FILE,{version:1,users:[]});
 if(!Array.isArray(usersStore.users))usersStore={version:1,users:[]};
@@ -387,7 +387,7 @@ let savedAuth={},savedAlertDesigns={},socialSettings={...socialDefaults},autoPre
 
 // ===== GREÑA FIDELIDAD · ESTADO =====
 const loyaltyDefaults={rotateSeconds:8,topN:5,activeWindowMinutes:10};
-let loyaltyState={version:1,settings:{...loyaltyDefaults},users:{tiktok:{},twitch:{},kick:{},youtube:{}}};
+let loyaltyState={version:1,settings:{...loyaltyDefaults},users:{tiktok:{},twitch:{},kick:{},youtube:{},starvios:{}}};
 const loyaltyRuntime=new Map();
 
 async function loadProfileState(userId=activeUserId){
@@ -404,7 +404,7 @@ async function loadProfileState(userId=activeUserId){
     if(!obsToken){obsToken=randomBytes(32).toString('base64url');await safeWriteJson(profileFile('obs-token.json'),{token:obsToken,createdAt:Date.now()})}
   }
   const savedLoyalty=activeUserId?await readJson(profileFile('loyalty.json'),{}):{};
-  loyaltyState={version:1,settings:{...loyaltyDefaults,...(savedLoyalty.settings||{})},users:{tiktok:{...(savedLoyalty.users?.tiktok||{})},twitch:{...(savedLoyalty.users?.twitch||{})},kick:{...(savedLoyalty.users?.kick||{})}}};
+  loyaltyState={version:1,settings:{...loyaltyDefaults,...(savedLoyalty.settings||{})},users:{tiktok:{...(savedLoyalty.users?.tiktok||{})},twitch:{...(savedLoyalty.users?.twitch||{})},kick:{...(savedLoyalty.users?.kick||{})},youtube:{...(savedLoyalty.users?.youtube||{})},starvios:{...(savedLoyalty.users?.starvios||{})}}};
   loyaltyRuntime.clear();
   await safeWriteJson(ACTIVE_PROFILE_FILE,{userId:activeUserId,updatedAt:Date.now()}).catch(()=>{});
 }
@@ -579,7 +579,7 @@ function loyaltyDay(ts=Date.now()){const d=new Date(ts);return `${d.getFullYear(
 function loyaltyLevel(score=0){const n=Number(score)||0;if(n>=6000)return {name:'Leyenda',icon:'★',next:null};if(n>=3000)return {name:'Diamante',icon:'◆',next:6000};if(n>=1500)return {name:'Platino',icon:'⬟',next:3000};if(n>=700)return {name:'Oro',icon:'●',next:1500};if(n>=250)return {name:'Plata',icon:'◈',next:700};return {name:'Bronce',icon:'◇',next:250}}
 function publicLoyaltyUser(u={}){const score=Math.round((Number(u.score)||0)*10)/10;return {...u,score,level:loyaltyLevel(score)}}
 function loyaltyTop(platform,limit=10){const p=loyaltyPlatform(platform);if(!p)return [];return Object.values(loyaltyState.users[p]||{}).map(publicLoyaltyUser).sort((a,b)=>(b.score-a.score)||(b.lastSeen-a.lastSeen)).slice(0,Math.max(1,Math.min(50,Number(limit)||10))).map((u,i)=>({...u,rank:i+1,platform:p}))}
-function publicLoyaltyState(limit=10){return {settings:{...loyaltyState.settings},tops:{tiktok:loyaltyTop('tiktok',limit),twitch:loyaltyTop('twitch',limit),kick:loyaltyTop('kick',limit),youtube:loyaltyTop('youtube',limit)},updatedAt:Date.now()}}
+function publicLoyaltyState(limit=10){return {settings:{...loyaltyState.settings},tops:{tiktok:loyaltyTop('tiktok',limit),twitch:loyaltyTop('twitch',limit),kick:loyaltyTop('kick',limit),youtube:loyaltyTop('youtube',limit),starvios:loyaltyTop('starvios',limit)},updatedAt:Date.now()}}
 async function persistLoyalty(){if(activeUserId)await safeWriteJson(profileFile('loyalty.json'),loyaltyState).catch(()=>{})}
 let loyaltySaveTimer=null;
 function scheduleLoyaltySave(){clearTimeout(loyaltySaveTimer);loyaltySaveTimer=setTimeout(()=>persistLoyalty(),700)}
@@ -2195,6 +2195,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(!e)return json(res,400,{ok:false,error:'Evento Starvios desconocido o sin datos'});
   if(bridgeMessageDuplicate(body.bridgeEventId||('starvios:'+e.id)))return json(res,200,{ok:true,duplicate:true});
   noteBridgeSignal('starvios',e.kind,{user:e.user,amount:e.amount});
+  recordLoyaltyEvent({platform:'starvios',kind:e.kind,user:e.user,amount:e.amount,count:e.count});
   const mapped=e.kind==='subrenew'?'sub':e.kind==='giftsub'||e.kind==='shower'?'gift':e.kind;
   const labels={follow:'siguió el canal',sub:'se suscribió',subrenew:'renovó su suscripción',
     giftsub:'regaló suscripciones',raid:'envió una raid',gift:'donó '+e.amount+' Starvies',
