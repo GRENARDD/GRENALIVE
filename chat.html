@@ -714,7 +714,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 <h1>GREÑA CHAT</h1>
 
 <div class="sub">
-  Conecta TikTok LIVE y Twitch para ver ambos chats juntos.
+  Unifica TikTok, Twitch, Kick, YouTube y Starvios en un solo chat.
 </div>
 
 <!-- =========================
@@ -4680,9 +4680,9 @@ function openWS(){
    MODERADOR INTEGRADO
 ===================================================== */
 let moderationTarget=null;
-let mutedUsersState={tiktok:[],twitch:[],kick:[]};
+let mutedUsersState={tiktok:[],twitch:[],kick:[],starvios:[]};
 function normalizeMutedUsersState(value={}){
-  const out={tiktok:[],twitch:[],kick:[]};
+  const out={tiktok:[],twitch:[],kick:[],starvios:[]};
   for(const platform of Object.keys(out)){
     const list=Array.isArray(value?.[platform])?value[platform]:[];
     out[platform]=[...new Set(list.map(v=>String(v||'').trim().replace(/^@/,'').toLowerCase()).filter(Boolean))].sort();
@@ -4693,7 +4693,7 @@ function renderMutedUsers(){
   const host=document.getElementById('mutedUsersList');if(!host)return;
   host.replaceChildren();
   const rows=[];
-  for(const platform of ['tiktok','twitch','kick'])for(const user of mutedUsersState[platform]||[])rows.push({platform,user});
+  for(const platform of ['tiktok','twitch','kick','starvios'])for(const user of mutedUsersState[platform]||[])rows.push({platform,user});
   if(!rows.length){
     const empty=document.createElement('div');empty.className='mod-muted-empty';empty.textContent='No tienes usuarios silenciados.';host.append(empty);return;
   }
@@ -4743,18 +4743,18 @@ function moderationModal(){
 }
 function platformActionHtml(platform,m={}){
   if(platform==='twitch'||platform==='kick')return `<div class="mod-section-title">EN ${platform==='twitch'?'TWITCH':'KICK'} DE VERDAD</div><div class="mod-grid"><button class="mod-btn" data-real-action="delete_message" ${m.messageId?'':'disabled'}>🗑 Borrar mensaje</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="60">⏱ Timeout 1 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="300">⏱ Timeout 5 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="600">⏱ Timeout 10 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="1800">⏱ Timeout 30 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="3600">⏱ Timeout 1 hora</button><button class="mod-btn danger" data-real-action="ban">⛔ Ban permanente</button><button class="mod-btn safe" data-real-action="unban">↩ Quitar ban / timeout</button></div>`;
-  return `<div class="mod-section-title">EN TIKTOK</div>`;
+  return `<div class="mod-section-title">${platform==='starvios'?'EN STARVIOS · SIN MODERACIÓN REMOTA':platform==='youtube'?'EN YOUTUBE · SIN MODERACIÓN REMOTA':'EN TIKTOK'}</div>`;
 }
 function openModerator(m,row){
   const platform=['tiktok','twitch','kick','youtube','starvios'].includes(String(m.platform||'').toLowerCase())?String(m.platform).toLowerCase():'tiktok';moderationTarget={...m,platform,user:moderationIdentity(m)||m.user||m.nickname||'',__row:row};
   const back=moderationModal();back.querySelector('#modTitle').textContent='🛡️ Moderar usuario';back.querySelector('#modReasonWrap').style.display='';back.querySelector('#localModActions').style.display='';back.querySelector('#modUser').textContent=(m.nickname||m.user||'Usuario')+(m.user&&m.nickname&&m.user!==m.nickname?`  @${m.user}`:'');back.querySelector('#modPlatform').textContent=platform.toUpperCase();back.querySelector('#modReason').value='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';
   const area=back.querySelector('#platformModActions');area.innerHTML=platformActionHtml(platform,m);area.querySelectorAll('[data-real-action]').forEach(b=>b.onclick=()=>runModeration(b.dataset.realAction,b,Number(b.dataset.seconds||0)));
-  back.querySelector('#modNote').textContent=platform==='tiktok'?'TikTok: al silenciar un usuario en GREÑA, deja de aparecer en el chat y queda guardado para todos tus próximos LIVE hasta que lo quites de la lista.':`${platform==='twitch'?'Twitch':'Kick'}: silenciar en GREÑA es permanente dentro de tu chat. Borrar, timeout, ban y desban se ejecutan además en la plataforma si tu cuenta está autorizada.`;
+  back.querySelector('#modNote').textContent=(platform==='starvios'||platform==='youtube')?platform.toUpperCase()+': el silencio solo actúa en GREÑA. No se envían sanciones a la plataforma.':platform==='tiktok'?'TikTok: al silenciar un usuario en GREÑA, deja de aparecer en el chat y queda guardado para todos tus próximos LIVE hasta que lo quites de la lista.':`${platform==='twitch'?'Twitch':'Kick'}: silenciar en GREÑA es permanente dentro de tu chat. Borrar, timeout, ban y desban se ejecutan además en la plataforma si tu cuenta está autorizada.`;
   back.classList.add('show');refreshMutedUsers();
 }
 function openMutedUsersManager(){
   moderationTarget=null;
-  const back=moderationModal();back.querySelector('#modTitle').textContent='🔇 Usuarios silenciados';back.querySelector('#modUser').textContent='Lista permanente';back.querySelector('#modPlatform').textContent='TIKTOK · TWITCH · KICK';back.querySelector('#modReasonWrap').style.display='none';back.querySelector('#localModActions').style.display='none';back.querySelector('#platformModActions').innerHTML='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';back.querySelector('#modNote').textContent='Todo usuario que silencies queda guardado aquí y seguirá oculto en futuros LIVE. Solo vuelve a aparecer cuando pulses Quitar.';
+  const back=moderationModal();back.querySelector('#modTitle').textContent='🔇 Usuarios silenciados';back.querySelector('#modUser').textContent='Lista permanente';back.querySelector('#modPlatform').textContent='TIKTOK · TWITCH · KICK · STARVIOS';back.querySelector('#modReasonWrap').style.display='none';back.querySelector('#localModActions').style.display='none';back.querySelector('#platformModActions').innerHTML='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';back.querySelector('#modNote').textContent='Todo usuario que silencies queda guardado aquí y seguirá oculto en futuros LIVE. Solo vuelve a aparecer cuando pulses Quitar.';
   back.classList.add('show');refreshMutedUsers();
 }
 $('manageMutedUsers')?.addEventListener('click',openMutedUsersManager);
@@ -5324,7 +5324,7 @@ function installSettingsListeners(){
 
   document
     .querySelectorAll(
-      'input[name="tiktokMode"], input[name="twitchMode"], input[name="kickMode"]'
+      'input[name="tiktokMode"], input[name="twitchMode"], input[name="kickMode"], input[name="starviosMode"]'
     )
     .forEach(
       radio => {
