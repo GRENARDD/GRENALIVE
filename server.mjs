@@ -992,7 +992,7 @@ async function loadFollowerGoalsForProfile(){
 await loadFollowerGoalsForProfile();
 function publicFollowerGoals(){return {settings:followerGoals.settings,gained:followerGoals.gained}}
 async function persistFollowerGoals(){if(activeUserId||!CLOUD_MODE)await safeWriteJson(followerGoalsFile(),followerGoals).catch(()=>{})}
-function followerGoalFollow(platform){const p=String(platform||'').toLowerCase();if(!(p in followerGoals.gained))return;followerGoals.gained[p]=Math.max(0,Number(followerGoals.gained[p]||0))+1;persistFollowerGoals();broadcast({type:'follower-goals',state:publicFollowerGoals()})}
+function followerGoalFollow(platform,amount=1){const p=String(platform||'').toLowerCase();if(!(p in followerGoals.gained))return;const n=Math.max(1,Math.min(25,Math.trunc(Number(amount)||1)));followerGoals.gained[p]=Math.max(0,Number(followerGoals.gained[p]||0))+n;persistFollowerGoals();broadcast({type:'follower-goals',state:publicFollowerGoals()})}
 function alert(platform,event,name,message='',extra={}){
  extra=enrichAlertMedia(platform,event,extra);
  rememberObservedCatalogGift(platform,event,extra);
@@ -1022,7 +1022,7 @@ function alert(platform,event,name,message='',extra={}){
  noteBridgeSignal(platform,event,{name:a.name,event,source:extra.tiktokSource||extra.kickEvent||extra.source||'alert'});pushEventHealth();
  rememberActivity(a);
  if(['TikTok','Twitch','Kick'].includes(platform)&&event!=='like'&&!['GREÑA_FAN','USUARIO_PRUEBA'].includes(String(a.name||'').toUpperCase()))recordLoyaltyEvent({platform,kind:event,user:a.name,nickname:a.name,avatar:a.avatar||'',count:a.count,totalDiamonds:a.totalDiamonds,bits:a.bits,amount:a.amount,viewers:a.viewers});
- if(event==='follow')followerGoalFollow(platform);
+ if(event==='follow')followerGoalFollow(platform,platform==='Starvios'?extra.count:1);
  broadcast({type:'alert',alert:a});broadcast({type:'activity',activity:a})
 }
 function json(res,code,obj){res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj))}
@@ -2200,16 +2200,16 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   noteBridgeSignal('starvios',e.kind,{user:e.user,amount:e.amount});
   recordLoyaltyEvent({platform:'starvios',kind:e.kind,user:e.user,amount:e.amount,count:e.count});
   const mapped=e.kind==='subrenew'?'sub':e.kind==='giftsub'||e.kind==='shower'?'gift':e.kind;
-  const labels={follow:'siguió el canal',sub:'se suscribió',subrenew:'renovó su suscripción',
-    giftsub:'regaló suscripciones',raid:'envió una raid',gift:'donó '+e.amount+' Starvies',
-    shower:'activó Lluvia de Estrellas'};
-  const extra={giftKind:e.kind,eventKind:e.kind,amount:e.amount,count:e.count,
+  const labels={follow:body.anonymous?(e.count>1?'Se registraron '+e.count+' seguidores nuevos':'Se registró un seguidor nuevo'):'siguió el canal',
+    sub:'se suscribió',subrenew:'renovó su suscripción',
+    giftsub:'regaló '+e.count+(e.count===1?' suscripción':' suscripciones'),raid:'envió una raid',
+    gift:'donó '+e.amount+' Starvies',shower:'activó Lluvia de Estrellas'};
+  const extra={giftKind:e.kind,eventKind:e.kind,amount:e.amount,count:e.count,bridgeEventId:body.bridgeEventId||e.id,anonymous:!!body.anonymous,source:String(body.source||'Starvios live events').slice(0,100),
     ...(e.kind==='gift'?{giftName:'Starvies'}:{}),
     ...(e.kind==='raid'?{viewers:e.viewers||0}:{}),
     level:e.level,eventLabel:e.kind==='shower'?'LLUVIA DE ESTRELLAS':
     e.kind==='subrenew'?'RENOVÓ SUSCRIPCIÓN':e.kind==='giftsub'?'SUBS REGALADAS':''};
   alert('Starvios',mapped,e.user,labels[e.kind]||'',extra);
-  if(e.kind==='follow')followerGoalFollow('starvios');
   return json(res,200,{ok:true,kind:e.kind,mapped});
  }
  if(pathname==='/api/internal/event'&&req.method==='POST'){

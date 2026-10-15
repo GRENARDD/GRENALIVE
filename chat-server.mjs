@@ -1522,6 +1522,8 @@ const starviosReader=new StarviosReader({
   onLive:st=>sendToAlerts('/api/internal/starvios-live',{live:!!st.live,channel:st.channel,source:st.source}),
   onViewers:st=>sendToAlerts('/api/internal/viewers',{platform:'starvios',count:st.count,source:st.source}),
   onEvent:e=>{
+    // Contador de eventos reales, sin almacenar nombres ni contenido del chat en logs.
+    console.info('[STARVIOS LIVE EVENT]',JSON.stringify({kind:e.kind,count:e.count||1,anonymous:!!e.anonymous,source:String(e.source||'public chat').slice(0,90)}));
     const id=e.id?'event:'+e.id:bridgeMessageId('starvios-'+e.kind);
     broadcastPlatform('starvios',{type:'event',event:e.kind,user:e.user,amount:e.amount||0,count:e.count||1,level:e.level||0});
     sendToAlerts('/api/internal/starvios-event',{...e,bridgeEventId:id},{reliable:true});
