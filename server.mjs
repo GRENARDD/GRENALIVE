@@ -1670,10 +1670,11 @@ async function stopProfileRuntime(){
   if(kickViewerTimer)clearInterval(kickViewerTimer);kickViewerTimer=null;
   if(kickEventRetryTimer)clearInterval(kickEventRetryTimer);kickEventRetryTimer=null;
   kickAppToken='';kickTokenExpiresAt=0;
-  for(const p of ['tiktok','twitch','kick']){viewers[p]=0;viewerMeta[p].lastGood=0;viewerMeta[p].lastGoodAt=0;viewerMeta[p].source='waiting'}
+  for(const p of ['tiktok','twitch','kick','starvios']){viewers[p]=0;viewerMeta[p].lastGood=0;viewerMeta[p].lastGoodAt=0;viewerMeta[p].source='waiting'}
   kickViewerStabilizer.reset();
-  for(const p of ['tiktok','twitch','kick'])bridgeRuntime[p]=false;
-  for(const p of ['tiktok','twitch','kick'])status[p]={connected:false,label:'No conectado'};
+  for(const p of ['tiktok','twitch','kick','starvios'])bridgeRuntime[p]=false;
+  for(const p of ['tiktok','twitch','kick','starvios'])status[p]={connected:false,label:'No conectado',account:''};
+  starviosLive={live:false,known:false,updatedAt:Date.now()};
   activityHistory.splice(0);recentAlerts.clear();pushViewers();pushStatus();
 }
 async function notifyChatProfile(userId=activeUserId){
