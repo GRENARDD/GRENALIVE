@@ -356,7 +356,7 @@ const broadcastPlatform = (platform, data) => {
   const payload={...data,platform};
   broadcast(payload);
   // Fidelidad usa exactamente la misma fuente real de chat de TikTok/Twitch/Kick.
-  if(data?.type==='chat' && platform!=='starvios')bridgeLoyalty(platform,'chat',data.user||data.nickname,{nickname:data.nickname||data.user,text:data.text||'',avatar:data.avatar||''});
+  if(data?.type==='chat')bridgeLoyalty(platform,'chat',data.user||data.nickname,{nickname:data.nickname||data.user,text:data.text||'',avatar:data.avatar||''});
 };
 
 // Puente interno: GREÑA Chat es la fuente de eventos LIVE de TikTok y de eventos IRC de Twitch.
