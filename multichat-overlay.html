@@ -235,6 +235,7 @@
 
 /* Resplandor TikTok celeste y YouTube rojo para OBS */
 .msg.tiktok{border-color:rgba(37,244,238,.45)!important;border-left:4px solid #25F4EE!important;box-shadow:inset 0 0 0 1px rgba(37,244,238,.1),0 0 16px rgba(37,244,238,.18),0 0 34px rgba(37,244,238,.07)!important}
+.msg.starvios{--accent:#bd8cff!important;--soft:rgba(170,116,255,.20)!important;border-color:rgba(189,140,255,.42)!important;border-left:4px solid #bd8cff!important;box-shadow:0 0 16px rgba(170,116,255,.12)!important}
 .msg.youtube{border-color:rgba(255,0,51,.45)!important;border-left:4px solid #FF0033!important;box-shadow:inset 0 0 0 1px rgba(255,0,51,.1),0 0 16px rgba(255,0,51,.18),0 0 34px rgba(255,0,51,.07)!important}
 
 
@@ -316,9 +317,9 @@ function applyStage(){
   }
 }
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function platformLabel(platform){return platform==='tiktok'?'TIKTOK':(platform==='twitch'?'TWITCH':platform==='youtube'?'YOUTUBE':'KICK')}
+function platformLabel(platform){return platform==='tiktok'?'TIKTOK':(platform==='twitch'?'TWITCH':platform==='youtube'?'YOUTUBE':platform==='starvios'?'STARVIOS':'KICK')}
 function add(d){
-  if(!d||d.type!=='chat'||!['tiktok','twitch','kick','youtube'].includes(d.platform))return;
+  if(!d||d.type!=='chat'||!['tiktok','twitch','kick','youtube','starvios'].includes(d.platform))return;
   if(d._historyId){
     if(seenHistory.has(d._historyId)&&stage.querySelector(`[data-hid="${CSS.escape(d._historyId)}"]`))return;
     seenHistory.add(d._historyId);
