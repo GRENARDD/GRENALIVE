@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 const SOUND_PROFILE_VERSION=3;
 const legacyDefaultSounds={follow:'/assets/sounds/follow.wav',sub:'/assets/sounds/sub.wav',gift:'/assets/sounds/gift.wav',cheer:'/assets/sounds/cheer.wav',share:'/assets/sounds/share.wav',raid:'/assets/sounds/raid.wav',like:'/assets/sounds/like.wav',superchat:'/assets/sounds/superchat.wav',supersticker:'/assets/sounds/supersticker.wav',membergift:'/assets/sounds/membergift.wav'};
 const defaultSounds={follow:'/assets/sounds/follow-grena.mp3',sub:'/assets/sounds/gift-bits-v2.mp3',gift:'/assets/sounds/gift-bits-v2.mp3',cheer:'/assets/sounds/gift-bits-v2.mp3',share:'/assets/sounds/share-grena.mp3',raid:'/assets/sounds/gift-bits-v2.mp3',like:'/assets/sounds/like-grena.mp3',superchat:'/assets/sounds/gift-bits-v2.mp3',supersticker:'/assets/sounds/gift-bits-v2.mp3',membergift:'/assets/sounds/gift-bits-v2.mp3'};
-const soundEventNames={follow:'Follow / seguidor · TikTok + Twitch + Kick',sub:'Apoyo / suscripción',gift:'Regalo / apoyo',cheer:'Bits / apoyo',share:'Compartir LIVE',raid:'Raid / apoyo',like:'100 Tap Tap · TikTok',superchat:'Super Chat / apoyo',supersticker:'Super Sticker / apoyo',membergift:'Membresías regaladas / apoyo'};
+const soundEventNames={follow:'Follow / seguidor · TikTok + Twitch + Kick + StarVios',sub:'Apoyo / suscripción',gift:'Regalo / apoyo',cheer:'Bits / apoyo',share:'Compartir LIVE',raid:'Raid / apoyo',like:'100 Tap Tap · TikTok',superchat:'Super Chat / apoyo',supersticker:'Super Sticker / apoyo',membergift:'Membresías regaladas / apoyo'};
 const defaults={event:'follow',name:'USUARIO_PRUEBA',message:'¡Gracias por el apoyo!',theme:'Gaming neón',accent:'#a855f7',accent2:'#22d3ee',duration:6,nameSize:30,soundEnabled:true,image:'',sound:defaultSounds.follow,soundName:'Predeterminado',animation:'pop',layers:[]};
 function normalizeDesign(d={},ev=d.event||'follow'){const raw=(typeof d.sound==='string'&&d.sound.trim())?d.sound:'';const needsProfileMigration=Number(d.soundProfileVersion||0)<SOUND_PROFILE_VERSION;const wasDefault=needsProfileMigration||!raw||d.soundName==='Predeterminado'||raw===legacyDefaultSounds[ev]||raw===defaultSounds[ev]||raw==='/assets/sounds/gift-bits-grena.mp3';const sound=wasDefault?(defaultSounds[ev]||defaultSounds.follow):raw;const soundName=wasDefault?'Predeterminado':(d.soundName||'Personalizado');return {...defaults,...d,event:ev,sound,soundName,soundProfileVersion:SOUND_PROFILE_VERSION,soundEnabled:d.soundEnabled!==false};}
 function newDesign(ev='follow'){return normalizeDesign({event:ev,message:eventMessages?.[ev]||'¡Gracias por el apoyo!',layers:[]},ev)}
@@ -40,6 +40,39 @@ $('testClassicStyle')?.addEventListener('click',()=>sendAlert({alertStyle:'class
 $('testOptionAStyle')?.addEventListener('click',()=>sendAlert({alertStyle:'option-a',platform:'TikTok',event:'gift',name:'USUARIO_PRUEBA',giftName:'Rosa',giftKind:'tiktok-gift',count:5,unitDiamonds:1,totalDiamonds:5,action:'envió Rosa × 5 · 5 diamantes'}));
 loadAlertStyle();
 document.querySelectorAll('[data-event]').forEach(b=>b.addEventListener('click',()=>{const ev=b.dataset.event,platform=b.dataset.platform;$('eventType').value=ev;design=normalizeDesign(eventDesigns[ev]||{},ev);$('editMessage').value=design.message||eventMessages[ev]||'¡Gracias por el apoyo!';$('soundEnabled').checked=design.soundEnabled!==false;updatePreview();const sample={event:ev,title:titles[ev],platform,name:'USUARIO_PRUEBA',sound:design.sound,soundName:design.soundName,soundProfileVersion:SOUND_PROFILE_VERSION,soundEnabled:design.soundEnabled};if(ev==='gift'&&platform==='TikTok')Object.assign(sample,{giftName:'Rosa',giftKind:'tiktok-gift',count:5,unitDiamonds:1,totalDiamonds:5,action:'envió Rosa × 5 · 5 diamantes'});if(ev==='gift'&&platform==='Twitch')Object.assign(sample,{giftName:'Suscripciones regaladas · Tier 1',giftKind:'subscription',count:5,tier:'Tier 1',action:'regaló 5 suscripciones · Tier 1'});if(ev==='gift'&&platform==='Kick')Object.assign(sample,{giftName:'Rage Quit',giftKind:'kicks',amount:500,kickGiftTier:'MID',action:'envió Rage Quit · 500 KICKs'});if(ev==='cheer'&&platform==='Twitch')Object.assign(sample,{bits:500,giftName:'Bits',giftKind:'bits',action:'envió 500 Bits'});sendAlert(sample)}));
+
+// StarVios has seven real-event categories but the OBS renderer uses four
+// standard templates: follow, sub, gift and raid. Keep demos separate from
+// saved editor draft, so testing a StarVios gift cannot overwrite a follow design.
+const starviosDemoSpecs={
+ follow:{event:'follow',eventKind:'follow',giftKind:'follow',action:'siguió el canal',giftImage:'/assets/starvios-events/follow.svg'},
+ sub:{event:'sub',eventKind:'sub',giftKind:'sub',action:'se suscribió',giftImage:'/assets/starvios-events/sub.svg'},
+ subrenew:{event:'sub',eventKind:'subrenew',giftKind:'subrenew',action:'renovó su suscripción',giftImage:'/assets/starvios-events/sub.svg',eventLabel:'RENOVÓ SUSCRIPCIÓN'},
+ giftsub:{event:'gift',eventKind:'giftsub',giftKind:'giftsub',giftName:'Suscripciones regaladas',count:3,action:'regaló 3 suscripciones',giftImage:'/assets/starvios-events/giftsub.svg',eventLabel:'SUBS REGALADAS'},
+ gift:{event:'gift',eventKind:'gift',giftKind:'gift',giftName:'Starvies',amount:100,action:'donó 100 Starvies',giftImage:'/assets/starvios-events/starvies.svg'},
+ raid:{event:'raid',eventKind:'raid',giftKind:'raid',viewers:25,action:'envió una raid con 25 espectadores',giftImage:'/assets/starvios-events/raid.svg'},
+ shower:{event:'gift',eventKind:'shower',giftKind:'shower',giftName:'Lluvia de Estrellas',level:3,action:'activó Lluvia de Estrellas',giftImage:'/assets/starvios-events/shower.svg',eventLabel:'LLUVIA DE ESTRELLAS'}
+};
+async function starviosDemo(kind,button){
+ const spec=starviosDemoSpecs[kind];if(!spec)return;
+ const wasDisabled=button.disabled;button.disabled=true;
+ try{
+  const payload={platform:'Starvios',name:'USUARIO_PRUEBA',...spec};
+  const response=await fetch('/api/alert',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  toast('Prueba StarVios enviada a OBS. Esto NO simula un evento real.');
+ }catch(error){toast('No se pudo enviar la prueba de StarVios: '+String(error.message||error).slice(0,80))}
+ finally{button.disabled=wasDisabled}
+}
+document.querySelectorAll('[data-sv-kind]').forEach(button=>button.addEventListener('click',()=>starviosDemo(button.dataset.svKind,button)));
+document.querySelectorAll('[data-sv-edit]').forEach(button=>button.addEventListener('click',()=>{
+ const kind=button.dataset.svEdit;
+ const editorButton=document.querySelector('[data-alert-event="'+kind+'"]');
+ if(editorButton)editorButton.click();
+ activatePage('editor');
+ toast('Editando '+(eventLabels[kind]||kind)+' · diseño compartido con las demás plataformas');
+}));
+
 ['eventType','editName','editMessage','theme','accent','accent2','duration','nameSize','soundEnabled','animation'].forEach(id=>$(id).addEventListener('input',updatePreview));
 ['layerX','layerY','layerW','layerFont','layerOpacity','layerAnim'].forEach(id=>$(id)?.addEventListener('input',editSelected));
 $('addTextLayer').onclick=()=>{const l={id:uid(),type:'text',name:'Texto libre',x:50,y:25,w:50,font:28,opacity:100,animation:'pop',text:'TU TEXTO'};design.layers.push(l);selectLayer(l.id)};
@@ -91,7 +124,7 @@ function presetLayers(key){const p=presets[key]||presets.neon,ev=$('eventType').
 }
 function applyPreset(key){const p=presets[key];if(!p)return;$('theme').value=p.theme;$('accent').value=p.accent;$('accent2').value=p.accent2;$('animation').value=p.animation;design.layers=presetLayers(key);selectedLayer=null;document.querySelectorAll('.template-card').forEach(x=>x.classList.toggle('active',x.dataset.preset===key));updatePreview();animatePreview();}
 document.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>applyPreset(b.dataset.preset));
-const eventLabels={follow:'Nuevo seguidor',sub:'Nueva suscripción',gift:'Regalo recibido',cheer:'Bits / apoyo',share:'Compartido',like:'100 Tap Tap / Likes',raid:'Raid'};
+const eventLabels={follow:'Nuevo seguidor',sub:'Nueva suscripción',subrenew:'Renovación',giftsub:'Subs regaladas',gift:'Regalo recibido',cheer:'Bits / apoyo',share:'Compartido',like:'100 Tap Tap / Likes',raid:'Raid'};
 document.querySelectorAll('[data-alert-event]').forEach(b=>b.onclick=()=>{const current=$('eventType').value;eventDesigns[current]=JSON.parse(JSON.stringify(getDesign()));const ev=b.dataset.alertEvent;design=eventDesigns[ev]?normalizeDesign(JSON.parse(JSON.stringify(eventDesigns[ev])),ev):newDesign(ev);$('eventType').value=ev;$('editName').value=design.name||'USUARIO_PRUEBA';$('editMessage').value=design.message||eventMessages[ev]||'¡Gracias por el apoyo!';$('theme').value=design.theme||'Gaming neón';$('accent').value=design.accent||'#a855f7';$('accent2').value=design.accent2||'#22d3ee';$('duration').value=design.duration||6;$('nameSize').value=design.nameSize||30;$('animation').value=design.animation||'pop';$('soundEnabled').checked=design.soundEnabled!==false;$('editingEventLabel').textContent=eventLabels[ev]||titles[ev];document.querySelectorAll('[data-alert-event]').forEach(x=>x.classList.toggle('active',x===b));selectedLayer=null;design.layers=baseLayers();updatePreview();animatePreview()});
 document.querySelectorAll('[data-control-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-control-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('[data-control-pane]').forEach(x=>x.classList.toggle('active',x.dataset.controlPane===b.dataset.controlTab))});
 $('quickPreviewBottom').onclick=()=>{animatePreview();sendAlert()};$('quickSaveBottom').onclick=()=>$('saveDesign').click();
@@ -103,18 +136,31 @@ $('generateConcept').onclick=async()=>{const promptText=$('aiPrompt').value.trim
 $('applyConcept').onclick=()=>{const c=JSON.parse($('applyConcept').dataset.concept);const cev=c.event||design.event||'follow';design=normalizeDesign({...design,...c,sound:c.sound||defaultSounds[cev]||design.sound},cev);$('eventType').value=c.event||'follow';$('theme').value=c.theme||'Gaming neón';$('editName').value=c.name||'NOMBRE_DEL_USUARIO';$('editMessage').value=c.message||eventMessages[c.event]||'¡Gracias!';$('accent').value=c.accent||'#a855f7';$('accent2').value=c.accent2||'#22d3ee';$('duration').value=c.duration||6;$('nameSize').value=c.nameSize||32;$('animation').value=c.animation||'pop';if(!design.layers?.length){design.image=c.image||'';design.layers=baseLayers()}selectedLayer=null;updatePreview();activatePage('editor');toast('Diseño IA abierto como capas editables.')};
 $('testAIResult').onclick=()=>{if(!$('applyConcept').dataset.concept)return;const c=JSON.parse($('applyConcept').dataset.concept);sendAlert({...c,title:titles[c.event]})};
 fetch('/api/designs',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(d.designs){eventDesigns={...eventDesigns,...d.designs};for(const [key,val] of Object.entries(eventDesigns))eventDesigns[key]=normalizeDesign(val,key);const ev=$('eventType').value;if(eventDesigns[ev]){design=normalizeDesign(eventDesigns[ev],ev);$('editName').value=design.name||'USUARIO_PRUEBA';$('editMessage').value=design.message||eventMessages[ev]||'';$('theme').value=design.theme||'Gaming neón';$('accent').value=design.accent||'#a855f7';$('accent2').value=design.accent2||'#22d3ee';$('duration').value=design.duration||6;$('nameSize').value=design.nameSize||30;$('animation').value=design.animation||'pop';$('soundEnabled').checked=design.soundEnabled!==false;updatePreview()}}}).catch(()=>{});
-const wsStatus=$('serverStatus');const obsStatus=$('obsConnection');let statusSocket=null,statusRetry=null;function checkSocket(){clearTimeout(statusRetry);try{if(statusSocket&&statusSocket.readyState===WebSocket.OPEN)statusSocket.close()}catch{}const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);statusSocket=ws;ws.onopen=()=>{wsStatus.textContent='Servidor local conectado';obsStatus.textContent='Enlace local activo'};ws.onmessage=e=>{try{const d=JSON.parse(e.data);if((d.type==='hello'||d.type==='platform-status')&&d.status)renderPlatformStatus(d.status);if(d.type==='activity'&&d.activity)addActivity(d.activity)}catch{}};ws.onerror=()=>{wsStatus.textContent='Servidor local no disponible';obsStatus.textContent='No se detecta el servidor';try{ws.close()}catch{}};ws.onclose=()=>{wsStatus.textContent='Reconectando servidor…';obsStatus.textContent='Reconectando enlace local…';statusRetry=setTimeout(checkSocket,1500)}}checkSocket();design.layers=baseLayers();updatePreview();
+const wsStatus=$('serverStatus');const obsStatus=$('obsConnection');let statusSocket=null,statusRetry=null;function checkSocket(){clearTimeout(statusRetry);try{if(statusSocket&&statusSocket.readyState===WebSocket.OPEN)statusSocket.close()}catch{}const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);statusSocket=ws;ws.onopen=()=>{wsStatus.textContent='Servidor local conectado';obsStatus.textContent='Enlace local activo'};ws.onmessage=e=>{try{const d=JSON.parse(e.data);if((d.type==='hello'||d.type==='platform-status')&&d.status)renderPlatformStatus(d.status,d.eventHealth||{});if(d.type==='event-health')refreshPlatformStatus();if(d.type==='activity'&&d.activity)addActivity(d.activity)}catch{}};ws.onerror=()=>{wsStatus.textContent='Servidor local no disponible';obsStatus.textContent='No se detecta el servidor';try{ws.close()}catch{}};ws.onclose=()=>{wsStatus.textContent='Reconectando servidor…';obsStatus.textContent='Reconectando enlace local…';statusRetry=setTimeout(checkSocket,1500)}}checkSocket();design.layers=baseLayers();updatePreview();
 // ===== CUENTAS CONECTADAS: TikTok + Twitch + Kick =====
-const platformEls={tiktok:$('tiktokStatus'),twitch:$('twitchStatus'),kick:$('kickStatus')};
-function renderPlatformStatus(st={}){
+const platformEls={tiktok:$('tiktokStatus'),twitch:$('twitchStatus'),kick:$('kickStatus'),starvios:$('starviosStatus')};
+let lastAlertEventHealth={};
+function renderPlatformStatus(st={},health=null){
+ if(health&&Object.keys(health).length)lastAlertEventHealth=health;
+ health=lastAlertEventHealth;
  for(const [p,el] of Object.entries(platformEls)){
   if(!el)continue;const x=st[p]||{};
-  el.textContent=x.label||'No conectado';el.classList.toggle('ready',!!x.connected);el.classList.toggle('pending',!x.connected)
+  if(p==='starvios')el.textContent=x.live===true?'LIVE conectado':x.live===false?'Sin LIVE':(x.authenticated?'Canal vinculado':'No conectado');
+  else el.textContent=x.label||'No conectado';
+  const active=p==='starvios'?x.live===true:!!x.connected;
+  el.classList.toggle('ready',active);el.classList.toggle('pending',!active);
  }
- // Los tres indicadores del resumen usan la misma fuente real de /api/status.
- // (Antes TikTok/Twitch no tenían id y quedaban visualmente en "No conectado".)
+ const channel=st.starvios||{},svHealth=health.starvios||{};
+ const hasReal=!!svHealth.lastRealEventAt;
+ const badge=$('starviosAlertState'),description=$('starviosEventDetail');
+ if(badge){
+  badge.textContent=channel.live===true?(hasReal?'LIVE · eventos recibidos':'LIVE · esperando eventos reales'):(channel.authenticated?'Canal vinculado · esperando LIVE':'StarVios sin conectar');
+  badge.title=hasReal?'Último evento real confirmado por GREÑA: '+new Date(svHealth.lastRealEventAt).toLocaleString('es-DO'):'Los botones son pruebas; no significan que se haya detectado un evento real.';
+ }
+ if(description)description.textContent=hasReal?'Último evento real recibido · '+new Date(svHealth.lastRealEventAt).toLocaleString('es-DO'):'Follows, suscripciones, Starvies, raids y Lluvia de Estrellas';
+
 }
-async function refreshPlatformStatus(){try{const r=await fetch('/api/status',{cache:'no-store'}),d=await r.json();renderPlatformStatus(d.status);document.querySelectorAll('.oauth-login').forEach(b=>{const p=b.dataset.platform;b.title=d.oauthConfigured&&d.oauthConfigured[p]===false?'La conexión de esta plataforma todavía no está disponible':''})}catch{}}
+async function refreshPlatformStatus(){try{const r=await fetch('/api/status',{cache:'no-store'}),d=await r.json();renderPlatformStatus(d.status,d.eventHealth||{});document.querySelectorAll('.oauth-login').forEach(b=>{const p=b.dataset.platform;b.title=d.oauthConfigured&&d.oauthConfigured[p]===false?'La conexión de esta plataforma todavía no está disponible':''})}catch{}}
 async function ensurePlatformConfigured(platform){
  const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
  if(st.oauthConfigured?.[platform]!==false)return true;
@@ -128,6 +174,6 @@ document.querySelectorAll('.disconnect-btn').forEach(b=>b.addEventListener('clic
 refreshPlatformStatus();
 
 function activityGiftVisual(a={}){const img=a.giftImage||a.imageUrl||a.giftIcon||'';if(img)return {img};const n=String(a.giftName||'').toLowerCase();if(/rosa|rose/.test(n))return {emoji:'🌹'};if(/qui[eé]reme|love|heart|coraz/.test(n))return {emoji:'💖'};if(a.event==='cheer')return {emoji:'💎'};if(a.giftKind==='subscription')return {emoji:'👑'};if(a.event==='gift')return {emoji:'🎁'};return {emoji:'⚡'}}
-function activityMeta(a={}){const x=[];if(a.giftName)x.push(a.giftName);if(Number(a.count)>1)x.push(`x${Number(a.count)}`);if(Number(a.totalDiamonds)>0)x.push(`${Number(a.totalDiamonds).toLocaleString('es-DO')} diamantes`);if(Number(a.bits)>0)x.push(`${Number(a.bits).toLocaleString('es-DO')} Bits`);if(Number(a.amount)>0)x.push(`${Number(a.amount).toLocaleString('es-DO')} KICKs`);if(a.tier)x.push(String(a.tier));if(a.kickGiftTier)x.push(`Tier ${a.kickGiftTier}`);if(a.recipient)x.push(`para ${a.recipient}`);return [...new Set(x)]}
+function activityMeta(a={}){const x=[];if(a.giftName)x.push(a.giftName);if(Number(a.count)>1)x.push(`x${Number(a.count)}`);if(Number(a.totalDiamonds)>0)x.push(`${Number(a.totalDiamonds).toLocaleString('es-DO')} diamantes`);if(Number(a.bits)>0)x.push(`${Number(a.bits).toLocaleString('es-DO')} Bits`);if(Number(a.amount)>0)x.push(`${Number(a.amount).toLocaleString('es-DO')} ${a.platform==='Starvios'?'Starvies':'KICKs'}`);if(a.tier)x.push(String(a.tier));if(a.kickGiftTier)x.push(`Tier ${a.kickGiftTier}`);if(a.recipient)x.push(`para ${a.recipient}`);return [...new Set(x)]}
 function addActivity(a){const box=$('liveActivity');if(!box)return;const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid #ffffff18;border-radius:12px;background:#ffffff08';const vis=activityGiftVisual(a);const icon=document.createElement('div');icon.style.cssText='width:46px;height:46px;flex:0 0 46px;border-radius:12px;background:#ffffff0b;display:grid;place-items:center;font-size:27px;overflow:hidden';if(vis.img){const im=document.createElement('img');im.src=vis.img;im.alt=a.giftName||'regalo';im.style.cssText='width:100%;height:100%;object-fit:contain';im.onerror=()=>{icon.textContent='🎁'};icon.append(im)}else icon.textContent=vis.emoji||'⚡';const copy=document.createElement('div');copy.style.minWidth='0';const b=document.createElement('b');const label=a.event==='gift'&&a.giftName?`REGALO · ${String(a.giftName).toUpperCase()}`:(a.event==='cheer'&&a.bits?`${Number(a.bits).toLocaleString('es-DO')} BITS`:(a.eventLabel||a.title||a.event||'Evento'));b.textContent=`${a.platform||''} · ${label}`;const sm=document.createElement('small');sm.style.cssText='display:block;margin-top:3px';const detail=a.action||a.message||'realizó una acción';sm.textContent=`${a.name||'Usuario'} — ${detail}`;copy.append(b,sm);const meta=activityMeta(a);if(meta.length){const m=document.createElement('small');m.style.cssText='display:block;margin-top:5px;color:#b9c3d5';m.textContent=meta.join(' · ');copy.append(m)}row.append(icon,copy);if(box.firstElementChild?.tagName==='SMALL')box.innerHTML='';box.prepend(row);while(box.children.length>30)box.lastElementChild.remove()}
 fetch('/api/activity?limit=30',{cache:'no-store'}).then(r=>r.json()).then(d=>{const box=$('liveActivity');if(box&&Array.isArray(d.activity)&&d.activity.length){box.innerHTML='';d.activity.slice().reverse().forEach(addActivity)}}).catch(()=>{});

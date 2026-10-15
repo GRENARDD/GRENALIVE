@@ -622,6 +622,7 @@ function recordLoyaltyEvent(evt={}){
 
 
 const bridgeRuntime={tiktok:false,twitch:false,kick:false,youtube:false,starvios:false};
+let starviosRealEventAt=0;
 const bridgeSignals={
  tiktok:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
  twitch:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
@@ -651,7 +652,7 @@ function eventHealthSnapshot(){
   tiktok:{account:ps.tiktok?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.tiktok,ps.tiktok?.authenticated?'waiting':'off'),events:ttEvents,source:'TikTok LIVE connector · FOLLOW + SOCIAL fallback · SUB_NOTIFY',diagnostics:ttSig},
   twitch:{account:ps.twitch?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.twitch,ps.twitch?.authenticated?'waiting':'off'),events:twitchEvents,source:'Twitch EventSub + IRC',active:[...twitchEventHealth.active],failed:[...twitchEventHealth.failed],lastError:twitchEventHealth.lastError||'',diagnostics:sig('twitch')},
   kick:{account:ps.kick?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.kick,ps.kick?.authenticated?'waiting':'off'),events:kickEvents,source:'Kick Events API + browser/Pusher realtime fallback',active:[...kickEventHealth.active],failed:[...kickEventHealth.failed],lastError:kickEventHealth.lastError||'',subscriptionsReady:!!kickEventHealth.subscriptionsReady,lastWebhookAt:Number(kickEventHealth.lastWebhookAt||0),diagnostics:kickSig},
-  starvios:{account:ps.starvios?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.starvios,ps.starvios?.authenticated?'waiting':'off'),events:'experimental',source:'Starvios public popout + typed realtime frames · API no verificada',diagnostics:sig('starvios')}
+  starvios:{account:ps.starvios?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.starvios,ps.starvios?.authenticated?'waiting':'off'),events:!ps.starvios?.authenticated?'off':starviosRealEventAt?'ready':'waiting',source:'StarVios public chat records + follower totals · verificación de eventos LIVE',lastRealEventAt:starviosRealEventAt,diagnostics:sig('starvios')}
  };
 }
 function pushEventHealth(){broadcast({type:'event-health',eventHealth:eventHealthSnapshot()})}
@@ -1676,6 +1677,7 @@ async function stopProfileRuntime(){
   for(const p of ['tiktok','twitch','kick','starvios'])bridgeRuntime[p]=false;
   for(const p of ['tiktok','twitch','kick','starvios'])status[p]={connected:false,label:'No conectado',account:''};
   starviosLive={live:false,known:false,updatedAt:Date.now()};
+  starviosRealEventAt=0;
   activityHistory.splice(0);recentAlerts.clear();pushViewers();pushStatus();
 }
 async function notifyChatProfile(userId=activeUserId){
@@ -2197,6 +2199,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   const e=normalizeStarviosEvent({...body,type:body.kind||body.type||''});
   if(!e)return json(res,400,{ok:false,error:'Evento Starvios desconocido o sin datos'});
   if(bridgeMessageDuplicate(body.bridgeEventId||('starvios:'+e.id)))return json(res,200,{ok:true,duplicate:true});
+  starviosRealEventAt=Date.now();
   noteBridgeSignal('starvios',e.kind,{user:e.user,amount:e.amount});
   recordLoyaltyEvent({platform:'starvios',kind:e.kind,user:e.user,amount:e.amount,count:e.count});
   const mapped=e.kind==='subrenew'?'sub':e.kind==='giftsub'||e.kind==='shower'?'gift':e.kind;
@@ -2210,6 +2213,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     level:e.level,eventLabel:e.kind==='shower'?'LLUVIA DE ESTRELLAS':
     e.kind==='subrenew'?'RENOVÓ SUSCRIPCIÓN':e.kind==='giftsub'?'SUBS REGALADAS':''};
   alert('Starvios',mapped,e.user,labels[e.kind]||'',extra);
+  pushEventHealth();
   return json(res,200,{ok:true,kind:e.kind,mapped});
  }
  if(pathname==='/api/internal/event'&&req.method==='POST'){
