@@ -34,6 +34,11 @@ export class StarviosReader {
     this.browser=null;
     this.page=null;
     this.livePage=null;
+    this.reconnectTimer=null;
+    this.recoverPromise=null;
+    this.reconnectFailures=0;
+    this.missingContainerSince=0;
+    this.liveScanBusy=false;
     this.liveTimer=null;
     this.lastLive=null;
     this.eventKeys=new Map();
@@ -49,44 +54,108 @@ export class StarviosReader {
     const channel=normalizeStarviosChannel(input);
     if(!channel) throw new Error('Escribe un usuario o enlace válido de Starvios.');
     await this.disconnect();
+    this.channel=channel;
+    this.running=true;
     const generation=++this.generation;
-    const opts={
-      headless:true,
-      args:['--disable-background-timer-throttling','--disable-renderer-backgrounding','--mute-audio']
-    };
     try {
-      if(this.cloud) {
-        this.browser=await chromium.launch({
-          ...opts,
-          executablePath:this.chromiumPath||'/usr/bin/chromium',
-          args:[...opts.args,'--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage']
-        });
-      } else {
-        try { this.browser=await chromium.launch({...opts,channel:'chrome'}); }
-        catch { this.browser=await chromium.launch({...opts,channel:'msedge'}); }
-      }
-      this.page=await this.browser.newPage({viewport:{width:1100,height:800}});
-      this.livePage=await this.browser.newPage({viewport:{width:1100,height:800}});
-      const handleSocket=socket=>socket.on('framereceived',frame=>this.acceptFrame(frame?.payload));
-      this.page.on('websocket',handleSocket);
-      this.livePage.on('websocket',handleSocket);
-      this.channel=channel;
-      const target='https://starvios.com/popout/chat/'+encodeURIComponent(channel);
-      const response=await this.page.goto(target,{waitUntil:'domcontentloaded',timeout:35000});
-      if(!response || response.status()>=500) throw new Error('Starvios no respondió correctamente.');
-      if(generation!==this.generation) return false;
-      this.livePage.goto('https://starvios.com/live/'+encodeURIComponent(channel),{waitUntil:'domcontentloaded',timeout:25000}).catch(()=>{});
-      this.running=true;
-      this.onState({connected:false,channel,label:'Starvios · esperando chat público de @'+channel});
-      this.timer=setInterval(()=>this.scan().catch(()=>{}),850);
-      this.liveTimer=setInterval(()=>this.scanLive().catch(()=>{}),12000);
-      setTimeout(()=>{if(this.running)this.scanLive().catch(()=>{})},5000);
-      await this.scan();
+      await this.openChatPage(generation);
       return true;
     } catch(error) {
       await this.disconnect();
       throw error;
     }
+  }
+  async openChatPage(generation) {
+    // Starvios no necesita que GREÑA reproduzca el video del directo.
+    // Una segunda página con reproductor agotaba la RAM del contenedor de Railway.
+    const opts={
+      headless:true,
+      args:['--disable-background-timer-throttling','--disable-renderer-backgrounding',
+        '--disable-backgrounding-occluded-windows','--mute-audio','--disable-gpu']
+    };
+    let browser=null;
+    try {
+      if(this.cloud) {
+        browser=await chromium.launch({
+          ...opts,
+          executablePath:this.chromiumPath||'/usr/bin/chromium',
+          args:[...opts.args,'--no-sandbox','--disable-setuid-sandbox','--disable-dev-shm-usage']
+        });
+      } else {
+        try { browser=await chromium.launch({...opts,channel:'chrome'}); }
+        catch { browser=await chromium.launch({...opts,channel:'msedge'}); }
+      }
+      if(generation!==this.generation||!this.running) {await browser.close();return}
+      const page=await browser.newPage({
+        viewport:{width:720,height:460},deviceScaleFactor:1,serviceWorkers:'block'
+      });
+      if(generation!==this.generation||!this.running) {await browser.close();return}
+      // Conservamos JS y los WebSockets de chat; imágenes/video/fonts son innecesarios.
+      await page.route('**/*',route=>{
+        const type=route.request().resourceType();
+        return ['image','font','media'].includes(type)?route.abort():route.continue();
+      });
+      this.browser=browser;
+      this.page=page;
+      browser.on('disconnected',()=>{
+        if(this.browser===browser)this.scheduleRecovery('navegador desconectado');
+      });
+      page.on('crash',()=>{
+        if(this.page===page)this.scheduleRecovery('pestaña bloqueada');
+      });
+      page.on('websocket',socket=>socket.on('framereceived',frame=>this.acceptFrame(frame?.payload)));
+      const target='https://starvios.com/popout/chat/'+encodeURIComponent(this.channel);
+      const response=await page.goto(target,{waitUntil:'domcontentloaded',timeout:35000});
+      if(!response||response.status()>=400)throw Error('Starvios no respondió correctamente (HTTP '+(response?.status()||0)+').');
+      if(generation!==this.generation||!this.running)return;
+      this.onState({connected:false,channel:this.channel,label:'Starvios · esperando chat de @'+this.channel});
+      this.timer=setInterval(()=>this.scan().catch(e=>this.handleScanError(e)),1100);
+      // La detección auxiliar del directo usa HTTP ligero, NUNCA un reproductor extra.
+      this.liveTimer=setInterval(()=>this.scanLive().catch(()=>{}),30000);
+      await this.scan();
+      this.scanLive().catch(()=>{});
+    } catch(error) {
+      if(this.browser===browser) {this.browser=null;this.page=null;}
+      if(browser)try{await browser.close()}catch{}
+      throw error;
+    }
+  }
+  scheduleRecovery(reason='conexión interrumpida') {
+    if(!this.running||this.reconnectTimer||this.recoverPromise)return;
+    this.connected=false;
+    this.onState({connected:false,channel:this.channel,label:'Starvios · reconectando ('+reason+')'});
+    const delay=Math.min(30000,1500*Math.pow(2,Math.min(5,this.reconnectFailures++)));
+    this.reconnectTimer=setTimeout(()=>{
+      this.reconnectTimer=null;
+      this.recover().catch(error=>{
+        this.onError(error);
+        this.scheduleRecovery('reintento automático');
+      });
+    },delay);
+  }
+  async recover() {
+    if(!this.running||this.recoverPromise)return;
+    const generation=this.generation;
+    this.recoverPromise=(async()=>{
+      if(this.timer)clearInterval(this.timer);
+      if(this.liveTimer)clearInterval(this.liveTimer);
+      this.timer=null;this.liveTimer=null;
+      const browser=this.browser;
+      this.browser=null;this.page=null;
+      this.busy=false;
+      if(browser)try{await browser.close()}catch{}
+      if(generation!==this.generation||!this.running)return;
+      await this.openChatPage(generation);
+    })();
+    try{await this.recoverPromise}finally{this.recoverPromise=null}
+  }
+  handleScanError(error) {
+    const message=String(error?.message||error);
+    if(/Target crashed|Target closed|page has been closed|browser has been closed|Session closed|Target page.*closed/i.test(message)) {
+      this.scheduleRecovery('lector de chat bloqueado');
+      return;
+    }
+    if(Date.now()-this.lastErrorAt>30000){this.lastErrorAt=Date.now();this.onError(error)}
   }
   async scan() {
     if(this.busy || !this.page || !this.running) return;
@@ -151,6 +220,13 @@ export class StarviosReader {
         return {ready:true,messages};
       });
       if(generation!==this.generation || !this.running)return;
+      if(!result.ready) {
+        if(!this.missingContainerSince)this.missingContainerSince=Date.now();
+        if(Date.now()-this.missingContainerSince>40000)this.scheduleRecovery('chat no disponible');
+      } else {
+        this.missingContainerSince=0;
+        this.reconnectFailures=0;
+      }
       if(result.ready!==this.connected) {
         this.connected=result.ready;
         this.onState({
@@ -163,14 +239,11 @@ export class StarviosReader {
         if(m.starvies>0)this.deliverEvent({kind:'gift',user:m.user,amount:m.starvies,count:1,id:m.id,message:m.text});
       }
     } catch(error) {
-      if(this.connected) {
+      if(this.connected){
         this.connected=false;
         this.onState({connected:false,channel:this.channel,label:'Starvios · reconectando chat'});
       }
-      if(Date.now()-this.lastErrorAt>30000) {
-        this.lastErrorAt=Date.now();
-        this.onError(error);
-      }
+      this.handleScanError(error);
     } finally { this.busy=false; }
   }
 
@@ -179,10 +252,23 @@ export class StarviosReader {
   acceptFrame(payload){
     if(!this.running||!payload||typeof payload!=='string'||payload.length>64000)return;
     let root;try{root=JSON.parse(payload)}catch{return}
-    const objects=[root,root?.data,root?.payload,root?.event].filter(v=>v&&typeof v==='object'&&!Array.isArray(v));
-    for(const candidate of objects){
+    // Algunas conexiones realtime envuelven el evento en JSON serializado
+    // dentro de data/payload. Solo aceptamos tipos expresos normalizados.
+    const queue=[root],seen=new Set();
+    for(let examined=0;queue.length&&examined<24;examined++){
+      let candidate=queue.shift();
+      if(typeof candidate==='string'){
+        if(candidate.length>32000||!/^[\s]*[\[{]/.test(candidate))continue;
+        try{candidate=JSON.parse(candidate)}catch{continue}
+      }
+      if(!candidate||typeof candidate!=='object'||seen.has(candidate))continue;
+      seen.add(candidate);
+      if(Array.isArray(candidate)){queue.push(...candidate.slice(0,8));continue}
       const event=normalizeStarviosEvent(candidate);
-      if(event){this.deliverEvent(event);break}
+      if(event){this.deliverEvent(event);return}
+      for(const field of ['data','payload','event','message','body','details','result']){
+        if(candidate[field]!==undefined)queue.push(candidate[field]);
+      }
     }
   }
   deliverEvent(raw){
@@ -198,38 +284,43 @@ export class StarviosReader {
     this.onEvent({...raw,platform:'starvios',kind,user,amount,channel:this.channel});
   }
   async scanLive(){
-    if(!this.running||!this.livePage||this.livePage.isClosed())return;
+    if(!this.running||!this.channel||this.liveScanBusy)return;
+    this.liveScanBusy=true;
     const generation=this.generation;
     try{
-      const state=await this.livePage.evaluate(()=>{
-        const text=String(document.body?.innerText||'').slice(0,15000);
-        const offline=/no está en directo ahora|is not live right now|currently offline/i.test(text);
-        const live=!offline&&(/live stream/i.test(text)||!!document.querySelector('video[src], video source[src]'));
-        const labels=[...document.querySelectorAll('[aria-label],[title],[data-testid]')]
-          .filter(el=>/viewers?|espectadores?|watching/i.test([el.getAttribute('aria-label'),el.getAttribute('title'),el.getAttribute('data-testid')].join(' ')))
-          .slice(0,20).map(el=>[el.getAttribute('aria-label'),el.getAttribute('title'),el.textContent].filter(Boolean).join(' ').slice(0,130));
-        return {live:offline?false:live?true:null,labels};
+      // No abrir una segunda pestaña con reproducción LIVE en un Railway de 1 GB.
+      const response=await fetch('https://starvios.com/live/'+encodeURIComponent(this.channel),{
+        headers:{accept:'text/html'},
+        signal:AbortSignal.timeout(8500)
       });
+      if(!response.ok||generation!==this.generation||!this.running)return;
+      const html=(await response.text()).slice(0,200000);
       if(generation!==this.generation||!this.running)return;
-      if(typeof state.live==='boolean'&&state.live!==this.lastLive){
-        this.lastLive=state.live;
-        this.onLive({live:state.live,channel:this.channel,source:'Starvios live page'});
-        if(!state.live)this.onViewers({count:0,source:'Starvios offline verificado',channel:this.channel});
-      }
-      if(state.live===true){
-        for(const label of state.labels){
-          const count=parseStarviosViewerLabel(label);
-          if(count!==null){this.onViewers({count,source:'Starvios public live page',channel:this.channel});break}
+      // Confirmación conservadora; no inventar viewers cuando no hay cifra fiable.
+      if(/no está en directo ahora|is not live right now|currently offline/i.test(html)){
+        if(this.lastLive!==false){
+          this.lastLive=false;
+          this.onLive({live:false,channel:this.channel,source:'Starvios live HTML'});
+          this.onViewers({count:0,source:'Starvios offline verificado',channel:this.channel});
         }
       }
-    }catch(error){if(Date.now()-this.lastErrorAt>30000){this.lastErrorAt=Date.now();this.onError(error)}}
+    }catch(error){
+      // Un fallo en el estado auxiliar nunca debe tirar abajo la lectura del chat.
+      if(Date.now()-this.lastErrorAt>30000){
+        this.lastErrorAt=Date.now();
+        this.onError(error);
+      }
+    }finally{this.liveScanBusy=false}
   }
 
   async disconnect() {
     ++this.generation;
     if(this.timer) clearInterval(this.timer);
     if(this.liveTimer)clearInterval(this.liveTimer);
-    this.timer=null;this.liveTimer=null;
+    if(this.reconnectTimer)clearTimeout(this.reconnectTimer);
+    this.timer=null;this.liveTimer=null;this.reconnectTimer=null;
+    this.reconnectFailures=0;
+    this.missingContainerSince=0;
     this.lastLive=null;this.eventKeys.clear();
     const old=this.channel;
     this.running=false;
