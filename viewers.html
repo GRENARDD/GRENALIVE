@@ -162,7 +162,7 @@ function updatePlatformVisibility(v={}){
  for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki'],['youtube','.counter.yt'],['starvios','.counter.sv']]){
   const card=document.querySelector(selector);if(!card)continue;
   const n=Number(v[k]);
-  card.classList.toggle('is-hidden',!(Number.isFinite(n)&&n>=1));
+  card.classList.toggle('is-hidden',!(Number.isFinite(n)&&n>=1 || k==='starvios'&&latestMeta.starvios?.live===true));
  }
 }
 
@@ -182,12 +182,13 @@ function draw(v={},meta){
   for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki'],['youtube','yt'],['starvios','sv']]){
     const n=Math.max(0,Math.floor(Number(v[k])||0));
     const e=document.getElementById(id);
-    if(old[k]!==n){
-      e.textContent=n.toLocaleString('es-DO');
+    const label=k==='starvios'&&latestMeta.starvios?.live===true&&latestMeta.starvios?.available!==true?'—':n.toLocaleString('es-DO');
+    if(old[k]!==label){
+      e.textContent=label;
       e.classList.remove('pulse');
       void e.offsetWidth;
       e.classList.add('pulse');
-      old[k]=n;
+      old[k]=label;
     }
   }
   updatePlatformVisibility(v,latestMeta);
@@ -219,7 +220,7 @@ function ws(){
       try{
         const d=JSON.parse(e.data);
         if(d.type==='hello'){if(d.viewers)draw(d.viewers);if(d.counterSettings&&!previewOverride)applyCounterSettings(d.counterSettings)}
-        if(d.type==='viewers'&&d.viewers)draw(d.viewers);
+        if(d.type==='viewers'&&d.viewers)draw(d.viewers,d.meta);
         if(d.type==='counter-settings'&&d.settings&&!previewOverride)applyCounterSettings(d.settings);
       }catch{}
     };
