@@ -12,7 +12,8 @@ test('detecta donaciones solo cuando hay monedas reales',()=>{
 test('subs, renovaciones, subs regaladas, raid y starfall',()=>{
  assert.equal(parseStarviosChatEvent(sample('sub')).kind,'sub');
  assert.equal(parseStarviosChatEvent(sample('sub',{meta:{is_renewal:true}})).kind,'subrenew');
- assert.deepEqual(({kind,count})=>({kind,count}))(parseStarviosChatEvent(sample('gift',{meta:{qty:4}})),{kind:'giftsub',count:4});
+ const gifted=parseStarviosChatEvent(sample('gift',{meta:{qty:4}}));
+ assert.deepEqual({kind:gifted.kind,count:gifted.count},{kind:'giftsub',count:4});
  assert.equal(parseStarviosChatEvent(sample('raid',{meta:{viewers:17}})).viewers,17);
  assert.equal(parseStarviosChatEvent(sample('starfall',{meta:{level:3}})).level,3);
  assert.equal(parseStarviosChatEvent(sample('follow')).kind,'follow');
