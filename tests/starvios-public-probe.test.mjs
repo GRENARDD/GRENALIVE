@@ -1,24 +1,19 @@
 import test from 'node:test';
-test('Starvios public viewer markup diagnostic',async()=>{
- const urls=['https://starvios.com/live?lang=&tag=latam','https://starvios.com/live/mostza12'];
- for(const url of urls)try{
-  const r=await fetch(url,{signal:AbortSignal.timeout(10000)});
-  const html=await r.text();
-  const assets=[...html.matchAll(/(?:href|src)="([^"]+\.js)"/g)].map(x=>x[1]).filter(x=>x.startsWith('/assets/'));
-  console.log('[STARVIOS PROBE]',url,'HTTP',r.status,'bytes',html.length,'assets:',assets.join('|'));
-  console.log('[STARVIOS PROBE] stripped',html.replace(/<script[\s\S]*?<\/script>/g,'').replace(/<style[\s\S]*?<\/style>/g,'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').slice(-700));
-  if(url.endsWith('mostza12')){
-    for(const name of assets.filter(x=>/live|stream|index|app|show/i.test(x)).slice(0,14)){
-      try{
-        const script=(await (await fetch('https://starvios.com'+name,{signal:AbortSignal.timeout(8000)})).text());
-        const pat=/viewerCount|viewer_count|viewers|espectadores|viewCount|current_viewers|watching|api\/streams|api\/live/ig;
-        let found=[],m;
-        while((m=pat.exec(script))&&found.length<12){
-          found.push(script.slice(Math.max(0,m.index-100),m.index+190));
-        }
-        console.log('[STARVIOS PROBE] js',name,script.length,JSON.stringify(found).slice(0,4000));
-      }catch(e){console.log('[STARVIOS PROBE] asset err',name,String(e.message||e))}
-    }
-  }
- }catch(e){console.log('[STARVIOS PROBE] err',String(e.message||e))}
+test('Starvios public API discovery diagnostic',async()=>{
+ const names=['public-data-BlwdItU3.js','live._username-QgbEr5eS.js','LiveCard-CJRkDzT8.js','client-DPf_qMSn.js','index-JttxfjF5.js','root-DLTE-HSj.js'];
+ for(const name of names){
+  try {
+   const url='https://starvios.com/assets/'+name;
+   const js=await(await fetch(url,{signal:AbortSignal.timeout(10000)})).text();
+   const snippets=[];
+   const pattern=/supabase\.co|supabaseKey|createClient|publishable|live_viewer_counts|live_streams|from.{0,12}profiles|from.{0,12}streams|from.{0,12}livestreams|PUBLIC_SUPABASE|VITE_SUPABASE|viewer_count|channel_id/ig;
+   let m;
+   while((m=pattern.exec(js))&&snippets.length<28){
+    let s=js.slice(Math.max(0,m.index-135),m.index+300);
+    s=s.replace(/eyJ[A-Za-z0-9_-]{50,}/g,'<PUBLIC_JWT_REDACTED>');
+    snippets.push(s);
+   }
+   console.log('[STARVIOS DISCOVER]',name,'size',js.length,'matches',JSON.stringify(snippets).slice(0,9800));
+  }catch(e){console.log('[STARVIOS DISCOVER]',name,'err',String(e.message||e))}
+ }
 });
