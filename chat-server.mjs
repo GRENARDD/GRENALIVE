@@ -286,20 +286,21 @@ let currentKickChannel = '';
 const tiktokUsers = new Map();
 const twitchUsers = new Map();
 const kickUsers = new Map();
-const localMutedUsers={tiktok:new Set(),twitch:new Set(),kick:new Set()};
+const localMutedUsers={tiktok:new Set(),twitch:new Set(),kick:new Set(),starvios:new Set()};
 function moderationKey(v=''){return String(v||'').trim().replace(/^@/,'').toLowerCase()}
 function isLocallyMuted(platform,user){return !!localMutedUsers[String(platform||'').toLowerCase()]?.has(moderationKey(user))}
 function publicLocalMutedUsers(){
   return {
     tiktok:[...localMutedUsers.tiktok].sort(),
     twitch:[...localMutedUsers.twitch].sort(),
-    kick:[...localMutedUsers.kick].sort()
+    kick:[...localMutedUsers.kick].sort(),
+    starvios:[...localMutedUsers.starvios].sort()
   };
 }
 async function loadLocalMutedUsers(){
   const raw=await readJson(MUTED_USERS_FILE,{});
   const source=raw&&typeof raw==='object'&&raw.users&&typeof raw.users==='object'?raw.users:raw;
-  for(const platform of ['tiktok','twitch','kick']){
+  for(const platform of ['tiktok','twitch','kick','starvios']){
     localMutedUsers[platform].clear();
     const values=Array.isArray(source?.[platform])?source[platform]:[];
     for(const value of values){
@@ -2646,7 +2647,8 @@ const server =
           let body='';body=await readBody(request);
           try{
             const d=JSON.parse(body||'{}');const platform=String(d.platform||'').toLowerCase(),action=String(d.action||''),user=String(d.username||d.user||'');
-            if(!['tiktok','twitch','kick'].includes(platform))throw Error('Plataforma no válida.');
+            if(!['tiktok','twitch','kick','starvios'].includes(platform))throw Error('Plataforma no válida.');
+            if(platform==='starvios'&&!['mute_local','unmute_local'].includes(action))throw Error('Starvios solo permite silenciar dentro de GREÑA por ahora.');
             if(action==='mute_local'||action==='unmute_local'){
               const key=moderationKey(user);if(!key)throw Error('Falta el usuario.');
               if(action==='mute_local'){
