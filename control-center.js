@@ -103,7 +103,7 @@ function addActivity(a,fromHistory=false){if(!a||!['TikTok','Twitch','Kick','Sta
 function renderActivity(){const box=$('activityFeed');$('eventCount').textContent=state.activity.length;if(!state.activity.length){box.innerHTML='<div class="empty-state"><span>⚡</span><b>Esperando actividad</b><small>Follows, regalos, compartidos, subs, Bits y raids aparecerán aquí con el detalle exacto.</small></div>';return}box.innerHTML=state.activity.map(a=>{const p=a.platform==='TikTok'?'tt':a.platform==='Kick'?'kick':'tw',detail=detailFor(a),action=a.action||a.message||'realizó una acción';return `<div class="event-row"><div class="event-icon">${icons[a.event]||'•'}</div><div class="event-copy"><div class="event-top"><b>${esc(a.name||'Usuario')}</b><span class="event-platform ${p}">${esc(a.platform)}</span></div><div class="event-action">${esc(action)}</div>${detail&&!String(action).includes(detail)?`<div class="event-detail">${esc(detail)}</div>`:''}</div><span class="event-time">${clock(a.receivedAt)}</span></div>`}).join('')}
 async function loadInitial(){try{const [st,ac,v]=await Promise.all([fetch('/api/status',{cache:'no-store'}).then(r=>r.json()),fetch('/api/activity?limit=60',{cache:'no-store'}).then(r=>r.json()),fetch('/api/viewers',{cache:'no-store'}).then(r=>r.json())]);state.status=st.status||{};state.bridge={...state.bridge,...(st.bridgeRuntime||{})};state.eventHealth=st.eventHealth||state.eventHealth;state.viewers=v.viewers||state.viewers;state.activity=[];(ac.activity||[]).slice().reverse().forEach(a=>addActivity(a,true));renderActivity();renderPlatforms();renderViewers();renderSystem(true)}catch{renderSystem(false)}}
 let coreWS,retryCore;function connectCore(){clearTimeout(retryCore);try{coreWS?.close()}catch{}const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);coreWS=ws;ws.onopen=()=>renderSystem(true);ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='hello'){state.status=d.status||state.status;state.bridge={...state.bridge,...(d.bridgeRuntime||{})};state.eventHealth=d.eventHealth||state.eventHealth;state.viewers=d.viewers||state.viewers;renderPlatforms();renderViewers()}if(d.type==='platform-status'){state.status=d.status||state.status;renderPlatforms()}if(d.type==='event-health'){state.eventHealth=d.eventHealth||state.eventHealth;renderPlatforms()}if(d.type==='viewers'){state.viewers=d.viewers||state.viewers;renderViewers()}if(d.type==='activity'){addActivity(d.activity);renderActivity()}if(d.type==='profile-changed'){if(!d.profile||d.profile.id!==state.profile?.id){location.replace('/login.html');return}state.profile=d.profile;$('profileName').textContent=d.profile.displayName||d.profile.username;$('profileUser').textContent='@'+d.profile.username;$('profileAvatar').textContent=String(d.profile.displayName||d.profile.username||'G').slice(0,1).toUpperCase()}}catch{}};ws.onclose=()=>{renderSystem(false);verifyOwnerSession().then(ok=>{if(ok)retryCore=setTimeout(connectCore,1500)})};ws.onerror=()=>{try{ws.close()}catch{}}}
-let chatWS,retryChat;function connectChatEngine(){clearTimeout(retryChat);try{chatWS?.close()}catch{}const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);const ws=new WebSocket(cloud?`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`:`ws://${location.hostname}:8788/ws`);chatWS=ws;ws.onopen=()=>{state.chatConnected=true;$('chatEngineDot').classList.add('on');$('chatEngineText').textContent='Motor de chat conectado'};ws.onmessage=e=>{try{const d=JSON.parse(e.data),p=String(d.platform||'').toLowerCase();if(['tiktok','twitch','kick'].includes(p)){if(d.type==='connected'){state.bridge[p]=true;renderPlatforms()}if(['disconnected','ended'].includes(d.type)){state.bridge[p]=false;renderPlatforms()}}}catch{}};ws.onclose=()=>{state.chatConnected=false;$('chatEngineDot').classList.remove('on');$('chatEngineText').textContent='Reconectando motor de chat…';retryChat=setTimeout(connectChatEngine,1500)};ws.onerror=()=>{try{ws.close()}catch{}}}
+let chatWS,retryChat;function connectChatEngine(){clearTimeout(retryChat);try{chatWS?.close()}catch{}const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);const ws=new WebSocket(cloud?`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`:`ws://${location.hostname}:8788/ws`);chatWS=ws;ws.onopen=()=>{state.chatConnected=true;$('chatEngineDot').classList.add('on');$('chatEngineText').textContent='Motor de chat conectado'};ws.onmessage=e=>{try{const d=JSON.parse(e.data),p=String(d.platform||'').toLowerCase();if(['tiktok','twitch','kick','starvios'].includes(p)){if(d.type==='connected'){state.bridge[p]=true;renderPlatforms()}if(['disconnected','ended'].includes(d.type)){state.bridge[p]=false;renderPlatforms()}}}catch{}};ws.onclose=()=>{state.chatConnected=false;$('chatEngineDot').classList.remove('on');$('chatEngineText').textContent='Reconectando motor de chat…';retryChat=setTimeout(connectChatEngine,1500)};ws.onerror=()=>{try{ws.close()}catch{}}}
 async function postAlert(payload){const r=await fetch('/api/alert',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw Error('No se pudo enviar la alerta')}
 const tests={
  'tt-follow':{platform:'TikTok',event:'follow',name:'USUARIO_PRUEBA',action:'te siguió'},
@@ -170,6 +170,26 @@ $('loginTikTok').onclick=()=>platformAction('tiktok','TikTok');
 $('loginTwitch').onclick=()=>platformAction('twitch','Twitch');
 $('loginKick').onclick=()=>platformAction('kick','Kick');
 $('loginYouTube').onclick=()=>platformAction('youtube','YouTube');
+$('loginStarvios').onclick=async()=>{
+  if(state.status.starvios?.authenticated){
+    if(!confirm('¿Desconectar el canal de Starvios de GREÑA LIVE?'))return;
+    try{
+      if(chatWS?.readyState===WebSocket.OPEN)chatWS.send(JSON.stringify({type:'disconnect-platform',platform:'starvios'}));
+      const r=await fetch('/api/disconnect/starvios',{method:'POST'});if(!r.ok)throw Error('No pude desconectar Starvios.');
+      state.status.starvios={connected:false,authenticated:false,label:'No conectado',account:''};
+      toast('Starvios desconectado.');await loadInitial();
+    }catch(e){toast(String(e.message||e))}
+    return;
+  }
+  const last=String(state.status.starvios?.account||'').replace(/^@/,'');
+  const account=prompt('Tu usuario o enlace público de Starvios:',last);
+  if(account===null)return;
+  const value=String(account||'').trim();
+  if(!value)return toast('Indica el usuario o enlace de Starvios.');
+  if(!chatWS||chatWS.readyState!==WebSocket.OPEN)return toast('El motor de chat se está reconectando. Vuelve a intentarlo.');
+  chatWS.send(JSON.stringify({type:'connect',platform:'starvios',url:value}));
+  toast('Conectando Starvios y guardando el canal…');
+};
 
 function onboardingKey(){return profileKey('grenaOnboardingDismissedV4')}
 function maybeOnboarding(){
