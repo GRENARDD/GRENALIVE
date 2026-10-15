@@ -13,7 +13,7 @@
   <header class="catalog-head">
     <div class="brand-line">
       <div class="brand-mark">G</div>
-      <div><span class="eyebrow">GREÑA LIVE · CATÁLOGO UNIVERSAL</span><h1>Regalos y apoyos</h1><p>TikTok + Twitch + Kick + YouTube en una sola biblioteca visual para alertas.</p></div>
+      <div><span class="eyebrow">GREÑA LIVE · CATÁLOGO UNIVERSAL</span><h1>Regalos y apoyos</h1><p>TikTok + Twitch + Kick + YouTube + Starvios en una sola biblioteca visual para alertas.</p></div>
     </div>
     <div class="head-actions">
       <button id="refreshBtn" class="btn primary" type="button">↻ Actualizar catálogo</button>
@@ -23,7 +23,7 @@
 
   <section class="source-note" id="sourceNote">
     <span class="pulse"></span>
-    <div><b>Catálogo inteligente</b><small>TikTok se sincroniza con el catálogo regional de República Dominicana; Twitch usa Cheermotes oficiales cuando tu cuenta está conectada; Kick conserva los Gifts reales que GREÑA recibe.</small></div>
+    <div><b>Catálogo inteligente</b><small>TikTok se sincroniza con el catálogo regional de República Dominicana; Twitch usa Cheermotes oficiales cuando tu cuenta está conectada; Kick conserva los Gifts reales que GREÑA recibe. Starvios añade tarjetas visuales de Starvies, seguidores, subs, subs regaladas, raids y Lluvia de Estrellas, sin inventar valores oficiales.</small></div>
   </section>
 
   <section class="stats-grid">
@@ -31,6 +31,7 @@
     <article class="tt"><span>TikTok</span><b id="statTikTok">0</b><small>regalos</small></article>
     <article class="tw"><span>Twitch</span><b id="statTwitch">0</b><small>Bits / subs</small></article>
     <article class="ki"><span>Kick</span><b id="statKick">0</b><small>KICKs / Gifts</small></article><article><span>YouTube</span><b id="statYouTube">0</b><small>Super Chats / Stickers / membresías</small></article>
+    <article><span>Starvios</span><b id="statStarvios">0</b><small>apoyos / eventos</small></article>
     <article><span>Animados</span><b id="statAnimated">0</b><small>media disponible</small></article>
   </section>
 
@@ -40,7 +41,7 @@
       <button class="active" data-platform="">Todos</button>
       <button data-platform="TikTok">TikTok</button>
       <button data-platform="Twitch">Twitch</button>
-      <button data-platform="Kick">Kick</button><button data-platform="YouTube">YouTube</button>
+      <button data-platform="Kick">Kick</button><button data-platform="YouTube">YouTube</button><button data-platform="Starvios">Starvios</button>
     </div>
     <label class="toggle"><input type="checkbox" id="animatedOnly"><span></span> Solo animados</label>
   </section>
@@ -56,7 +57,7 @@
 
   <section class="catalog-footnote">
     <b>Cómo funciona con las alertas</b>
-    <p>Cuando llega un apoyo real, GREÑA intenta asociarlo con este catálogo. Si existe imagen animada la usa primero; si no, usa la imagen estática del evento o del catálogo. En Kick, el webhook oficial actualmente entrega nombre, valor, tipo y tier del Gift, pero no una imagen oficial del Gift en el payload documentado, por eso GREÑA aprende lo que recibe y usa imagen solo cuando la plataforma la entrega.</p>
+    <p>Starvios muestra ilustraciones GREÑA de Starvies y acciones, no un supuesto catálogo oficial de regalos con precios. Cuando llega un apoyo real, GREÑA intenta asociarlo con este catálogo. Si existe imagen animada la usa primero; si no, usa la imagen estática del evento o del catálogo. En Kick, el webhook oficial actualmente entrega nombre, valor, tipo y tier del Gift, pero no una imagen oficial del Gift en el payload documentado, por eso GREÑA aprende lo que recibe y usa imagen solo cuando la plataforma la entrega.</p>
   </section>
 </div>
 <div class="toast" id="toast"></div>
