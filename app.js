@@ -139,7 +139,10 @@ fetch('/api/designs',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(d.designs
 const wsStatus=$('serverStatus');const obsStatus=$('obsConnection');let statusSocket=null,statusRetry=null;function checkSocket(){clearTimeout(statusRetry);try{if(statusSocket&&statusSocket.readyState===WebSocket.OPEN)statusSocket.close()}catch{}const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);statusSocket=ws;ws.onopen=()=>{wsStatus.textContent='Servidor local conectado';obsStatus.textContent='Enlace local activo'};ws.onmessage=e=>{try{const d=JSON.parse(e.data);if((d.type==='hello'||d.type==='platform-status')&&d.status)renderPlatformStatus(d.status,d.eventHealth||{});if(d.type==='event-health')refreshPlatformStatus();if(d.type==='activity'&&d.activity)addActivity(d.activity)}catch{}};ws.onerror=()=>{wsStatus.textContent='Servidor local no disponible';obsStatus.textContent='No se detecta el servidor';try{ws.close()}catch{}};ws.onclose=()=>{wsStatus.textContent='Reconectando servidor…';obsStatus.textContent='Reconectando enlace local…';statusRetry=setTimeout(checkSocket,1500)}}checkSocket();design.layers=baseLayers();updatePreview();
 // ===== CUENTAS CONECTADAS: TikTok + Twitch + Kick =====
 const platformEls={tiktok:$('tiktokStatus'),twitch:$('twitchStatus'),kick:$('kickStatus'),starvios:$('starviosStatus')};
-function renderPlatformStatus(st={},health={}){
+let lastAlertEventHealth={};
+function renderPlatformStatus(st={},health=null){
+ if(health&&Object.keys(health).length)lastAlertEventHealth=health;
+ health=lastAlertEventHealth;
  for(const [p,el] of Object.entries(platformEls)){
   if(!el)continue;const x=st[p]||{};
   if(p==='starvios')el.textContent=x.live===true?'LIVE conectado':x.live===false?'Sin LIVE':(x.authenticated?'Canal vinculado':'No conectado');
