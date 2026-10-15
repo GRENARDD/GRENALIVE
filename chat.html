@@ -699,7 +699,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 .network-card{display:flex!important;flex-direction:column!important;gap:10px!important}
 .network-card .bar{margin:0!important}
 .network-connect{width:100%!important;min-height:44px!important;margin-top:2px!important}
-.tiktok-connect{background:#ef2f59!important}.twitch-connect{background:#8247e5!important}.kick-connect{background:#53fc18!important;color:#071006!important}.starvios-connect{background:#68419c!important;color:white!important}
+.tiktok-connect{background:#ef2f59!important}.twitch-connect{background:#8247e5!important}.kick-connect{background:#53fc18!important;color:#071006!important}.starvios-connect{background:#f779bd!important;color:#33112a!important}
 .disconnect-all-wrap{display:flex;margin:12px 0 0}.disconnect-all-wrap #disconnect{width:100%;min-height:44px;background:#222938!important}
 @media(max-width:900px){.grena-network-grid{grid-template-columns:1fr!important}}
 </style>
@@ -764,7 +764,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
   </div>
 </div>
 
-<style>.msg.starvios{border-left:4px solid #ba90ff;background:linear-gradient(90deg,rgba(167,112,255,.16),transparent)}.msg.starvios .name{color:#d5b5ff}.msg.starvios .avatar{border:2px solid #ba90ff}.msg.youtube{border-left:4px solid #ff3030;background:linear-gradient(90deg,rgba(255,48,48,.16),transparent)}.msg.youtube .name{color:#ff8585}.msg.youtube .avatar{border:2px solid #ff3030}.youtube-connect{background:#d61f2c!important;color:white!important}@media(max-width:800px){.connections{grid-template-columns:repeat(2,minmax(0,1fr))!important}}</style>
+<style>.msg.starvios{border-left:4px solid #ff81c6;background:linear-gradient(90deg,rgba(255,122,191,.16),transparent)}.msg.starvios .name{color:#ffadd9}.msg.starvios .avatar{border:2px solid #ff81c6}.msg.youtube{border-left:4px solid #ff3030;background:linear-gradient(90deg,rgba(255,48,48,.16),transparent)}.msg.youtube .name{color:#ff8585}.msg.youtube .avatar{border:2px solid #ff3030}.youtube-connect{background:#d61f2c!important;color:white!important}@media(max-width:800px){.connections{grid-template-columns:repeat(2,minmax(0,1fr))!important}}</style>
 <div class="disconnect-all-wrap">
   <button id="disconnect">DESCONECTAR TODAS LAS REDES</button>
 </div>
@@ -1220,7 +1220,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
     </span>
 
     <span id="twitchStatus" class="status-pill status-twitch">Twitch: desconectado</span>
-    <span id="kickStatus" class="status-pill" style="border-color:#53fc18">Kick: desconectado</span><span id="youtubeStatus" class="status-pill" style="border-color:#ff3030">YouTube: en espera</span><span id="starviosStatus" class="status-pill" style="border-color:#b78aff">Starvios: desconectado</span>
+    <span id="kickStatus" class="status-pill" style="border-color:#53fc18">Kick: desconectado</span><span id="youtubeStatus" class="status-pill" style="border-color:#ff3030">YouTube: en espera</span><span id="starviosStatus" class="status-pill" style="border-color:#ff82ca">Starvios: desconectado</span>
 
   </div>
 
@@ -5420,7 +5420,7 @@ function renderAutoConnectPrefs(prefs={}, runtime={}){
     const saved=!!prefs[enabledKey]&&!!String(prefs[urlKey]||'').trim();
     const live=!!runtime[runtimeKey];
     el.classList.toggle('on',saved);
-    el.textContent=(id==='autoTikTok'?'TikTok':id==='autoTwitch'?'Twitch':'Kick')+(live?' ✓':saved?' · guardado':'');
+    el.textContent=(id==='autoTikTok'?'TikTok':id==='autoTwitch'?'Twitch':id==='autoKick'?'Kick':id==='autoYouTube'?'YouTube':'Starvios')+(live?' ✓':saved?' · guardado':'');
   }
 }
 
