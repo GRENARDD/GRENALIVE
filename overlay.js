@@ -35,8 +35,9 @@ function enqueue(a={}){
 function next(){if(playing||!queue.length)return;playing=true;show(queue.shift())}
 function initials(n='U'){const s=String(n??'').trim();if(!s)return 'U';let g='';try{if(typeof Intl!=='undefined'&&Intl.Segmenter){const it=new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(s)[Symbol.iterator]().next();if(!it.done)g=it.value.segment}}catch{}if(!g)g=Array.from(s)[0]||'U';return g.toUpperCase().replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')}
 function eventName(a={}){if(a.event==='gift'&&a.giftName)return `REGALO · ${String(a.giftName).toUpperCase()}`;if(a.event==='cheer'&&Number(a.bits)>0)return `${Number(a.bits).toLocaleString('es-DO')} BITS RECIBIDOS`;return a.eventLabel||({follow:'NUEVO SEGUIDOR',sub:'NUEVA SUSCRIPCIÓN',subrenew:'RENOVÓ SUSCRIPCIÓN',giftsub:'SUSCRIPCIONES REGALADAS',gift:'REGALO RECIBIDO',cheer:'BITS / APOYO',share:'COMPARTIÓ EL LIVE',raid:'RAID',like:'META DE LIKES',milestone:'META ALCANZADA',record:'NUEVO RÉCORD',mega:'APOYO LEGENDARIO'})[a.event]||'EVENTO'}
-function platformShort(p=''){return /tiktok/i.test(p)?'TikTok':/twitch/i.test(p)?'Twitch':/kick/i.test(p)?'Kick':String(p||'Stream')}
+function platformShort(p=''){return /tiktok/i.test(p)?'TikTok':/twitch/i.test(p)?'Twitch':/kick/i.test(p)?'Kick':/starvios/i.test(p)?'Starvios':String(p||'Stream')}
 function platformIconSrc(p=''){
+  if(/starvios/i.test(p))return '/assets/platforms/starvios.svg';
   if(/tiktok/i.test(p))return '/assets/platforms/tiktok.webp';
   if(/twitch/i.test(p))return '/assets/platforms/twitch.webp';
   if(/kick/i.test(p))return 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Cpath fill=%22%2353FC18%22 d=%22M8 8h14v18h6l10-18h18L42 31l14 25H38L28 38h-6v18H8z%22/%3E%3C/svg%3E';
@@ -47,6 +48,7 @@ function defaultPalette(a={}){
   if(platform.includes('tiktok')) return ['#ff334f','#ff6b81'];
   if(platform.includes('twitch')) return ['#9146ff','#bf94ff'];
   if(platform.includes('kick')) return ['#39ff88','#0bbf5b'];
+  if(platform.includes('starvios')) return ['#ff86c8','#ff4ca6'];
   return ['#a855f7','#22d3ee'];
 }
 function resolveAccents(a={}){

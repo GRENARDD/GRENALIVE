@@ -5,3 +5,6 @@
 /* Identidad visual GREÑA: TikTok celeste y YouTube rojo */
 .platform-chip.TikTok,.platform-chip.tiktok{color:#25F4EE!important;border-color:rgba(37,244,238,.48)!important;background:rgba(37,244,238,.09)!important}
 .platform-chip.YouTube,.platform-chip.youtube{color:#ff5476!important;border-color:rgba(255,0,51,.48)!important;background:rgba(255,0,51,.09)!important}
+
+/* Starvios: apoyo / eventos con ilustraciones GREÑA, sin confundir con catálogo oficial */
+.platform-chip.Starvios{color:#ffaddb!important;border-color:rgba(255,128,197,.48)!important;background:rgba(255,110,186,.13)!important}

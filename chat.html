@@ -699,7 +699,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 .network-card{display:flex!important;flex-direction:column!important;gap:10px!important}
 .network-card .bar{margin:0!important}
 .network-connect{width:100%!important;min-height:44px!important;margin-top:2px!important}
-.tiktok-connect{background:#ef2f59!important}.twitch-connect{background:#8247e5!important}.kick-connect{background:#53fc18!important;color:#071006!important}
+.tiktok-connect{background:#ef2f59!important}.twitch-connect{background:#8247e5!important}.kick-connect{background:#53fc18!important;color:#071006!important}.starvios-connect{background:#f779bd!important;color:#33112a!important}
 .disconnect-all-wrap{display:flex;margin:12px 0 0}.disconnect-all-wrap #disconnect{width:100%;min-height:44px;background:#222938!important}
 @media(max-width:900px){.grena-network-grid{grid-template-columns:1fr!important}}
 </style>
@@ -714,7 +714,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 <h1>GREÑA CHAT</h1>
 
 <div class="sub">
-  Conecta TikTok LIVE y Twitch para ver ambos chats juntos.
+  Unifica TikTok, Twitch, Kick, YouTube y Starvios en un solo chat.
 </div>
 
 <!-- =========================
@@ -752,6 +752,11 @@ body.voice-settings-modal-open{overflow:hidden!important}
       <img class="button-platform-icon" src="/assets/platforms/kick.svg" alt=""> CONECTAR KICK
     </button>
   </div>
+  <div class="connection-box network-card">
+    <div class="connection-title"><img class="platform-brand-icon" src="/assets/platforms/starvios.svg" alt=""> Starvios</div>
+    <div class="bar"><input id="starviosUrl" placeholder="@usuario o https://starvios.com/usuario"></div>
+    <button id="connectStarvios" class="network-connect starvios-connect"><img class="button-platform-icon" src="/assets/platforms/starvios.svg" alt=""> CONECTAR STARVIOS</button>
+  </div>
   <div class="connection-box youtube">
     <div class="connection-title">▶ YouTube Gaming</div>
     <div class="bar"><input id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div>
@@ -759,7 +764,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
   </div>
 </div>
 
-<style>.msg.youtube{border-left:4px solid #ff3030;background:linear-gradient(90deg,rgba(255,48,48,.16),transparent)}.msg.youtube .name{color:#ff8585}.msg.youtube .avatar{border:2px solid #ff3030}.youtube-connect{background:#d61f2c!important;color:white!important}@media(max-width:800px){.connections{grid-template-columns:repeat(2,minmax(0,1fr))!important}}</style>
+<style>.msg.starvios{border-left:4px solid #ff81c6;background:linear-gradient(90deg,rgba(255,122,191,.16),transparent)}.msg.starvios .name{color:#ffadd9}.msg.starvios .avatar{border:2px solid #ff81c6}.msg.youtube{border-left:4px solid #ff3030;background:linear-gradient(90deg,rgba(255,48,48,.16),transparent)}.msg.youtube .name{color:#ff8585}.msg.youtube .avatar{border:2px solid #ff3030}.youtube-connect{background:#d61f2c!important;color:white!important}@media(max-width:800px){.connections{grid-template-columns:repeat(2,minmax(0,1fr))!important}}</style>
 <div class="disconnect-all-wrap">
   <button id="disconnect">DESCONECTAR TODAS LAS REDES</button>
 </div>
@@ -1080,6 +1085,17 @@ body.voice-settings-modal-open{overflow:hidden!important}
       <div class="voice-field" style="margin-top:14px"><label>Usuarios seleccionados</label><textarea id="kickSelectedUsers" placeholder="usuario1&#10;usuario2"></textarea></div>
     </div>
 
+    <!-- STARVIOS -->
+    <div class="voice-box">
+      <h3 class="platform-heading"><img src="/assets/platforms/starvios.svg" alt="">Starvios</h3>
+      <label class="voice-check"><input type="checkbox" id="starviosVoiceEnabled" checked> Leer mensajes de Starvios</label>
+      <div class="radio-group">
+        <label class="radio-option"><input type="radio" name="starviosMode" value="all" checked> 👥 Todos</label>
+        <label class="radio-option"><input type="radio" name="starviosMode" value="selected"> 🎯 Solo usuarios seleccionados</label>
+      </div>
+      <div class="voice-field" style="margin-top:14px"><label>Usuarios seleccionados</label><textarea id="starviosSelectedUsers" placeholder="usuario1&#10;usuario2"></textarea></div>
+    </div>
+
     <!-- YOUTUBE: misma tarjeta de voz plegable que las demás plataformas -->
     <details class="voice-box youtube-voice-card" style="border:1px solid #633137">
       <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;padding:2px;font-weight:800">
@@ -1204,7 +1220,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
     </span>
 
     <span id="twitchStatus" class="status-pill status-twitch">Twitch: desconectado</span>
-    <span id="kickStatus" class="status-pill" style="border-color:#53fc18">Kick: desconectado</span><span id="youtubeStatus" class="status-pill" style="border-color:#ff3030">YouTube: en espera</span>
+    <span id="kickStatus" class="status-pill" style="border-color:#53fc18">Kick: desconectado</span><span id="youtubeStatus" class="status-pill" style="border-color:#ff3030">YouTube: en espera</span><span id="starviosStatus" class="status-pill" style="border-color:#ff82ca">Starvios: desconectado</span>
 
   </div>
 
@@ -1232,6 +1248,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
     <button type="button" data-chat-filter="twitch"><img src="/assets/platforms/twitch.webp" alt=""> Twitch <span id="chatCountTwitch">0</span></button>
     <button type="button" data-chat-filter="kick"><img src="/assets/platforms/kick.svg" alt=""> Kick <span id="chatCountKick">0</span></button>
     <button type="button" data-chat-filter="youtube">▶ YouTube <span id="chatCountYouTube">0</span></button>
+    <button type="button" data-chat-filter="starvios"><img src="/assets/platforms/starvios.svg" alt=""> Starvios <span id="chatCountStarvios">0</span></button>
   </div>
 
 <div id="chat" class="chat">
@@ -1424,6 +1441,10 @@ function saveSettings(){
       kickUrl:
         $('kickUrl').value,
       youtubeUrl:$('youtubeUrl').value,
+      starviosUrl:$('starviosUrl').value,
+      starviosVoiceEnabled:$('starviosVoiceEnabled').checked,
+      starviosMode:getSelectedMode('starvios'),
+      starviosSelectedUsers:$('starviosSelectedUsers').value,
 
       voiceEnabled:
         $('voiceEnabled').checked,
@@ -1579,6 +1600,10 @@ function restoreSettings(){
   }
 
   if(typeof settings.youtubeUrl==='string')$('youtubeUrl').value=settings.youtubeUrl;
+  if(typeof settings.starviosUrl==='string')$('starviosUrl').value=settings.starviosUrl;
+  if(typeof settings.starviosVoiceEnabled==='boolean')$('starviosVoiceEnabled').checked=settings.starviosVoiceEnabled;
+  if(typeof settings.starviosSelectedUsers==='string')$('starviosSelectedUsers').value=settings.starviosSelectedUsers;
+  if(settings.starviosMode){const radio=document.querySelector('input[name="starviosMode"][value="'+settings.starviosMode+'"]');if(radio)radio.checked=true;}
   if(typeof settings.youtubeVoiceEnabled==='boolean')$('youtubeVoiceEnabled').checked=settings.youtubeVoiceEnabled;
   if(typeof settings.youtubeSelectedUsers==='string')$('youtubeSelectedUsers').value=settings.youtubeSelectedUsers;
   if(settings.youtubeMode)document.querySelector('input[name="youtubeMode"][value="'+settings.youtubeMode+'"]')?.click();
@@ -2312,7 +2337,7 @@ function getSelectedMode(platform){
 function isUserAllowed(m){
 
   const platform =
-    ['tiktok','twitch','kick','youtube'].includes(String(m.platform||'').toLowerCase())
+    ['tiktok','twitch','kick','youtube','starvios'].includes(String(m.platform||'').toLowerCase())
       ? String(m.platform).toLowerCase()
       : 'tiktok';
 
@@ -2320,6 +2345,7 @@ function isUserAllowed(m){
     platform === 'twitch' ? $('twitchVoiceEnabled').checked :
     platform === 'kick' ? $('kickVoiceEnabled').checked :
     platform === 'youtube' ? $('youtubeVoiceEnabled').checked :
+    platform === 'starvios' ? $('starviosVoiceEnabled').checked :
     $('tiktokVoiceEnabled').checked;
 
   if(!enabled){
@@ -2355,6 +2381,7 @@ function isUserAllowed(m){
       platform === 'twitch' ? getList($('twitchSelectedUsers').value) :
       platform === 'kick' ? getList($('kickSelectedUsers').value) :
       platform === 'youtube' ? getList($('youtubeSelectedUsers').value) :
+      platform === 'starvios' ? getList($('starviosSelectedUsers').value) :
       getList($('tiktokSelectedUsers').value);
 
     if(
@@ -4508,6 +4535,7 @@ function openWS(){
               m.message
             );
             if(m.platform==='youtube')$('youtubeStatus').textContent='YouTube: '+(/conectado/i.test(m.message||'')?'conectado':'en espera');
+            if(m.platform==='starvios')$('starviosStatus').textContent='Starvios: '+String(m.message||'en espera').slice(0,90);
           }
 
           if(
@@ -4524,6 +4552,8 @@ function openWS(){
               $('twitchStatus').textContent='Twitch: conectado';
             }else if(m.platform === 'kick'){
               $('kickStatus').textContent='Kick: conectado';
+            }else if(m.platform==='starvios'){
+              $('starviosStatus').textContent='Starvios: conectado';
             }else{
               $('tiktokStatus').textContent='TikTok: conectado';
             }
@@ -4545,6 +4575,7 @@ function openWS(){
             if(m.platform === 'twitch') $('twitchStatus').textContent='Twitch: reintentará automáticamente';
             if(m.platform === 'kick') $('kickStatus').textContent='Kick: reintentará automáticamente';
             if(m.platform === 'youtube') $('youtubeStatus').textContent='YouTube: '+String(m.message||'Error').slice(0,95);
+            if(m.platform === 'starvios') $('starviosStatus').textContent='Starvios: '+String(m.message||'Error').slice(0,95);
 
           }
 
@@ -4649,9 +4680,9 @@ function openWS(){
    MODERADOR INTEGRADO
 ===================================================== */
 let moderationTarget=null;
-let mutedUsersState={tiktok:[],twitch:[],kick:[]};
+let mutedUsersState={tiktok:[],twitch:[],kick:[],starvios:[]};
 function normalizeMutedUsersState(value={}){
-  const out={tiktok:[],twitch:[],kick:[]};
+  const out={tiktok:[],twitch:[],kick:[],starvios:[]};
   for(const platform of Object.keys(out)){
     const list=Array.isArray(value?.[platform])?value[platform]:[];
     out[platform]=[...new Set(list.map(v=>String(v||'').trim().replace(/^@/,'').toLowerCase()).filter(Boolean))].sort();
@@ -4662,7 +4693,7 @@ function renderMutedUsers(){
   const host=document.getElementById('mutedUsersList');if(!host)return;
   host.replaceChildren();
   const rows=[];
-  for(const platform of ['tiktok','twitch','kick'])for(const user of mutedUsersState[platform]||[])rows.push({platform,user});
+  for(const platform of ['tiktok','twitch','kick','starvios'])for(const user of mutedUsersState[platform]||[])rows.push({platform,user});
   if(!rows.length){
     const empty=document.createElement('div');empty.className='mod-muted-empty';empty.textContent='No tienes usuarios silenciados.';host.append(empty);return;
   }
@@ -4712,18 +4743,18 @@ function moderationModal(){
 }
 function platformActionHtml(platform,m={}){
   if(platform==='twitch'||platform==='kick')return `<div class="mod-section-title">EN ${platform==='twitch'?'TWITCH':'KICK'} DE VERDAD</div><div class="mod-grid"><button class="mod-btn" data-real-action="delete_message" ${m.messageId?'':'disabled'}>🗑 Borrar mensaje</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="60">⏱ Timeout 1 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="300">⏱ Timeout 5 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="600">⏱ Timeout 10 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="1800">⏱ Timeout 30 min</button><button class="mod-btn warn" data-real-action="timeout" data-seconds="3600">⏱ Timeout 1 hora</button><button class="mod-btn danger" data-real-action="ban">⛔ Ban permanente</button><button class="mod-btn safe" data-real-action="unban">↩ Quitar ban / timeout</button></div>`;
-  return `<div class="mod-section-title">EN TIKTOK</div>`;
+  return `<div class="mod-section-title">${platform==='starvios'?'EN STARVIOS · SIN MODERACIÓN REMOTA':platform==='youtube'?'EN YOUTUBE · SIN MODERACIÓN REMOTA':'EN TIKTOK'}</div>`;
 }
 function openModerator(m,row){
-  const platform=['tiktok','twitch','kick','youtube'].includes(String(m.platform||'').toLowerCase())?String(m.platform).toLowerCase():'tiktok';moderationTarget={...m,platform,user:moderationIdentity(m)||m.user||m.nickname||'',__row:row};
+  const platform=['tiktok','twitch','kick','youtube','starvios'].includes(String(m.platform||'').toLowerCase())?String(m.platform).toLowerCase():'tiktok';moderationTarget={...m,platform,user:moderationIdentity(m)||m.user||m.nickname||'',__row:row};
   const back=moderationModal();back.querySelector('#modTitle').textContent='🛡️ Moderar usuario';back.querySelector('#modReasonWrap').style.display='';back.querySelector('#localModActions').style.display='';back.querySelector('#modUser').textContent=(m.nickname||m.user||'Usuario')+(m.user&&m.nickname&&m.user!==m.nickname?`  @${m.user}`:'');back.querySelector('#modPlatform').textContent=platform.toUpperCase();back.querySelector('#modReason').value='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';
   const area=back.querySelector('#platformModActions');area.innerHTML=platformActionHtml(platform,m);area.querySelectorAll('[data-real-action]').forEach(b=>b.onclick=()=>runModeration(b.dataset.realAction,b,Number(b.dataset.seconds||0)));
-  back.querySelector('#modNote').textContent=platform==='tiktok'?'TikTok: al silenciar un usuario en GREÑA, deja de aparecer en el chat y queda guardado para todos tus próximos LIVE hasta que lo quites de la lista.':`${platform==='twitch'?'Twitch':'Kick'}: silenciar en GREÑA es permanente dentro de tu chat. Borrar, timeout, ban y desban se ejecutan además en la plataforma si tu cuenta está autorizada.`;
+  back.querySelector('#modNote').textContent=(platform==='starvios'||platform==='youtube')?platform.toUpperCase()+': el silencio solo actúa en GREÑA. No se envían sanciones a la plataforma.':platform==='tiktok'?'TikTok: al silenciar un usuario en GREÑA, deja de aparecer en el chat y queda guardado para todos tus próximos LIVE hasta que lo quites de la lista.':`${platform==='twitch'?'Twitch':'Kick'}: silenciar en GREÑA es permanente dentro de tu chat. Borrar, timeout, ban y desban se ejecutan además en la plataforma si tu cuenta está autorizada.`;
   back.classList.add('show');refreshMutedUsers();
 }
 function openMutedUsersManager(){
   moderationTarget=null;
-  const back=moderationModal();back.querySelector('#modTitle').textContent='🔇 Usuarios silenciados';back.querySelector('#modUser').textContent='Lista permanente';back.querySelector('#modPlatform').textContent='TIKTOK · TWITCH · KICK';back.querySelector('#modReasonWrap').style.display='none';back.querySelector('#localModActions').style.display='none';back.querySelector('#platformModActions').innerHTML='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';back.querySelector('#modNote').textContent='Todo usuario que silencies queda guardado aquí y seguirá oculto en futuros LIVE. Solo vuelve a aparecer cuando pulses Quitar.';
+  const back=moderationModal();back.querySelector('#modTitle').textContent='🔇 Usuarios silenciados';back.querySelector('#modUser').textContent='Lista permanente';back.querySelector('#modPlatform').textContent='TIKTOK · TWITCH · KICK · STARVIOS';back.querySelector('#modReasonWrap').style.display='none';back.querySelector('#localModActions').style.display='none';back.querySelector('#platformModActions').innerHTML='';back.querySelector('#modResult').className='mod-result';back.querySelector('#modResult').textContent='';back.querySelector('#modNote').textContent='Todo usuario que silencies queda guardado aquí y seguirá oculto en futuros LIVE. Solo vuelve a aparecer cuando pulses Quitar.';
   back.classList.add('show');refreshMutedUsers();
 }
 $('manageMutedUsers')?.addEventListener('click',openMutedUsersManager);
@@ -4778,7 +4809,7 @@ function addMessage(m){
     );
 
   const platform =
-    ['tiktok','twitch','kick','youtube'].includes(String(m.platform||'').toLowerCase())
+    ['tiktok','twitch','kick','youtube','starvios'].includes(String(m.platform||'').toLowerCase())
       ? String(m.platform).toLowerCase()
       : 'tiktok';
 
@@ -4887,7 +4918,8 @@ function addMessage(m){
   platformLabel.textContent =
     platform === 'twitch' ? 'TWITCH' :
     platform === 'kick' ? 'KICK' :
-    platform === 'youtube' ? 'YOUTUBE' : 'TIKTOK';
+    platform === 'youtube' ? 'YOUTUBE' :
+    platform === 'starvios' ? 'STARVIOS' : 'TIKTOK';
 
   const time =
     document.createElement(
@@ -5140,6 +5172,7 @@ function disconnect(){
     'Twitch: desconectado';
 
   $('kickStatus').textContent = 'Kick: desconectado';
+  $('starviosStatus').textContent='Starvios: desconectado';
 
 }
 
@@ -5157,6 +5190,14 @@ $('connectTwitch')
   connectTwitch;
 
 $('connectKick').onclick=connectKick;
+$('connectStarvios').onclick=async()=>{
+  const url=$('starviosUrl').value.trim();
+  if(!url)return status('🔴 Escribe tu usuario o enlace de Starvios.','bad');
+  try{if(!ws||ws.readyState!==1)await openWS()}catch{return status('🔴 Motor de chat no disponible.','bad')}
+  saveSettings();
+  ws.send(JSON.stringify({type:'connect',platform:'starvios',url}));
+  $('starviosStatus').textContent='Starvios: conectando...';
+};
 window.addEventListener('message',e=>{
  if(e.origin!==location.origin||e.data?.type!=='grena-youtube-connect')return;
  const url=String(e.data.url||'').trim();
@@ -5215,6 +5256,7 @@ $('twitchUrl')
 
 
 $('kickUrl').onkeydown=e=>{if(e.key==='Enter')connectKick();};
+$('starviosUrl').onkeydown=e=>{if(e.key==='Enter')$('connectStarvios').click()};
 
 /* =====================================================
    GUARDADO AUTOMÁTICO
@@ -5243,6 +5285,9 @@ function installSettingsListeners(){
     'twitchSelectedUsers',
     'kickVoiceEnabled',
     'kickSelectedUsers',
+    'starviosUrl',
+    'starviosVoiceEnabled',
+    'starviosSelectedUsers',
     'blockedUsers',
     'blockedWords',
     'ignoreRepeated',
@@ -5279,7 +5324,7 @@ function installSettingsListeners(){
 
   document
     .querySelectorAll(
-      'input[name="tiktokMode"], input[name="twitchMode"], input[name="kickMode"]'
+      'input[name="tiktokMode"], input[name="twitchMode"], input[name="kickMode"], input[name="starviosMode"]'
     )
     .forEach(
       radio => {
@@ -5366,7 +5411,8 @@ function renderAutoConnectPrefs(prefs={}, runtime={}){
     ['autoTikTok','tiktokEnabled','tiktokUrl','tiktok'],
     ['autoTwitch','twitchEnabled','twitchUrl','twitch'],
     ['autoKick','kickEnabled','kickUrl','kick'],
-    ['autoYouTube','youtubeEnabled','youtubeUrl','youtube']
+    ['autoYouTube','youtubeEnabled','youtubeUrl','youtube'],
+    ['autoStarvios','starviosEnabled','starviosUrl','starvios']
   ];
   for(const [id,enabledKey,urlKey,runtimeKey] of map){
     const el=$(id);
@@ -5374,7 +5420,7 @@ function renderAutoConnectPrefs(prefs={}, runtime={}){
     const saved=!!prefs[enabledKey]&&!!String(prefs[urlKey]||'').trim();
     const live=!!runtime[runtimeKey];
     el.classList.toggle('on',saved);
-    el.textContent=(id==='autoTikTok'?'TikTok':id==='autoTwitch'?'Twitch':'Kick')+(live?' ✓':saved?' · guardado':'');
+    el.textContent=(id==='autoTikTok'?'TikTok':id==='autoTwitch'?'Twitch':id==='autoKick'?'Kick':id==='autoYouTube'?'YouTube':'Starvios')+(live?' ✓':saved?' · guardado':'');
   }
 }
 
@@ -5387,6 +5433,7 @@ async function syncSavedConnections(){
     if(prefs.tiktokUrl) $('tiktokUrl').value=prefs.tiktokUrl;
     if(prefs.twitchUrl) $('twitchUrl').value=prefs.twitchUrl;
     if(prefs.kickUrl) $('kickUrl').value=prefs.kickUrl;
+    if(prefs.starviosUrl) $('starviosUrl').value=prefs.starviosUrl;
     const runtime=d.runtime||{};
     renderAutoConnectPrefs(prefs,runtime);
 
@@ -5397,7 +5444,8 @@ async function syncSavedConnections(){
     const visible=[
       ['tiktokStatus','TikTok','tiktok','tiktokEnabled','tiktokUrl'],
       ['twitchStatus','Twitch','twitch','twitchEnabled','twitchUrl'],
-      ['kickStatus','Kick','kick','kickEnabled','kickUrl']
+      ['kickStatus','Kick','kick','kickEnabled','kickUrl'],
+      ['starviosStatus','Starvios','starvios','starviosEnabled','starviosUrl']
     ];
     for(const [id,label,key,enabledKey,urlKey] of visible){
       const el=$(id);
@@ -5490,6 +5538,7 @@ openWS()
     const twitchBox=byTitle(/^\s*twitch\s*$/i);
     const kickBox=byTitle(/^\s*kick\s*$/i);
     const youtubeBox=boxes.find(box=>box.classList.contains('youtube-voice-card'));
+    const starviosBox=byTitle(/^\s*starvios\s*$/i);
     const filtersBox=boxes.find(box=>box.classList.contains('filters-panel'))||byTitle(/filtros|anti-spam/i);
 
     // "Leer nombre del usuario" pertenece a Configuración de voz.
@@ -5514,6 +5563,7 @@ openWS()
       {key:'twitch',title:'Twitch',subtitle:'Lectura de mensajes y usuarios',box:twitchBox,img:'/assets/platforms/twitch.webp',cls:'twitch'},
       {key:'kick',title:'Kick',subtitle:'Lectura de mensajes y usuarios',box:kickBox,img:'/assets/platforms/kick.svg',cls:'kick'},
       {key:'youtube',title:'YouTube',subtitle:'Lectura de mensajes y usuarios',box:youtubeBox,icon:'▶',cls:'youtube'},
+      {key:'starvios',title:'Starvios',subtitle:'Lectura de mensajes y usuarios',box:starviosBox,img:'/assets/platforms/starvios.svg',cls:'starvios'},
       {key:'filters',title:'Filtros avanzados',subtitle:'Anti-spam y bloqueos',box:filtersBox,icon:'🛡️',cls:'filters'}
     ];
 
@@ -5560,6 +5610,7 @@ openWS()
         twitch:stateText(!!document.getElementById('twitchVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
         kick:stateText(!!document.getElementById('kickVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
         youtube:stateText(!!document.getElementById('youtubeVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
+        starvios:stateText(!!document.getElementById('starviosVoiceEnabled')?.checked,'Lectura activa','Lectura desactivada'),
         filters:stateText(document.getElementById('smartSpamEnabled')?.checked!==false,'Anti-spam activo','Anti-spam apagado')
       };
       for(const [key,value] of Object.entries(map)){
@@ -5567,7 +5618,7 @@ openWS()
         if(el)el.textContent=value;
       }
     };
-    ['voiceEnabled','tiktokVoiceEnabled','twitchVoiceEnabled','kickVoiceEnabled','youtubeVoiceEnabled','smartSpamEnabled'].forEach(id=>document.getElementById(id)?.addEventListener('change',syncCards));
+    ['voiceEnabled','tiktokVoiceEnabled','twitchVoiceEnabled','kickVoiceEnabled','youtubeVoiceEnabled','starviosVoiceEnabled','smartSpamEnabled'].forEach(id=>document.getElementById(id)?.addEventListener('change',syncCards));
     syncCards();
   }
 
@@ -5582,20 +5633,21 @@ openWS()
 
   function platformOf(el){
     const fromData=String(el?.dataset?.platform||'').toLowerCase();
-    if(['tiktok','twitch','kick','youtube'].includes(fromData))return fromData;
+    if(['tiktok','twitch','kick','youtube','starvios'].includes(fromData))return fromData;
     if(el.classList.contains('tiktok'))return'tiktok';
     if(el.classList.contains('twitch'))return'twitch';
     if(el.classList.contains('kick'))return'kick';
     if(el.classList.contains('youtube'))return'youtube';
+    if(el.classList.contains('starvios'))return'starvios';
     return'';
   }
 
   function updateCounts(){
     if(!chat)return;
     const rows=[...chat.querySelectorAll('.msg')];
-    const counts={all:rows.length,tiktok:0,twitch:0,kick:0,youtube:0};
+    const counts={all:rows.length,tiktok:0,twitch:0,kick:0,youtube:0,starvios:0};
     rows.forEach(r=>{const p=platformOf(r);if(p)counts[p]++});
-    const ids={all:'chatCountAll',tiktok:'chatCountTikTok',twitch:'chatCountTwitch',kick:'chatCountKick',youtube:'chatCountYouTube'};
+    const ids={all:'chatCountAll',tiktok:'chatCountTikTok',twitch:'chatCountTwitch',kick:'chatCountKick',youtube:'chatCountYouTube',starvios:'chatCountStarvios'};
     Object.entries(ids).forEach(([k,id])=>{const el=document.getElementById(id);if(el)el.textContent=counts[k]});
   }
 

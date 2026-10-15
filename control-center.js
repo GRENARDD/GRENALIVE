@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-const state={status:{},bridge:{tiktok:false,twitch:false,kick:false,youtube:false},eventHealth:{},viewers:{tiktok:0,twitch:0,kick:0,youtube:0},activity:[],chatConnected:false,profile:null};
+const state={status:{},bridge:{tiktok:false,twitch:false,kick:false,youtube:false,starvios:false},eventHealth:{},viewers:{tiktok:0,twitch:0,kick:0,youtube:0,starvios:0},activity:[],chatConnected:false,profile:null};
 const icons={follow:'＋',gift:'🎁',cheer:'◆',sub:'★',share:'↗',raid:'⚡',like:'♥'};
 
 async function initAccount(){
@@ -53,7 +53,7 @@ function renderViewerSparkline(total){
  line.classList.remove('updated');dot.classList.remove('updated');void line.getBoundingClientRect();line.classList.add('updated');dot.classList.add('updated');
 }
 function renderViewers(){
- const v={tiktok:Math.max(0,Number(state.viewers.tiktok)||0),twitch:Math.max(0,Number(state.viewers.twitch)||0),kick:Math.max(0,Number(state.viewers.kick)||0),youtube:Math.max(0,Number(state.viewers.youtube)||0)};
+ const v={tiktok:Math.max(0,Number(state.viewers.tiktok)||0),twitch:Math.max(0,Number(state.viewers.twitch)||0),kick:Math.max(0,Number(state.viewers.kick)||0),youtube:Math.max(0,Number(state.viewers.youtube)||0),starvios:Math.max(0,Number(state.viewers.starvios)||0)};
  const total=Object.values(v).reduce((a,b)=>a+b,0);
  for(const p of Object.keys(v)){
   const el=$(p+'Viewers');if(el)el.textContent=v[p].toLocaleString('es-DO');
@@ -64,11 +64,11 @@ function renderViewers(){
  $('totalViewers').textContent=total.toLocaleString('es-DO');
  renderViewerSparkline(total);
 }
-function platformAccount(p){const s=state.status[p]||{};const account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='youtube'?'YouTube':'Kick');return s.authenticated?(account?(p==='tiktok'?`@${String(account).replace(/^@/,'')} · LIVE vinculado`:`${account} · cuenta vinculada`):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada')}
+function platformAccount(p){const s=state.status[p]||{};const account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='youtube'?'YouTube':p==='starvios'?'Starvios':'Kick');return s.authenticated?(account?(p==='tiktok'?`@${String(account).replace(/^@/,'')} · LIVE vinculado`:`${account} · cuenta vinculada`):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada')}
 function renderPlatforms(){
- const labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube'};
+ const labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube',starvios:'Starvios'};
  const chipClass=status=>status==='ready'?' on':status==='degraded'||status==='connecting'?' warn':status==='fallback'?' fallback':status==='waiting'?' waiting':' off';
- for(const p of ['tiktok','twitch','kick','youtube']){
+ for(const p of ['tiktok','twitch','kick','youtube','starvios']){
   const s=state.status[p]||{},health=state.eventHealth[p]||{},auth=!!s.authenticated;
   const runtimeLive=p==='kick'?!!(s.runtimeConnected||state.bridge[p]):!!state.bridge[p];
   const chatState=String(health.chat||(runtimeLive?'ready':auth?'waiting':'off'));
@@ -80,25 +80,30 @@ function renderPlatforms(){
   a.textContent=p==='tiktok'?(auth?'Link ✓':'Link —'):(auth?'Cuenta ✓':'Cuenta —');
   a.title=p==='tiktok'?(auth?'LIVE de TikTok vinculado por enlace':'TikTok no vinculado'):(auth?'Cuenta autorizada en GREÑA':'Cuenta no vinculada');
 
-  const liveLabel=p==='tiktok'?'LIVE':'Chat';
+  const liveLabel=p==='tiktok'||p==='starvios'?'LIVE':'Chat';
   l.className='state-chip'+chipClass(chatState)+(chatState==='ready'?' live':'');
   l.textContent=chatState==='ready'?`${liveLabel} ✓`:chatState==='degraded'?`${liveLabel} !`:chatState==='connecting'?`${liveLabel}…`:chatState==='fallback'?`${liveLabel} local`:chatState==='waiting'?`${liveLabel} espera`:`${liveLabel} —`;
   l.title=chatState==='ready'?`${liveLabel} conectado`:chatState==='waiting'?`Cuenta vinculada; ${liveLabel.toLowerCase()} esperando conexión`:(health.lastError||health.source||`${liveLabel} no conectado`);
 
   e.className='state-chip'+chipClass(eventState);
-  e.textContent=eventState==='ready'?'Eventos ✓':eventState==='degraded'?'Eventos !':eventState==='connecting'?'Eventos…':eventState==='fallback'?'Eventos local':eventState==='waiting'?'Eventos espera':'Eventos —';
+  e.textContent=eventState==='experimental'?'Eventos β':eventState==='ready'?'Eventos ✓':eventState==='degraded'?'Eventos !':eventState==='connecting'?'Eventos…':eventState==='fallback'?'Eventos local':eventState==='waiting'?'Eventos espera':'Eventos —';
   e.title=eventState==='ready'?'Eventos en tiempo real activos':eventState==='waiting'?'Cuenta vinculada; eventos esperando que el motor en vivo esté disponible':(health.lastError||health.source||'Eventos no activos');
 
+  if(p==='starvios'){
+   l.textContent=s.live===true?'LIVE ✓':s.live===false?'OFFLINE':runtimeLive?'Chat ✓':'En espera';
+   l.className='state-chip'+(s.live===true?' on':s.live===false?' off':' waiting');
+   e.title='Starvios: eventos detectados experimentalmente desde el chat público y frames explícitos.';
+  }
   btn.textContent=auth?'Desconectar':'Conectar';btn.classList.toggle('connected',auth);btn.title=auth?`Desconectar ${labels[p]}`:`Conectar ${labels[p]}`;
  }
  maybeOnboarding();
 }
 function detailFor(a){if(a.event==='gift'&&a.giftName){const parts=[];parts.push(`${a.giftName}${Number(a.count||1)>1?' × '+a.count:''}`);if(Number(a.totalDiamonds)>0)parts.push(`${Number(a.totalDiamonds).toLocaleString('es-DO')} diamantes`);return parts.join(' · ')}if(a.event==='cheer'&&Number(a.bits)>0)return `${Number(a.bits).toLocaleString('es-DO')} Bits`;if(a.event==='raid'&&Number(a.viewers)>0)return `${Number(a.viewers).toLocaleString('es-DO')} espectadores`;return ''}
-function addActivity(a,fromHistory=false){if(!a||!['TikTok','Twitch','Kick'].includes(a.platform))return;const id=[a.platform,a.event,a.name,a.receivedAt].join('|');if(state.activity.some(x=>x.__id===id))return;a.__id=id;state.activity.unshift(a);if(state.activity.length>80)state.activity.length=80;if(!fromHistory)renderActivity();}
+function addActivity(a,fromHistory=false){if(!a||!['TikTok','Twitch','Kick','Starvios'].includes(a.platform))return;const id=[a.platform,a.event,a.name,a.receivedAt].join('|');if(state.activity.some(x=>x.__id===id))return;a.__id=id;state.activity.unshift(a);if(state.activity.length>80)state.activity.length=80;if(!fromHistory)renderActivity();}
 function renderActivity(){const box=$('activityFeed');$('eventCount').textContent=state.activity.length;if(!state.activity.length){box.innerHTML='<div class="empty-state"><span>⚡</span><b>Esperando actividad</b><small>Follows, regalos, compartidos, subs, Bits y raids aparecerán aquí con el detalle exacto.</small></div>';return}box.innerHTML=state.activity.map(a=>{const p=a.platform==='TikTok'?'tt':a.platform==='Kick'?'kick':'tw',detail=detailFor(a),action=a.action||a.message||'realizó una acción';return `<div class="event-row"><div class="event-icon">${icons[a.event]||'•'}</div><div class="event-copy"><div class="event-top"><b>${esc(a.name||'Usuario')}</b><span class="event-platform ${p}">${esc(a.platform)}</span></div><div class="event-action">${esc(action)}</div>${detail&&!String(action).includes(detail)?`<div class="event-detail">${esc(detail)}</div>`:''}</div><span class="event-time">${clock(a.receivedAt)}</span></div>`}).join('')}
 async function loadInitial(){try{const [st,ac,v]=await Promise.all([fetch('/api/status',{cache:'no-store'}).then(r=>r.json()),fetch('/api/activity?limit=60',{cache:'no-store'}).then(r=>r.json()),fetch('/api/viewers',{cache:'no-store'}).then(r=>r.json())]);state.status=st.status||{};state.bridge={...state.bridge,...(st.bridgeRuntime||{})};state.eventHealth=st.eventHealth||state.eventHealth;state.viewers=v.viewers||state.viewers;state.activity=[];(ac.activity||[]).slice().reverse().forEach(a=>addActivity(a,true));renderActivity();renderPlatforms();renderViewers();renderSystem(true)}catch{renderSystem(false)}}
 let coreWS,retryCore;function connectCore(){clearTimeout(retryCore);try{coreWS?.close()}catch{}const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);coreWS=ws;ws.onopen=()=>renderSystem(true);ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='hello'){state.status=d.status||state.status;state.bridge={...state.bridge,...(d.bridgeRuntime||{})};state.eventHealth=d.eventHealth||state.eventHealth;state.viewers=d.viewers||state.viewers;renderPlatforms();renderViewers()}if(d.type==='platform-status'){state.status=d.status||state.status;renderPlatforms()}if(d.type==='event-health'){state.eventHealth=d.eventHealth||state.eventHealth;renderPlatforms()}if(d.type==='viewers'){state.viewers=d.viewers||state.viewers;renderViewers()}if(d.type==='activity'){addActivity(d.activity);renderActivity()}if(d.type==='profile-changed'){if(!d.profile||d.profile.id!==state.profile?.id){location.replace('/login.html');return}state.profile=d.profile;$('profileName').textContent=d.profile.displayName||d.profile.username;$('profileUser').textContent='@'+d.profile.username;$('profileAvatar').textContent=String(d.profile.displayName||d.profile.username||'G').slice(0,1).toUpperCase()}}catch{}};ws.onclose=()=>{renderSystem(false);verifyOwnerSession().then(ok=>{if(ok)retryCore=setTimeout(connectCore,1500)})};ws.onerror=()=>{try{ws.close()}catch{}}}
-let chatWS,retryChat;function connectChatEngine(){clearTimeout(retryChat);try{chatWS?.close()}catch{}const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);const ws=new WebSocket(cloud?`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`:`ws://${location.hostname}:8788/ws`);chatWS=ws;ws.onopen=()=>{state.chatConnected=true;$('chatEngineDot').classList.add('on');$('chatEngineText').textContent='Motor de chat conectado'};ws.onmessage=e=>{try{const d=JSON.parse(e.data),p=String(d.platform||'').toLowerCase();if(['tiktok','twitch','kick'].includes(p)){if(d.type==='connected'){state.bridge[p]=true;renderPlatforms()}if(['disconnected','ended'].includes(d.type)){state.bridge[p]=false;renderPlatforms()}}}catch{}};ws.onclose=()=>{state.chatConnected=false;$('chatEngineDot').classList.remove('on');$('chatEngineText').textContent='Reconectando motor de chat…';retryChat=setTimeout(connectChatEngine,1500)};ws.onerror=()=>{try{ws.close()}catch{}}}
+let chatWS,retryChat;function connectChatEngine(){clearTimeout(retryChat);try{chatWS?.close()}catch{}const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);const ws=new WebSocket(cloud?`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`:`ws://${location.hostname}:8788/ws`);chatWS=ws;ws.onopen=()=>{state.chatConnected=true;$('chatEngineDot').classList.add('on');$('chatEngineText').textContent='Motor de chat conectado'};ws.onmessage=e=>{try{const d=JSON.parse(e.data),p=String(d.platform||'').toLowerCase();if(['tiktok','twitch','kick','starvios'].includes(p)){if(d.type==='connected'){state.bridge[p]=true;renderPlatforms()}if(['disconnected','ended'].includes(d.type)){state.bridge[p]=false;renderPlatforms()}}}catch{}};ws.onclose=()=>{state.chatConnected=false;$('chatEngineDot').classList.remove('on');$('chatEngineText').textContent='Reconectando motor de chat…';retryChat=setTimeout(connectChatEngine,1500)};ws.onerror=()=>{try{ws.close()}catch{}}}
 async function postAlert(payload){const r=await fetch('/api/alert',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw Error('No se pudo enviar la alerta')}
 const tests={
  'tt-follow':{platform:'TikTok',event:'follow',name:'USUARIO_PRUEBA',action:'te siguió'},
@@ -107,7 +112,13 @@ const tests={
  'tw-sub':{platform:'Twitch',event:'sub',name:'USUARIO_PRUEBA',action:'se suscribió · Tier 1'},
  'tw-bits':{platform:'Twitch',event:'cheer',name:'USUARIO_PRUEBA',bits:500,action:'envió 500 Bits'},
  'ki-follow':{platform:'Kick',event:'follow',name:'USUARIO_PRUEBA',action:'te siguió'},
- 'ki-sub':{platform:'Kick',event:'sub',name:'USUARIO_PRUEBA',action:'se suscribió'}
+ 'ki-sub':{platform:'Kick',event:'sub',name:'USUARIO_PRUEBA',action:'se suscribió'},
+ 'sv-follow':{platform:'Starvios',event:'follow',name:'USUARIO_PRUEBA',giftImage:'/assets/starvios-events/follow.svg',action:'siguió el canal'},
+ 'sv-starvies':{platform:'Starvios',event:'gift',name:'USUARIO_PRUEBA',amount:100,giftKind:'gift',giftName:'Starvies',giftImage:'/assets/starvios-events/starvies.svg',action:'donó 100 Starvies'},
+ 'sv-sub':{platform:'Starvios',event:'sub',name:'USUARIO_PRUEBA',giftImage:'/assets/starvios-events/sub.svg',action:'se suscribió'},
+ 'sv-giftsub':{platform:'Starvios',event:'gift',name:'USUARIO_PRUEBA',giftKind:'giftsub',giftName:'Suscripciones regaladas',count:3,giftImage:'/assets/starvios-events/giftsub.svg',action:'regaló 3 suscripciones'},
+ 'sv-raid':{platform:'Starvios',event:'raid',name:'USUARIO_PRUEBA',viewers:25,giftImage:'/assets/starvios-events/raid.svg',action:'envió una raid de 25 espectadores'},
+ 'sv-shower':{platform:'Starvios',event:'gift',name:'USUARIO_PRUEBA',giftKind:'shower',giftName:'Lluvia de Estrellas',giftImage:'/assets/starvios-events/shower.svg',action:'activó Lluvia de Estrellas'}
 };
 document.querySelectorAll('[data-test]').forEach(b=>b.onclick=async()=>{
  const payload=tests[b.dataset.test];
@@ -165,6 +176,26 @@ $('loginTikTok').onclick=()=>platformAction('tiktok','TikTok');
 $('loginTwitch').onclick=()=>platformAction('twitch','Twitch');
 $('loginKick').onclick=()=>platformAction('kick','Kick');
 $('loginYouTube').onclick=()=>platformAction('youtube','YouTube');
+$('loginStarvios').onclick=async()=>{
+  if(state.status.starvios?.authenticated){
+    if(!confirm('¿Desconectar el canal de Starvios de GREÑA LIVE?'))return;
+    try{
+      if(chatWS?.readyState===WebSocket.OPEN)chatWS.send(JSON.stringify({type:'disconnect-platform',platform:'starvios'}));
+      const r=await fetch('/api/disconnect/starvios',{method:'POST'});if(!r.ok)throw Error('No pude desconectar Starvios.');
+      state.status.starvios={connected:false,authenticated:false,label:'No conectado',account:''};
+      toast('Starvios desconectado.');await loadInitial();
+    }catch(e){toast(String(e.message||e))}
+    return;
+  }
+  const last=String(state.status.starvios?.account||'').replace(/^@/,'');
+  const account=prompt('Tu usuario o enlace público de Starvios:',last);
+  if(account===null)return;
+  const value=String(account||'').trim();
+  if(!value)return toast('Indica el usuario o enlace de Starvios.');
+  if(!chatWS||chatWS.readyState!==WebSocket.OPEN)return toast('El motor de chat se está reconectando. Vuelve a intentarlo.');
+  chatWS.send(JSON.stringify({type:'connect',platform:'starvios',url:value}));
+  toast('Conectando Starvios y guardando el canal…');
+};
 
 function onboardingKey(){return profileKey('grenaOnboardingDismissedV4')}
 function maybeOnboarding(){

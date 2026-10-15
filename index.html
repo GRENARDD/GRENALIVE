@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="/ui-refresh.css">
 <link rel="stylesheet" href="/ui-v2.css">
 <link rel="stylesheet" href="/aurora-ui.css">
-</head>
+<style>.platform-row[data-platform="starvios"]{border-color:rgba(255,130,194,.38)!important;background:linear-gradient(90deg,rgba(255,106,185,.085),transparent)!important}.viewer-card.starvios{border-color:rgba(255,137,198,.4)!important}.platform-row[data-platform="starvios"] .platform-id b,.viewer-card.starvios small{color:#ff9cd3!important}</style></head>
 <body class="grena-control">
 <div class="app-shell">
   <header class="topbar">
@@ -26,7 +26,7 @@
     </nav>
     <div class="top-status">
       <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
-      <a class="top-link preview-link" href="/preview.html" target="_blank" rel="noopener">◉ Preview LIVE</a>
+      <a class="top-link" href="/mode.html" title="Elegir versión web o móvil">📱 Cambiar versión</a><a class="top-link preview-link" href="/preview.html" target="_blank" rel="noopener">◉ Preview LIVE</a>
       <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b id="profileName">GREÑA ID</b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
       <button id="exitAppBtn" class="app-exit-btn" type="button">Salir de GREÑA</button>
     </div>
@@ -112,7 +112,7 @@
         <div class="viewer-grid">
           <div class="viewer-card tiktok"><img class="platform-glyph" src="/assets/platforms/tiktok.webp" alt="TikTok"><div><small>TikTok</small><b id="tiktokViewers">0</b></div></div>
           <div class="viewer-card twitch"><img class="platform-glyph" src="/assets/platforms/twitch.webp" alt="Twitch"><div><small>Twitch</small><b id="twitchViewers">0</b></div></div>
-          <div class="viewer-card kick"><img class="platform-glyph" src="/assets/platforms/kick.svg" alt="Kick"><div><small>Kick</small><b id="kickViewers">0</b></div></div><div class="viewer-card youtube"><span style="color:#ff3030;font-weight:900;font-size:24px">▶</span><div><small>YouTube</small><b id="youtubeViewers">0</b></div></div>
+          <div class="viewer-card kick"><img class="platform-glyph" src="/assets/platforms/kick.svg" alt="Kick"><div><small>Kick</small><b id="kickViewers">0</b></div></div><div class="viewer-card youtube"><span style="color:#ff3030;font-weight:900;font-size:24px">▶</span><div><small>YouTube</small><b id="youtubeViewers">0</b></div></div><div class="viewer-card starvios"><img class="platform-glyph" src="/assets/platforms/starvios.svg" alt="Starvios"><div><small>Starvios</small><b id="starviosViewers">0</b></div></div>
         </div>
         <div class="platform-section-head"><div class="platform-section-icon">◉</div><div><b>Plataformas</b><small>Gestiona tus conexiones y estado en tiempo real.</small></div></div>
         <div class="platform-stack">
@@ -127,6 +127,10 @@
           <article class="platform-row" data-platform="youtube">
             <div class="platform-id"><span class="platform-logo" style="color:#ff3030;font-weight:900">▶</span><div><b>YouTube</b><small id="youtubeAccount">Enlace LIVE no configurado</small></div></div>
             <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="youtubeAuth">Enlace</span><span class="state-chip" id="youtubeLive">Chat</span><span class="state-chip" id="youtubeEvents">Eventos</span></div><button id="loginYouTube" class="platform-action">Configurar</button></div>
+          </article>
+          <article class="platform-row" data-platform="starvios">
+            <div class="platform-id"><span class="platform-logo"><img src="/assets/platforms/starvios.svg" alt="Starvios"></span><div><b>Starvios</b><small id="starviosAccount">Canal sin configurar</small></div></div>
+            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="starviosAuth">Canal</span><span class="state-chip" id="starviosLive">LIVE</span><span class="state-chip" id="starviosEvents">Eventos β</span></div><button id="loginStarvios" class="platform-action">Conectar</button></div>
           </article>
           <article class="platform-row" data-platform="kick">
             <div class="platform-id"><span class="platform-logo"><img src="/assets/platforms/kick.svg" alt="Kick"></span><div><b>Kick</b><small id="kickAccount">Cuenta no vinculada</small></div></div>
@@ -155,6 +159,12 @@
           <button data-test="tw-bits"><span>◆</span>500 Bits</button>
           <button data-test="ki-follow"><span>＋</span>Kick Follow</button>
           <button data-test="ki-sub"><span>★</span>Kick Sub</button>
+          <button data-test="sv-follow"><span>⭐</span>Starvios Follow</button>
+          <button data-test="sv-starvies"><span>✨</span>100 Starvies</button>
+          <button data-test="sv-sub"><span>👑</span>Starvios Sub</button>
+          <button data-test="sv-giftsub"><span>🎁</span>Sub regalada</button>
+          <button data-test="sv-raid"><span>⚡</span>Starvios Raid</button>
+          <button data-test="sv-shower"><span>🌠</span>Lluvia de Estrellas</button>
         </div>
         <div class="obs-row"><div><small>OVERLAY OBS</small><code id="overlayUrl">/overlay.html</code></div><button id="copyOverlay" class="copy-btn">Copiar</button></div>
       </section>
