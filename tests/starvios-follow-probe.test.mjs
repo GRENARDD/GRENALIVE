@@ -1,29 +1,16 @@
 import test from 'node:test';
-test('read-only audit of Starvios public follow identity availability',async()=>{
- const host='https://starvios.com';
- const page=await fetch(host+'/live/mostza12',{signal:AbortSignal.timeout(10000)});
- const html=await page.text();
- const resources=[...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.js)"/g)].map(x=>x[1]);
- const wanted=[...new Set(resources.filter(x=>/LiveChat|live\._username|popout|LiveCard/.test(x)))];
- console.log('[SV FOLLOW DIAG] assets',wanted.length);
- for(const path of wanted.slice(0,6)){
-  try{
-   const r=await fetch(host+path,{signal:AbortSignal.timeout(12000)}),js=await r.text();
-   const tokens=['follows','follow','live-chat:','live_alert','notifications','live_chat_messages','rpc(\x60','on(\x60broadcast','on(\x60postgres_changes','follower_id','followers_count'];
-   const found={};
-   for(const token of tokens){
-    let at=0,count=0,ex=[];
-    while((at=js.indexOf(token,at))>=0&&count<8){
-     const sub=js.slice(Math.max(0,at-105),Math.min(js.length,at+175))
-       .replace(/sb_publishable_[A-Za-z0-9_-]+/g,'<public-api-key>');
-     ex.push(sub);count++;at+=token.length;
-    }
-    if(count)found[token]=ex;
-   }
-   console.log('[SV FOLLOW DIAG]',path,r.status,js.length,JSON.stringify(found).slice(0,18000));
-  }catch(err){console.log('[SV FOLLOW DIAG] failed asset',path,String(err).slice(0,100))}
+test('Starvios anonymous public follower identity visibility',async()=>{
+ const key='sb_publishable_4lF1QyQhWOUE1Pw3rWBwEw_bVmkAxm6';
+ const root='https://naiijcvngtkkocligwvk.supabase.co/rest/v1/';
+ const r=await fetch('https://starvios.com/api/public/live-now',{signal:AbortSignal.timeout(11000)});
+ const feed=await r.json(),ids=[...new Set((feed.rows||[]).filter(x=>x.channel_id).map(x=>x.channel_id))].slice(0,40);
+ const c=await fetch(root+'rpc/discovery_follower_counts',{method:'POST',headers:{apikey:key,'Content-Type':'application/json'},body:JSON.stringify({_channels:ids}),signal:AbortSignal.timeout(10000)});
+ const counts=await c.json();
+ const checked=Array.isArray(counts)?counts.filter(x=>Number(x.followers)>0).slice(0,5):[];
+ console.log('[SV PUBLIC FOLLOWS] RPC HTTP',c.status,'positive-count-channels',checked.length);
+ for(const ch of checked){
+   const url=root+'follows?select=channel_id,follower_id,created_at&channel_id=eq.'+encodeURIComponent(ch.channel_id)+'&order=created_at.desc&limit=4';
+   const ans=await fetch(url,{headers:{apikey:key},signal:AbortSignal.timeout(10000)}),val=await ans.json();
+   console.log('[SV PUBLIC FOLLOWS] channel followerCount='+ch.followers,'HTTP '+ans.status,'publicRows '+(Array.isArray(val)?val.length:-1),'responseType '+(Array.isArray(val)?'rows':'error'));
  }
- const url='https://naiijcvngtkkocligwvk.supabase.co/rest/v1/';
- const key=process.env.SV_KEY_FOR_DEBUG||'';
- // No credential used: we only inspect the site's declared public JS and API shapes.
 });
