@@ -64,7 +64,7 @@ function renderViewers(){
    if(p==='starvios')el.title=!linked?'Starvios no conectado':verified?'Espectadores actuales verificados por Starvios':'Starvios conectado · cifra de espectadores no disponible';
   }
   const card=document.querySelector('.viewer-grid .viewer-card.'+p);
-  if(card)card.classList.toggle('is-hidden',p==='starvios'?!linked&&v[p]<1:v[p]<1);
+  if(card)card.classList.toggle('is-hidden',p==='starvios'?!(v[p]>=1||(linked&&state.status.starvios?.live!==false)):v[p]<1);
  }
  document.querySelector('.viewer-grid')?.classList.toggle('is-empty',total<1&&!state.status.starvios?.authenticated&&!state.bridge.starvios);
  $('totalViewers').textContent=total.toLocaleString('es-DO');
