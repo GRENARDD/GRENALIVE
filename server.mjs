@@ -2178,6 +2178,36 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(p==='tiktok'&&!body.connected&&wasConnected&&/termin[oó]|ended|stream_end/i.test(label))endTapTapSession();
   pushEventHealth();return json(res,200,{ok:true,status:publicStatus(),eventHealth:eventHealthSnapshot()});
  }
+ if(pathname==='/api/internal/starvios-live'&&req.method==='POST'){
+  if(!requireInternalBridge(req,res))return;
+  const body=JSON.parse(await readBody(req)||'{}');
+  if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
+  if(typeof body.live!=='boolean')return json(res,400,{ok:false,error:'Estado LIVE no válido'});
+  starviosLive={live:body.live,known:true,updatedAt:Date.now()};
+  if(!body.live)setViewers('starvios',0,'Starvios offline verificado');
+  pushStatus();return json(res,200,{ok:true,state:starviosLive});
+ }
+ if(pathname==='/api/internal/starvios-event'&&req.method==='POST'){
+  if(!requireInternalBridge(req,res))return;
+  const body=JSON.parse(await readBody(req)||'{}');
+  if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
+  const e=normalizeStarviosEvent({...body,type:body.kind||body.type||''});
+  if(!e)return json(res,400,{ok:false,error:'Evento Starvios desconocido o sin datos'});
+  if(bridgeMessageDuplicate(body.bridgeEventId||('starvios:'+e.id)))return json(res,200,{ok:true,duplicate:true});
+  noteBridgeSignal('starvios',e.kind,{user:e.user,amount:e.amount});
+  const mapped=e.kind==='subrenew'?'sub':e.kind==='giftsub'||e.kind==='shower'?'gift':e.kind;
+  const labels={follow:'siguió el canal',sub:'se suscribió',subrenew:'renovó su suscripción',
+    giftsub:'regaló suscripciones',raid:'envió una raid',gift:'donó '+e.amount+' Starvies',
+    shower:'activó Lluvia de Estrellas'};
+  const extra={giftKind:e.kind,eventKind:e.kind,amount:e.amount,count:e.count,
+    ...(e.kind==='gift'?{giftName:'Starvies'}:{}),
+    ...(e.kind==='raid'?{viewers:e.viewers||0}:{}),
+    level:e.level,eventLabel:e.kind==='shower'?'LLUVIA DE ESTRELLAS':
+    e.kind==='subrenew'?'RENOVÓ SUSCRIPCIÓN':e.kind==='giftsub'?'SUBS REGALADAS':''};
+  alert('Starvios',mapped,e.user,labels[e.kind]||'',extra);
+  if(e.kind==='follow')followerGoalFollow('starvios');
+  return json(res,200,{ok:true,kind:e.kind,mapped});
+ }
  if(pathname==='/api/internal/event'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});const platform=String(body.platform||''),event=String(body.event||'');
   if(!['TikTok','Twitch','Kick','YouTube','youtube','Starvios'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
