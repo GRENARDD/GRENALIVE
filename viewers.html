@@ -104,6 +104,7 @@ html[data-counter-style="vertical"] .tt,
 html[data-counter-style="vertical"] .tw,
 html[data-counter-style="vertical"] .ki{border-color:rgba(255,255,255,.11)}
 html[data-counter-style="vertical"] .ki .platform img{width:46px;height:46px}
+html[data-counter-style="vertical"] .sv{border-color:rgba(176,120,255,.22)}
 html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out}
 @keyframes verticalPulse{0%{transform:scale(1)}48%{transform:scale(1.12)}100%{transform:scale(1)}}
 
@@ -139,6 +140,7 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
     </section>
 
     <section class="counter yt is-hidden"><div class="platform"><img src="/assets/youtube-logo.svg" alt="YouTube"><span>YouTube</span></div><strong id="yt" class="count">0</strong></section>
+    <section class="counter sv is-hidden"><div class="platform"><img src="/assets/platforms/starvios.svg" alt="Starvios"><span>Starvios</span></div><strong id="sv" class="count">0</strong></section>
     <section class="counter ki is-hidden">
       <div class="platform">
         <img src="/assets/platforms/kick-viewer.png" alt="Kick">
@@ -150,14 +152,14 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
 </main>
 
 <script>
-const old={tiktok:-1,twitch:-1,kick:-1,youtube:-1};
+const old={tiktok:-1,twitch:-1,kick:-1,youtube:-1,starvios:-1};
 const counterDefaults={style:'classic',counterCardColor:'#18232c'};
 let counterSettings={...counterDefaults};
 let previewOverride=false;
 let latestMeta={};
 
 function updatePlatformVisibility(v={}){
- for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki'],['youtube','.counter.yt']]){
+ for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki'],['youtube','.counter.yt'],['starvios','.counter.sv']]){
   const card=document.querySelector(selector);if(!card)continue;
   const n=Number(v[k]);
   card.classList.toggle('is-hidden',!(Number.isFinite(n)&&n>=1));
@@ -177,7 +179,7 @@ function applyCounterSettings(v={}){
 }
 function draw(v={},meta){
   if(meta&&typeof meta==='object')latestMeta=meta;
-  for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki'],['youtube','yt']]){
+  for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki'],['youtube','yt'],['starvios','sv']]){
     const n=Math.max(0,Math.floor(Number(v[k])||0));
     const e=document.getElementById(id);
     if(old[k]!==n){
