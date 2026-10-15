@@ -1503,9 +1503,9 @@ async function autoConnectYouTube(){
 }
 
 
-// ===== STARVIOS · chat público (fase 1) =====
-// El chat de Starvios se conecta sin credenciales mediante el popout público.
-// No enviamos eventos Starvies/alertas al servidor principal hasta validar sus contratos.
+// ===== STARVIOS · multichat, estado y alertas (experimental) =====
+// Sólo tipos de evento explícitos o mensajes Starvies marcados por la página.
+// Las superficies de Starvios pueden cambiar; requerimos prueba LIVE real.
 const starviosReader=new StarviosReader({
   cloud:CLOUD_MODE,
   chromiumPath:process.env.GRENA_CHROMIUM_PATH||'/usr/bin/chromium',
@@ -1515,9 +1515,17 @@ const starviosReader=new StarviosReader({
     isBroadcaster:message.user.toLowerCase()===starviosReader.channel.toLowerCase(),
     starvies:message.starvies||0
   }),
-  onState:state=>broadcastPlatform('starvios',{
-    type:state.connected?'connected':'status',message:state.label
-  }),
+  onState:state=>{
+    broadcastPlatform('starvios',{type:state.connected?'connected':'status',message:state.label});
+    bridgeStatus('starvios',!!state.connected,state.label,state.channel||starviosReader.channel||'',{source:'starvios public chat'});
+  },
+  onLive:st=>sendToAlerts('/api/internal/starvios-live',{live:!!st.live,channel:st.channel,source:st.source}),
+  onViewers:st=>sendToAlerts('/api/internal/viewers',{platform:'starvios',count:st.count,source:st.source}),
+  onEvent:e=>{
+    const id=e.id?'event:'+e.id:bridgeMessageId('starvios-'+e.kind);
+    broadcastPlatform('starvios',{type:'event',event:e.kind,user:e.user,amount:e.amount||0,count:e.count||1,level:e.level||0});
+    sendToAlerts('/api/internal/starvios-event',{...e,bridgeEventId:id},{reliable:true});
+  },
   onError:error=>console.warn('[STARVIOS]',String(error?.message||error).slice(0,180))
 });
 async function connectStarvios(input){
@@ -3029,6 +3037,7 @@ function bridgeHeartbeat(){
   bridgeStatus('tiktok',ready,label,currentTikTokUser||'',{roomId:ready?String(tiktokConn?.roomId||''):'',heartbeat:true,retryAt:tiktokRetry.nextAt,retryReason:tiktokRetry.kind});
   bridgeStatus('twitch',!!twitchClient,!!twitchClient?`${currentTwitchChannel||'twitch'} · chat conectado`:'Twitch chat desconectado',currentTwitchChannel||'',{heartbeat:true});
   bridgeStatus('kick',!!kickConnected,!!kickConnected?`${currentKickChannel||'kick'} · chat conectado`:'Kick chat desconectado',currentKickChannel||'',{heartbeat:true});
+  if(connectionPrefs.starviosEnabled&&starviosReader.running)bridgeStatus('starvios',!!starviosReader.connected,starviosReader.connected?'Starvios · chat conectado':'Starvios · esperando LIVE',starviosReader.channel,{heartbeat:true});
   flushBridgeQueue().catch(()=>{});
 }
 const bridgeHeartbeatTimer=setInterval(bridgeHeartbeat,3000);bridgeHeartbeatTimer.unref?.();setTimeout(bridgeHeartbeat,350);
