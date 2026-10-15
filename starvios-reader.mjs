@@ -380,7 +380,7 @@ export class StarviosReader {
         const outstanding=Math.max(0,delta-this.followNameEvents);
         if(outstanding>0&&outstanding<=25){
           this.deliverEvent({
-            kind:'follow',user:'Seguidor de Starvios',anonymous:true,
+            kind:'follow',user:'Nuevo seguidor',anonymous:true,
             count:outstanding,id:'followers:'+id+':'+count,
             source:'Starvios public verified follower count'
           });

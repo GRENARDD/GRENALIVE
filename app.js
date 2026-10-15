@@ -152,12 +152,13 @@ function renderPlatformStatus(st={},health=null){
  }
  const channel=st.starvios||{},svHealth=health.starvios||{};
  const hasReal=!!svHealth.lastRealEventAt;
+ const unidentifiableFollow=hasReal&&svHealth.lastRealEventKind==='follow'&&svHealth.lastRealNameAvailable===false;
  const badge=$('starviosAlertState'),description=$('starviosEventDetail');
  if(badge){
-  badge.textContent=channel.live===true?(hasReal?'LIVE · eventos recibidos':'LIVE · esperando eventos reales'):(channel.authenticated?'Canal vinculado · esperando LIVE':'StarVios sin conectar');
+  badge.textContent=channel.live===true?(unidentifiableFollow?'LIVE · follow sin nombre':hasReal?'LIVE · eventos recibidos':'LIVE · esperando eventos reales'):(channel.authenticated?'Canal vinculado · esperando LIVE':'StarVios sin conectar');
   badge.title=hasReal?'Último evento real confirmado por GREÑA: '+new Date(svHealth.lastRealEventAt).toLocaleString('es-DO'):'Los botones son pruebas; no significan que se haya detectado un evento real.';
  }
- if(description)description.textContent=hasReal?'Último evento real recibido · '+new Date(svHealth.lastRealEventAt).toLocaleString('es-DO'):'Follows, suscripciones, Starvies, raids y Lluvia de Estrellas';
+ if(description)description.textContent=unidentifiableFollow?'Follow detectado por contador · StarVios no publica quién fue':hasReal?'Último evento real recibido · '+new Date(svHealth.lastRealEventAt).toLocaleString('es-DO'):'Follows, suscripciones, Starvies, raids y Lluvia de Estrellas';
 
 }
 async function refreshPlatformStatus(){try{const r=await fetch('/api/status',{cache:'no-store'}),d=await r.json();renderPlatformStatus(d.status,d.eventHealth||{});document.querySelectorAll('.oauth-login').forEach(b=>{const p=b.dataset.platform;b.title=d.oauthConfigured&&d.oauthConfigured[p]===false?'La conexión de esta plataforma todavía no está disponible':''})}catch{}}

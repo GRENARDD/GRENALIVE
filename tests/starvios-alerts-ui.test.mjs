@@ -32,5 +32,10 @@ test('Browser JavaScript still parses and status distinguishes real events from 
  assert.match(server,/let starviosRealEventAt=0;/);
  assert.match(server,/starviosRealEventAt=Date\.now\(\);/);
  assert.match(server,/lastRealEventAt:starviosRealEventAt/);
+ assert.match(server,/lastRealEventKind:starviosLastRealKind/);
+ assert.match(server,/lastRealNameAvailable:starviosLastRealNameAvailable/);
+ assert.match(server,/Nuevo seguidor':e.user/);
+ assert.match(app,/unidentifiableFollow/);
+ assert.match(app,/follow sin nombre/);
  assert.match(app,/const hasReal=!!svHealth\.lastRealEventAt;/);
 });

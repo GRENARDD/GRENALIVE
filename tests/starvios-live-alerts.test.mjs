@@ -46,6 +46,6 @@ test('follower delta: emits only verified new count; identity stays anonymous',a
   assert.equal(events[0].kind,'follow');
   assert.equal(events[0].count,2);
   assert.equal(events[0].anonymous,true);
-  assert.equal(events[0].user,'Seguidor de Starvios');
+  assert.equal(events[0].user,'Nuevo seguidor');
  }finally{globalThis.fetch=orig}
 });
