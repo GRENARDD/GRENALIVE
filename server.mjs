@@ -12,6 +12,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfig } from 'tiktok-live-connector';
 import { chromium } from 'playwright-core';
 import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
+import {STARVIOS_SUPPORT_CATALOG,normalizeStarviosEvent} from './starvios-events.mjs';
 
 // GREÑA 3.1.7: evita los fallbacks premium de EulerStream para resolver Room ID / estado LIVE.
 // La conexión de lectura usa primero las rutas públicas/directas de TikTok.
@@ -156,11 +157,12 @@ function appWindowClosing(){
 // Antes FIX7 interpretaba 12 s sin heartbeat como cierre y podía apagar la app sola.
 // El cierre normal sigue cubierto por pagehide + appWindowClosing y por el botón Salir.
 
-const status={tiktok:{connected:false,label:'No conectado'},twitch:{connected:false,label:'No conectado'},kick:{connected:false,label:'No conectado'},youtube:{connected:false,label:'No conectado'}};
+const status={tiktok:{connected:false,label:'No conectado'},twitch:{connected:false,label:'No conectado'},kick:{connected:false,label:'No conectado'},youtube:{connected:false,label:'No conectado'},starvios:{connected:false,label:'No conectado'}};
 let tiktok=null,tiktokLoginContext=null,twitchWS=null,twitchCfg=null,twitchViewerTimer=null,twitchViewerRefreshing=false,twitchValidationTimer=null;
 let counterTikTok=null,counterTikTokUser='',counterTikTokPollTimer=null,counterTikTokReconnectTimer=null,counterTikTokConnecting=false,counterTikTokPollBusy=false,counterTikTokLastSignalAt=0,counterTikTokPollFailures=0,tiktokBridgeDisconnectGraceTimer=null,counterTwitchLogin='',counterTwitchTimer=null,counterTwitchRefreshing=false;
-const viewers={tiktok:0,twitch:0,kick:0,youtube:0};
-const viewerMeta={youtube:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},tiktok:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0,spikeValue:0,spikeHits:0,spikeAt:0,spikeSources:[]},twitch:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},kick:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0}};
+const viewers={tiktok:0,twitch:0,kick:0,youtube:0,starvios:0};
+let starviosLive={live:false,known:false,updatedAt:0};
+const viewerMeta={youtube:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},tiktok:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0,spikeValue:0,spikeHits:0,spikeAt:0,spikeSources:[]},twitch:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0},kick:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0,lastZeroAt:0},starvios:{lastGood:0,lastGoodAt:0,source:'waiting',zeroHits:0}};
 const kickViewerStabilizer=createKickViewerStabilizer();
 const viewerTest={enabled:false,tiktok:0,twitch:0,kick:0};
 let viewerTestTimer=null;
@@ -216,7 +218,7 @@ const TIKTOK_GIFT_ES={
 };
 function giftTextKey(v){return String(v||'').trim().toLowerCase().replace(/[’‘]/g,"'").replace(/\s+/g,' ')}
 function tiktokGiftSpanishName(name){const raw=String(name||'').trim();return TIKTOK_GIFT_ES[giftTextKey(raw)]||raw}
-function catalogPlatform(v){const p=String(v||'').toLowerCase();return p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='kick'?'Kick':String(v||'')}
+function catalogPlatform(v){const p=String(v||'').toLowerCase();return p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='kick'?'Kick':p==='starvios'?'Starvios':String(v||'')}
 function catalogItemKey(x={}){const p=catalogPlatform(x.platform);const id=String(x.id||'').trim();if(id)return `${p}|id:${id}`;return `${p}|name:${giftTextKey(x.name||x.nameEs)}|${Number(x.amount||0)||0}|${String(x.unit||'')}`}
 function normalizeCatalogItem(x={}){
  const platform=catalogPlatform(x.platform),name=String(x.name||x.nameEs||'Apoyo').trim(),nameEs=String(x.nameEs||(platform==='TikTok'?tiktokGiftSpanishName(name):name)).trim();
@@ -237,6 +239,8 @@ function upsertCatalogItem(raw,{preferName=false}={}){
 }
 function ensureBuiltInGiftCatalog(){
  const now=Date.now();
+ // Identidades ilustrativas de eventos. No equivalen a regalos comprables oficiales.
+ for(const x of STARVIOS_SUPPORT_CATALOG)upsertCatalogItem({platform:'Starvios',id:'starvios:'+x.id,name:x.label,nameEs:x.label,category:x.kind==='gift'?'support':'event',giftKind:x.kind,amount:0,unit:x.unit,image:x.image,source:'GREÑA · ilustración de evento, no regalo oficial',updatedAt:now});
  // Catalog event categories supported by YouTube, not an inventory of all paid stickers.
  {
   for(const [id,name,unit] of [['superchat','Super Chat','USD'],['supersticker','Super Sticker','USD'],['membership','Nueva membresía','membership'],['membershipgift','Membresías regaladas','membership'],['membermilestone','Hito de membresía','membership'],['membershipreceived','Membresía recibida','membership']]){
@@ -569,7 +573,7 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
 // ===== GREÑA FIDELIDAD =====
 // Ranking separado por plataforma. El "tiempo" es tiempo activo estimado entre señales del usuario,
 // no tiempo de visualización exacto: TikTok/Twitch/Kick no exponen una identidad fiable de cada viewer silencioso.
-function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube'].includes(p)?p:''}
+function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube','starvios'].includes(p)?p:''}
 function loyaltyKey(v=''){return String(v||'').trim().replace(/^@/,'').toLowerCase().slice(0,80)}
 function loyaltyDay(ts=Date.now()){const d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function loyaltyLevel(score=0){const n=Number(score)||0;if(n>=6000)return {name:'Leyenda',icon:'★',next:null};if(n>=3000)return {name:'Diamante',icon:'◆',next:6000};if(n>=1500)return {name:'Platino',icon:'⬟',next:3000};if(n>=700)return {name:'Oro',icon:'●',next:1500};if(n>=250)return {name:'Plata',icon:'◈',next:700};return {name:'Bronce',icon:'◇',next:250}}
@@ -617,14 +621,15 @@ function recordLoyaltyEvent(evt={}){
 }
 
 
-const bridgeRuntime={tiktok:false,twitch:false,kick:false,youtube:false};
+const bridgeRuntime={tiktok:false,twitch:false,kick:false,youtube:false,starvios:false};
 const bridgeSignals={
  tiktok:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
  twitch:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
  kick:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
- youtube:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}}
+ youtube:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
+ starvios:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}}
 };
-function bridgeKey(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube'].includes(p)?p:''}
+function bridgeKey(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube','starvios'].includes(p)?p:''}
 function noteBridgeSignal(platform,kind,meta={}){
  const p=bridgeKey(platform);if(!p)return;
  const s=bridgeSignals[p],k=String(kind||'signal').toLowerCase(),now=Date.now();
@@ -645,7 +650,8 @@ function eventHealthSnapshot(){
  return {
   tiktok:{account:ps.tiktok?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.tiktok,ps.tiktok?.authenticated?'waiting':'off'),events:ttEvents,source:'TikTok LIVE connector · FOLLOW + SOCIAL fallback · SUB_NOTIFY',diagnostics:ttSig},
   twitch:{account:ps.twitch?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.twitch,ps.twitch?.authenticated?'waiting':'off'),events:twitchEvents,source:'Twitch EventSub + IRC',active:[...twitchEventHealth.active],failed:[...twitchEventHealth.failed],lastError:twitchEventHealth.lastError||'',diagnostics:sig('twitch')},
-  kick:{account:ps.kick?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.kick,ps.kick?.authenticated?'waiting':'off'),events:kickEvents,source:'Kick Events API + browser/Pusher realtime fallback',active:[...kickEventHealth.active],failed:[...kickEventHealth.failed],lastError:kickEventHealth.lastError||'',subscriptionsReady:!!kickEventHealth.subscriptionsReady,lastWebhookAt:Number(kickEventHealth.lastWebhookAt||0),diagnostics:kickSig}
+  kick:{account:ps.kick?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.kick,ps.kick?.authenticated?'waiting':'off'),events:kickEvents,source:'Kick Events API + browser/Pusher realtime fallback',active:[...kickEventHealth.active],failed:[...kickEventHealth.failed],lastError:kickEventHealth.lastError||'',subscriptionsReady:!!kickEventHealth.subscriptionsReady,lastWebhookAt:Number(kickEventHealth.lastWebhookAt||0),diagnostics:kickSig},
+  starvios:{account:ps.starvios?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.starvios,ps.starvios?.authenticated?'waiting':'off'),events:'experimental',source:'Starvios public popout + typed realtime frames · API no verificada',diagnostics:sig('starvios')}
  };
 }
 function pushEventHealth(){broadcast({type:'event-health',eventHealth:eventHealthSnapshot()})}
@@ -679,8 +685,8 @@ function resetTapTap(){tapTapUsers.clear();tapTapUpdatedAt=Date.now();const stat
 function tapTapPreviewState(amount=0){const names=['GreñaFan','TapMaster','LunaXF','TeamGreña','JugadorRD'];const leaderboard=names.map((name,i)=>({userId:`preview_${i}`,name,avatar:'',likes:Math.max(1,Number(amount)||((5-i)*137+i*19)),updatedAt:Date.now(),rank:i+1}));return {type:'taptap',leaderboard,updatedAt:Date.now(),preview:true,sessionRoomId:tapTapSessionRoomId}}
 const activityHistory=[];
 const recentAlerts=new Map();
-function accountFromAuth(p){if(p==='youtube')return savedAuth.youtube?.displayName||savedAuth.youtube?.channelId||'';if(p==='tiktok')return savedAuth.tiktok?.username||'';if(p==='twitch')return twitchCfg?.displayName||twitchCfg?.login||savedAuth.twitch?.displayName||savedAuth.twitch?.login||'';if(p==='kick')return savedAuth.kick?.username||savedAuth.kick?.slug||'';return ''}
-function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected){const showTikTokWait=p==='tiktok'&&/reconexi[oó]n|límite temporal|conectando al LIVE|LIVE no disponible/i.test(runtimeLabel);if(!showTikTokWait)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;}out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel}}return out}
+function accountFromAuth(p){if(p==='youtube')return savedAuth.youtube?.displayName||savedAuth.youtube?.channelId||'';if(p==='tiktok')return savedAuth.tiktok?.username||'';if(p==='twitch')return twitchCfg?.displayName||twitchCfg?.login||savedAuth.twitch?.displayName||savedAuth.twitch?.login||'';if(p==='kick')return savedAuth.kick?.username||savedAuth.kick?.slug||'';if(p==='starvios')return status.starvios?.account||'';return ''}
+function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube','starvios']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:p==='starvios'?!!raw.account:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected){const showTikTokWait=p==='tiktok'&&/reconexi[oó]n|límite temporal|conectando al LIVE|LIVE no disponible/i.test(runtimeLabel);if(!showTikTokWait)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;}out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel,...(p==='starvios'?{live:starviosLive.known?starviosLive.live:null,liveKnown:starviosLive.known}:{})}}return out}
 function pushStatus(){broadcast({type:'platform-status',status:publicStatus()})}
 function normalizeCounterWidgetSettings(input={}){
  const style=['classic','trio','vertical'].includes(String(input.counterStyle||input.style||''))?String(input.counterStyle||input.style):'classic';
@@ -689,8 +695,8 @@ function normalizeCounterWidgetSettings(input={}){
  return {style,counterCardColor};
 }
 function publicCounterSettings(){return normalizeCounterWidgetSettings({counterStyle:autoPrefs.counterStyle,counterCardColor:autoPrefs.counterCardColor})}
-function currentViewers(){return viewerTest.enabled?{tiktok:viewerTest.tiktok,twitch:viewerTest.twitch,kick:viewerTest.kick,youtube:viewers.youtube}:{...viewers}}
-function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,total:v.tiktok+v.twitch+v.kick+(v.youtube||0),testMode:viewerTest.enabled,updatedAt:Date.now()})}
+function currentViewers(){return viewerTest.enabled?{tiktok:viewerTest.tiktok,twitch:viewerTest.twitch,kick:viewerTest.kick,youtube:viewers.youtube,starvios:viewers.starvios}:{...viewers}}
+function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,updatedAt:Date.now()})}
 function tiktokViewerSourceFamily(source=''){
  const x=String(source||'').toLowerCase();
  if(x.includes('room_user')||x.includes('room user')||x.includes('live fallback'))return 'roomUser';
@@ -940,13 +946,18 @@ function catalogMatch(platform,{name='',amount=0,event='gift'}={}){
  return null;
 }
 function rememberObservedCatalogGift(platform,event,extra={}){
- if(event!=='gift'&&event!=='cheer')return;const p=catalogPlatform(platform);const amount=p==='Twitch'?Number(extra.bits||0):p==='Kick'?Number(extra.amount||0):Number(extra.unitDiamonds||0);const name=String(extra.giftNameOriginal||extra.giftName||(event==='cheer'?'Bits':'Regalo')).trim();let hit=catalogMatch(p,{name,amount,event});
+ if(event!=='gift'&&event!=='cheer')return;const p=catalogPlatform(platform);if(p==='Starvios')return;const amount=p==='Twitch'?Number(extra.bits||0):p==='Kick'?Number(extra.amount||0):Number(extra.unitDiamonds||0);const name=String(extra.giftNameOriginal||extra.giftName||(event==='cheer'?'Bits':'Regalo')).trim();let hit=catalogMatch(p,{name,amount,event});
  if(p==='Kick'&&name&&!/^\d[\d,.]*\s*KICKs?$/i.test(name)&&hit?.id?.startsWith('kicks:'))hit=null;
  const liveId=extra.giftId?`live:${extra.giftId}`:(p==='Kick'&&name?`live:${giftTextKey(name).replace(/[^a-z0-9]+/g,'-')}:${amount}`:'');
  const raw={platform:p,id:hit?.id||liveId,name:hit?.name||name,nameEs:p==='TikTok'?tiktokGiftSpanishName(name):(hit?.nameEs||name),category:event==='cheer'?'bits':'gift',giftKind:extra.giftKind||hit?.giftKind||'',amount:hit?.amount||amount,unit:hit?.unit||(p==='Twitch'?'bits':p==='Kick'?'KICKs':'diamonds'),image:extra.giftImage||hit?.image||'',animatedImage:extra.giftAnimatedImage||extra.animatedImage||hit?.animatedImage||'',source:hit?.source||'LIVE observado',region:hit?.region||'',observed:true,updatedAt:Date.now(),meta:{...(hit?.meta||{}),liveGiftId:extra.giftId||'',lastSeenAt:Date.now()}};
  upsertCatalogItem(raw,{preferName:true});
 }
 function enrichAlertMedia(platform,event,extra={}){
+ if(String(platform).toLowerCase()==='starvios'){
+  const kind=String(extra.eventKind||extra.giftKind||event||'').toLowerCase();
+  const x=STARVIOS_SUPPORT_CATALOG.find(item=>item.kind===kind)||STARVIOS_SUPPORT_CATALOG.find(item=>item.kind===event);
+  if(x)extra={...extra,giftImage:extra.giftImage||x.image,giftName:extra.giftName||(kind==='gift'?'Starvies':x.label),giftKind:kind};
+ }
  if(String(platform).toLowerCase()==='youtube'){
   const kind=String(extra.eventKind||extra.giftKind||'').toLowerCase();
   const known=['superchat','supersticker','membership','membershipgift','membermilestone','membershipreceived'];
@@ -960,12 +971,12 @@ function enrichAlertMedia(platform,event,extra={}){
 }
 function publicGiftCatalog({platform='',q='',animatedOnly=false}={}){
  const pf=catalogPlatform(platform),query=giftTextKey(q);let items=giftCatalogCache.items.slice();if(platform)items=items.filter(x=>x.platform===pf);if(query)items=items.filter(x=>[x.name,x.nameEs,x.unit,x.giftKind].some(v=>giftTextKey(v).includes(query)));if(animatedOnly)items=items.filter(x=>x.animatedImage);items.sort((a,b)=>a.platform.localeCompare(b.platform)||Number(a.amount)-Number(b.amount)||a.nameEs.localeCompare(b.nameEs,'es'));
- const stats={total:items.length,tiktok:items.filter(x=>x.platform==='TikTok').length,twitch:items.filter(x=>x.platform==='Twitch').length,kick:items.filter(x=>x.platform==='Kick').length,youtube:items.filter(x=>x.platform==='YouTube').length,animated:items.filter(x=>x.animatedImage).length,observed:items.filter(x=>x.observed).length};return {version:1,updatedAt:giftCatalogCache.updatedAt,sources:giftCatalogCache.sources,stats,items};
+ const stats={total:items.length,tiktok:items.filter(x=>x.platform==='TikTok').length,twitch:items.filter(x=>x.platform==='Twitch').length,kick:items.filter(x=>x.platform==='Kick').length,youtube:items.filter(x=>x.platform==='YouTube').length,starvios:items.filter(x=>x.platform==='Starvios').length,animated:items.filter(x=>x.animatedImage).length,observed:items.filter(x=>x.observed).length};return {version:1,updatedAt:giftCatalogCache.updatedAt,sources:giftCatalogCache.sources,stats,items};
 }
 function rememberActivity(a){activityHistory.unshift(a);if(activityHistory.length>120)activityHistory.length=120}
 const LEGACY_FOLLOWER_GOALS_FILE=path.join(DATA_DIR,'follower-goals.json');
 function followerGoalsFile(userId=activeUserId){return userId?profileFile('follower-goals.json',userId):LEGACY_FOLLOWER_GOALS_FILE}
-function freshFollowerGoals(){return {settings:{tiktok:{start:0,goal:100,show:true},twitch:{start:0,goal:10,show:true},kick:{start:0,goal:10,show:true}},gained:{tiktok:0,twitch:0,kick:0}}}
+function freshFollowerGoals(){return {settings:{tiktok:{start:0,goal:100,show:true},twitch:{start:0,goal:10,show:true},kick:{start:0,goal:10,show:true},starvios:{start:0,goal:50,show:true}},gained:{tiktok:0,twitch:0,kick:0,starvios:0}}}
 let followerGoals=freshFollowerGoals();
 async function loadFollowerGoalsForProfile(){
  let fg=activeUserId?await readJson(followerGoalsFile(),null):(!CLOUD_MODE?await readJson(LEGACY_FOLLOWER_GOALS_FILE,null):null);
@@ -2132,7 +2143,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/internal/status'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;
   let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
-  if(!['tiktok','twitch','kick','youtube'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
+  if(!['tiktok','twitch','kick','youtube','starvios'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   const p=body.platform,wasConnected=!!bridgeRuntime[p],label=String(body.label||'');
   bridgeRuntime[p]=!!body.connected;
   if(p==='kick')console.log('[KICK BRIDGE]',JSON.stringify({connected:!!body.connected,label,account:String(body.account||''),source:String(body.source||'')}));
@@ -2169,7 +2180,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  if(pathname==='/api/internal/event'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});const platform=String(body.platform||''),event=String(body.event||'');
-  if(!['TikTok','Twitch','Kick','YouTube','youtube'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
+  if(!['TikTok','Twitch','Kick','YouTube','youtube','Starvios'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
   if(bridgeMessageDuplicate(body.bridgeEventId))return json(res,200,{ok:true,duplicate:true});
   if(platform==='Twitch'&&twitchCfg){
    const officialFor={follow:['channel.follow'],sub:['channel.subscribe','channel.subscription.message'],gift:['channel.subscription.gift'],cheer:['channel.cheer'],raid:['channel.raid']};
@@ -2224,7 +2235,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  if(pathname==='/api/internal/viewers'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
-  if(!['tiktok','twitch','kick','youtube'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
+  if(!['tiktok','twitch','kick','youtube','starvios'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   // TikTok usa una sola conexión LIVE en chat-server. Ese bridge alimenta chat, eventos,
   // contador y widgets; no se abre un segundo TikTokLiveConnection para el contador.
   const source=String(body.source||'').trim()||(body.platform==='kick'?'Kick browser realtime':body.platform==='tiktok'?'TikTok LIVE bridge':'Twitch IRC bridge');
@@ -2237,8 +2248,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   return json(res,200,{ok:true,accepted,viewers:currentViewers(),meta:viewerMeta[body.platform]});
  }
  if(pathname==='/api/follower-goals'&&req.method==='GET')return json(res,200,publicFollowerGoals());
- if(pathname==='/api/follower-goals'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}'),next={...followerGoals.settings};for(const p of ['tiktok','twitch','kick'])if(body[p])next[p]={start:Math.max(0,Number(body[p].start)||0),goal:Math.max(1,Number(body[p].goal)||1),show:body[p].show!==false};followerGoals.settings=next;if(body.resetGained)followerGoals.gained={tiktok:0,twitch:0,kick:0};await persistFollowerGoals();broadcast({type:'follower-goals',state:publicFollowerGoals()});return json(res,200,{ok:true,...publicFollowerGoals()})}
- if(pathname==='/api/viewers'){const v=currentViewers();return json(res,200,{ok:true,viewers:v,total:v.tiktok+v.twitch+v.kick,meta:viewerMeta,testMode:viewerTest.enabled,updatedAt:Date.now()})}
+ if(pathname==='/api/follower-goals'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}'),next={...followerGoals.settings};for(const p of ['tiktok','twitch','kick','starvios'])if(body[p])next[p]={start:Math.max(0,Number(body[p].start)||0),goal:Math.max(1,Number(body[p].goal)||1),show:body[p].show!==false};followerGoals.settings=next;if(body.resetGained)followerGoals.gained={tiktok:0,twitch:0,kick:0,starvios:0};await persistFollowerGoals();broadcast({type:'follower-goals',state:publicFollowerGoals()});return json(res,200,{ok:true,...publicFollowerGoals()})}
+ if(pathname==='/api/viewers'){const v=currentViewers();return json(res,200,{ok:true,viewers:v,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),meta:viewerMeta,testMode:viewerTest.enabled,updatedAt:Date.now()})}
  if(pathname==='/api/counter-settings'&&req.method==='GET')return json(res,200,{ok:true,settings:publicCounterSettings()});
  if(pathname==='/api/counter-settings'&&req.method==='POST'){let b='';b=await readBody(req);const settings=normalizeCounterWidgetSettings(JSON.parse(b||'{}'));autoPrefs={...autoPrefs,counterStyle:settings.style,counterCardColor:settings.counterCardColor};await persistAutoPrefs();broadcast({type:'counter-settings',settings});return json(res,200,{ok:true,settings})}
  if(pathname==='/api/counter/connect'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}');try{if(body.platform==='tiktok'){autoPrefs.counterTikTok=String(body.value||'');autoPrefs.counterTikTokEnabled=true;await persistAutoPrefs();const r=await connectCounterTikTok(body.value);return json(res,200,{ok:true,...r,viewers:currentViewers()})}if(body.platform==='twitch'){autoPrefs.counterTwitch=String(body.value||'');autoPrefs.counterTwitchEnabled=true;await persistAutoPrefs();const r=await connectCounterTwitch(body.value);return json(res,200,{ok:true,...r,viewers:currentViewers()})}if(body.platform==='kick'){const v=String(body.value||'').trim();const slug=v.replace(/^https?:\/\/(www\.)?kick\.com\//i,'').split(/[/?#]/)[0].replace(/^@/,'');if(!slug)throw Error('Pon el link o usuario de Kick.');autoPrefs.counterKick=`https://kick.com/${slug}`;autoPrefs.counterKickEnabled=true;await persistAutoPrefs();await refreshKick();return json(res,200,{ok:true,slug,viewers:currentViewers()})}return json(res,400,{ok:false,error:'Plataforma no válida'})}catch(e){return json(res,400,{ok:false,error:e?.message||String(e)})}}
@@ -2405,7 +2416,7 @@ camGatewayServer.on('close',()=>{camGatewayReady=false});
 camGatewayServer.listen(CAM_GATEWAY_PORT,CAM_GATEWAY_HOST,()=>{camGatewayReady=true;camGatewayLastError='';console.log(`GREÑA Cam Gateway listo: http://${CAM_GATEWAY_HOST}:${CAM_GATEWAY_PORT}`)});
 
 const wss=new WebSocketServer({noServer:true,maxPayload:256*1024});wss.on('connection',(ws,req)=>{
- clients.add(ws);{const v=currentViewers();camSend(ws,{type:'hello',app:'GREÑA LIVE PRO',status:publicStatus(),viewers:v,total:v.tiktok+v.twitch+v.kick,testMode:viewerTest.enabled,bridgeRuntime,eventHealth:eventHealthSnapshot(),loyalty:publicLoyaltyState(10),taptap:publicTapTapState(),counterSettings:publicCounterSettings(),socialSettings})}
+ clients.add(ws);{const v=currentViewers();camSend(ws,{type:'hello',app:'GREÑA LIVE PRO',status:publicStatus(),viewers:v,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,bridgeRuntime,eventHealth:eventHealthSnapshot(),loyalty:publicLoyaltyState(10),taptap:publicTapTapState(),counterSettings:publicCounterSettings(),socialSettings})}
  ws.on('message',data=>camWsMessage(ws,req,data));
  ws.on('close',()=>{camDropSocket(ws);clients.delete(ws)});ws.on('error',()=>{camDropSocket(ws);clients.delete(ws)});
 });
