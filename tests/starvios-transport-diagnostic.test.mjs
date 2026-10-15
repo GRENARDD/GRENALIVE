@@ -1,20 +1,23 @@
 import test from 'node:test';
-test('diagnose Starvios public LIVE event transport',async()=>{
- const assets=[
-  'LiveChat-DpZtqjyE.js','live._username-QgbEr5eS.js',
-  'LiveCard-CJRkDzT8.js','social-BEWsFIQk.js',
-  'public-data-BlwdItU3.js'
- ];
- for(const name of assets)try{
-  const js=await(await fetch('https://starvios.com/assets/'+name,{signal:AbortSignal.timeout(9000)})).text();
-  const regex=/(postgres_changes|broadcast|realtime|from\(\x60(?:live_|chat_|channel_|notification|follow|subscr)|\.channel\(|\.on\(|\bkind===|kind:\x60|event_kind|gifted_subscription|star_shower|live_events|live_chat_messages|live_chat_events|stream_event|followed|subscription|shower)/ig;
-  const matches=[];
-  let m;
-  while((m=regex.exec(js))&&matches.length<75){
-   const s=js.slice(Math.max(0,m.index-95),Math.min(js.length,m.index+220));
-   // No passwords or private account data are contained in these public scripts.
-   matches.push(s);
+test('inspect current public Starvios event transport',async()=>{
+ const base='https://starvios.com';
+ const pages=['/live/mostza12','/popout/chat/mostza12'];
+ let names=[];
+ for(const path of pages)try{
+  const r=await fetch(base+path,{signal:AbortSignal.timeout(8000)}),html=await r.text();
+  const a=[...html.matchAll(/(?:src|href)="(\/assets\/[^"]+\.js)"/g)].map(x=>x[1]);
+  names.push(...a.filter(x=>/live\.|chat|LiveChat|index-|client-|LiveCard/i.test(x)));
+  console.log('[SV EVENTS] page',path,r.status,'bytes',html.length,'matched',a.filter(x=>/live\.|chat|LiveChat|LiveCard/i.test(x)).slice(0,12).join(','));
+ }catch(e){console.log('[SV EVENTS] page fail',path,String(e))}
+ for(const url of [...new Set(names)].slice(0,9))try{
+  const r=await fetch(base+url,{signal:AbortSignal.timeout(8000)}),js=await r.text();
+  const regex=/(postgres_changes|broadcast|realtime|\.channel\(|\.on\(|live_chat_|live_events|live_streams|live_messages|stream_events|chat_message|gifted_subscription|star_shower|shower|follow|subscription|raid)/ig;
+  const snippets=[];let m;
+  while((m=regex.exec(js))&&snippets.length<70){
+   let snip=js.slice(Math.max(0,m.index-95),Math.min(js.length,m.index+170));
+   snip=snip.replace(/eyJ[A-Za-z0-9_-]{50,}/g,'<JWT>');
+   snippets.push(snip);
   }
-  console.log('[SV EVENT TRANSPORT]',name,js.length,JSON.stringify(matches).slice(0,13000));
- }catch(e){console.log('[SV EVENT TRANSPORT] failed',name,String(e.message||e))}
+  console.log('[SV EVENTS] asset',url,r.status,js.length,JSON.stringify(snippets).slice(0,16000));
+ }catch(e){console.log('[SV EVENTS] asset fail',url,String(e))}
 });
