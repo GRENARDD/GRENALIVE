@@ -31,3 +31,12 @@ test('catálogo registra seis categorías, no importes oficiales',()=>{
   assert.equal(STARVIOS_SUPPORT_CATALOG.length,6);
   assert(STARVIOS_SUPPORT_CATALOG.every(x=>x.image.startsWith('/assets/starvios-events/')));
 });
+
+test('reconoce usuarios en actor y marca evento anónimo si la plataforma no da nombre',()=>{
+ const named=normalizeStarviosEvent({type:'follow',actor:{username:'UsuarioReal'}});
+ assert.equal(named.user,'UsuarioReal');
+ assert.equal(named.anonymous,false);
+ const hidden=normalizeStarviosEvent({type:'follow',user:'Usuario Starvios'});
+ assert.equal(hidden.user,'Usuario Starvios');
+ assert.equal(hidden.anonymous,true);
+});
