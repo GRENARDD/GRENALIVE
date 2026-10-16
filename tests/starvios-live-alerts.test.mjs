@@ -49,3 +49,30 @@ test('follower delta: emits only verified new count; identity stays anonymous',a
   assert.equal(events[0].user,'Nuevo seguidor');
  }finally{globalThis.fetch=orig}
 });
+
+test('REST sigue leyendo eventos cuando Starvios cambia el join público',async()=>{
+ const old=globalThis.fetch,events=[],reader=new StarviosReader({onEvent:event=>events.push(event)});
+ const at=Date.now();
+ reader.running=true;reader.generation=1;reader.channel='test';
+ reader.streamId=stream;reader.sessionStartedAt=at-1000;
+ reader.eventCursorAt=reader.sessionStartedAt;reader.followerPollAt=at;
+ let requests=0;
+ globalThis.fetch=async(url)=>{
+  requests++;
+  const parsed=new URL(url);
+  if(parsed.searchParams.get('select').includes('profiles:'))
+   return new Response(JSON.stringify({message:'relation unavailable'}),{status:400});
+  return new Response(JSON.stringify([{
+   id:'00000000-0000-4000-8000-000000000009',kind:'follow',coins:0,
+   created_at:new Date(at).toISOString(),meta:{actor:{username:'FanVisible'}}
+  }]),{status:200});
+ };
+ try{
+  await reader.scanEvents();
+  assert.equal(requests,2);
+  assert.equal(reader.dbEventsReady,true);
+  assert.equal(events.length,1);
+  assert.equal(events[0].user,'FanVisible');
+  assert.equal(events[0].anonymous,false);
+ }finally{globalThis.fetch=old}
+});
