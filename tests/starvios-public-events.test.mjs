@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseStarviosChatEvent,parseStarviosFollowerCount,buildStarviosChatEventUrl,buildStarviosFollowerCountRequest} from '../starvios-public-events.mjs';
+import {parseStarviosChatEvent,parseStarviosFollowerCount,buildStarviosChatEventUrl,buildStarviosFollowerCountRequest,buildStarviosProfileLookupUrl} from '../starvios-public-events.mjs';
 
 const sample=(kind,other={})=>({id:'00000000-0000-4000-8000-000000000001',kind,coins:0,profiles:{username:'fan'} ,...other});
 test('detecta donaciones solo cuando hay monedas reales',()=>{
@@ -48,6 +48,19 @@ test('extrae el usuario visible de payloads anidados sin inventar identidades',(
 test('fallback de eventos públicos omite el join de perfiles cuando Starvios lo cambia',()=>{
  const id='00000000-0000-4000-8000-000000000001';
  const url=new URL(buildStarviosChatEventUrl(id,'2026-10-15T15:00:00.000Z',200,false));
- assert.equal(url.searchParams.get('select'),'id,kind,coins,meta,created_at');
+ assert.equal(url.searchParams.get('select'),'id,kind,coins,meta,created_at,user_id');
+  const legacy=new URL(buildStarviosChatEventUrl(id,'2026-10-15T15:00:00.000Z',200,false,false));
+  assert.equal(legacy.searchParams.get('select'),'id,kind,coins,meta,created_at');
  assert.equal(url.searchParams.get('limit'),'200');
+});
+
+test('recuperación de nombres usa IDs de usuario públicos y no inventa nombres',()=>{
+  const id='00000000-0000-4000-8000-000000000001';
+  const evt=new URL(buildStarviosChatEventUrl(id,'2026-10-16T15:00:00.000Z'));
+  assert.match(evt.searchParams.get('select'),/user_id/);
+  const url=new URL(buildStarviosProfileLookupUrl([id,id,'/alerts/token','bad'])); 
+  assert.equal(url.pathname,'/rest/v1/profiles');
+  assert.equal(url.searchParams.get('select'),'id,username');
+  assert.equal(url.searchParams.get('id'),'in.('+id+')');
+  assert.throws(()=>buildStarviosProfileLookupUrl(['bad']));
 });
