@@ -45,18 +45,31 @@ export function parseStarviosFollowerCount(data,channelId){
  if(!entry)return 0; // the public aggregate omits channels that have no followers
  return safeInt(entry.followers,10000000);
 }
-export function buildStarviosChatEventUrl(streamId,sinceIso,limit=100,includeProfiles=true){
+export function buildStarviosChatEventUrl(streamId,sinceIso,limit=100,includeProfiles=true,includeUserId=true){
  if(!/^[0-9a-f-]{20,80}$/i.test(String(streamId||'')))throw Error('Starvios stream id invalid');
  const u=new URL(STARVIOS_PUBLIC_DB_URL+'/live_chat_messages');
  // El join público puede cambiar en Starvios. En ese caso leemos los
  // eventos públicos sin join, conservando nombres explícitos de meta.
+ const columns='id,kind,coins,meta,created_at'+(includeUserId?',user_id':'');
  u.searchParams.set('select',includeProfiles
-  ?'id,kind,coins,meta,created_at,profiles:profiles!live_chat_messages_user_id_fkey(username,display_name)'
-  :'id,kind,coins,meta,created_at');
+  ?columns+',profiles:profiles!live_chat_messages_user_id_fkey(username,display_name)'
+  :columns);
  u.searchParams.set('stream_id','eq.'+streamId);
  u.searchParams.set('created_at','gte.'+sinceIso);
  u.searchParams.set('order','created_at.asc');
  u.searchParams.set('limit',String(Math.min(250,Math.max(1,Number(limit)||100))));
+ return u.href;
+}
+// Resolve ONLY public usernames for user IDs already present in this LIVE's event rows.
+// No cookies, login credentials or user-provided overlay tokens are needed.
+export function buildStarviosProfileLookupUrl(userIds){
+ const ids=[...new Set((Array.isArray(userIds)?userIds:[]).map(x=>String(x||'').trim())
+  .filter(x=>/^[0-9a-f-]{20,80}$/i.test(x)))].slice(0,100);
+ if(!ids.length)throw Error('Sin usuarios Starvios verificables');
+ const u=new URL(STARVIOS_PUBLIC_DB_URL+'/profiles');
+ u.searchParams.set('select','id,username');
+ u.searchParams.set('id','in.('+ids.join(',')+')');
+ u.searchParams.set('limit',String(ids.length));
  return u.href;
 }
 export function buildStarviosFollowerCountRequest(channelId){
