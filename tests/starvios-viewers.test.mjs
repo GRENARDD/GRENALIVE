@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseStarviosLiveDirectory,STARVIOS_LIVE_DIRECTORY_URL,fetchStarviosDbLiveDirectory} from '../starvios-viewers.mjs';
+import {parseStarviosLiveDirectory,STARVIOS_LIVE_DIRECTORY_URL,buildStarviosFreshLiveDirectoryUrl,fetchStarviosDbLiveDirectory} from '../starvios-viewers.mjs';
 
 test('Starvios directorio público usa cifras del propio LIVE',()=>{
  const rows=[{status:'live',profiles:{username:'GRENA_RD'},viewer_count:27},
@@ -89,4 +89,13 @@ test('la tabla pública puede referir al creador como profile_id',async()=>{
   baseUrl:'https://example.supabase.co/rest/v1',key:'publica',request
  });
  assert.deepEqual(parseStarviosLiveDirectory(payload,'grena_rd'),{state:'live',count:51});
+});
+
+test('cada lectura de audiencia evade caché sin alterar la ruta de Starvios',()=>{
+ const a=new URL(buildStarviosFreshLiveDirectoryUrl(1760634000000));
+ const b=new URL(buildStarviosFreshLiveDirectoryUrl(1760634006000));
+ assert.equal(a.origin,'https://starvios.com');
+ assert.equal(a.pathname,'/api/public/live-now');
+ assert.equal(a.searchParams.get('_live_ts'),'1760634000000');
+ assert.notEqual(a.href,b.href);
 });
