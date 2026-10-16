@@ -46,6 +46,7 @@ export class StarviosReader {
     this.liveDirectoryMisses=0;
     this.lastDirectoryGoodAt=0;
     this.directoryPrimaryRetryAt=0;
+    this.directoryBrowserRetryAt=0;
     this.lastDirectoryPrimaryError='';
     this.lastViewerCount=null;
     this.lastViewerReportedSource='';
@@ -405,6 +406,76 @@ export class StarviosReader {
     }
   }
 
+  // El directorio /live muestra tarjetas públicas con espectadores. Es un
+  // respaldo independiente de /api/public/live-now, que a veces agota el
+  // tiempo de espera desde Railway. Jamás deducimos una cifra del chat.
+  async readViewerFromLiveDirectory(generation){
+    if(!this.browser||Date.now()<this.directoryBrowserRetryAt)return null;
+    this.directoryBrowserRetryAt=Date.now()+45000;
+    let listing=null;
+    try{
+      listing=await this.browser.newPage();
+      await listing.route('**/*',route=>{
+        const type=route.request().resourceType();
+        return ['image','font','media'].includes(type)?route.abort():route.continue();
+      });
+      const response=await listing.goto('https://starvios.com/live',{waitUntil:'domcontentloaded',timeout:13000});
+      if(!response||response.status()>=400)return null;
+      // SPA: permitimos un corto margen para que el directorio pinte las cards.
+      await listing.waitForTimeout(1800);
+      if(generation!==this.generation||!this.running)return null;
+      const found=await listing.evaluate(channel=>{
+        const normalized='/live/'+channel.toLowerCase();
+        const asCount=raw=>{
+          const str=String(raw||'').trim();
+          if(!/^(?:\\d+|\\d{1,3}(?:[.,]\\d{3})+)$/.test(str))return null;
+          const n=Number(str.replace(/[.,]/g,''));
+          return Number.isSafeInteger(n)&&n>=0&&n<=10000000?n:null;
+        };
+        const links=[...document.querySelectorAll('a[href]')].filter(link=>{
+          try{return new URL(link.getAttribute('href'),location.href).pathname.toLowerCase().replace(/\\/$/,'')===normalized}catch{return false}
+        });
+        for(const link of links){
+          const card=link.closest('article,[data-testid*="stream"],[data-testid*="live"],li')
+            ||link.closest('[class*="card"],[class*="Card"],[class*="group"]')||link;
+          // Solo valores rotulados explícitamente como audiencia del LIVE.
+          const attributes=[card,...card.querySelectorAll('[aria-label],[title],[data-viewer-count],[data-viewers]')];
+          for(const el of attributes){
+            for(const value of [el.getAttribute?.('data-viewer-count'),el.getAttribute?.('data-viewers'),el.getAttribute?.('aria-label'),el.getAttribute?.('title')]){
+              const label=String(value||'');
+              const m=label.match(/(?:espectadores|viewers|watching|viendo)\\s*[:：]?\\s*([\\d.,]+)/i)
+                ||label.match(/([\\d.,]+)\\s*(?:espectadores|viewers|watching|viendo)/i);
+              if(m){const count=asCount(m[1]);if(count!==null)return count}
+            }
+          }
+          // En Starvios la cifra puede acompañar al icono de un ojo sin texto.
+          for(const eye of card.querySelectorAll('svg,[data-lucide]')){
+            const icon=(eye.getAttribute('class')||'')+' '+(eye.getAttribute('data-lucide')||'')+' '+(eye.getAttribute('aria-label')||'');
+            if(!/(?:^|[^a-z])eye(?:[^a-z]|$)|visibility/i.test(icon))continue;
+            for(const parent of [eye.parentElement,eye.parentElement?.parentElement]){
+              const txt=String(parent?.innerText||'').trim();
+              const count=asCount(txt);
+              if(count!==null)return count;
+              const m=txt.match(/(?:^|\\s)([\\d.,]+)\\s*(?:espectadores|viewers)?$/i);
+              if(m){const parsed=asCount(m[1]);if(parsed!==null)return parsed}
+            }
+          }
+          const text=String(card.innerText||'').replace(/\\s+/g,' ');
+          const labeled=text.match(/(?:espectadores|viewers|watching|viendo)\\s*[:：]?\\s*([\\d.,]+)/i)
+            ||text.match(/([\\d.,]+)\\s*(?:espectadores|viewers|watching|viendo)/i);
+          if(labeled){const count=asCount(labeled[1]);if(count!==null)return count}
+        }
+        return null;
+      },this.channel);
+      return found===null?null:{rows:[{status:'live',viewer_count:found,profiles:{username:this.channel}}]};
+    }catch(error){
+      this.lastDirectoryCardError=String(error?.message||error).slice(0,100);
+      return null;
+    }finally{
+      if(listing)try{await listing.close()}catch{}
+    }
+  }
+
   async scanLive(){
     if(!this.running||!this.channel||this.liveScanBusy)return;
     this.liveScanBusy=true;
@@ -453,17 +524,26 @@ export class StarviosReader {
           directorySource='Starvios public directory · navegador';
         }catch(error){browserViewerError=String(error?.message||error).slice(0,120)}
       }
+      let dbViewerError='';
       if(!payload){
         try{
           payload=await fetchStarviosDbLiveDirectory(this.channel,{
-            baseUrl:STARVIOS_PUBLIC_DB_URL,key:STARVIOS_PUBLIC_KEY,timeoutMs:10000
+            baseUrl:STARVIOS_PUBLIC_DB_URL,key:STARVIOS_PUBLIC_KEY,timeoutMs:6000
           });
           directorySource='Starvios public DB · respaldo';
-        }catch(error){
-          throw Error('Starvios viewer primary: '+(this.lastDirectoryPrimaryError||'en pausa')+
-            (browserViewerError?' · browser: '+browserViewerError:'')+
-            ' · public DB fallback: '+String(error?.message||error));
-        }
+        }catch(error){dbViewerError=String(error?.message||error).slice(0,160)}
+      }
+      // El directorio renderizado es la última fuente independiente. Solo
+      // sobrescribe la lectura anterior si ofrece una cifra atribuible al canal.
+      if(!payload||parseStarviosLiveDirectory(payload,this.channel).count===null){
+        const rendered=await this.readViewerFromLiveDirectory(generation);
+        if(rendered){payload=rendered;directorySource='Starvios live directory · contador visible'}
+      }
+      if(!payload){
+        throw Error('Starvios viewer primary: '+(this.lastDirectoryPrimaryError||'en pausa')+
+          (browserViewerError?' · browser: '+browserViewerError:'')+
+          (dbViewerError?' · public DB: '+dbViewerError:'')+
+          (this.lastDirectoryCardError?' · live page: '+this.lastDirectoryCardError:''));
       }
       if(generation!==this.generation||!this.running)return;
       const state=parseStarviosLiveDirectory(payload,this.channel);
@@ -528,7 +608,7 @@ export class StarviosReader {
     this.timer=null;this.liveTimer=null;this.eventTimer=null;this.reconnectTimer=null;
     this.reconnectFailures=0;
     this.missingContainerSince=0;
-    this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.lastDirectoryPrimaryError='';
+    this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
     this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();
     this.dbEventsReady=false;this.eventBusy=false;this.streamId='';this.channelId='';
     this.followerTotal=null;this.followerPollAt=0;this.followNameEvents=0;
