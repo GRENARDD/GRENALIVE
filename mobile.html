@@ -48,6 +48,23 @@ const $=id=>document.getElementById(id),platforms=['tiktok','twitch','kick','you
 let ws,retry,sessionReady=false,voiceQueue=[],speaking=false,voiceOn=false;
 let voiceRun=0,fishRequest=null,fishObjectUrl='',needsAudioTap=false,profileVoiceKey='';
 const mobileAudio=new Audio();mobileAudio.preload='auto';mobileAudio.playsInline=true;
+function unlockFishAudioFromTap(){
+ if(!engineIsFish())return;
+ // Los navegadores móviles exigen que el primer play() ocurra durante un toque.
+ // Preparamos unos milisegundos de silencio en el MISMO reproductor de Fish.
+ try{
+  const frames=1600,wav=new ArrayBuffer(44+frames*2),view=new DataView(wav);
+  const put=(offset,str)=>{for(let i=0;i<str.length;i++)view.setUint8(offset+i,str.charCodeAt(i))};
+  put(0,'RIFF');view.setUint32(4,36+frames*2,true);put(8,'WAVE');put(12,'fmt ');
+  view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);
+  view.setUint32(24,8000,true);view.setUint32(28,16000,true);view.setUint16(32,2,true);view.setUint16(34,16,true);
+  put(36,'data');view.setUint32(40,frames*2,true);
+  const silent=URL.createObjectURL(new Blob([wav],{type:'audio/wav'}));
+  mobileAudio.src=silent;mobileAudio.volume=0;
+  const started=mobileAudio.play();started?.catch(()=>{});
+  setTimeout(()=>{if(mobileAudio.src===silent){mobileAudio.pause();mobileAudio.removeAttribute('src')}URL.revokeObjectURL(silent)},450);
+ }catch{}
+}
 const platformNames={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube',starvios:'Starvios'};
 let platformStatus={},platformOAuth={},linkingPlatform='';
 function text(el,value){if(el)el.textContent=String(value??'')}
@@ -153,11 +170,11 @@ function speakNext(){
 $('voice').onchange=()=>{
  voiceOn=$('voice').checked;
  if(!voiceOn){stopVoice(true);setVoiceInfo('Lectura por voz desactivada.')}
- else{needsAudioTap=false;setVoiceInfo(engineIsFish()?'Fish Audio listo para leer mensajes.':'Voz del teléfono activada.');speakNext()}
+ else{needsAudioTap=false;unlockFishAudioFromTap();setVoiceInfo(engineIsFish()?'Fish Audio listo para leer mensajes.':'Voz del teléfono activada.');speakNext()}
 };
 $('testVoice').onclick=()=>{
  if(engineIsFish()&&!validFishId()){setVoiceInfo('Pega un ID válido de Fish Audio (8 a 160 caracteres).');$('fishModelId').focus();return}
- stopVoice(true);needsAudioTap=false;voiceOn=true;$('voice').checked=true;saveMobileVoice();
+ stopVoice(true);needsAudioTap=false;voiceOn=true;$('voice').checked=true;saveMobileVoice();unlockFishAudioFromTap();
  voiceQueue.push({line:'Hola, soy GREÑA LIVE desde tu teléfono. Esta es una prueba de voz.',at:Date.now(),test:true});
  speakNext();
 };
@@ -185,7 +202,7 @@ function renderLinks(){
 }
 function linkNotice(message){text($('linkInfo'),message)}
 function beginLink(platform){
- linkingPlatform=platform;changeTab('accountPanel');
+ linkingPlatform=platform;changeTab('accountPanel');$('linkForm').classList.add('hidden');
  if(platform==='twitch'||platform==='kick'){
   if(platformOAuth[platform]===false){linkNotice(platformNames[platform]+' necesita autorización configurada en GREÑA.');return}
   linkNotice('Autoriza '+platformNames[platform]+' en la pestaña que se abrirá y vuelve aquí.');
