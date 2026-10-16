@@ -301,7 +301,8 @@ export class StarviosReader {
     }
   }
   deliverEvent(raw){
-    const kind=String(raw.kind||''),user=String(raw.user||'Usuario').slice(0,80);
+    const kind=String(raw.kind||''),user=String(raw.user||'Usuario Starvios').trim().slice(0,80);
+    const anonymous=raw.anonymous===true||/^(?:usuario(?: starvios)?|nuevo seguidor|unknown|anonymous)$/i.test(user);
     if(!['follow','sub','subrenew','giftsub','raid','gift','shower'].includes(kind))return;
     const amount=Math.max(0,Math.trunc(Number(raw.amount)||0));
     if(kind==='gift'&&amount<=0)return;
@@ -310,8 +311,8 @@ export class StarviosReader {
     if(now-old<(key.startsWith('id:')?300000:1800))return;
     this.eventKeys.set(key,now);
     if(this.eventKeys.size>600)for(const [id,at] of this.eventKeys)if(now-at>300000)this.eventKeys.delete(id);
-    if(kind==='follow'&&!raw.anonymous)this.followNameEvents++;
-    this.onEvent({...raw,platform:'starvios',kind,user,amount,channel:this.channel});
+    if(kind==='follow'&&!anonymous)this.followNameEvents++;
+    this.onEvent({...raw,platform:'starvios',kind,user,anonymous,amount,channel:this.channel});
   }
 
   // Public read-only records from the same live chat Starvios displays.
@@ -323,11 +324,18 @@ export class StarviosReader {
     const streamId=this.streamId;
     try{
       const cursor=Math.max(this.sessionStartedAt,this.eventCursorAt-1500);
-      const url=buildStarviosChatEventUrl(streamId,new Date(cursor).toISOString(),200);
-      const response=await fetch(url,{
-        headers:{apikey:STARVIOS_PUBLIC_KEY,accept:'application/json'},
-        signal:AbortSignal.timeout(9500)
+      const sinceIso=new Date(cursor).toISOString();
+      const headers={apikey:STARVIOS_PUBLIC_KEY,accept:'application/json'};
+      let response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200),{
+        headers,signal:AbortSignal.timeout(9500)
       });
+      // Si cambia la relación de perfiles, seguimos recibiendo los eventos
+      // públicos sin atribuirles usuarios inventados.
+      if(response.status===400){
+        response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200,false),{
+          headers,signal:AbortSignal.timeout(9500)
+        });
+      }
       if(!response.ok)throw Error('Starvios eventos HTTP '+response.status);
       const rows=await response.json();
       if(!Array.isArray(rows))throw Error('Starvios devolvió eventos inválidos');

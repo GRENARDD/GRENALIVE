@@ -145,7 +145,7 @@ function renderPlatformStatus(st={},health=null){
  health=lastAlertEventHealth;
  for(const [p,el] of Object.entries(platformEls)){
   if(!el)continue;const x=st[p]||{};
-  if(p==='starvios')el.textContent=x.live===true?'LIVE conectado':x.live===false?'Sin LIVE':(x.authenticated?'Canal vinculado':'No conectado');
+  if(p==='starvios')el.textContent=x.live===true?'LIVE conectado':x.live===false?'Sin LIVE':(x.configured||x.account?'Canal configurado':'No conectado');
   else el.textContent=x.label||'No conectado';
   const active=p==='starvios'?x.live===true:!!x.connected;
   el.classList.toggle('ready',active);el.classList.toggle('pending',!active);
@@ -155,7 +155,7 @@ function renderPlatformStatus(st={},health=null){
  const unidentifiableFollow=hasReal&&svHealth.lastRealEventKind==='follow'&&svHealth.lastRealNameAvailable===false;
  const badge=$('starviosAlertState'),description=$('starviosEventDetail');
  if(badge){
-  badge.textContent=channel.live===true?(unidentifiableFollow?'LIVE · follow sin nombre':hasReal?'LIVE · eventos recibidos':'LIVE · esperando eventos reales'):(channel.authenticated?'Canal vinculado · esperando LIVE':'StarVios sin conectar');
+  badge.textContent=channel.live===true?(unidentifiableFollow?'LIVE · follow sin nombre':hasReal?'LIVE · eventos recibidos':'LIVE · esperando eventos reales'):(channel.configured||channel.account?'Canal configurado · esperando LIVE':'StarVios sin conectar');
   badge.title=hasReal?'Último evento real confirmado por GREÑA: '+new Date(svHealth.lastRealEventAt).toLocaleString('es-DO'):'Los botones son pruebas; no significan que se haya detectado un evento real.';
  }
  if(description)description.textContent=unidentifiableFollow?'Follow detectado por contador · StarVios no publica quién fue':hasReal?'Último evento real recibido · '+new Date(svHealth.lastRealEventAt).toLocaleString('es-DO'):'Follows, suscripciones, Starvies, raids y Lluvia de Estrellas';
