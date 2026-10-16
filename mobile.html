@@ -1,28 +1,237 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b101c"><title>GREÑA LIVE · Móvil</title><style>
 :root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0b101c;color:#f8f9ff;font:14px system-ui,Segoe UI,Arial}button,input,select{font:inherit}button{border:1px solid #46506a;border-radius:10px;background:#202b42;color:#fff;padding:11px;cursor:pointer}button.primary{background:#7952d6;border-color:#7952d6;font-weight:800}header{position:sticky;top:0;z-index:5;background:#0b101cf5;padding:14px;border-bottom:1px solid #29354b;display:flex;align-items:center;justify-content:space-between;gap:8px}header b{font-size:17px}main{max-width:720px;margin:auto;padding:13px 13px 95px}.panel{background:#151d2d;border:1px solid #2c3852;border-radius:17px;padding:14px;margin-bottom:13px}h2{font-size:16px;margin:0 0 12px}small,.muted{color:#99a7c0}.platforms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.platform{background:#101725;border:1px solid #344057;border-radius:12px;padding:10px;display:flex;align-items:center;gap:8px;min-width:0}.platform img{width:24px;height:24px;object-fit:contain}.platform b{font-size:12px}.platform.starvios{border-color:#ff92ce;background:#31192c}.platform.starvios b{color:#ffaddb}.dot{margin-left:auto;width:8px;height:8px;flex-shrink:0;background:#667289;border-radius:50%}.dot.on{background:#43e19f;box-shadow:0 0 10px #43e19f80}.platform.starvios .dot.on{background:#ff81c8;box-shadow:0 0 10px #ff81c890}.platform .number{font-size:11px;color:#adbed5}.chat{height:min(44dvh,430px);min-height:220px;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:7px}.msg{border-left:3px solid #8190b0;background:#101725;border-radius:10px;padding:9px;overflow-wrap:anywhere}.msg b{font-size:12px}.msg p{margin:5px 0 0;line-height:1.4}.msg.starvios{border-left-color:#ff86ca;background:#352034}.msg.starvios b{color:#ffb1e0}.msg.tiktok{border-left-color:#25f4ee}.msg.twitch{border-left-color:#a46dff}.msg.kick{border-left-color:#53fc18}.msg.youtube{border-left-color:#ff3048}.row{display:flex;align-items:center;gap:8px;margin-top:11px}.row select{flex:1;min-width:0;background:#202b42;color:white;border:1px solid #46506a;border-radius:10px;padding:10px}.row label{display:flex;align-items:center;gap:5px}.row input{width:20px;height:20px;accent-color:#ae82fe}.actions{display:flex;gap:8px}.actions button{flex:1}.hint{line-height:1.5;color:#abb9d1;font-size:12px}nav{position:fixed;bottom:0;inset-inline:0;z-index:10;background:#10182bf7;border-top:1px solid #34415b;padding:10px 12px calc(10px + env(safe-area-inset-bottom));display:flex;gap:7px}nav button{flex:1;font-size:12px;padding:10px 3px}.hidden{display:none}iframe{width:100%;height:65dvh;border:1px solid #34415b;border-radius:12px;background:#0c111d}
+
+.voice-settings{margin-top:13px;padding:12px;border:1px solid #3c4b68;background:#10182a;border-radius:12px}
+.voice-settings summary{cursor:pointer;color:#e4d9ff;font-weight:750}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.settings-grid label{font-size:12px;display:flex;flex-direction:column;gap:5px;color:#bfcae0}
+.settings-grid input,.settings-grid select,.link-form input{min-width:0;width:100%;padding:11px;border:1px solid #465776;border-radius:10px;background:#202b42;color:#fff}
+.settings-grid input[type=range]{padding:3px 0;accent-color:#ae82fe}
+.settings-grid .wide{grid-column:1 / -1}
+#voiceInfo,#linkInfo{min-height:16px;margin:9px 0 0;color:#b9c7e1;font-size:12px;line-height:1.45}
+.link-list{display:grid;gap:9px;margin:12px 0}
+.link-item{display:flex;gap:10px;align-items:center;border:1px solid #34415b;border-radius:12px;background:#11192a;padding:10px}
+.link-item img{width:26px;height:26px;object-fit:contain;flex-shrink:0}
+.link-item .details{flex:1;min-width:0}.link-item b{font-size:13px}.link-item small{display:block;overflow-wrap:anywhere}
+.link-item button{padding:9px;font-size:12px;flex-shrink:0}
+.link-form{display:grid;gap:9px;padding:12px;background:#101725;border:1px solid #705bad;border-radius:12px;margin-bottom:9px}
+.link-form label{color:#cbd7f2;font-size:12px}
+.link-form .actions button{min-width:0}
+#openLinks{width:100%;margin-top:8px}
+@media(max-width:390px){.row{flex-wrap:wrap}.row select{flex-basis:45%}.settings-grid{grid-template-columns:1fr}}
 </style></head><body><header><b>⚡ GREÑA <span style="color:#b4a0fc">MÓVIL</span></b><div><small id="connection">Conectando…</small> <button id="switch" type="button">⇄ Versión</button></div></header><main>
-<section class="panel" id="home"><h2>Plataformas <small id="total"></small></h2><div class="platforms" id="platforms"></div><p class="hint">El celular puede manejar GREÑA Chat y reproducir la voz sin ejecutar la interfaz completa de escritorio.</p></section>
-<section class="panel" id="chatPanel"><h2>💬 Multichat en vivo</h2><div class="chat" id="messages" role="log" aria-live="off"><p class="muted">Esperando mensajes del LIVE…</p></div><div class="row"><label><input type="checkbox" id="voice"> 🔊 Leer</label><select id="voicePlatform" aria-label="Plataforma para voz"><option value="all">Todas las plataformas</option><option value="tiktok">TikTok</option><option value="twitch">Twitch</option><option value="kick">Kick</option><option value="youtube">YouTube</option><option value="starvios">Starvios</option></select><button id="testVoice">Probar voz</button></div><p class="hint">Toca «Leer» para activar el sonido. La voz sale por los altavoces o audífonos del teléfono, no por su micrófono. Para que OBS en otra PC la capture, necesitas conectar el audio del móvil a la PC.</p></section>
+<section class="panel" id="home"><h2>Plataformas <small id="total"></small></h2><div class="platforms" id="platforms"></div><p class="hint">El celular puede manejar GREÑA Chat y reproducir la voz sin ejecutar la interfaz completa de escritorio.</p><button id="openLinks" type="button">🔗 Vincular plataformas</button></section>
+<section class="panel" id="chatPanel"><h2>💬 Multichat en vivo</h2><div class="chat" id="messages" role="log" aria-live="off"><p class="muted">Esperando mensajes del LIVE…</p></div><div class="row"><label><input type="checkbox" id="voice"> 🔊 Leer</label><select id="voicePlatform" aria-label="Plataforma para voz"><option value="all">Todas las plataformas</option><option value="tiktok">TikTok</option><option value="twitch">Twitch</option><option value="kick">Kick</option><option value="youtube">YouTube</option><option value="starvios">Starvios</option></select><button id="testVoice">Probar voz</button></div>
+<details class="voice-settings" open><summary>🎙️ Configuración de voz · Fish Audio</summary>
+<div class="settings-grid">
+<label class="wide" for="voiceEngine">Motor de voz<select id="voiceEngine"><option value="browser">Voz del teléfono (gratis)</option><option value="fish">Fish Audio · voz personalizada</option></select></label>
+<label class="wide hidden" id="fishModelWrap" for="fishModelId">ID de voz Fish Audio<input id="fishModelId" type="text" autocomplete="off" spellcheck="false" maxlength="160" placeholder="Pega el ID del modelo de Fish Audio"><small>Una voz es suficiente. No necesitas escribir tu clave API aquí.</small></label>
+<label for="voiceSpeed">Velocidad <span id="speedValue">1.0x</span><input id="voiceSpeed" type="range" min="0.5" max="2" step="0.1" value="1"></label>
+<label for="voiceVolume">Volumen <span id="volumeValue">100%</span><input id="voiceVolume" type="range" min="0" max="1" step="0.1" value="1"></label>
+</div><p id="voiceInfo" role="status" aria-live="polite">Selecciona una voz y toca «Probar voz».</p>
+</details><p class="hint">Toca «Leer» para activar el sonido. La voz sale por los altavoces o audífonos del teléfono, no por su micrófono. Para que OBS en otra PC la capture, necesitas conectar el audio del móvil a la PC.</p></section>
 <section class="panel hidden" id="toolsPanel"><h2>🛠️ Controles</h2><div class="actions"><button id="alerts">Alertas</button><button id="widgets">Widgets OBS</button><button id="catalog">Catálogo</button></div><p class="hint">Estas herramientas reutilizan tu cuenta y la configuración de GREÑA. Algunas pantallas avanzadas pueden requerir más espacio.</p><iframe class="hidden" id="toolFrame" title="Herramienta GREÑA" loading="lazy"></iframe></section>
-<section class="panel hidden" id="accountPanel"><h2>👤 Tu cuenta</h2><p id="accountName"></p><div class="actions"><button id="web">🖥 Versión web</button><button id="logout">Salir</button></div></section>
+<section class="panel hidden" id="accountPanel"><h2>👤 Tu cuenta</h2><p id="accountName"></p>
+<h2>🔗 Vincular redes y plataformas</h2><p class="hint">Gestiona las conexiones de tu cuenta GREÑA sin salir de la versión móvil.</p>
+<div id="linkedPlatforms" class="link-list" aria-label="Plataformas vinculadas"></div>
+<div class="link-form hidden" id="linkForm">
+<label id="linkLabel" for="linkValue">Enlace de la plataforma</label>
+<input id="linkValue" type="url" autocapitalize="none" spellcheck="false" autocomplete="off">
+<div class="actions"><button type="button" id="linkCancel">Cancelar</button><button type="button" class="primary" id="linkSubmit">Vincular</button></div>
+</div>
+<p id="linkInfo" role="status" aria-live="polite"></p>
+<div class="actions"><button id="web">🖥 Versión web</button><button id="logout">Salir</button></div></section>
 </main><nav><button data-tab="chatPanel" class="primary">💬 Chat</button><button data-tab="home">📡 Estado</button><button data-tab="toolsPanel">🛠 Herramientas</button><button data-tab="accountPanel">👤 Cuenta</button></nav>
 <script>
 const $=id=>document.getElementById(id),platforms=['tiktok','twitch','kick','youtube','starvios'],logos={tiktok:'/assets/platforms/tiktok.webp',twitch:'/assets/platforms/twitch.webp',kick:'/assets/platforms/kick.svg',youtube:'/assets/youtube-logo.svg',starvios:'/assets/platforms/starvios.svg'};
+
 let ws,retry,sessionReady=false,voiceQueue=[],speaking=false,voiceOn=false;
-function text(el,value){el.textContent=String(value??'')}
+let voiceRun=0,fishRequest=null,fishObjectUrl='',needsAudioTap=false,profileVoiceKey='';
+const mobileAudio=new Audio();mobileAudio.preload='auto';mobileAudio.playsInline=true;
+const platformNames={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube',starvios:'Starvios'};
+let platformStatus={},platformOAuth={},linkingPlatform='';
+function text(el,value){if(el)el.textContent=String(value??'')}
 function changeTab(id){for(const x of ['home','chatPanel','toolsPanel','accountPanel'])$(x).classList.toggle('hidden',id!==x)}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>changeTab(b.dataset.tab));
-$('switch').onclick=() => location.assign('/mode.html');$('web').onclick=()=>location.assign('/');
-$('logout').onclick=async()=>{try{await fetch('/api/account/logout',{method:'POST'})}catch{}location.replace('/login.html')};
-$('platforms').replaceChildren(...platforms.map(p=>{const d=document.createElement('div');d.className='platform '+p;d.innerHTML='<img alt=""><span><b></b><br><small class="number">—</small></span><i class="dot"></i>';d.querySelector('img').src=logos[p];text(d.querySelector('b'),p==='starvios'?'Starvios':p[0].toUpperCase()+p.slice(1));d.dataset.platform=p;return d}));
+$('switch').onclick=()=>location.assign('/mode.html');$('web').onclick=()=>location.assign('/');
+$('logout').onclick=async()=>{stopVoice(true);try{await fetch('/api/account/logout',{method:'POST'})}catch{}location.replace('/login.html')};
+$('openLinks').onclick=()=>{changeTab('accountPanel');$('linkedPlatforms').scrollIntoView({behavior:'smooth',block:'start'})};
+$('platforms').replaceChildren(...platforms.map(p=>{const d=document.createElement('div');d.className='platform '+p;d.innerHTML='<img alt=""><span><b></b><br><small class="number">—</small></span><i class="dot"></i>';d.querySelector('img').src=logos[p];text(d.querySelector('b'),platformNames[p]);d.dataset.platform=p;return d}));
 function updateState(data){if(!data)return;for(const p of platforms){const row=document.querySelector('.platform[data-platform="'+p+'"]');if(!row)continue;const st=data.status?.[p]||{},views=data.viewers?.[p];row.querySelector('.dot').classList.toggle('on',p==='starvios'?st.live===true:!!(st.runtimeConnected||st.connected));text(row.querySelector('.number'),(p==='starvios'&&st.live===false?'OFFLINE':p==='starvios'&&st.live===true?'LIVE · ':'')+(Number.isFinite(+views)&&views!==undefined?Number(views).toLocaleString('es-DO')+' viendo':(st.label||'Esperando')))}if(data.viewers){const n=Object.values(data.viewers).reduce((a,b)=>a+(Number(b)||0),0);text($('total'),'· '+n.toLocaleString('es-DO')+' espectadores')}}
-async function refresh(){try{const [a,b]=await Promise.all([fetch('/api/status',{cache:'no-store'}).then(r=>r.json()),fetch('/api/viewers',{cache:'no-store'}).then(r=>r.json())]);updateState({status:a.status,viewers:b.viewers})}catch{}}
-function enqueue(message){if(!voiceOn||!window.speechSynthesis)return;const p=String(message.platform||'').toLowerCase();if($('voicePlatform').value!=='all'&&$('voicePlatform').value!==p)return;voiceQueue.push((message.nickname||message.user||'Usuario')+' dice: '+String(message.text||'').slice(0,240));if(voiceQueue.length>35)voiceQueue.shift();speakNext()}
-function speakNext(){if(!voiceOn||speaking||!voiceQueue.length)return;const line=voiceQueue.shift();speaking=true;const u=new SpeechSynthesisUtterance(line);u.lang='es-ES';u.rate=1.12;u.onend=u.onerror=()=>{speaking=false;speakNext()};try{speechSynthesis.speak(u)}catch{speaking=false}}
-$('voice').onchange=e=>{voiceOn=!!e.target.checked;if(!voiceOn){voiceQueue=[];try{speechSynthesis.cancel()}catch{}speaking=false}else{const u=new SpeechSynthesisUtterance('Voz GREÑA activada');u.lang='es-ES';speechSynthesis.speak(u)}};
-$('testVoice').onclick=()=>{try{const u=new SpeechSynthesisUtterance('Hola, soy GREÑA LIVE desde tu teléfono.');u.lang='es-ES';speechSynthesis.speak(u)}catch{}};
+async function refresh(){try{const [a,b]=await Promise.all([fetch('/api/status',{cache:'no-store'}).then(r=>r.json()),fetch('/api/viewers',{cache:'no-store'}).then(r=>r.json())]);platformStatus=a.status||{};platformOAuth=a.oauthConfigured||{};updateState({status:platformStatus,viewers:b.viewers});renderLinks()}catch{}}
+function setVoiceInfo(message){text($('voiceInfo'),message)}
+function engineIsFish(){return $('voiceEngine').value==='fish'}
+function validFishId(){return /^[A-Za-z0-9_-]{8,160}$/.test($('fishModelId').value.trim())}
+function updateVoiceControls(){
+ $('fishModelWrap').classList.toggle('hidden',!engineIsFish());
+ text($('speedValue'),Number($('voiceSpeed').value).toFixed(1)+'x');
+ text($('volumeValue'),Math.round(Number($('voiceVolume').value)*100)+'%');
+}
+function saveMobileVoice(){
+ if(!profileVoiceKey)return;
+ const settings={engine:$('voiceEngine').value,model:$('fishModelId').value.trim(),speed:Number($('voiceSpeed').value),volume:Number($('voiceVolume').value),platform:$('voicePlatform').value};
+ try{localStorage.setItem(profileVoiceKey,JSON.stringify(settings))}catch{}
+}
+function restoreMobileVoice(user){
+ profileVoiceKey='grena:mobile:voice:v2:'+String(user.id||user.username||'default');
+ try{
+  const s=JSON.parse(localStorage.getItem(profileVoiceKey)||'{}');
+  if(['fish','browser'].includes(s.engine))$('voiceEngine').value=s.engine;
+  if(typeof s.model==='string')$('fishModelId').value=s.model.slice(0,160);
+  if(Number.isFinite(s.speed)&&s.speed>=0.5&&s.speed<=2)$('voiceSpeed').value=String(s.speed);
+  if(Number.isFinite(s.volume)&&s.volume>=0&&s.volume<=1)$('voiceVolume').value=String(s.volume);
+  if(['all',...platforms].includes(s.platform))$('voicePlatform').value=s.platform;
+ }catch{}
+ updateVoiceControls();
+}
+function clearPlayer(){
+ mobileAudio.pause();mobileAudio.onended=null;mobileAudio.onerror=null;mobileAudio.removeAttribute('src');
+ if(fishObjectUrl){URL.revokeObjectURL(fishObjectUrl);fishObjectUrl=''}
+}
+function stopVoice(clearQueue=true){
+ voiceRun++;if(fishRequest){fishRequest.abort();fishRequest=null}
+ clearPlayer();
+ if('speechSynthesis' in window)try{speechSynthesis.cancel()}catch{}
+ if(clearQueue)voiceQueue=[];
+ speaking=false;needsAudioTap=false;
+}
+function enqueue(message){
+ if(!voiceOn)return;
+ const p=String(message.platform||'').toLowerCase();
+ if($('voicePlatform').value!=='all'&&$('voicePlatform').value!==p)return;
+ const line=(message.nickname||message.user||'Usuario')+' dice: '+String(message.text||'').slice(0,240);
+ voiceQueue.push({line,at:Date.now(),test:false});
+ if(voiceQueue.length>18)voiceQueue.shift();
+ speakNext();
+}
+function voiceDone(run){
+ if(run!==voiceRun)return;
+ if(fishRequest){fishRequest=null}
+ clearPlayer();speaking=false;setVoiceInfo('Voz lista · '+voiceQueue.length+' mensaje(s) en cola.');
+ if(voiceOn)setTimeout(speakNext,100);
+}
+async function playFish(item,run){
+ const model=$('fishModelId').value.trim();
+ const controller=new AbortController();fishRequest=controller;
+ const timeout=setTimeout(()=>controller.abort(),32000);
+ try{
+  const r=await fetch('/api/fish-tts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text:item.line.slice(0,600),reference_id:model}),signal:controller.signal});
+  if(!r.ok){const d=await r.json().catch(()=>({}));throw Error(d.error||'Fish Audio no respondió.')}
+  const blob=await r.blob();
+  if(run!==voiceRun||!voiceOn)return;
+  if(!blob.size)throw Error('Fish Audio devolvió audio vacío.');
+  fishObjectUrl=URL.createObjectURL(blob);mobileAudio.src=fishObjectUrl;
+  mobileAudio.volume=Number($('voiceVolume').value);mobileAudio.playbackRate=Number($('voiceSpeed').value);
+  mobileAudio.onended=()=>voiceDone(run);mobileAudio.onerror=()=>{if(run===voiceRun){setVoiceInfo('No se pudo reproducir el audio Fish Audio.');voiceDone(run)}};
+  setVoiceInfo('🔊 Reproduciendo Fish Audio...');
+  await mobileAudio.play();
+ }catch(e){
+  if(run!==voiceRun||!voiceOn)return;
+  if(e.name==='NotAllowedError'){
+   needsAudioTap=true;
+   if(!item.test)voiceQueue.unshift(item);
+   setVoiceInfo('El teléfono bloqueó el audio. Toca «Probar voz» para habilitarlo.');
+   clearPlayer();speaking=false;
+  }else{
+   setVoiceInfo('Fish Audio: '+(e.name==='AbortError'?'se agotó el tiempo de espera.':(e.message||'error al generar audio.')));
+   voiceDone(run);
+  }
+ }finally{clearTimeout(timeout);if(fishRequest===controller)fishRequest=null}
+}
+function speakNext(){
+ if(!voiceOn||speaking||needsAudioTap)return;
+ while(voiceQueue.length&&Date.now()-voiceQueue[0].at>15000&&!voiceQueue[0].test)voiceQueue.shift();
+ if(!voiceQueue.length)return;
+ if(engineIsFish()&&!validFishId()){setVoiceInfo('Pega un ID de voz válido para activar Fish Audio.');return}
+ const item=voiceQueue.shift();speaking=true;const run=++voiceRun;
+ if(engineIsFish()){setVoiceInfo('Preparando voz Fish Audio...');playFish(item,run);return}
+ if(!('speechSynthesis' in window)){setVoiceInfo('Este teléfono no admite voz del navegador.');voiceDone(run);return}
+ const u=new SpeechSynthesisUtterance(item.line);u.lang='es-ES';u.rate=Number($('voiceSpeed').value);u.volume=Number($('voiceVolume').value);
+ u.onend=()=>voiceDone(run);u.onerror=()=>{setVoiceInfo('El navegador no pudo reproducir la voz.');voiceDone(run)};
+ try{speechSynthesis.speak(u)}catch{voiceDone(run)}
+}
+$('voice').onchange=()=>{
+ voiceOn=$('voice').checked;
+ if(!voiceOn){stopVoice(true);setVoiceInfo('Lectura por voz desactivada.')}
+ else{needsAudioTap=false;setVoiceInfo(engineIsFish()?'Fish Audio listo para leer mensajes.':'Voz del teléfono activada.');speakNext()}
+};
+$('testVoice').onclick=()=>{
+ if(engineIsFish()&&!validFishId()){setVoiceInfo('Pega un ID válido de Fish Audio (8 a 160 caracteres).');$('fishModelId').focus();return}
+ stopVoice(true);needsAudioTap=false;voiceOn=true;$('voice').checked=true;saveMobileVoice();
+ voiceQueue.push({line:'Hola, soy GREÑA LIVE desde tu teléfono. Esta es una prueba de voz.',at:Date.now(),test:true});
+ speakNext();
+};
+for(const id of ['voiceEngine','fishModelId','voiceSpeed','voiceVolume','voicePlatform']){
+ $(id).addEventListener(id==='fishModelId'||id==='voiceSpeed'||id==='voiceVolume'?'input':'change',()=>{
+  if(id==='voiceEngine'||id==='fishModelId'){stopVoice(true);setVoiceInfo('Configuración actualizada. Toca «Probar voz» para escucharla.')}
+  updateVoiceControls();saveMobileVoice();
+ });
+}
+function linked(st){return !!(st.authenticated||st.runtimeConnected||st.account||(st.connected&&st.live!==false))}
+function renderLinks(){
+ const host=$('linkedPlatforms');host.replaceChildren();
+ for(const p of platforms){
+  const st=platformStatus[p]||{},on=linked(st);
+  const row=document.createElement('div');row.className='link-item';
+  const img=document.createElement('img');img.src=logos[p];img.alt='';
+  const details=document.createElement('div');details.className='details';
+  const name=document.createElement('b');text(name,platformNames[p]);
+  const hint=document.createElement('small');text(hint,on?(st.account?'@'+String(st.account).replace(/^@/,'')+' · ':'')+'Vinculada':'Sin vincular');
+  details.append(name,hint);
+  const button=document.createElement('button');button.type='button';button.textContent=on?'Desvincular':'Vincular';
+  button.onclick=()=>on?unlinkPlatform(p):beginLink(p);
+  row.append(img,details,button);host.append(row);
+ }
+}
+function linkNotice(message){text($('linkInfo'),message)}
+function beginLink(platform){
+ linkingPlatform=platform;changeTab('accountPanel');
+ if(platform==='twitch'||platform==='kick'){
+  if(platformOAuth[platform]===false){linkNotice(platformNames[platform]+' necesita autorización configurada en GREÑA.');return}
+  linkNotice('Autoriza '+platformNames[platform]+' en la pestaña que se abrirá y vuelve aquí.');
+  const windowRef=window.open('/oauth/'+platform+'/start','_blank');
+  if(!windowRef){linkNotice('Tu navegador bloqueó la ventana. Revisa los permisos de ventanas emergentes.')}
+  return;
+ }
+ const sample=platform==='tiktok'?'https://www.tiktok.com/@usuario/live':platform==='youtube'?'https://www.youtube.com/live/ID-del-directo':'usuario o enlace de Starvios';
+ $('linkLabel').textContent=platformNames[platform]+' · usuario/enlace del LIVE';
+ $('linkValue').type=platform==='starvios'?'text':'url';$('linkValue').value='';
+ $('linkValue').placeholder=sample;
+ $('linkForm').classList.remove('hidden');linkNotice('Introduce el enlace o usuario del canal y pulsa «Vincular».');
+ $('linkValue').focus();
+}
+$('linkCancel').onclick=()=>{$('linkForm').classList.add('hidden');linkingPlatform='';linkNotice('')};
+$('linkSubmit').onclick=async()=>{
+ const p=linkingPlatform,value=$('linkValue').value.trim();
+ if(!p||!value){linkNotice('Escribe un enlace o usuario válido.');return}
+ $('linkSubmit').disabled=true;linkNotice('Conectando '+platformNames[p]+'...');
+ try{
+  if(p==='tiktok'){
+   const r=await fetch('/api/tiktok/live-link',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:value})});
+   const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'No se pudo conectar TikTok.');
+  }else{
+   if(!ws||ws.readyState!==WebSocket.OPEN)throw Error('El motor de chat no está conectado.');
+   ws.send(JSON.stringify({type:'connect',platform:p,url:value}));
+  }
+  $('linkForm').classList.add('hidden');linkingPlatform='';
+  linkNotice('Conexión solicitada. Comprueba el estado de la plataforma.');
+  setTimeout(refresh,1200);
+ }catch(e){linkNotice(e.message||'No se pudo vincular la plataforma.')}
+ finally{$('linkSubmit').disabled=false}
+};
+async function unlinkPlatform(platform){
+ if(!confirm('¿Desvincular '+platformNames[platform]+' de tu cuenta GREÑA?'))return;
+ try{
+  const r=await fetch('/api/disconnect/'+platform,{method:'POST'});
+  const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'No se pudo desvincular.');
+  if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'disconnect-platform',platform}));
+  linkNotice(platformNames[platform]+' desvinculada.');await refresh();
+ }catch(e){linkNotice(e.message||'No se pudo desvincular.')}
+}
+window.addEventListener('focus',()=>{if(sessionReady)refresh()});
+document.addEventListener('visibilitychange',()=>{if(sessionReady&&!document.hidden)refresh()});
 function addChat(m){const p=String(m.platform||'').toLowerCase();if(!platforms.includes(p)||m.type!=='chat')return;const box=$('messages');if(box.children.length===1&&box.firstElementChild.tagName==='P')box.replaceChildren();const div=document.createElement('div');div.className='msg '+p;const title=document.createElement('b'),body=document.createElement('p');text(title,(p==='starvios'?'⭐ ':'')+(m.nickname||m.user||'Usuario')+' · '+p);text(body,String(m.text||'').slice(0,1500));div.append(title,body);box.append(div);while(box.children.length>100)box.firstElementChild.remove();box.scrollTop=box.scrollHeight;enqueue(m)}
 function chatConnect(){if(!sessionReady)return;clearTimeout(retry);let url;const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);url=cloud?(location.protocol==='https:'?'wss://':'ws://')+location.host+'/chat-ws':'ws://'+location.hostname+':8788/ws';try{ws=new WebSocket(url);ws.onopen=()=>text($('connection'),'Chat conectado');ws.onmessage=e=>{try{addChat(JSON.parse(e.data))}catch{}};ws.onerror=()=>{try{ws.close()}catch{}};ws.onclose=()=>{text($('connection'),'Reconectando…');retry=setTimeout(chatConnect,2500)}}catch{retry=setTimeout(chatConnect,2500)}}
 for(const [id,url]of [['alerts','/alerts.html?embed=1'],['widgets','/widgets.html?embed=1'],['catalog','/gift-catalog.html?embed=1']])$(id).onclick=()=>{$('toolFrame').classList.remove('hidden');$('toolFrame').src=url};
-async function init(){try{const a=await fetch('/api/account/me',{cache:'no-store'}).then(r=>r.json());if(!a.authenticated||!a.active||!a.user){location.replace('/login.html');return}if(!a.user.email){location.replace('/login.html#recovery-email');return}text($('accountName'),a.user.displayName||a.user.username);sessionReady=true;chatConnect();await refresh();setInterval(refresh,10000);changeTab('chatPanel')}catch{location.replace('/login.html')}}init();
+async function init(){try{const a=await fetch('/api/account/me',{cache:'no-store'}).then(r=>r.json());if(!a.authenticated||!a.active||!a.user){location.replace('/login.html');return}if(!a.user.email){location.replace('/login.html#recovery-email');return}text($('accountName'),a.user.displayName||a.user.username);restoreMobileVoice(a.user);sessionReady=true;chatConnect();await refresh();setInterval(refresh,10000);changeTab('chatPanel')}catch{location.replace('/login.html')}}init();
 </script></body></html>
