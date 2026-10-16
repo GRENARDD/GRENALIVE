@@ -430,14 +430,36 @@ export class StarviosReader {
           this.directoryPrimaryRetryAt=Date.now()+90000;
         }
       }
+      // El navegador que ya usa el chat está en el origen real de Starvios.
+      // Un fetch same-origin puede funcionar incluso si Node/Railway es rechazado.
+      let browserViewerError='';
+      if(!payload&&this.page&&!this.page.isClosed()){
+        try{
+          payload=await this.page.evaluate(async channel=>{
+            const response=await fetch('/api/public/live-now',{
+              headers:{accept:'application/json'},cache:'no-store',
+              signal:AbortSignal.timeout(11000)
+            });
+            if(!response.ok)throw Error('HTTP '+response.status);
+            const raw=await response.json();
+            if(!raw||!Array.isArray(raw.rows))throw Error('Directorio sin rows');
+            // Sólo devolvemos al servidor el registro del canal solicitado.
+            const name=String(channel).toLowerCase();
+            return {rows:raw.rows.filter(row=>
+              String(row?.profiles?.username||'').toLowerCase()===name).slice(0,8)};
+          },this.channel);
+          directorySource='Starvios public directory · navegador';
+        }catch(error){browserViewerError=String(error?.message||error).slice(0,120)}
+      }
       if(!payload){
         try{
           payload=await fetchStarviosDbLiveDirectory(this.channel,{
-            baseUrl:STARVIOS_PUBLIC_DB_URL,key:STARVIOS_PUBLIC_KEY
+            baseUrl:STARVIOS_PUBLIC_DB_URL,key:STARVIOS_PUBLIC_KEY,timeoutMs:10000
           });
           directorySource='Starvios public DB · respaldo';
         }catch(error){
           throw Error('Starvios viewer primary: '+(this.lastDirectoryPrimaryError||'en pausa')+
+            (browserViewerError?' · browser: '+browserViewerError:'')+
             ' · public DB fallback: '+String(error?.message||error));
         }
       }
