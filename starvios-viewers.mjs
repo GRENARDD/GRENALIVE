@@ -51,17 +51,28 @@ export async function fetchStarviosDbLiveDirectory(channel,{baseUrl,key,request=
   const profile=profiles.find(row=>String(row?.username||'').toLowerCase()===name.toLowerCase());
   const id=String(profile?.id||'');
   if(!id||id.length>128)throw Error('Perfil Starvios no disponible por consulta pública');
-  let streams=null,previousError=null;
-  // La base pública puede usar cualquiera de estos nombres según la versión.
+  let streams=[],previousError=null;
+  // Starvios ha utilizado distintos nombres de tabla. Una respuesta vacía de
+  // "streams" no confirma que "live_streams" también esté vacía.
   for(const table of ['streams','live_streams']){
     try{
-      streams=await readRows(table,{select:'*',channel_id:'eq.'+id,status:'eq.live',limit:10});
-      break;
+      const matches=await readRows(table,{select:'*',channel_id:'eq.'+id,status:'eq.live',limit:20});
+      if(matches.length){streams=matches;break}
     }catch(error){previousError=error}
   }
-  if(!streams)throw previousError||Error('Directo Starvios no disponible');
-  const rows=streams.filter(row=>String(row?.channel_id||'')===id);
-  if(!rows.length)throw Error('Starvios no publica un LIVE verificable para este canal');
+  // Algunas versiones guardan al autor bajo profile_id/creator_id en vez de
+  // channel_id. Consultamos SOLO registros LIVE publicados y verificamos el id.
+  if(!streams.length){
+    for(const table of ['streams','live_streams']){
+      try{
+        const candidates=await readRows(table,{select:'*',status:'eq.live',limit:500});
+        const matches=candidates.filter(row=>[row?.channel_id,row?.profile_id,row?.creator_id,row?.user_id,row?.streamer_id].some(value=>String(value||'')===id));
+        if(matches.length){streams=matches;break}
+      }catch(error){previousError=error}
+    }
+  }
+  if(!streams.length)throw previousError||Error('Starvios no publica un LIVE verificable para este canal');
+  const rows=streams.filter(row=>[row?.channel_id,row?.profile_id,row?.creator_id,row?.user_id,row?.streamer_id].some(value=>String(value||'')===id));
   const fields=['viewer_count','viewers_count','current_viewers','active_viewers','concurrent_viewers','live_viewers'];
   const mapped=rows.map(row=>{
     const field=fields.find(key=>Object.prototype.hasOwnProperty.call(row,key));
