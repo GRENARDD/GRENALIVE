@@ -49,7 +49,6 @@ export class StarviosReader {
     this.directoryFallbackRetryAt=0;
     this.directoryBrowserRetryAt=0;
     this.lastDirectoryPrimaryError='';
-          this.directoryFallbackRetryAt=0;
     this.lastViewerCount=null;
     this.lastViewerReportedSource='';
     this.eventKeys=new Map();
@@ -598,6 +597,7 @@ export class StarviosReader {
           payload=await response.json();
           if(!payload||!Array.isArray(payload.rows))throw Error('Sin registros de directos');
           this.lastDirectoryPrimaryError='';
+          this.directoryFallbackRetryAt=0;
         }catch(error){
           this.lastDirectoryPrimaryError=String(error?.message||error).slice(0,120);
           this.directoryPrimaryRetryAt=Date.now()+90000;
