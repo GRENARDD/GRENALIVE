@@ -4,7 +4,7 @@
 import { chromium } from 'playwright-core';
 import {normalizeStarviosEvent} from './starvios-events.mjs';
 import {STARVIOS_LIVE_DIRECTORY_URL,parseStarviosLiveDirectory,fetchStarviosDbLiveDirectory} from './starvios-viewers.mjs';
-import {STARVIOS_PUBLIC_DB_URL,STARVIOS_PUBLIC_KEY,parseStarviosChatEvent,parseStarviosFollowerCount,buildStarviosChatEventUrl,buildStarviosFollowerCountRequest} from './starvios-public-events.mjs';
+import {STARVIOS_PUBLIC_DB_URL,STARVIOS_PUBLIC_KEY,parseStarviosChatEvent,parseStarviosFollowerCount,buildStarviosChatEventUrl,buildStarviosFollowerCountRequest,buildStarviosProfileLookupUrl,starviosPublicActor} from './starvios-public-events.mjs';
 
 export function normalizeStarviosChannel(input) {
   let value=String(input||'').trim();
@@ -62,6 +62,7 @@ export class StarviosReader {
     this.followerTotal=null;
     this.followerPollAt=0;
     this.followNameEvents=0;
+    this.profileNames=new Map();
     this.timer=null;
     this.running=false;
     this.connected=false;
@@ -337,7 +338,14 @@ export class StarviosReader {
       // Si cambia la relación de perfiles, seguimos recibiendo los eventos
       // públicos sin atribuirles usuarios inventados.
       if(response.status===400){
+        // El join puede fallar aunque el evento aún incluya su user_id.
         response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200,false),{
+          headers,signal:AbortSignal.timeout(9500)
+        });
+      }
+      if(response.status===400){
+        // Compatibilidad con versiones que no exponen user_id.
+        response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200,false,false),{
           headers,signal:AbortSignal.timeout(9500)
         });
       }
@@ -345,6 +353,37 @@ export class StarviosReader {
       const rows=await response.json();
       if(!Array.isArray(rows))throw Error('Starvios devolvió eventos inválidos');
       if(!this.running||generation!==this.generation||streamId!==this.streamId)return;
+      // Si la relación anidada no está disponible, consultar solo los perfiles
+      // públicos de los IDs asociados a eventos recibidos durante este LIVE.
+      // Nunca asociar un nombre por proximidad temporal ni por el chat.
+      const ids=[...new Set(rows.filter(row=>row && Date.parse(row.created_at||'')>=this.sessionStartedAt
+        &&!starviosPublicActor(row)).map(row=>String(row.user_id||'').trim())
+        .filter(id=>/^[0-9a-f-]{20,80}$/i.test(id)&&!this.profileNames.has(id)))].slice(0,100);
+      if(ids.length){
+        try {
+          const profileResponse=await fetch(buildStarviosProfileLookupUrl(ids),{
+            headers,signal:AbortSignal.timeout(4500)
+          });
+          if(profileResponse.ok){
+            const profiles=await profileResponse.json();
+            if(Array.isArray(profiles)){
+              for(const p of profiles){
+                const id=String(p?.id||''),name=String(p?.username||'').trim();
+                if(ids.includes(id)&&name&&name.length<=80)this.profileNames.set(id,name);
+              }
+              // Avoid repeating denied/empty lookups for the same event author.
+              for(const id of ids)if(!this.profileNames.has(id))this.profileNames.set(id,'');
+              if(this.profileNames.size>700){
+                for(const key of [...this.profileNames.keys()].slice(0,200))this.profileNames.delete(key);
+              }
+            }
+          }
+        }catch {} // Unavailable public profiles must never interrupt alert delivery.
+      }
+      for(const row of rows){
+        const name=this.profileNames.get(String(row?.user_id||''));
+        if(name&&!starviosPublicActor(row))row.profiles={username:name};
+      }
       this.dbEventsReady=true;
       for(const row of rows){
         const id=String(row.id||'');
@@ -609,7 +648,7 @@ export class StarviosReader {
       const stream=Array.isArray(payload.rows)?payload.rows.find(row=>row&&String(row.status||'').toLowerCase()==='live'&&String(row.profiles?.username||'').toLowerCase()===this.channel.toLowerCase()):null;
       if(stream?.id&&stream?.channel_id){
         const isNew=!!this.streamId&&this.streamId!==stream.id;
-        if(isNew){this.eventSeen.clear();this.eventKeys.clear();this.dbEventsReady=false;this.sessionStartedAt=Date.now();this.eventCursorAt=this.sessionStartedAt;this.followerTotal=null;}
+        if(isNew){this.eventSeen.clear();this.eventKeys.clear();this.profileNames.clear();this.dbEventsReady=false;this.sessionStartedAt=Date.now();this.eventCursorAt=this.sessionStartedAt;this.followerTotal=null;}
         this.streamId=String(stream.id);this.channelId=String(stream.channel_id);
         this.scanEvents().catch(()=>{});
       }
@@ -668,7 +707,7 @@ export class StarviosReader {
     this.reconnectFailures=0;
     this.missingContainerSince=0;
     this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
-    this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();
+    this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();this.profileNames.clear();
     this.dbEventsReady=false;this.eventBusy=false;this.streamId='';this.channelId='';
     this.followerTotal=null;this.followerPollAt=0;this.followNameEvents=0;
     const old=this.channel;
