@@ -3,7 +3,7 @@
 // y deben validarse con un LIVE real antes de promover esta fase a producción.
 import { chromium } from 'playwright-core';
 import {normalizeStarviosEvent} from './starvios-events.mjs';
-import {STARVIOS_LIVE_DIRECTORY_URL,parseStarviosLiveDirectory} from './starvios-viewers.mjs';
+import {STARVIOS_LIVE_DIRECTORY_URL,parseStarviosLiveDirectory,fetchStarviosDbLiveDirectory} from './starvios-viewers.mjs';
 import {STARVIOS_PUBLIC_DB_URL,STARVIOS_PUBLIC_KEY,parseStarviosChatEvent,parseStarviosFollowerCount,buildStarviosChatEventUrl,buildStarviosFollowerCountRequest} from './starvios-public-events.mjs';
 
 export function normalizeStarviosChannel(input) {
@@ -45,6 +45,8 @@ export class StarviosReader {
     this.lastLive=null;
     this.liveDirectoryMisses=0;
     this.lastDirectoryGoodAt=0;
+    this.directoryPrimaryRetryAt=0;
+    this.lastDirectoryPrimaryError='';
     this.lastViewerCount=null;
     this.eventKeys=new Map();
     this.eventSeen=new Map();
@@ -408,13 +410,37 @@ export class StarviosReader {
     try{
       // Starvios publica el mismo directorio con el que muestra sus cifras en la web.
       // No abrimos video ni otra pestaña pesada; el contador es independiente del chat.
-      const response=await fetch(STARVIOS_LIVE_DIRECTORY_URL,{
-        headers:{accept:'application/json'},
-        signal:AbortSignal.timeout(10000)
-      });
-      if(!response.ok)throw Error('Starvios directory HTTP '+response.status);
-      if(Number(response.headers.get('content-length')||0)>4*1024*1024)throw Error('Respuesta de Starvios demasiado grande');
-      const payload=await response.json();
+      let payload=null;
+      let directorySource='Starvios public live directory';
+      // Si el dominio público tarda demasiado, usamos la misma BD de lectura
+      // pública que consulta la web. El respaldo jamás inventa espectadores.
+      if(Date.now()>=this.directoryPrimaryRetryAt){
+        try{
+          const response=await fetch(STARVIOS_LIVE_DIRECTORY_URL,{
+            headers:{accept:'application/json'},
+            signal:AbortSignal.timeout(6000)
+          });
+          if(!response.ok)throw Error('HTTP '+response.status);
+          if(Number(response.headers.get('content-length')||0)>4*1024*1024)throw Error('Respuesta excesiva');
+          payload=await response.json();
+          if(!payload||!Array.isArray(payload.rows))throw Error('Sin registros de directos');
+          this.lastDirectoryPrimaryError='';
+        }catch(error){
+          this.lastDirectoryPrimaryError=String(error?.message||error).slice(0,120);
+          this.directoryPrimaryRetryAt=Date.now()+90000;
+        }
+      }
+      if(!payload){
+        try{
+          payload=await fetchStarviosDbLiveDirectory(this.channel,{
+            baseUrl:STARVIOS_PUBLIC_DB_URL,key:STARVIOS_PUBLIC_KEY
+          });
+          directorySource='Starvios public DB · respaldo';
+        }catch(error){
+          throw Error('Starvios viewer primary: '+(this.lastDirectoryPrimaryError||'en pausa')+
+            ' · public DB fallback: '+String(error?.message||error));
+        }
+      }
       if(generation!==this.generation||!this.running)return;
       const state=parseStarviosLiveDirectory(payload,this.channel);
       const stream=Array.isArray(payload.rows)?payload.rows.find(row=>row&&String(row.status||'').toLowerCase()==='live'&&String(row.profiles?.username||'').toLowerCase()===this.channel.toLowerCase()):null;
@@ -433,7 +459,7 @@ export class StarviosReader {
         this.streamId='';this.channelId='';this.followerTotal=null;this.dbEventsReady=false;
         if(this.lastLive!==false){
           this.lastLive=false;
-          this.onLive({live:false,channel:this.channel,source:'Starvios public live directory'});
+          this.onLive({live:false,channel:this.channel,source:directorySource});
         }
         if(this.lastViewerCount!==0){
           this.lastViewerCount=0;
@@ -444,7 +470,7 @@ export class StarviosReader {
       this.liveDirectoryMisses=0;
       if(this.lastLive!==true){
         this.lastLive=true;
-        this.onLive({live:true,channel:this.channel,source:'Starvios public live directory'});
+        this.onLive({live:true,channel:this.channel,source:directorySource});
       }
       if(state.count===null){
         if(this.lastViewerCount!==null){
@@ -453,7 +479,7 @@ export class StarviosReader {
         }
       }else{
         this.lastViewerCount=state.count;
-        this.onViewers({count:state.count,source:'Starvios public live directory',channel:this.channel});
+        this.onViewers({count:state.count,source:directorySource,channel:this.channel});
       }
     }catch(error){
       if(this.lastDirectoryGoodAt && Date.now()-this.lastDirectoryGoodAt>60000 && this.lastViewerCount!==null){
@@ -476,7 +502,7 @@ export class StarviosReader {
     this.timer=null;this.liveTimer=null;this.eventTimer=null;this.reconnectTimer=null;
     this.reconnectFailures=0;
     this.missingContainerSince=0;
-    this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;
+    this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.lastDirectoryPrimaryError='';
     this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();
     this.dbEventsReady=false;this.eventBusy=false;this.streamId='';this.channelId='';
     this.followerTotal=null;this.followerPollAt=0;this.followNameEvents=0;
