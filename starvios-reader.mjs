@@ -48,6 +48,7 @@ export class StarviosReader {
     this.directoryPrimaryRetryAt=0;
     this.lastDirectoryPrimaryError='';
     this.lastViewerCount=null;
+    this.lastViewerReportedSource='';
     this.eventKeys=new Map();
     this.eventSeen=new Map();
     this.eventTimer=null;
@@ -77,7 +78,8 @@ export class StarviosReader {
     this.sessionStartedAt=Date.now();
     this.eventCursorAt=this.sessionStartedAt;
     this.lastViewerCount=null;
-    this.onViewers({count:null,source:'Starvios · esperando espectadores',channel});
+    this.lastViewerReportedSource='Starvios · esperando espectadores';
+    this.onViewers({count:null,source:this.lastViewerReportedSource,channel});
     const generation=++this.generation;
     try {
       await this.openChatPage(generation);
@@ -495,12 +497,14 @@ export class StarviosReader {
         this.onLive({live:true,channel:this.channel,source:directorySource});
       }
       if(state.count===null){
-        if(this.lastViewerCount!==null){
+        if(this.lastViewerCount!==null||this.lastViewerReportedSource!=='Starvios sin cifra verificable'){
           this.lastViewerCount=null;
-          this.onViewers({count:null,source:'Starvios sin cifra verificable',channel:this.channel});
+          this.lastViewerReportedSource='Starvios sin cifra verificable';
+          this.onViewers({count:null,source:this.lastViewerReportedSource,channel:this.channel});
         }
       }else{
         this.lastViewerCount=state.count;
+        this.lastViewerReportedSource=directorySource;
         this.onViewers({count:state.count,source:directorySource,channel:this.channel});
       }
     }catch(error){
