@@ -428,12 +428,12 @@ export class StarviosReader {
         const normalized='/live/'+channel.toLowerCase();
         const asCount=raw=>{
           const str=String(raw||'').trim();
-          if(!/^(?:\\d+|\\d{1,3}(?:[.,]\\d{3})+)$/.test(str))return null;
+          if(!/^(?:\d+|\d{1,3}(?:[.,]\d{3})+)$/.test(str))return null;
           const n=Number(str.replace(/[.,]/g,''));
           return Number.isSafeInteger(n)&&n>=0&&n<=10000000?n:null;
         };
         const links=[...document.querySelectorAll('a[href]')].filter(link=>{
-          try{return new URL(link.getAttribute('href'),location.href).pathname.toLowerCase().replace(/\\/$/,'')===normalized}catch{return false}
+          try{return new URL(link.getAttribute('href'),location.href).pathname.toLowerCase().replace(/\/$/,'')===normalized}catch{return false}
         });
         for(const link of links){
           const card=link.closest('article,[data-testid*="stream"],[data-testid*="live"],li')
@@ -443,8 +443,8 @@ export class StarviosReader {
           for(const el of attributes){
             for(const value of [el.getAttribute?.('data-viewer-count'),el.getAttribute?.('data-viewers'),el.getAttribute?.('aria-label'),el.getAttribute?.('title')]){
               const label=String(value||'');
-              const m=label.match(/(?:espectadores|viewers|watching|viendo)\\s*[:：]?\\s*([\\d.,]+)/i)
-                ||label.match(/([\\d.,]+)\\s*(?:espectadores|viewers|watching|viendo)/i);
+              const m=label.match(/(?:espectadores|viewers|watching|viendo)\s*[:：]?\s*([\d.,]+)/i)
+                ||label.match(/([\d.,]+)\s*(?:espectadores|viewers|watching|viendo)/i);
               if(m){const count=asCount(m[1]);if(count!==null)return count}
             }
           }
@@ -456,13 +456,13 @@ export class StarviosReader {
               const txt=String(parent?.innerText||'').trim();
               const count=asCount(txt);
               if(count!==null)return count;
-              const m=txt.match(/(?:^|\\s)([\\d.,]+)\\s*(?:espectadores|viewers)?$/i);
+              const m=txt.match(/(?:^|\s)([\d.,]+)\s*(?:espectadores|viewers)?$/i);
               if(m){const parsed=asCount(m[1]);if(parsed!==null)return parsed}
             }
           }
-          const text=String(card.innerText||'').replace(/\\s+/g,' ');
-          const labeled=text.match(/(?:espectadores|viewers|watching|viendo)\\s*[:：]?\\s*([\\d.,]+)/i)
-            ||text.match(/([\\d.,]+)\\s*(?:espectadores|viewers|watching|viendo)/i);
+          const text=String(card.innerText||'').replace(/\s+/g,' ');
+          const labeled=text.match(/(?:espectadores|viewers|watching|viendo)\s*[:：]?\s*([\d.,]+)/i)
+            ||text.match(/([\d.,]+)\s*(?:espectadores|viewers|watching|viendo)/i);
           if(labeled){const count=asCount(labeled[1]);if(count!==null)return count}
         }
         return null;
