@@ -35,7 +35,13 @@ export async function fetchStarviosDbLiveDirectory(channel,{baseUrl,key,request=
     const url=new URL(safeBase+'/'+table);
     for(const [key,value] of Object.entries(params))url.searchParams.set(key,String(value));
     const response=await request(url.href,{headers,signal:AbortSignal.timeout(timeoutMs)});
-    if(!response.ok)throw Error('Starvios '+table+' HTTP '+response.status);
+    if(!response.ok){
+      const problem=await response.json().catch(()=>({}));
+      const code=String(problem?.code||'').slice(0,30);
+      const message=String(problem?.message||'').slice(0,140);
+      throw Error('Starvios '+table+' HTTP '+response.status+
+        (code?' · '+code:'')+(message?' · '+message:''));
+    }
     const rows=await response.json();
     if(!Array.isArray(rows))throw Error('Starvios '+table+' sin registros verificables');
     return rows;
