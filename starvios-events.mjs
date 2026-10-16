@@ -19,8 +19,14 @@ export function normalizeStarviosEvent(input){
  const original=String(obj.event||obj.event_type||obj.eventType||obj.action||obj.type||'').toLowerCase().trim().replace(/[\s-]+/g,'_');
  const kind=aliases.get(original);
  if(!kind)return null;
- const rawUser=obj.username||obj.user?.username||obj.user?.name||obj.user||obj.sender?.username||obj.sender||obj.from||'';
- const user=String(typeof rawUser==='object'?'':rawUser).trim().slice(0,80)||'Usuario';
+ const meta=obj.meta&&typeof obj.meta==='object'?obj.meta:{};
+ const candidates=[obj.username,obj.user?.username,obj.user?.name,obj.user,
+   obj.sender?.username,obj.sender?.name,obj.sender,obj.actor?.username,
+   obj.actor?.name,obj.from?.username,obj.from,meta.username,meta.user_name,
+   meta.sender_name,meta.actor?.username];
+ const actor=candidates.find(value=>typeof value==='string'&&
+   value.trim()&&!/^(?:usuario(?: starvios)?|nuevo seguidor|unknown|anonymous)$/i.test(value.trim()));
+ const user=String(actor||'Usuario Starvios').trim().slice(0,80);
  const amount=finiteStarviosInt(obj.amount??obj.starvies??obj.value??obj.quantity??obj.count??(kind==='follow'?1:null));
  const count=finiteStarviosInt(obj.count??obj.quantity??1,100000);
  if(kind==='gift'&&(!amount||amount<1))return null;
@@ -28,7 +34,7 @@ export function normalizeStarviosEvent(input){
  const viewers=finiteStarviosInt(obj.viewers??obj.viewer_count??obj.viewerCount,10000000);
  const id=String(obj.id||obj.event_id||obj.eventId||obj.message_id||'').slice(0,128);
  const level=finiteStarviosInt(obj.level??obj.tier??0,10000)||0;
- return {platform:'starvios',kind,user,amount:amount||0,count:count||1,viewers,id,level,
+ return {platform:'starvios',kind,user,anonymous:!actor,amount:amount||0,count:count||1,viewers,id,level,
    message:String(obj.message||obj.text||'').slice(0,250)};
 }
 export function parseStarviosViewerLabel(raw){
