@@ -3,7 +3,7 @@
 // y deben validarse con un LIVE real antes de promover esta fase a producción.
 import { chromium } from 'playwright-core';
 import {normalizeStarviosEvent} from './starvios-events.mjs';
-import {STARVIOS_LIVE_DIRECTORY_URL,parseStarviosLiveDirectory,fetchStarviosDbLiveDirectory} from './starvios-viewers.mjs';
+import {buildStarviosFreshLiveDirectoryUrl,parseStarviosLiveDirectory,fetchStarviosDbLiveDirectory} from './starvios-viewers.mjs';
 import {STARVIOS_PUBLIC_DB_URL,STARVIOS_PUBLIC_KEY,parseStarviosChatEvent,parseStarviosFollowerCount,buildStarviosChatEventUrl,buildStarviosFollowerCountRequest,buildStarviosProfileLookupUrl,starviosPublicActor} from './starvios-public-events.mjs';
 
 export function normalizeStarviosChannel(input) {
@@ -46,8 +46,10 @@ export class StarviosReader {
     this.liveDirectoryMisses=0;
     this.lastDirectoryGoodAt=0;
     this.directoryPrimaryRetryAt=0;
+    this.directoryFallbackRetryAt=0;
     this.directoryBrowserRetryAt=0;
     this.lastDirectoryPrimaryError='';
+          this.directoryFallbackRetryAt=0;
     this.lastViewerCount=null;
     this.lastViewerReportedSource='';
     this.eventKeys=new Map();
@@ -137,7 +139,7 @@ export class StarviosReader {
       this.onState({connected:false,channel:this.channel,label:'Starvios · esperando chat de @'+this.channel});
       this.timer=setInterval(()=>this.scan().catch(e=>this.handleScanError(e)),1100);
       // La detección auxiliar del directo usa HTTP ligero, NUNCA un reproductor extra.
-      this.liveTimer=setInterval(()=>this.scanLive().catch(()=>{}),15000);
+      this.liveTimer=setInterval(()=>this.scanLive().catch(()=>{}),6000);
       this.eventTimer=setInterval(()=>this.scanEvents().catch(e=>this.handleScanError(e)),4000);
       await this.scan();
       this.scanLive().catch(()=>{});
@@ -587,9 +589,9 @@ export class StarviosReader {
       // pública que consulta la web. El respaldo jamás inventa espectadores.
       if(Date.now()>=this.directoryPrimaryRetryAt){
         try{
-          const response=await fetch(STARVIOS_LIVE_DIRECTORY_URL,{
-            headers:{accept:'application/json'},
-            signal:AbortSignal.timeout(6000)
+          const response=await fetch(buildStarviosFreshLiveDirectoryUrl(),{
+            headers:{accept:'application/json','cache-control':'no-cache'},
+            cache:'no-store',signal:AbortSignal.timeout(5500)
           });
           if(!response.ok)throw Error('HTTP '+response.status);
           if(Number(response.headers.get('content-length')||0)>4*1024*1024)throw Error('Respuesta excesiva');
@@ -601,14 +603,20 @@ export class StarviosReader {
           this.directoryPrimaryRetryAt=Date.now()+90000;
         }
       }
+      // Refresh public primary data every 6s. Expensive browser/DB fallbacks
+      // are restricted to once per 18s when the primary is unavailable.
+      if(!payload){
+        if(Date.now()<this.directoryFallbackRetryAt)return;
+        this.directoryFallbackRetryAt=Date.now()+18000;
+      }
       // El navegador que ya usa el chat está en el origen real de Starvios.
       // Un fetch same-origin puede funcionar incluso si Node/Railway es rechazado.
       let browserViewerError='';
       if(!payload&&this.page&&!this.page.isClosed()){
         try{
           payload=await this.page.evaluate(async channel=>{
-            const response=await fetch('/api/public/live-now',{
-              headers:{accept:'application/json'},cache:'no-store',
+            const response=await fetch('/api/public/live-now?_live_ts='+Date.now(),{
+              headers:{accept:'application/json','cache-control':'no-cache'},cache:'no-store',
               signal:AbortSignal.timeout(11000)
             });
             if(!response.ok)throw Error('HTTP '+response.status);
@@ -706,7 +714,7 @@ export class StarviosReader {
     this.timer=null;this.liveTimer=null;this.eventTimer=null;this.reconnectTimer=null;
     this.reconnectFailures=0;
     this.missingContainerSince=0;
-    this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
+    this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryFallbackRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
     this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();this.profileNames.clear();
     this.dbEventsReady=false;this.eventBusy=false;this.streamId='';this.channelId='';
     this.followerTotal=null;this.followerPollAt=0;this.followNameEvents=0;
