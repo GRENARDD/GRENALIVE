@@ -467,6 +467,16 @@ export class StarviosReader {
         }
         return null;
       },this.channel);
+      if(found===null){
+        // Diagnóstico acotado: estructura pública del directorio, sin credenciales.
+        const info=await listing.evaluate(channel=>{
+          const links=[...document.querySelectorAll('a[href*="/live/"]')];
+          const matched=links.filter(a=>String(a.getAttribute('href')||'').toLowerCase().includes('/live/'+channel.toLowerCase()));
+          return {title:document.title,links:links.length,samples:links.slice(0,3).map(a=>({href:a.getAttribute('href'),text:String(a.closest('article,li,[class*="card"],[class*="group"]')?.innerText||a.innerText||'').slice(0,115)})),
+            matched:matched.slice(0,2).map(a=>({html:String(a.parentElement?.outerHTML||'').slice(0,400)})),body:String(document.body?.innerText||'').slice(0,160)};
+        },this.channel);
+        console.info('[STARVIOS DIRECTORY CHECK]',JSON.stringify(info).slice(0,900));
+      }
       return found===null?null:{rows:[{status:'live',viewer_count:found,profiles:{username:this.channel}}]};
     }catch(error){
       this.lastDirectoryCardError=String(error?.message||error).slice(0,100);
