@@ -31,7 +31,8 @@ export async function fetchStarviosDbLiveDirectory(channel,{baseUrl,key,request=
   if(!baseUrl||!key)throw Error('Consulta pública Starvios no configurada');
   const headers={apikey:key,accept:'application/json'};
   async function readRows(table,params){
-    const url=new URL(String(baseUrl).replace(/\\/$/,'')+'/'+table);
+    const safeBase=String(baseUrl).endsWith('/')?String(baseUrl).slice(0,-1):String(baseUrl);
+    const url=new URL(safeBase+'/'+table);
     for(const [key,value] of Object.entries(params))url.searchParams.set(key,String(value));
     const response=await request(url.href,{headers,signal:AbortSignal.timeout(timeoutMs)});
     if(!response.ok)throw Error('Starvios '+table+' HTTP '+response.status);
