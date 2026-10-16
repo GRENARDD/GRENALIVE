@@ -32,3 +32,22 @@ test('las consultas solo tienen límites, filtros de stream y son lectura',()=>{
  assert.equal(url.searchParams.get('limit'),'100');
  assert.deepEqual(JSON.parse(buildStarviosFollowerCountRequest(id)),{_channels:[id]});
 });
+
+test('extrae el usuario visible de payloads anidados sin inventar identidades',()=>{
+ const nested=sample('follow',{profiles:null,meta:{actor:{username:'FanIdentificado'}}});
+ const actual=parseStarviosChatEvent(nested);
+ assert.equal(actual.user,'FanIdentificado');
+ assert.equal(actual.anonymous,false);
+ const noName=parseStarviosChatEvent(sample('follow',{profiles:null,meta:{}}));
+ assert.equal(noName.user,'Usuario Starvios');
+ assert.equal(noName.anonymous,true);
+ const gift=parseStarviosChatEvent(sample('gift',{profiles:null,meta:{sender:{username:'Regalador'},quantity:3}}));
+ assert.equal(gift.user,'Regalador');
+ assert.equal(gift.count,3);
+});
+test('fallback de eventos públicos omite el join de perfiles cuando Starvios lo cambia',()=>{
+ const id='00000000-0000-4000-8000-000000000001';
+ const url=new URL(buildStarviosChatEventUrl(id,'2026-10-15T15:00:00.000Z',200,false));
+ assert.equal(url.searchParams.get('select'),'id,kind,coins,meta,created_at');
+ assert.equal(url.searchParams.get('limit'),'200');
+});
