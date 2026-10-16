@@ -59,3 +59,34 @@ test('respaldo acepta un cero verificado y prueba otro nombre de tabla si hace f
  });
  assert.deepEqual(parseStarviosLiveDirectory(payload,'grena_rd'),{state:'live',count:0});
 });
+
+
+test('si streams está vacía también consulta live_streams',async()=>{
+ const urls=[];
+ const request=async url=>{
+  urls.push(url);
+  if(url.includes('/profiles?'))return {ok:true,json:async()=>[{id:'uuid-01',username:'greña'.replace('ñ','n')}]};
+  if(url.includes('/streams?'))return {ok:true,json:async()=>[]};
+  if(url.includes('/live_streams?'))return {ok:true,json:async()=>[{id:'live-02',channel_id:'uuid-01',status:'live',viewer_count:34}]};
+  throw Error('Petición inesperada');
+ };
+ const payload=await fetchStarviosDbLiveDirectory('grena',{
+  baseUrl:'https://example.supabase.co/rest/v1',key:'publica',request
+ });
+ assert.deepEqual(parseStarviosLiveDirectory(payload,'grena'),{state:'live',count:34});
+ assert.equal(urls.some(url=>url.includes('/live_streams?')),true);
+});
+
+test('la tabla pública puede referir al creador como profile_id',async()=>{
+ const request=async url=>{
+  if(url.includes('/profiles?'))return {ok:true,json:async()=>[{id:'uuid-01',username:'grena_rd'}]};
+  if(url.includes('/streams?')&&!url.includes('channel_id='))return {ok:true,json:async()=>[
+   {id:'live-02',profile_id:'uuid-01',status:'live',current_viewers:51}
+  ]};
+  return {ok:true,json:async()=>[]};
+ };
+ const payload=await fetchStarviosDbLiveDirectory('grena_rd',{
+  baseUrl:'https://example.supabase.co/rest/v1',key:'publica',request
+ });
+ assert.deepEqual(parseStarviosLiveDirectory(payload,'grena_rd'),{state:'live',count:51});
+});
