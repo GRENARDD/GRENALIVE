@@ -421,8 +421,11 @@ export class StarviosReader {
       });
       const response=await listing.goto('https://starvios.com/live',{waitUntil:'domcontentloaded',timeout:13000});
       if(!response||response.status()>=400)return null;
-      // SPA: permitimos un corto margen para que el directorio pinte las cards.
-      await listing.waitForTimeout(1800);
+      // El directorio es una SPA: los canales llegan después del HTML inicial.
+      // No interpretamos un esqueleto sin tarjetas como cero espectadores.
+      await listing.waitForFunction(()=>document.querySelectorAll('a[href*="/live/"]').length>0
+        ||/no live streams|no hay directos|sin emisiones|no streams live/i.test(String(document.body?.innerText||'')),{timeout:11000}).catch(()=>{});
+      await listing.waitForTimeout(800);
       if(generation!==this.generation||!this.running)return null;
       const found=await listing.evaluate(channel=>{
         const normalized='/live/'+channel.toLowerCase();
@@ -473,7 +476,7 @@ export class StarviosReader {
           const links=[...document.querySelectorAll('a[href*="/live/"]')];
           const matched=links.filter(a=>String(a.getAttribute('href')||'').toLowerCase().includes('/live/'+channel.toLowerCase()));
           return {title:document.title,links:links.length,samples:links.slice(0,3).map(a=>({href:a.getAttribute('href'),text:String(a.closest('article,li,[class*="card"],[class*="group"]')?.innerText||a.innerText||'').slice(0,115)})),
-            matched:matched.slice(0,2).map(a=>({html:String(a.parentElement?.outerHTML||'').slice(0,400)})),body:String(document.body?.innerText||'').slice(0,160)};
+            matched:matched.slice(0,2).map(a=>({html:String(a.parentElement?.outerHTML||'').slice(0,400)})),body:String(document.body?.innerText||'').slice(0,850),hrefs:[...document.querySelectorAll('a[href]')].slice(0,7).map(a=>a.getAttribute('href'))};
         },this.channel);
         console.info('[STARVIOS DIRECTORY CHECK]',JSON.stringify(info).slice(0,900));
       }
