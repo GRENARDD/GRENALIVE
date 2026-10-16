@@ -424,7 +424,7 @@ export class StarviosReader {
       // El directorio es una SPA: los canales llegan después del HTML inicial.
       // No interpretamos un esqueleto sin tarjetas como cero espectadores.
       await listing.waitForFunction(()=>document.querySelectorAll('a[href*="/live/"]').length>0
-        ||/no live streams|no hay directos|sin emisiones|no streams live/i.test(String(document.body?.innerText||'')),{timeout:11000}).catch(()=>{});
+        ||/no live streams|no hay directos|sin emisiones|no streams live/i.test(String(document.body?.innerText||'')),undefined,{timeout:11000}).catch(()=>{});
       await listing.waitForTimeout(800);
       if(generation!==this.generation||!this.running)return null;
       const found=await listing.evaluate(channel=>{
