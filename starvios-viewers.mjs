@@ -2,6 +2,16 @@
 // A chat popout does NOT expose reliable audience totals.
 export const STARVIOS_LIVE_DIRECTORY_URL='https://starvios.com/api/public/live-now';
 
+// The public directory may be cached in intermediary servers. A unique query
+// forces a fresh read without changing the meaning of the public endpoint.
+export function buildStarviosFreshLiveDirectoryUrl(timestamp=Date.now()) {
+ const url=new URL(STARVIOS_LIVE_DIRECTORY_URL);
+ const now=Number(timestamp);
+ url.searchParams.set('_live_ts',String(Number.isFinite(now)?Math.max(0,Math.trunc(now)):Date.now()));
+ return url.href;
+}
+
+
 export function parseStarviosLiveDirectory(raw,channel) {
   if(!raw||!Array.isArray(raw.rows))return {state:'unavailable',count:null};
   const name=String(channel||'').trim().replace(/^@/,'').toLowerCase();
