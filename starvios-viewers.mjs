@@ -55,11 +55,21 @@ export async function fetchStarviosDbLiveDirectory(channel,{baseUrl,key,request=
   // La base pública puede usar cualquiera de estos nombres según la versión.
   for(const table of ['streams','live_streams']){
     try{
-      streams=await readRows(table,{select:'id,channel_id,status,viewer_count',channel_id:'eq.'+id,status:'eq.live',limit:10});
+      streams=await readRows(table,{select:'*',channel_id:'eq.'+id,status:'eq.live',limit:10});
       break;
     }catch(error){previousError=error}
   }
   if(!streams)throw previousError||Error('Directo Starvios no disponible');
-  return {rows:streams.filter(row=>String(row?.channel_id||'')===id)
-    .map(row=>({...row,profiles:{username:profile.username}}))};
+  const rows=streams.filter(row=>String(row?.channel_id||'')===id);
+  if(!rows.length)throw Error('Starvios no publica un LIVE verificable para este canal');
+  const fields=['viewer_count','viewers_count','current_viewers','active_viewers','concurrent_viewers','live_viewers'];
+  const mapped=rows.map(row=>{
+    const field=fields.find(key=>Object.prototype.hasOwnProperty.call(row,key));
+    return {...row,viewer_count:field?row[field]:null,profiles:{username:profile.username}};
+  });
+  if(mapped.every(row=>row.viewer_count===null)){
+    const keys=Object.keys(rows[0]||{}).filter(key=>/view|audien|watch|presen|count/i.test(key)).slice(0,12);
+    console.info('[STARVIOS VIEWER FIELDS]',JSON.stringify(keys));
+  }
+  return {rows:mapped};
 }
