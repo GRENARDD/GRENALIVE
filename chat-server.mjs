@@ -1506,6 +1506,7 @@ async function autoConnectYouTube(){
 // ===== STARVIOS · multichat, estado y alertas (experimental) =====
 // Sólo tipos de evento explícitos o mensajes Starvies marcados por la página.
 // Las superficies de Starvios pueden cambiar; requerimos prueba LIVE real.
+let starviosViewerLogState='';
 const starviosReader=new StarviosReader({
   cloud:CLOUD_MODE,
   chromiumPath:process.env.GRENA_CHROMIUM_PATH||'/usr/bin/chromium',
@@ -1520,7 +1521,14 @@ const starviosReader=new StarviosReader({
     bridgeStatus('starvios',!!state.connected,state.label,state.channel||starviosReader.channel||'',{source:'starvios public chat'});
   },
   onLive:st=>sendToAlerts('/api/internal/starvios-live',{live:!!st.live,channel:st.channel,source:st.source}),
-  onViewers:st=>sendToAlerts('/api/internal/viewers',{platform:'starvios',count:st.count,source:st.source}),
+  onViewers:st=>{
+    const signature=JSON.stringify({count:typeof st.count==='number'?st.count:null,source:String(st.source||'').slice(0,90)});
+    if(signature!==starviosViewerLogState){
+      starviosViewerLogState=signature;
+      console.info('[STARVIOS VIEWERS]',signature);
+    }
+    sendToAlerts('/api/internal/viewers',{platform:'starvios',count:st.count,source:st.source});
+  },
   onEvent:e=>{
     // Contador de eventos reales, sin almacenar nombres ni contenido del chat en logs.
     console.info('[STARVIOS LIVE EVENT]',JSON.stringify({kind:e.kind,count:e.count||1,anonymous:!!e.anonymous,source:String(e.source||'public chat').slice(0,90)}));
