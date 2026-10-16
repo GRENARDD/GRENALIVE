@@ -427,7 +427,7 @@ export class StarviosReader {
         ||/no live streams|no hay directos|sin emisiones|no streams live/i.test(String(document.body?.innerText||'')),undefined,{timeout:11000}).catch(()=>{});
       await listing.waitForTimeout(800);
       if(generation!==this.generation||!this.running)return null;
-      const found=await listing.evaluate(channel=>{
+      let found=await listing.evaluate(channel=>{
         const normalized='/live/'+channel.toLowerCase();
         const asCount=raw=>{
           const str=String(raw||'').trim();
@@ -479,6 +479,52 @@ export class StarviosReader {
             matched:matched.slice(0,2).map(a=>({html:String(a.parentElement?.outerHTML||'').slice(0,400)})),body:String(document.body?.innerText||'').slice(0,850),hrefs:[...document.querySelectorAll('a[href]')].slice(0,7).map(a=>a.getAttribute('href'))};
         },this.channel);
         console.info('[STARVIOS DIRECTORY CHECK]',JSON.stringify(info).slice(0,900));
+      }
+      if(found===null){
+        // Si /live no consigue cargar las tarjetas, la página del canal puede
+        // mostrar su audiencia sin depender de ese listado.
+        try{
+          const response=await listing.goto('https://starvios.com/live/'+encodeURIComponent(this.channel),{
+            waitUntil:'domcontentloaded',timeout:12000
+          });
+          if(response&&response.status()<400){
+            await listing.waitForTimeout(2500);
+            if(generation===this.generation&&this.running){
+              found=await listing.evaluate(()=>{
+                const pageText=String(document.body?.innerText||'');
+                if(/no est[aá] en directo|not (?:currently )?live|stream is offline|no est[aá] transmitiendo/i.test(pageText))return null;
+                const numeric=value=>{
+                  const x=String(value??'').trim();
+                  if(!/^(?:\d+|\d{1,3}(?:[.,]\d{3})+)$/.test(x))return null;
+                  const n=Number(x.replace(/[.,]/g,''));
+                  return Number.isSafeInteger(n)&&n>=0&&n<=10000000?n:null;
+                };
+                const labeled=text=>{
+                  const t=String(text||'');
+                  const m=t.match(/(?:espectadores|viewers|watching|viendo)\s*[:：]?\s*([\d.,]+)/i)
+                    ||t.match(/([\d.,]+)\s*(?:espectadores|viewers|watching|viendo)/i);
+                  return m?numeric(m[1]):null;
+                };
+                for(const element of document.querySelectorAll('[data-viewer-count],[data-viewers],[aria-label],[title]')){
+                  for(const x of [element.getAttribute('data-viewer-count'),element.getAttribute('data-viewers'),element.getAttribute('aria-label'),element.getAttribute('title')]){
+                    const count=labeled(x)??(element.hasAttribute('data-viewer-count')?numeric(x):null);
+                    if(count!==null)return count;
+                  }
+                }
+                for(const eye of document.querySelectorAll('svg,[data-lucide]')){
+                  const label=(eye.getAttribute('class')||'')+' '+(eye.getAttribute('data-lucide')||'')+' '+(eye.getAttribute('aria-label')||'');
+                  if(!/(?:^|[^a-z])eye(?:[^a-z]|$)|visibility/i.test(label))continue;
+                  for(const parent of [eye.parentElement,eye.parentElement?.parentElement]){
+                    const count=numeric(parent?.innerText)??labeled(parent?.innerText);
+                    if(count!==null)return count;
+                  }
+                }
+                // Nunca leer likes, seguidores, vistas históricas ni metas.
+                return null;
+              });
+            }
+          }
+        }catch(error){this.lastDirectoryChannelError=String(error?.message||error).slice(0,120)}
       }
       return found===null?null:{rows:[{status:'live',viewer_count:found,profiles:{username:this.channel}}]};
     }catch(error){
