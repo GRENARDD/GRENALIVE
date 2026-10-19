@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA AFTERGLOW / OBS</title><style>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA AFTERGLOW / OBS</title><meta name="grena-release" content="GRENA_RELEASE_PLACEHOLDER"><style>
 
 :root{--bg:#080b11;--panel:#0d1119;--stroke:#252c36;--muted:#8791a3;--ink:#eff3f6;--lime:#caff5f;--cyan:#4be9ff;--hot:#ff718b;--accent:#caff5f;--glow:rgba(202,255,95,.35);--safe:38px}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,'Segoe UI',Arial,sans-serif;min-height:100vh;overflow-x:hidden}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}button:disabled{opacity:.45;cursor:not-allowed}::selection{background:var(--lime);color:#111}
@@ -66,7 +66,7 @@ const pending=[],MAX_PENDING=14,recentIds=new Map();
 // OBS Browser Source keeps its JS alive when deployed pages change.
 // Compare authorized server release on a timer and after WS reconnect.
 // Only refresh while no alert is actively playing or waiting.
-let runningRelease=null,pendingRelease='',versionCheckTimer=null,versionCheckBusy=false;
+let runningRelease=document.querySelector('meta[name="grena-release"]')?.content||null,pendingRelease='',versionCheckTimer=null,versionCheckBusy=false;
 function considerRelease(value){
  const candidate=String(value||'').trim();
  if(!/^[A-Za-z0-9_.-]{6,96}$/.test(candidate))return;
