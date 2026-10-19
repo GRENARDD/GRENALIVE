@@ -1,4 +1,8 @@
 const root=document.getElementById('overlayRoot');
+// El navegador integrado de OBS puede no conservar cookies tras una recarga.
+// Reutiliza el token privado de la URL para el WebSocket y las APIs del overlay.
+const obsAccessToken=new URLSearchParams(location.search).get('obs')||'';
+const obsAccessQuery=obsAccessToken?`?obs=${encodeURIComponent(obsAccessToken)}`:'';
 let socket,reconnectTimer,playing=false,activeAlertStyle='classic';const queue=[];
 const MAX_QUEUE=40;
 const ALERT_PRIORITY={mega:100,raid:90,giftsub:85,gift:80,cheer:80,subrenew:75,sub:70,milestone:65,record:65,follow:40,share:25,like:15};
@@ -6,7 +10,7 @@ const smartSvg=(kind)=>{const icons={follow:'%E2%99%A5',sub:'%E2%99%9B',subrenew
 function priorityOf(a={}){if(a.mega||a.priority==='mega')return ALERT_PRIORITY.mega;return ALERT_PRIORITY[String(a.event||'').toLowerCase()]||50}
 
 function connect(){
-  socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);
+  socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/${obsAccessQuery}`);
   socket.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='alert')enqueue(d.alert);if(d.type==='alert-style'&&['classic','option-a'].includes(d.style))activeAlertStyle=d.style}catch{}};
   socket.onclose=()=>{clearTimeout(reconnectTimer);reconnectTimer=setTimeout(connect,1500)};
 }
@@ -310,5 +314,5 @@ function show(a={}){
   if(style==='option-a')return showOptionA(a);
   return showClassic(a);
 }
-fetch('/api/alert-style',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(['classic','option-a'].includes(d.style))activeAlertStyle=d.style}).catch(()=>{});
+fetch('/api/alert-style'+obsAccessQuery,{cache:'no-store'}).then(r=>r.json()).then(d=>{if(['classic','option-a'].includes(d.style))activeAlertStyle=d.style}).catch(()=>{});
 connect();
