@@ -50,7 +50,7 @@ body{min-height:0!important;background:transparent!important;user-select:none;po
 .fx{font-family:var(--after-font,'Segoe UI',Arial,sans-serif);color:var(--after-text,#fff)}
 .fx .headline{color:var(--after-text,#fff)}
 :root{--safe:38px} .fx .overline,.fx .meta{word-break:break-word}
-</style></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script>
+</style><link rel="stylesheet" href="/assets/afterglow-pro.css?v=21"></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script>
 (()=>{
 'use strict';
 const root=document.getElementById('effects'),live=document.getElementById('live');
@@ -64,17 +64,39 @@ const defaults={intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sound
 let cfg={...defaults},platform='tiktok',activeTimer=null,retryTimer=null,socket=null,working=false,backoff=1500;
 const pending=[],MAX_PENDING=14,recentIds=new Map();
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]))}
+
+function safeGiftSrc(raw){
+  const v=String(raw||'').trim();
+  if(!v||v.length>1800||/[<>"'`\\]/.test(v))return '';
+  if(v.startsWith('/assets/')&&!v.includes('..')&&!v.includes('//')&&!/[?#]/.test(v))return v;
+  if(!/^https:\/\//i.test(v))return '';
+  try{const url=new URL(v);if(url.protocol==='https:'&&url.hostname&&!url.username&&!url.password)return url.href}catch{}
+  return '';
+}
+function giftArt(s){
+  const src=safeGiftSrc(s.giftImage||'');
+  return `<span class="gift-art-fallback" aria-hidden="true">✦</span>${src?`<img class="gift-art-img" src="${safe(src)}" alt="Icono del regalo" decoding="async">`:''}`;
+}
+function activateGiftArt(){
+  root.querySelectorAll('.gift-art-img').forEach(img=>{
+    const fallback=img.previousElementSibling;
+    const loaded=()=>{if(img.naturalWidth>0)fallback.hidden=true};
+    img.addEventListener('load',loaded,{once:true});
+    img.addEventListener('error',()=>{img.hidden=true;fallback.hidden=false},{once:true});
+    if(img.complete)loaded();
+  });
+}
 function colorPair(){if(cfg.accentMode==='custom'){const v=cfg.accent||'#caff5f';return[v,v+'66']}return colors[platform]||colors.tiktok}
 function particles(count,centerX=50,centerY=46){const arr=[];for(let i=0;i<count;i++){const theta=((i*137.5)%360)*Math.PI/180,dist=30+(i%7)*7;const x=centerX+Math.sin(i*2.4)*7,y=centerY+Math.cos(i*3.4)*7,ty=Math.sin(theta)*dist,tx=Math.cos(theta)*dist;const sz=2+(i%4)*2;arr.push(`<i class="particle" style="--x:${x}%;--y:${y}%;--s:${sz}px;--r:${i%3===0?'0':'50%'};--dur:${1.1+(i%5)*.26}s;--delay:${(i%8)*.075}s;--rot:${i*37}deg;--tx:${tx}vmin;--ty:${ty}vmin"></i>`)}return arr.join('')}
 function makeTemplate(type,s){const name=safe(s.name),amount=safe(s.amount),gift=safe(s.gift),pl=platformName[platform],extras=particles(Math.floor(7+s.intensity*.37),type==='follow'?53:50,type==='gift'?46:48);let middle='';switch(type){
 case 'follow':middle=`<div class="follow-rays"><i></i></div><div class="follow-piece"><div class="follow-sigil"></div><div class="follow-copy"><div class="overline">${pl} / NUEVA CONEXIÓN</div><div class="headline dynamic-name">${name}</div><div class="accent-line"></div><div class="meta">Se unió a la comunidad GREÑA <span style="color:var(--ev-accent)">↗</span></div></div></div>`;break;
-case 'gift':middle=`<div class="shock"></div><div class="gift-orbit"><div class="gift-icon">✧</div></div><div class="gift-counter">×${amount}</div><div class="gift-sweep"><div class="overline">${pl} / APOYO EXTRAORDINARIO</div><div class="headline">GIFT DROP</div><div class="meta"><strong style="color:var(--ev-accent)">${name}</strong> envió ${gift} <span style="color:white">×${amount}</span></div></div>`;break;
+case 'gift':middle=`<div class="shock"></div><div class="gift-orbit"><div class="gift-icon">${giftArt(s)}</div></div><div class="gift-counter">×${amount}</div><div class="gift-sweep"><div class="overline">${pl} / APOYO EXTRAORDINARIO</div><div class="headline dynamic-gift">${gift}</div><div class="meta"><strong class="gift-author">${name}</strong> envió un regalo <span class="gift-count-inline">×${amount}</span></div></div>`;break;
 case 'sub':middle=`<div class="sub-side left"></div><div class="sub-side right"></div><div class="sub-crown">♛</div><div class="sub-typography"><div class="overline">${pl} / NUEVO NIVEL</div><div class="headline dynamic-name">${name}</div><div class="meta">SUSCRIPCIÓN ACTIVADA <span style="color:var(--ev-accent)">✦</span> BIENVENIDO AL TEAM</div></div>`;break;
 case 'raid':middle=`<div class="raid-band"></div><div class="raid-diagonal"></div><div class="shock"></div><div class="raid-typography"><div class="overline">${pl} / INCOMING SIGNAL</div><div class="headline">RAID<br>INCOMING</div><div class="meta"><strong>${name}</strong> llega con su comunidad</div></div><div class="raid-number">${amount}<small style="font-size:.19em;letter-spacing:.1em;vertical-align:middle"> VIEWERS</small></div>`;break;
 case 'share':middle=`<div class="share-ping"></div><div class="share-nodes"><i style="--dx:-74px;--dy:35px"></i><i style="--dx:92px;--dy:-30px"></i><i style="--dx:120px;--dy:90px"></i><i style="--dx:-100px;--dy:-80px"></i></div><div class="share-type"><div class="overline">${pl} / LA SEÑAL CRECE</div><div class="headline">SIGNAL<br>BOOSTED ↗</div><div class="meta">${name} compartió el directo</div></div>`;break;
 case 'likes':middle=`<div class="likes-wave"><div class="likes-heart">♥</div><div class="likes-type"><div class="overline">${pl} / ENERGÍA GREÑERA</div><div class="headline">+${amount}</div><div class="meta">TAP TAPS de <strong>${name}</strong></div></div></div>`;break;}
 return `<div class="fx fx--${type}" style="--ev-accent:${colorPair()[0]};--ev-glow:${colorPair()[1]}">${middle}${extras}</div>`}
-function fitLongNames(){root.querySelectorAll('.dynamic-name').forEach(el=>{let px=Math.ceil(parseFloat(getComputedStyle(el).fontSize));while(el.scrollHeight>el.clientHeight+2&&px>14){px-=1;el.style.fontSize=px+'px'}})}
+function fitLongNames(){root.querySelectorAll('.dynamic-name,.dynamic-gift').forEach(el=>{let px=Math.ceil(parseFloat(getComputedStyle(el).fontSize));while(el.scrollHeight>el.clientHeight+2&&px>14){px-=1;el.style.fontSize=px+'px'}})}
 
 function mapAlert(a={}){
   const p=String(a.platform||'').toLowerCase();
@@ -87,7 +109,7 @@ function mapAlert(a={}){
   const rawAmount=event==='raid'?a.viewers??a.count:event==='likes'?a.count??a.likes:event==='gift'?(raw==='cheer'||raw==='bits'?a.bits:kind==='kicks'?a.amount:a.count??a.amount):1;
   const amount=Math.max(1,Math.min(99999,Number(rawAmount)||1));
   return {event,data:{name:String(a.name||a.nickname||a.user||'Alguien').slice(0,64),amount,
-    gift:String(a.giftName||a.giftNameOriginal||(raw==='cheer'?'Bits':kind==='kicks'?'KICKs':'Regalo')).slice(0,52),intensity:cfg.intensity}};
+    gift:String(a.giftName||a.giftNameOriginal||(raw==='cheer'?'Bits':kind==='kicks'?'KICKs':'Regalo')).slice(0,52),giftImage:String(a.giftImage||a.giftAnimatedImage||'').slice(0,1800),intensity:cfg.intensity}};
 }
 function normalizedSettings(src={}){
  const color=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?v:'#ffffff';
@@ -103,7 +125,7 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
   const {event,data}=mapAlert(next)||{};if(!event){working=false;drain();return}
   const palette=colorPair();live.style.setProperty('--accent',palette[0]);live.style.setProperty('--glow',palette[1]);
   root.innerHTML=makeTemplate(event,data);
-  fitLongNames();
+  activateGiftArt();fitLongNames();
   if(cfg.soundEnabled&&cfg.sounds[event]&&['both',layout].includes(cfg.audioRoute))window.AfterglowAudio?.play(event,{enabled:true,volume:cfg.volume});
   const ms=duration(event);const fx=root.firstElementChild;
   const endTimer=setTimeout(()=>{fx?.classList.add('outro')},ms-650);

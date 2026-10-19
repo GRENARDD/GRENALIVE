@@ -1,0 +1,132 @@
+/* GREÑA AFTERGLOW 2.1 · Visual polish and legibility layer.
+   Shared by the full editing preview and both original secure OBS links.
+   No new background panel: only readable type, energy and native gift artwork. */
+.live .fx{isolation:isolate;filter:drop-shadow(0 6px 12px #000a)}
+.live .fx::before{
+  content:"";position:absolute;left:5%;right:5%;top:29%;height:46%;
+  background:radial-gradient(ellipse 56% 44% at 50% 50%,rgba(1,5,14,.77) 0%,rgba(1,5,14,.38) 52%,transparent 100%);
+  pointer-events:none;z-index:-1
+}
+.live .fx::after{
+  content:"";position:absolute;left:10%;top:45%;width:80%;height:2px;
+  background:linear-gradient(90deg,transparent,var(--ev-accent),#ffffff,transparent);
+  box-shadow:0 0 16px var(--ev-glow);opacity:0;
+  animation:agLightSweep 2.7s .16s ease-out both;pointer-events:none
+}
+@keyframes agLightSweep{
+  0%{transform:translateY(130px) scaleX(.05);opacity:0}
+  16%{opacity:.78}
+  70%{opacity:.14}
+  100%{transform:translateY(-90px) scaleX(1);opacity:0}
+}
+.live .fx .overline{
+  font-size:clamp(12px,3.05cqw,40px)!important;
+  letter-spacing:.12em!important;
+  font-weight:950!important;
+  color:var(--ev-accent)!important;
+  line-height:1.25!important;
+  -webkit-text-stroke:.35px #030712;
+  text-shadow:0 3px 5px #000,0 0 18px #000,0 0 26px var(--ev-glow)
+}
+.live .fx .meta{
+  font-size:clamp(16px,3.65cqw,46px)!important;
+  font-weight:850!important;
+  color:var(--after-text,#fff)!important;
+  letter-spacing:0!important;
+  line-height:1.26!important;
+  text-shadow:0 2px 4px #000,0 4px 12px #000,0 0 20px #000;
+  -webkit-text-stroke:.35px rgba(0,0,0,.77)
+}
+.live .fx .meta strong{font-weight:1000;color:var(--ev-accent)!important;text-shadow:0 2px 6px #000,0 0 22px var(--ev-glow)}
+.live .fx .headline{
+  font-family:var(--after-font,'Segoe UI',Arial,sans-serif)!important;
+  font-size:clamp(33px,10.2cqw,125px);
+  font-weight:1000!important;
+  letter-spacing:-.035em!important;
+  line-height:1.06!important;
+  color:var(--after-text,#fff)!important;
+  -webkit-text-stroke:clamp(.5px,.16cqw,1.8px) #06101a;
+  text-shadow:0 3px 0 #08111d,0 5px 7px #000,0 10px 23px #000,0 0 34px rgba(0,0,0,.85);
+  overflow-wrap:anywhere
+}
+.live .fx .dynamic-name,.live .fx .dynamic-gift{
+  text-wrap:balance;display:-webkit-box;-webkit-box-orient:vertical;
+  -webkit-line-clamp:2;overflow:hidden;max-height:2.3em
+}
+/* Follow · powerful legible name */
+.live .follow-piece{left:7%;width:86%;bottom:30%;gap:clamp(8px,1.8cqw,22px)}
+.live .follow-copy .headline{font-size:clamp(34px,11cqw,126px)!important;margin:13px 0 12px}
+.live .follow-sigil{width:clamp(33px,7cqw,76px);height:clamp(65px,12cqw,135px)}
+.live .follow-sigil::before{border-width:3px;box-shadow:0 0 30px var(--ev-glow),inset 0 0 15px var(--ev-glow)}
+.live .follow-sigil::after{font-size:clamp(26px,5cqw,56px)}
+.live .follow-copy .accent-line{height:4px;margin:7px 0;box-shadow:0 0 26px var(--ev-accent)}
+/* Gift · real source-provided image displayed without any extra backdrop */
+.live .gift-orbit{
+  top:25%;width:45%;border:1px solid rgba(255,255,255,.16);
+  box-shadow:0 0 36px var(--ev-glow),inset 0 0 26px rgba(0,0,0,.1)
+}
+.live .gift-orbit::before{border-color:var(--ev-accent);opacity:.27;border-width:1px}
+.live .gift-orbit::after{border-color:rgba(255,255,255,.4);opacity:.25}
+.live .gift-icon{overflow:visible}
+.live .gift-art-img{
+  display:block;width:82%;height:82%;object-fit:contain;
+  background:transparent!important;border:0!important;box-shadow:none!important;
+  filter:drop-shadow(0 8px 8px #000c) drop-shadow(0 0 28px var(--ev-glow));
+  animation:agGiftFloat 3.5s ease-in-out infinite;
+}
+.live .gift-art-fallback{
+  position:absolute;inset:0;display:grid;place-items:center;
+  font-size:clamp(70px,21cqw,245px);color:var(--ev-accent);
+  font-family:'Segoe UI Symbol',sans-serif;
+  text-shadow:0 0 32px var(--ev-glow),0 8px 18px #000;
+}
+.live .gift-art-fallback[hidden],.live .gift-art-img[hidden]{display:none!important}
+@keyframes agGiftFloat{0%,100%{transform:translateY(0) scale(.97)}50%{transform:translateY(-5%) scale(1.05)}}
+.live .gift-counter{
+  top:26%;right:15%;
+  font-size:clamp(34px,8cqw,100px)!important;
+  -webkit-text-stroke:1px #000;
+  text-shadow:0 4px 0 #000,0 0 25px var(--ev-glow)
+}
+.live .gift-sweep{top:56%;left:6%;width:88%;height:auto;gap:clamp(6px,.8cqw,14px);display:flex;flex-direction:column;align-items:center}
+.live .gift-sweep .headline{
+  font-size:clamp(37px,10cqw,120px)!important;
+  color:var(--after-text,#fff)!important;
+  max-width:100%;max-height:2.3em;
+  margin:6px 0 0;text-align:center
+}
+.live .gift-sweep .meta{max-width:98%;text-align:center}
+.live .gift-sweep .overline{margin-bottom:3px}
+.live .gift-sweep .gift-author{font-weight:1000;display:inline}
+.live .gift-sweep .gift-count-inline{font-weight:1000;color:var(--ev-accent)}
+/* Sub · prominent sender and a lean insignia */
+.live .sub-crown{font-size:clamp(62px,24cqw,200px);top:26%}
+.live .sub-typography{top:48%;left:6%;width:88%}
+.live .sub-typography .headline{font-size:clamp(36px,11.2cqw,124px)!important;margin:14px 0}
+.live .sub-side{width:3px;box-shadow:0 0 25px var(--ev-accent)}
+/* Raid, share & likes · bigger over the live image */
+.live .raid-typography{top:35%;left:8%;width:84%}
+.live .raid-typography .headline{font-size:clamp(43px,12.7cqw,137px)!important}
+.live .raid-number{font-size:clamp(47px,12cqw,125px)!important;text-shadow:0 5px 11px #000,0 0 22px var(--ev-glow)}
+.live .share-type{top:47%;left:7%;width:86%}
+.live .share-type .headline{font-size:clamp(37px,12cqw,125px)!important}
+.live .likes-wave{left:7%;width:86%;bottom:29%}
+.live .likes-heart{font-size:clamp(65px,17cqw,185px)!important}
+.live .likes-type .headline{font-size:clamp(50px,14cqw,150px)!important}
+/* Widescreen independent composition; keep every alert in a compact middle band */
+.live.wide .fx::before{left:20%;right:20%;top:22%;height:62%}
+.live.wide .follow-piece{left:20%;width:60%;bottom:30%}
+.live.wide .gift-orbit{top:11%;width:min(22%,390px)}
+.live.wide .gift-sweep{top:60%;left:19%;width:62%}
+.live.wide .gift-sweep .headline{font-size:clamp(38px,5.8cqw,120px)!important}
+.live.wide .gift-counter{right:30%;top:27%}
+.live.wide .sub-crown{top:13%;font-size:clamp(48px,13cqw,176px)}
+.live.wide .sub-typography{left:20%;width:60%;top:48%}
+.live.wide .sub-typography .headline{font-size:clamp(39px,6.8cqw,125px)!important}
+.live.wide .raid-typography{left:23%;width:54%;top:31%}
+.live.wide .raid-typography .headline{font-size:clamp(40px,8cqw,134px)!important}
+.live.wide .raid-number{right:23%;bottom:14%}
+.live.wide .share-type{left:22%;width:56%;top:44%}
+.live.wide .share-type .headline{font-size:clamp(38px,7cqw,120px)!important}
+.live.wide .likes-wave{left:20%;width:60%;bottom:25%}
+.live.wide .likes-type .headline{font-size:clamp(47px,8cqw,135px)!important}
