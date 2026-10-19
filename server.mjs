@@ -23,6 +23,8 @@ const CLOUD_MODE=process.env.GRENA_CLOUD==='1';
 const HOST=process.env.HOST||(CLOUD_MODE?'0.0.0.0':'127.0.0.1'), PORT=Number(process.env.PORT||8787), APP_ROOT=dirname(fileURLToPath(import.meta.url)), ROOT=APP_ROOT;
 const PUBLIC_URL=String(process.env.GRENA_PUBLIC_URL||(process.env.RAILWAY_PUBLIC_DOMAIN?`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`:'')).trim().replace(/\/$/,'');
 const BASE=PUBLIC_URL||`http://${HOST}:${PORT}`;
+// Stable across Railway containers of the same release; used only to refresh OBS browser pages.
+const OVERLAY_BUILD_ID=String(process.env.RAILWAY_GIT_COMMIT_SHA||process.env.RAILWAY_DEPLOYMENT_ID||process.env.GRENA_RELEASE_VERSION||`local-${Date.now()}`).slice(0,96);
 
 // ===== GREÑA FIX5: robustez y endurecimiento =====
 // El proceso no debe morir por una petición/errores sueltos en pleno LIVE. El launcher captura stdout/stderr
@@ -1911,7 +1913,7 @@ function camWsMessageInner(ws,req,data){
 // Rutas que usan los overlays de OBS (sin cookie) o que deben ser públicas por diseño.
 const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/twitch/device/status','/auth/twitch/callback']);
 const PUBLIC_GET_CLOUD=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite']);
-const OBS_PUBLIC_API=new Set(['/api/afterglow-settings','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
+const OBS_PUBLIC_API=new Set(['/api/overlay-version','/api/afterglow-settings','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
 const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/loyalty-overlay.html','/super-fans-overlay.html','/taptap-race.html']);
 const PUBLIC_POST=new Set(['/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
@@ -1981,6 +1983,9 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/favicon.ico'&&(req.method==='GET'||req.method==='HEAD')){res.writeHead(302,{location:'/favicon.svg','cache-control':'public, max-age=3600'});return res.end()}
  if(CHAT_HTTP_ROUTES.has(pathname))return proxyChatHttp(req,res,url,false);
  if(pathname==='/health')return json(res,200,{ok:true,app:'GREÑA LIVE PRO'});
+ // Authorized by the existing GREÑA session or OBS private token (panelGuard).
+ // Always uncached so running OBS sources notice deployments without changing their configured URL.
+ if(pathname==='/api/overlay-version'&&req.method==='GET')return json(res,200,{ok:true,version:OVERLAY_BUILD_ID});
  if(pathname==='/api/app/window-heartbeat'&&req.method==='POST'){appWindowHeartbeat();return json(res,200,{ok:true});}
  if(pathname==='/api/app/window-closing'&&req.method==='POST'){appWindowClosing();return json(res,200,{ok:true});}
  if(pathname==='/api/app/exit'&&req.method==='POST'){if(CLOUD_MODE)return json(res,200,{ok:true,message:'GREÑA Web continúa en línea. Usa Cerrar sesión para salir de tu cuenta.'});json(res,200,{ok:true,message:'Cerrando GREÑA LIVE PRO…'});setTimeout(()=>requestFullShutdown('boton-salir-de-grena'),120);return;}
@@ -2488,7 +2493,7 @@ camGatewayServer.on('close',()=>{camGatewayReady=false});
 camGatewayServer.listen(CAM_GATEWAY_PORT,CAM_GATEWAY_HOST,()=>{camGatewayReady=true;camGatewayLastError='';console.log(`GREÑA Cam Gateway listo: http://${CAM_GATEWAY_HOST}:${CAM_GATEWAY_PORT}`)});
 
 const wss=new WebSocketServer({noServer:true,maxPayload:256*1024});wss.on('connection',(ws,req)=>{
- clients.add(ws);{const v=currentViewers();camSend(ws,{type:'hello',app:'GREÑA LIVE PRO',status:publicStatus(),viewers:v,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,bridgeRuntime,eventHealth:eventHealthSnapshot(),loyalty:publicLoyaltyState(10),taptap:publicTapTapState(),counterSettings:publicCounterSettings(),socialSettings})}
+ clients.add(ws);{const v=currentViewers();camSend(ws,{type:'hello',app:'GREÑA LIVE PRO',overlayVersion:OVERLAY_BUILD_ID,status:publicStatus(),viewers:v,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,bridgeRuntime,eventHealth:eventHealthSnapshot(),loyalty:publicLoyaltyState(10),taptap:publicTapTapState(),counterSettings:publicCounterSettings(),socialSettings})}
  ws.on('message',data=>camWsMessage(ws,req,data));
  ws.on('close',()=>{camDropSocket(ws);clients.delete(ws)});ws.on('error',()=>{camDropSocket(ws);clients.delete(ws)});
 });
