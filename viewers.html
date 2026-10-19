@@ -20,10 +20,10 @@ html,body{
 }
 .stage{
   width:100%;height:100vh;display:flex;align-items:center;justify-content:center;
-  gap:14px;padding:12px;background:transparent
+  gap:14px;padding:12px 0;background:transparent
 }
 .vertical-title{display:none}
-.counters{display:flex;align-items:center;justify-content:center;gap:14px}
+.counters{display:flex;align-items:center;justify-content:center;gap:14px;max-width:100%}
 .counter{
   min-width:150px;
   padding:12px 15px 11px;
@@ -49,7 +49,7 @@ html,body{
 @keyframes pulse{50%{transform:scale(1.06)}}
 
 /* ===== TRÍO LIVE: logos + espectadores ===== */
-html[data-counter-style="trio"] .stage{gap:0;padding:20px 28px}
+html[data-counter-style="trio"] .stage{gap:0;padding:20px 0}
 html[data-counter-style="trio"] .counters{gap:56px}
 html[data-counter-style="trio"] .counter{
   min-width:130px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;
@@ -73,7 +73,7 @@ html[data-counter-style="trio"] .pulse{animation:trioPulse .28s ease-out}
 @keyframes trioPulse{0%{transform:scale(1)}45%{transform:scale(1.16)}100%{transform:scale(1)}}
 
 /* ===== PANEL VERTICAL: diseño de la nueva prueba ===== */
-html[data-counter-style="vertical"] .stage{gap:28px;padding:18px 24px}
+html[data-counter-style="vertical"] .stage{gap:28px;padding:18px 0}
 html[data-counter-style="vertical"] .vertical-title{
   display:flex;min-width:245px;flex-direction:column;justify-content:center;color:#fff;
   text-shadow:0 3px 12px rgba(0,0,0,.58)
@@ -153,7 +153,7 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
 
 <script>
 const old={tiktok:-1,twitch:-1,kick:-1,youtube:-1,starvios:-1};
-const counterDefaults={style:'classic',counterCardColor:'#18232c'};
+const counterDefaults={style:'classic',counterCardColor:'#18232c',edge:'left',edgeOffset:0};
 let counterSettings={...counterDefaults};
 let previewOverride=false;
 let latestMeta={};
@@ -170,12 +170,18 @@ function normalizeCounterSettings(v={}){
   const style=['classic','trio','vertical'].includes(String(v.style||''))?String(v.style):'classic';
   const raw=String(v.counterCardColor||v.cardColor||'#18232c').trim();
   const counterCardColor=/^#[0-9a-fA-F]{6}$/.test(raw)?raw.toLowerCase():'#18232c';
-  return {style,counterCardColor};
+  const edge=v.edge==='right'?'right':'left';
+  const edgeOffset=Math.max(0,Math.min(80,Number(v.edgeOffset)||0));
+  return {style,counterCardColor,edge,edgeOffset};
 }
 function applyCounterSettings(v={}){
   counterSettings=normalizeCounterSettings(v);
   document.documentElement.dataset.counterStyle=counterSettings.style;
   document.documentElement.style.setProperty('--vertical-card',counterSettings.counterCardColor);
+   const stage=document.querySelector('.stage'),right=counterSettings.edge==='right',gap=counterSettings.edgeOffset;
+   stage.style.justifyContent=right?'flex-end':'flex-start';
+   stage.style.paddingLeft=(right?0:gap)+'px';stage.style.paddingRight=(right?gap:0)+'px';
+   stage.style.transformOrigin=right?'right center':'left center';
 }
 function draw(v={},meta){
   if(meta&&typeof meta==='object')latestMeta=meta;
