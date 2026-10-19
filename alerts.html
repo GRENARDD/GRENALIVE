@@ -173,7 +173,31 @@ html.grena-embedded .home-link{display:none!important}
 </div>
 <div class="toast" id="toast"></div>
 <script src="app.js"></script>
-<script>(()=>{const u=location.origin+'/overlay.html';for(const id of ['overlayUrl','overlayUrl2']){const e=document.getElementById(id);if(e)e.textContent=u}})();</script>
+<script>
+(async()=>{
+  const outputs=['overlayUrl','overlayUrl2'].map(id=>document.getElementById(id)).filter(Boolean);
+  const buttons=['copyOverlay','copyOverlay2'].map(id=>document.getElementById(id)).filter(Boolean);
+  const display=text=>outputs.forEach(el=>{el.textContent=text});
+  buttons.forEach(button=>{button.disabled=true});
+  display('Preparando enlace privado de OBS…');
+  try{
+    const url=new URL('/overlay.html',location.origin);
+    const local=['127.0.0.1','localhost'].includes(location.hostname);
+    if(!local){
+      const response=await fetch('/api/obs-token',{cache:'no-store',credentials:'same-origin'});
+      if(!response.ok)throw Error('No se pudo obtener el acceso privado a OBS');
+      const data=await response.json();
+      if(typeof data.token!=='string'||!data.token)throw Error('No hay token OBS disponible');
+      url.searchParams.set('obs',data.token);
+    }
+    display(url.toString());
+    buttons.forEach(button=>{button.disabled=false});
+  }catch(e){
+    display('Enlace no disponible: inicia sesión en GREÑA y vuelve a abrir Alertas.');
+    console.warn('[GREÑA OBS overlay] No se pudo preparar el enlace privado:',e?.message||e);
+  }
+})();
+</script>
 <script>
 (() => {
   const embedded = new URLSearchParams(location.search).get('embed') === '1' && window.parent !== window;
