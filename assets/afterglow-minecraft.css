@@ -1,0 +1,127 @@
+/* GREÑA AFTERGLOW · MINECRAFT MODE
+   Transparent overlays with original 32px pixel geometry.
+   Face-safe placement: in vertical the character and words occupy lower area.
+   OBS URLs, event recognition, audio routing and session tokens are unchanged. */
+.live[data-theme="minecraft"]{--mc-grass:#9afa63;--mc-diamond:#70f7e8;--mc-shadow:#06171e;--mc-ink:#f5fff0}
+.live[data-theme="minecraft"] .mc-scene{
+ position:absolute;bottom:9%;left:50%;transform:translateX(-50%);
+ display:flex;align-items:center;justify-content:center;gap:clamp(10px,2.3cqw,38px);
+ width:88%;max-width:100%;min-height:210px;isolation:isolate;
+ filter:drop-shadow(0 5px 1px #041116) drop-shadow(0 12px 22px #0009);
+ animation:mc-rise .45s cubic-bezier(.19,1,.3,1) both;
+ --mc-accent:var(--ev-accent,#77ff8a);
+}
+.live[data-theme="minecraft"] .mc-scene::before{
+ content:"";position:absolute;left:13%;right:11%;height:3px;bottom:-14px;
+ background:repeating-linear-gradient(90deg,#247d45 0 18px,#63d666 18px 36px,#d4ff94 36px 43px);
+ box-shadow:0 4px 0 #183b23,0 7px 0 #082619,0 0 15px #0dffa52a;
+ transform:scaleX(0);transform-origin:center;animation:mc-ground .75s .3s ease-out forwards;
+}
+.live[data-theme="minecraft"] .mc-scene::after{
+ content:"";position:absolute;left:26%;right:19%;top:9%;height:80%;z-index:-1;
+ background:radial-gradient(ellipse at 50% 50%,#00130aa8,transparent 72%);
+ opacity:.8;pointer-events:none
+}
+.live[data-theme="minecraft"] .mc-content{
+ flex:1;min-width:0;max-width:77%;
+ display:flex;flex-direction:column;align-items:flex-start;gap:clamp(5px,.7cqw,12px);
+ font-family:ui-monospace,'Consolas','Lucida Console',monospace;text-align:left
+}
+.live[data-theme="minecraft"] .mc-eyebrow{
+ font-size:clamp(14px,2.2cqw,31px);letter-spacing:.1em;
+ color:var(--mc-accent);font-weight:1000;
+ text-shadow:2px 2px 0 #03150d,0 0 13px #0017;
+ text-transform:uppercase
+}
+.live[data-theme="minecraft"] .mc-action{
+ color:var(--mc-ink);font-size:clamp(21px,5.8cqw,75px);font-weight:1000;
+ line-height:1.11;letter-spacing:-.04em;
+ text-shadow:3px 3px 0 #1a3525,5px 5px 0 #021008,0 0 19px #020d06;
+ text-wrap:balance;word-break:break-word;
+ animation:mc-popup .56s .1s both
+}
+.live[data-theme="minecraft"] .mc-user{
+ color:var(--mc-diamond);font-size:clamp(25px,7cqw,90px);
+ font-weight:1000;line-height:1.14;overflow-wrap:anywhere;
+ max-width:100%;text-wrap:balance;
+ text-shadow:3px 3px 0 #13595a,5px 5px 0 #031a1e,0 0 15px #3cdccb4a;
+ animation:mc-popup .57s .22s both
+}
+.live[data-theme="minecraft"] .mc-extra{
+ display:flex;gap:clamp(6px,1.3cqw,18px);flex-wrap:wrap;align-items:center;
+ color:#fff;font-size:clamp(16px,2.8cqw,38px);font-weight:1000;
+ text-shadow:2px 2px 0 #162618,0 4px 11px #000
+}
+.live[data-theme="minecraft"] .mc-extra:empty{display:none}
+.live[data-theme="minecraft"] .mc-object{color:#fef19f}
+.live[data-theme="minecraft"] .mc-count{color:#a9ff6a}
+.live[data-theme="minecraft"] .mc-footer{
+ color:#e5fbd3;font-size:clamp(12px,1.8cqw,25px);font-weight:900;
+ letter-spacing:.13em;text-transform:uppercase;
+ text-shadow:2px 2px 0 #0c281b,0 3px 9px #000
+}
+.live[data-theme="minecraft"] .mc-xp{
+ display:block;margin-top:8px;height:clamp(5px,.7cqw,11px);width:min(100%,420px);
+ background:#072b1b;outline:2px solid #163c28;
+ box-shadow:0 4px 0 #001c0d;overflow:hidden
+}
+.live[data-theme="minecraft"] .mc-xp span{
+ display:block;width:100%;height:100%;
+ background:repeating-linear-gradient(90deg,#85f552 0 16px,#bbff67 16px 21px,#6ac840 21px 24px);
+ transform-origin:left;animation:mc-load 1.35s .33s both
+}
+.live[data-theme="minecraft"] .mc-art{
+ width:clamp(82px,20cqw,250px);flex:0 0 auto;aspect-ratio:36/55;
+ align-self:center;position:relative;display:grid;place-items:center;
+ animation:mc-art-in .65s .08s both
+}
+.live[data-theme="minecraft"] .mc-art svg,
+.live[data-theme="minecraft"] .mc-art img{
+ display:block;width:100%;height:100%;max-width:100%;max-height:100%;
+ object-fit:contain;background:transparent!important;border:0!important;
+ image-rendering:pixelated;filter:drop-shadow(5px 6px 0 #071515)
+}
+.live[data-theme="minecraft"] .mc-art .gift-art-fallback{
+ position:absolute;inset:0;display:grid;place-items:center;
+ font-size:clamp(70px,18cqw,210px);color:#b9ff86;
+ text-shadow:3px 3px 0 #256d39,0 9px 21px #000
+}
+.live[data-theme="minecraft"] .mc-art .gift-art-img{
+ width:100%;height:100%;background:transparent!important;border:0!important;box-shadow:none!important;
+ object-fit:contain;filter:drop-shadow(5px 6px 0 #10352c);
+ animation:mc-bob 2.8s ease-in-out infinite
+}
+.live[data-theme="minecraft"] .mc-art .gift-art-fallback[hidden],
+.live[data-theme="minecraft"] .mc-art .gift-art-img[hidden]{display:none!important}
+.live[data-theme="minecraft"] .mc-sparkles{position:absolute;inset:-24%;z-index:-1;pointer-events:none;overflow:visible}
+.live[data-theme="minecraft"] .mc-sparkles i{
+ position:absolute;width:clamp(7px,1.25cqw,21px);aspect-ratio:1;
+ background:var(--mc-accent);box-shadow:4px 4px 0 #244e33,0 0 22px #a6ff8b88;
+ top:calc(12% + (var(--i,0) * 9%));left:calc(9% + var(--i,0) * 11%);
+ animation:mc-pixel-pulse 1.8s calc(var(--i,0)*.16s) ease-in-out infinite
+}
+.live[data-theme="minecraft"] .mc-sparkles i:nth-child(1){--i:1}
+.live[data-theme="minecraft"] .mc-sparkles i:nth-child(2){--i:4}
+.live[data-theme="minecraft"] .mc-sparkles i:nth-child(3){--i:7}
+.live[data-theme="minecraft"] .mc-sparkles i:nth-child(4){--i:2}
+.live[data-theme="minecraft"] .mc-sparkles i:nth-child(5){--i:6}
+.live[data-theme="minecraft"] .mc-sparkles i:nth-child(6){--i:3}
+.live[data-theme="minecraft"] .mc-sparkles i:nth-child(7){--i:5}
+.live[data-theme="minecraft"] .mc-sparkles i:nth-child(8){--i:8}
+/* Horizontal streams: smaller figures and centered lower third, no huge artwork. */
+.live.wide[data-theme="minecraft"] .mc-scene{bottom:16%;width:min(73%,1080px);min-height:130px;gap:clamp(14px,2.0cqw,35px)}
+.live.wide[data-theme="minecraft"] .mc-art{width:clamp(70px,9cqw,162px)}
+.live.wide[data-theme="minecraft"] .mc-action{font-size:clamp(25px,3.25cqw,65px)}
+.live.wide[data-theme="minecraft"] .mc-user{font-size:clamp(27px,4.2cqw,85px)}
+.live.wide[data-theme="minecraft"] .mc-footer{font-size:clamp(12px,1.4cqw,23px)}
+.live.wide[data-theme="minecraft"] .mc-eyebrow{font-size:clamp(14px,1.5cqw,28px)}
+.live.wide[data-theme="minecraft"] .mc-extra{font-size:clamp(17px,1.9cqw,35px)}
+@keyframes mc-rise{from{opacity:0;translate:0 65px;scale:.9}to{opacity:1;translate:0 0;scale:1}}
+@keyframes mc-ground{to{transform:scaleX(1)}}
+@keyframes mc-load{from{transform:scaleX(.03)}to{transform:scaleX(1)}}
+@keyframes mc-popup{from{opacity:0;transform:translateY(16px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@keyframes mc-art-in{from{opacity:0;transform:translateY(-25px) rotate(-13deg) scale(.4)}65%{opacity:1;transform:translateY(4px) rotate(5deg) scale(1.09)}to{opacity:1;transform:translateY(0) rotate(0) scale(1)}}
+@keyframes mc-bob{50%{transform:translateY(-7px)}}
+@keyframes mc-pixel-pulse{0%,100%{opacity:0;transform:translateY(16px) scale(.4)}45%{opacity:1;transform:translateY(-12px) scale(1)}}
+.live[data-theme="minecraft"] .mc-scene.outro{animation:mc-rise .45s reverse ease-in both}
+@media(prefers-reduced-motion:reduce){.live[data-theme="minecraft"] .mc-scene,.live[data-theme="minecraft"] .mc-scene *, .live[data-theme="minecraft"] .mc-scene::before{animation:none!important}}

@@ -1,0 +1,56 @@
+/* GREÑA ALERTAS — only two active style choices. Legacy editors kept in the
+   DOM for compatibility, but the user-facing dashboard stays deliberately lean. */
+.grena-alerts .ui-complexity-bar,
+.grena-alerts #dashboard>.welcome,
+.grena-alerts #dashboard>.stats,
+.grena-alerts #dashboard>.section-heading,
+.grena-alerts #dashboard>.test-grid,
+.grena-alerts #dashboard>.sv-alert-section,
+.grena-alerts #quickTest,
+.grena-alerts .sidebar .nav[data-page="editor"],
+.grena-alerts .sidebar .nav[data-page="obs"]{display:none!important}
+.grena-alerts #dashboard{padding-top:5px}
+.grena-alerts .topbar .eyebrow{display:none}
+.grena-alerts #dashboard .bottom-grid{margin-top:23px}
+.grena-alerts #dashboard .bottom-grid>.panel{background:#0c1423;border-color:#26364d}
+.grena-alerts .style-hub{margin:0 0 20px;padding:0;display:flex;flex-direction:column;gap:16px;max-width:1280px}
+.grena-alerts .style-hub-header{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.grena-alerts .style-hub h2{font-size:clamp(23px,2.6vw,34px);letter-spacing:-.04em;line-height:1.13;margin:0 0 8px;color:#f0f6ff}
+.grena-alerts .style-hub-header p{color:#99abc3;line-height:1.55;font-size:13px;margin:0;max-width:580px}
+.grena-alerts .style-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.grena-alerts button.style-choice{
+ text-align:left;color:#ecf5ff;border:2px solid #33425c;position:relative;border-radius:17px;
+ padding:0 0 19px;background:#0d1728;display:flex;flex-direction:column;gap:7px;
+ cursor:pointer;min-height:264px;overflow:hidden;transition:border-color .15s,box-shadow .15s,transform .15s
+}
+.grena-alerts button.style-choice:hover{border-color:#7f94c1;transform:translateY(-2px)}
+.grena-alerts button.style-choice[aria-pressed="true"]{border-color:#9bf178;box-shadow:0 0 0 1px #91ff7430,0 10px 35px #2dff3622}
+.grena-alerts button.style-choice:disabled{cursor:wait;opacity:.72}
+.grena-alerts .style-illustration{height:169px;width:100%;display:flex;align-items:center;justify-content:center;gap:10px;position:relative;overflow:hidden}
+.grena-alerts .style-illustration.afterglow{background:radial-gradient(ellipse at 50% 85%,#146d7d66,transparent 66%),linear-gradient(125deg,#131528,#0c1622)}
+.grena-alerts .style-illustration.afterglow::after{content:"";width:95px;height:95px;position:absolute;border:1px solid #5addf799;transform:rotate(45deg);box-shadow:0 0 32px #5addf766;opacity:.85}
+.grena-alerts .style-illustration.afterglow .logo-type{font:bold 39px Impact,'Arial Black',sans-serif;letter-spacing:-.04em;text-shadow:0 3px 0 #153047,0 0 30px #80f5ff;z-index:1;color:white}
+.grena-alerts .style-illustration.afterglow .logo-line{height:3px;background:#80f5ff;box-shadow:0 0 20px #80f5ff;width:46%;position:absolute;bottom:29px}
+.grena-alerts .style-illustration.minecraft{
+ background:linear-gradient(to top,#194b32 0 11%,transparent 11%),radial-gradient(ellipse at 50% 80%,#184a368a,transparent 67%),#101923
+}
+.grena-alerts .style-illustration.minecraft::after{content:"";position:absolute;bottom:13%;width:80%;height:10px;background:repeating-linear-gradient(90deg,#89ed62 0 17px,#518c45 17px 26px);box-shadow:0 5px 0 #254b30}
+.grena-alerts .style-illustration.minecraft .logo-type{font:1000 32px Consolas,monospace;letter-spacing:-.06em;color:#b9ff92;text-shadow:3px 3px 0 #245737,0 0 18px #54ff7744;z-index:1}
+.grena-alerts .style-illustration.minecraft .pixel-block{position:relative;width:33px;height:33px;background:#73d8d2;box-shadow:5px 5px 0 #275869,10px 10px 0 #153237,0 0 23px #3becd342;transform:rotate(-11deg);z-index:1}
+.grena-alerts .style-choice-name{padding:0 19px;display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.grena-alerts .style-choice-name strong{font-size:19px;font-weight:850}
+.grena-alerts .style-choice-name span{color:#b9c9d6;font-size:11px;border:1px solid #405064;padding:4px 8px;border-radius:5px}
+.grena-alerts .style-choice[aria-pressed="true"] .style-choice-name span{color:#baff95;background:#1d4024;border-color:#659a58}
+.grena-alerts .style-description{padding:0 19px;color:#a6b4ca;font-size:12px;line-height:1.5}
+.grena-alerts .style-tool-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.grena-alerts .style-catalog-link,.grena-alerts .style-studio-link{
+ display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:11px 15px;
+ border-radius:10px;border:1px solid #485772;background:#141d2f;color:#eef6ff;font-size:13px;font-weight:750
+}
+.grena-alerts .style-catalog-link{background:linear-gradient(120deg,#7653e3,#875cec);border-color:#9471fa}
+.grena-alerts .style-catalog-link:hover,.grena-alerts .style-studio-link:hover{filter:brightness(1.14)}
+.grena-alerts .style-alert-note{font-size:12px;color:#a8b9cc;margin:0}
+.grena-alerts #styleSaveStatus{font-size:12px;min-height:20px;color:#b8ff9b;font-weight:700}
+.grena-alerts .style-select-error{color:#ffaaaa!important}
+.grena-alerts .bottom-grid .obs-panel .panel-title h3{font-size:16px}
+@media(max-width:800px){.grena-alerts .style-options{grid-template-columns:1fr}.grena-alerts button.style-choice{min-height:200px}.grena-alerts .style-illustration{height:120px}}
