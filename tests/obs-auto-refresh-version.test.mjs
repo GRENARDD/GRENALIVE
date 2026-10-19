@@ -14,7 +14,7 @@ function inline(){
 test('OBS keeps the same private vertical/horizontal source URLs',()=>{
  assert.match(overlay,/qp\.get\('layout'\)==='horizontal'\?'horizontal':'vertical'/);
  assert.match(overlay,/qp\.get\('obs'\)\|\|''/);
- assert.match(overlay,/new WebSocket\(proto\+'\/\/'\+location\.host\+'\/'\+obsQuery\)/);
+ assert.ok(overlay.includes("new WebSocket(proto+'://'+location.host+'/'+obsQuery)"));
  assert.match(overlay,/d\.type==='alert'/);
  assert.match(overlay,/d\.type==='afterglow-settings'/);
 });
