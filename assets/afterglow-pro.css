@@ -116,7 +116,7 @@
 /* Widescreen independent composition; keep every alert in a compact middle band */
 .live.wide .fx::before{left:20%;right:20%;top:22%;height:62%}
 .live.wide .follow-piece{left:20%;width:60%;bottom:30%}
-.live.wide .gift-orbit{top:11%;width:min(22%,390px)}
+.live.wide .gift-orbit{top:18%;width:min(13%,235px)}
 .live.wide .gift-sweep{top:60%;left:19%;width:62%}
 .live.wide .gift-sweep .headline{font-size:clamp(38px,5.8cqw,120px)!important}
 .live.wide .gift-counter{right:30%;top:27%}
@@ -130,3 +130,13 @@
 .live.wide .share-type .headline{font-size:clamp(38px,7cqw,120px)!important}
 .live.wide .likes-wave{left:20%;width:60%;bottom:25%}
 .live.wide .likes-type .headline{font-size:clamp(47px,8cqw,135px)!important}
+
+/* AFTERGLOW · vertical gift-art safe zone.
+   The camera/face occupies the upper vertical scene.
+   Move ONLY the large gift illustration beneath it, keeping the original
+   titles, sounds, animations, counters, and private OBS URLs unchanged. */
+.live:not(.wide) .gift-orbit{
+  top:72%;
+  left:50%;
+  width:min(23%,270px);
+}
