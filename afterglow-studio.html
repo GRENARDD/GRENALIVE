@@ -124,8 +124,9 @@ function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&
 function safeGiftSrc(raw){
   const v=String(raw||'').trim();
   if(!v||v.length>1800||/[<>"'`\\]/.test(v))return '';
-  if(v.startsWith('/assets/')&&!v.includes('..')&&!v.includes('//'))return v;
-  try{const url=new URL(v,location.origin);if(url.protocol==='https:'&&url.hostname)return url.href}catch{}
+  if(v.startsWith('/assets/')&&!v.includes('..')&&!v.includes('//')&&!/[?#]/.test(v))return v;
+  if(!/^https:\/\//i.test(v))return '';
+  try{const url=new URL(v);if(url.protocol==='https:'&&url.hostname&&!url.username&&!url.password)return url.href}catch{}
   return '';
 }
 function giftArt(s){
