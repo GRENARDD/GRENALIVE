@@ -163,7 +163,7 @@ function stopSequence(){clearTimeout(sequenceTimer);sequenceTimer=null;sequencin
 function doSequence(){if(!sequencing)return;const type=events[sequenceCount%events.length];current=type;setupButtons();const dur=play({fromSequence:true});sequenceCount++;sequenceTimer=setTimeout(()=>{if(sequenceCount>=events.length&&!loop){stopSequence();return}doSequence()},dur+430)}
 function toggleSequence(){if(sequencing){stopSequence();return}sequencing=true;sequenceCount=0;$('#sequenceButton').textContent='■  DETENER SECUENCIA';doSequence()}
 function buttonSwitch(id,on){const b=$(id);b.classList.toggle('is-on',on);b.setAttribute('aria-pressed',String(on))}
-function makeSound(type){if(!sound)return;const enabled=document.querySelector('[data-sound-for="'+type+'"]')?.checked!==false;window.AfterglowAudio?.play(type,{enabled,volume:Number($('#volume').value)})}
+function makeSound(type){if(!sound)return;const enabled=document.querySelector('[data-sound-for="'+type+'"]')?.checked!==false;const player=$('#afterglowTheme').value==='minecraft'?window.AfterglowMinecraftSound:window.AfterglowAudio;player?.play(type,{enabled,volume:Number($('#volume').value)})}
 $$('.event').forEach(b=>b.addEventListener('click',()=>selectEvent(b.dataset.event)));
 $$('.platform-picks button').forEach(b=>b.addEventListener('click',()=>{platform=b.dataset.platform;$$('.platform-picks button').forEach(x=>x.classList.toggle('is-active',x===b));updateColor();play()}));
 $$('[data-ratio]').forEach(b=>b.addEventListener('click',()=>{$$('[data-ratio]').forEach(x=>x.classList.toggle('is-active',x===b));live.classList.toggle('wide',b.dataset.ratio==='wide');$('#sceneName').textContent=b.dataset.ratio==='wide'?'/ GREÑA HORIZONTAL':'/ GREÑA VERTICAL';play()}));
