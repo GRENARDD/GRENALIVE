@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA AFTERGLOW / OBS</title><style>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA AFTERGLOW / OBS</title><meta name="grena-release" content="GRENA_RELEASE_PLACEHOLDER"><style>
 
 :root{--bg:#080b11;--panel:#0d1119;--stroke:#252c36;--muted:#8791a3;--ink:#eff3f6;--lime:#caff5f;--cyan:#4be9ff;--hot:#ff718b;--accent:#caff5f;--glow:rgba(202,255,95,.35);--safe:38px}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,'Segoe UI',Arial,sans-serif;min-height:100vh;overflow-x:hidden}button,input,select{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:3px}button:disabled{opacity:.45;cursor:not-allowed}::selection{background:var(--lime);color:#111}
@@ -63,6 +63,40 @@ const events=['follow','gift','sub','raid','share','likes'];
 const defaults={theme:'original',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
 let cfg={...defaults},platform='tiktok',activeTimer=null,retryTimer=null,socket=null,working=false,backoff=1500;
 const pending=[],MAX_PENDING=14,recentIds=new Map();
+// OBS Browser Source keeps its JS alive when deployed pages change.
+// Compare authorized server release on a timer and after WS reconnect.
+// Only refresh while no alert is actively playing or waiting.
+let runningRelease=document.querySelector('meta[name="grena-release"]')?.content||null,pendingRelease='',versionCheckTimer=null,versionCheckBusy=false;
+function considerRelease(value){
+ const candidate=String(value||'').trim();
+ if(!/^[A-Za-z0-9_.-]{6,96}$/.test(candidate))return;
+ if(runningRelease===null){runningRelease=candidate;return}
+ if(candidate===runningRelease)return;
+ pendingRelease=candidate;
+ refreshWhenIdle();
+}
+function refreshWhenIdle(){
+ if(!pendingRelease||working||pending.length)return false;
+ const next=new URL(location.href);
+ // This is internal navigation only; OBS keeps its original configured URL.
+ if(next.searchParams.get('__grena_release')===pendingRelease)return false;
+ next.searchParams.set('__grena_release',pendingRelease);
+ window.location.replace(next.toString());
+ return true;
+}
+async function checkOverlayRelease(){
+ if(versionCheckBusy)return;
+ versionCheckBusy=true;
+ try{
+  const response=await fetch('/api/overlay-version'+obsQuery,{
+    method:'GET',cache:'no-store',credentials:'same-origin',
+    headers:{'cache-control':'no-cache'}
+  });
+  if(!response.ok)return;
+  const payload=await response.json();
+  if(payload.ok)considerRelease(payload.version);
+ }catch{}finally{versionCheckBusy=false}
+}
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]))}
 
 function safeGiftSrc(raw){
@@ -133,7 +167,7 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
   }
   const ms=duration(event);const fx=root.firstElementChild;
   const endTimer=setTimeout(()=>{fx?.classList.add('outro')},ms-650);
-  activeTimer=setTimeout(()=>{clearTimeout(endTimer);root.replaceChildren();working=false;drain()},ms);
+  activeTimer=setTimeout(()=>{clearTimeout(endTimer);root.replaceChildren();working=false;if(!refreshWhenIdle())drain()},ms);
 }
 function enqueue(a){
  if(!a||typeof a!=='object')return;
@@ -147,8 +181,8 @@ function enqueue(a){
 }
 function connect(){
  const proto=location.protocol==='https:'?'wss':'ws';
- try{socket=new WebSocket(proto+'://'+location.host+'/'+obsQuery);socket.onopen=()=>{backoff=1500};
- socket.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='alert')enqueue(d.alert);if(d.type==='afterglow-settings')applySettings(d.settings)}catch{}};
+ try{socket=new WebSocket(proto+'://'+location.host+'/'+obsQuery);socket.onopen=()=>{backoff=1500;checkOverlayRelease()};
+ socket.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='hello'&&d.overlayVersion)considerRelease(d.overlayVersion);if(d.type==='alert')enqueue(d.alert);if(d.type==='afterglow-settings')applySettings(d.settings)}catch{}};
  socket.onclose=()=>{clearTimeout(retryTimer);retryTimer=setTimeout(connect,backoff);backoff=Math.min(15000,Math.floor(backoff*1.5))};
  socket.onerror=()=>{try{socket.close()}catch{}}
  }catch{retryTimer=setTimeout(connect,backoff)}
@@ -157,9 +191,11 @@ async function load(){
  try{const r=await fetch('/api/afterglow-settings'+obsQuery,{cache:'no-store',credentials:'same-origin'});
  if(r.ok)applySettings((await r.json()).settings)}catch{}
  connect();
+ checkOverlayRelease();
+ versionCheckTimer=setInterval(checkOverlayRelease,20000);
 }
 live.dataset.theme='original';
-window.addEventListener('pagehide',()=>{clearTimeout(retryTimer);clearTimeout(activeTimer);socket?.close()});
+window.addEventListener('pagehide',()=>{clearTimeout(retryTimer);clearTimeout(activeTimer);clearInterval(versionCheckTimer);socket?.close()});
 if(qp.get('demo')==='1'){const demo={platform:qp.get('platform')||'TikTok',event:qp.get('event')||'follow',name:qp.get('name')||'grenero_07',count:5,giftName:'Rosa de oro'};setTimeout(()=>enqueue(demo),500)}
 load();
 })();
