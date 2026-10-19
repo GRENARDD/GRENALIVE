@@ -39,7 +39,7 @@ html.grena-embedded .home-link{display:none!important}
 @media(max-width:800px){.afterglow-primary .ag-links{grid-template-columns:1fr}}
 .alert-style-picker{display:none!important}
 </style><link rel="stylesheet" href="/ui-v2.css">
-<link rel="stylesheet" href="/aurora-ui.css">
+<link rel="stylesheet" href="/aurora-ui.css"><link rel="stylesheet" href="/assets/alerts-simple.css?v=1">
 </head>
 <body class="grena-alerts">
 <div class="app-shell">
@@ -47,7 +47,7 @@ html.grena-embedded .home-link{display:none!important}
 <div class="brand"><div class="brand-mark">G</div><div><b>GREÑA LIVE PRO</b><small>ALERTAS + OBS</small></div></div>
 <a class="home-link" href="/">⌂ <span>Creator Control</span></a>
 <nav>
-<button class="nav active" data-page="dashboard">▦ <span>Resumen</span></button>
+<button class="nav active" data-page="dashboard">✦ <span>Mis alertas</span></button>
 <button class="nav" data-page="editor">✦ <span>Editor de alertas</span></button>
 
 <button class="nav" data-page="obs">▣ <span>Conectar OBS</span></button>
@@ -57,6 +57,27 @@ html.grena-embedded .home-link{display:none!important}
 <main class="main">
 <header class="topbar"><div><div class="eyebrow">CENTRO DE CONTROL</div><h1 id="pageTitle">Resumen</h1></div><div class="top-actions"><span class="local-pill">● SOLO EN TU PC</span><button class="btn btn-primary" id="quickTest">▶ Probar alerta</button></div></header>
 <section class="page active" id="dashboard">
+<section class="style-hub" aria-labelledby="currentAlertStyleTitle">
+<div class="style-hub-header"><div><h2 id="currentAlertStyleTitle">Elige cómo se verán tus alertas</h2><p>Solo dos estilos. Selecciona uno y se aplicará a todos los regalos y eventos, tanto en vertical como en horizontal.</p></div></div>
+<div class="style-options" role="group" aria-label="Estilo de alertas">
+<button type="button" class="style-choice" data-grena-theme="original" aria-pressed="false">
+  <span class="style-illustration afterglow" aria-hidden="true"><span class="logo-type">AFTERGLOW ✦</span><span class="logo-line"></span></span>
+  <span class="style-choice-name"><strong>Original · AFTERGLOW</strong><span>Elegir estilo</span></span>
+  <span class="style-description">Regalos reales, texto luminoso, efectos y sonidos premium. La versión moderna que ya estás usando.</span>
+</button>
+<button type="button" class="style-choice" data-grena-theme="minecraft" aria-pressed="false">
+  <span class="style-illustration minecraft" aria-hidden="true"><span class="pixel-block"></span><span class="logo-type">MINECRAFT</span></span>
+  <span class="style-choice-name"><strong>Minecraft · Pixel Adventure</strong><span>Elegir estilo</span></span>
+  <span class="style-description">Armadura de diamante para seguidores, regalos flotantes y efectos de píxeles estilo videojuego. Sin fondos opacos.</span>
+</button>
+</div>
+<div id="styleSaveStatus" role="status" aria-live="polite">Cargando estilo activo…</div>
+<div class="style-tool-row">
+<a class="style-catalog-link" href="/gift-catalog.html" target="_blank" rel="noopener">▶ Probar alertas desde el Catálogo</a>
+<a class="style-studio-link" href="/afterglow-studio.html" target="_blank" rel="noopener">⚙ Ajustar sonidos y colores</a>
+</div>
+<p class="style-alert-note">Mantienes los mismos enlaces vertical y horizontal de OBS. No necesitas añadir otras fuentes.</p>
+</section>
 <div class="welcome"><div><div class="eyebrow">TU STREAM, TU ESTILO</div><h2>Todo tu show.<br/><span>Una sola experiencia.</span></h2><p>Administra tus alertas de TikTok, Twitch, Kick, YouTube y StarVios desde un solo panel.</p></div><div class="orb">✦</div></div>
 <div class="stats">
 <article class="stat"><span>PLATAFORMAS</span><strong>05</strong><small>TikTok · Twitch · Kick · YouTube · StarVios</small></article>
@@ -189,7 +210,7 @@ html.grena-embedded .home-link{display:none!important}
 </main>
 </div>
 <div class="toast" id="toast"></div>
-<script src="app.js"></script>
+<script src="app.js"></script><script src="/assets/alerts-theme-picker.js?v=1"></script>
 <script>
 (async()=>{
   const outputs=['overlayUrl','overlayUrl2'].map(id=>document.getElementById(id)).filter(Boolean);
