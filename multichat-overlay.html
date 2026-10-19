@@ -21,7 +21,7 @@
     flex-direction:column;
     justify-content:flex-end;
     align-items:flex-start;
-    padding:14px;
+    padding:14px 0;
     gap:14px;
   }
   .msg{
@@ -257,11 +257,11 @@ const CHAT_DIRECT=location.port==='8788';
 const CHAT_HTTP=CHAT_DIRECT?location.origin:`${location.origin}/chat`;
 const CHAT_WS=CHAT_DIRECT?`ws://${CHAT_HOST}:8788/ws`:`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`;
 const defaults={
-  direction:'left',fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,
+  direction:'left',edgeOffset:0,fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,
   avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,
   showPlatform:true,theme:'neon',showHandle:false,fadeAfter:5
 };
-const CFG_RANGES={fontSize:[8,96],nameSize:[8,64],bubbleWidth:[10,100],bubbleScale:[30,200],padY:[0,60],padX:[0,80],avatarSize:[12,120],gap:[0,80],radius:[0,80],opacity:[0,100],maxMessages:[1,30],duration:[1,120],fadeAfter:[0,120]};
+const CFG_RANGES={edgeOffset:[0,80],fontSize:[8,96],nameSize:[8,64],bubbleWidth:[10,100],bubbleScale:[30,200],padY:[0,60],padX:[0,80],avatarSize:[12,120],gap:[0,80],radius:[0,80],opacity:[0,100],maxMessages:[1,30],duration:[1,120],fadeAfter:[0,120]};
 function sanitizeCfg(src){
   src=(src&&typeof src==='object')?src:{};const out={};
   for(const [k,def] of Object.entries(defaults)){
@@ -309,6 +309,9 @@ async function load(){
 function applyStage(){
   stage.style.gap=Math.max(12,Number(cfg.gap??8))+'px';
   stage.style.alignItems=cfg.direction==='right'?'flex-end':'flex-start';
+  const edgeOffset=Math.max(0,Math.min(80,Number(cfg.edgeOffset)||0));
+  stage.style.paddingLeft=(cfg.direction==='right'?0:edgeOffset)+'px';
+  stage.style.paddingRight=(cfg.direction==='right'?edgeOffset:0)+'px';
   const theme='theme-'+(cfg.theme||'neon');
   for(const el of stage.querySelectorAll('.msg')){
     [...el.classList].filter(c=>c.startsWith('theme-')).forEach(c=>el.classList.remove(c));

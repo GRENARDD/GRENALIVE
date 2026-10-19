@@ -161,7 +161,7 @@ function readBody(req,limit=MAX_BODY_BYTES){
   });
 }
 // Ajustes de multichat: solo claves conocidas, tipos y rangos válidos (se escriben en disco y se difunden a OBS).
-const MC_RANGES={fontSize:[8,96],nameSize:[8,64],bubbleWidth:[10,100],bubbleScale:[30,200],padY:[0,60],padX:[0,80],avatarSize:[12,120],gap:[0,80],radius:[0,80],opacity:[0,100],maxMessages:[1,30],duration:[1,120],fadeAfter:[0,120]};
+const MC_RANGES={edgeOffset:[0,80],fontSize:[8,96],nameSize:[8,64],bubbleWidth:[10,100],bubbleScale:[30,200],padY:[0,60],padX:[0,80],avatarSize:[12,120],gap:[0,80],radius:[0,80],opacity:[0,100],maxMessages:[1,30],duration:[1,120],fadeAfter:[0,120]};
 function sanitizeMultichatSettings(input,defaults){
   const src=(input&&typeof input==='object'&&!Array.isArray(input))?input:{};
   const out={};
@@ -188,7 +188,7 @@ async function hostIsPublic(hostname){
   try{const list=await dns.lookup(h,{all:true});return list.length>0&&list.every(a=>!isPrivateIp(a.address))}catch{return false}
 }
 
-const multichatDefaults = {direction:'left',fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,showPlatform:true,theme:'neon',showHandle:false,fadeAfter:5};
+const multichatDefaults = {direction:'left',edgeOffset:0,fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,showPlatform:true,theme:'neon',showHandle:false,fadeAfter:5};
 let multichatSettings = sanitizeMultichatSettings(await readJson(MULTICHAT_SETTINGS_FILE,{}),multichatDefaults);
 async function loadChatProfile(userId=''){
   activeProfileId=String(userId||'');
