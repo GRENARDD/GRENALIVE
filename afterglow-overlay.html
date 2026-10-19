@@ -109,7 +109,7 @@ function mapAlert(a={}){
   const rawAmount=event==='raid'?a.viewers??a.count:event==='likes'?a.count??a.likes:event==='gift'?(raw==='cheer'||raw==='bits'?a.bits:kind==='kicks'?a.amount:a.count??a.amount):1;
   const amount=Math.max(1,Math.min(99999,Number(rawAmount)||1));
   return {event,data:{name:String(a.name||a.nickname||a.user||'Alguien').slice(0,64),amount,
-    gift:String(a.giftName||a.giftNameOriginal||(raw==='cheer'?'Bits':kind==='kicks'?'KICKs':'Regalo')).slice(0,52),giftImage:String(a.giftAnimatedImage||a.giftImage||'').slice(0,1800),intensity:cfg.intensity}};
+    gift:String(a.giftName||a.giftNameOriginal||(raw==='cheer'?'Bits':kind==='kicks'?'KICKs':'Regalo')).slice(0,52),giftImage:String(a.giftImage||a.giftAnimatedImage||'').slice(0,1800),intensity:cfg.intensity}};
 }
 function normalizedSettings(src={}){
  const color=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?v:'#ffffff';
