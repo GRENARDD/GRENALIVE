@@ -50,7 +50,7 @@ body{min-height:0!important;background:transparent!important;user-select:none;po
 .fx{font-family:var(--after-font,'Segoe UI',Arial,sans-serif);color:var(--after-text,#fff)}
 .fx .headline{color:var(--after-text,#fff)}
 :root{--safe:38px} .fx .overline,.fx .meta{word-break:break-word}
-</style><link rel="stylesheet" href="/assets/afterglow-pro.css?v=21"><link rel="stylesheet" href="/assets/afterglow-minecraft.css?v=1"></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script src="/assets/afterglow-minecraft.js?v=1"></script><script>
+</style><link rel="stylesheet" href="/assets/afterglow-pro.css?v=21"><link rel="stylesheet" href="/assets/afterglow-minecraft.css?v=2"></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script src="/assets/afterglow-minecraft.js?v=2"></script><script src="/assets/afterglow-minecraft-sound.js?v=2"></script><script>
 (()=>{
 'use strict';
 const root=document.getElementById('effects'),live=document.getElementById('live');
@@ -124,9 +124,13 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
   if(Date.now()-Number(next._afterglowAt||0)>30000&&['like','likes','share'].includes(String(next.event||''))){working=false;drain();return}
   const {event,data}=mapAlert(next)||{};if(!event){working=false;drain();return}
   const palette=colorPair();live.style.setProperty('--accent',palette[0]);live.style.setProperty('--glow',palette[1]);
-  root.innerHTML=cfg.theme==='minecraft'&&window.AfterglowMinecraft?window.AfterglowMinecraft.render(event,data,{platform:platformName[platform],giftMarkup:giftArt(data),accent:palette[0]}):makeTemplate(event,data);
+  root.innerHTML=cfg.theme==='minecraft'&&window.AfterglowMinecraft?window.AfterglowMinecraft.render(event,data,{platform:platformName[platform],giftSource:safeGiftSrc(data.giftImage),accent:palette[0]}):makeTemplate(event,data);
   activateGiftArt();fitLongNames();
-  if(cfg.soundEnabled&&cfg.sounds[event]&&['both',layout].includes(cfg.audioRoute))window.AfterglowAudio?.play(event,{enabled:true,volume:cfg.volume});
+  if(cfg.theme==='minecraft')window.AfterglowMinecraft?.prepare(root);
+  if(cfg.soundEnabled&&cfg.sounds[event]&&['both',layout].includes(cfg.audioRoute)){
+    if(cfg.theme==='minecraft')window.AfterglowMinecraftSound?.play(event,{enabled:true,volume:cfg.volume});
+    else window.AfterglowAudio?.play(event,{enabled:true,volume:cfg.volume});
+  }
   const ms=duration(event);const fx=root.firstElementChild;
   const endTimer=setTimeout(()=>{fx?.classList.add('outro')},ms-650);
   activeTimer=setTimeout(()=>{clearTimeout(endTimer);root.replaceChildren();working=false;drain()},ms);
