@@ -88,6 +88,7 @@ footer{max-width:1830px;margin:12px auto 30px;padding:14px clamp(15px,2.4vw,40px
 <div class="switch-row"><span class="switch-label">Vista con guías de seguridad</span><button type="button" class="switch" id="guidesSwitch" aria-label="Mostrar zonas seguras" aria-pressed="false"></button></div>
 <div class="switch-row"><span class="switch-label">Efectos de sonido</span><button type="button" class="switch" id="soundSwitch" aria-label="Activar efectos de sonido" aria-pressed="false"></button></div>
 <div class="after-row"><label for="volume">Volumen de sonidos distintivos <output id="volumeOut">54%</output></label><input id="volume" class="range" type="range" min="0" max="100" value="54"/></div>
+<div class="after-row"><label for="audioRoute">Escuchar sonidos en qué escena</label><select id="audioRoute"><option value="both">En ambas escenas</option><option value="vertical">Solo vertical</option><option value="horizontal">Solo horizontal</option><option value="muted">Ninguna</option></select><div class="after-notice">Si OBS mezcla el audio de ambas fuentes simultáneamente, elige una sola escena para evitar eco.</div></div>
 <div class="after-row"><label for="fontChoice">Tipografía de las alertas</label><select id="fontChoice"><option value="Inter">Inter / moderna</option><option value="Segoe UI">Segoe UI</option><option value="Arial">Arial</option><option value="Impact">Impact / intensa</option><option value="Trebuchet MS">Trebuchet</option></select></div>
 <div class="after-row"><label for="textColor">Color principal del texto</label><input id="textColor" type="color" value="#ffffff"/></div>
 <div class="after-row"><label for="accentMode">Color del efecto</label><select id="accentMode"><option value="platform">Automático según plataforma</option><option value="custom">Personalizado</option></select><input id="accentCustom" type="color" value="#caff5f" aria-label="Color personalizado"/></div>
@@ -152,12 +153,12 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classLi
 const query=new URLSearchParams(location.search);if(query.has('overlay')){document.body.classList.add('presentation');if(query.get('overlay')==='transparent')live.classList.add('preview-checker');if(query.get('event')&&events.includes(query.get('event')))current=query.get('event');}setupButtons();updateColor();buttonSwitch('#soundSwitch',sound);
 function readConfiguration(){
   const sounds={...defaultSounds};$('[data-sound-for]').forEach(el=>sounds[el.dataset.soundFor]=el.checked);
-  return {intensity:+$('#intensity').value,volume:+$('#volume').value,soundEnabled:sound,sounds,fontFamily:$('#fontChoice').value,textColor:$('#textColor').value,accentMode:$('#accentMode').value,accent:$('#accentCustom').value};
+  return {intensity:+$('#intensity').value,volume:+$('#volume').value,soundEnabled:sound,audioRoute:$('#audioRoute').value,sounds,fontFamily:$('#fontChoice').value,textColor:$('#textColor').value,accentMode:$('#accentMode').value,accent:$('#accentCustom').value};
 }
 function applyConfiguration(v={}){
   $('#intensity').value=v.intensity??65;$('#intensityOut').textContent=$('#intensity').value+'%';
   $('#volume').value=v.volume??54;$('#volumeOut').textContent=$('#volume').value+'%';
-  sound=v.soundEnabled!==false;buttonSwitch('#soundSwitch',sound);
+  sound=v.soundEnabled!==false;buttonSwitch('#soundSwitch',sound);$('#audioRoute').value=['both','vertical','horizontal','muted'].includes(v.audioRoute)?v.audioRoute:'both';
   $('#fontChoice').value=['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(v.fontFamily)?v.fontFamily:'Inter';
   $('#textColor').value=/^#[a-f\d]{6}$/i.test(v.textColor||'')?v.textColor:'#ffffff';
   $('#accentMode').value=v.accentMode==='custom'?'custom':'platform';
