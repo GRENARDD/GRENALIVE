@@ -260,6 +260,15 @@ function ensureBuiltInGiftCatalog(){
  for(const tier of ['Tier 1','Tier 2','Tier 3'])upsertCatalogItem({platform:'Twitch',id:`sub:${tier.toLowerCase().replace(/\s+/g,'-')}`,name:`Gifted subscription · ${tier}`,nameEs:`Suscripción regalada · ${tier}`,category:'subscription',giftKind:'subscription',amount:1,unit:'sub',source:'Twitch',updatedAt:now});
 }
 ensureBuiltInGiftCatalog();
+const AFTERGLOW_DEFAULTS={intensity:65,volume:54,soundEnabled:true,sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
+function normalizeAfterglowSettings(input={}){
+ const x=input&&typeof input==='object'&&!Array.isArray(input)?input:{};
+ const number=(v,d)=>Number.isFinite(Number(v))?Math.max(0,Math.min(100,Number(v))):d;
+ const color=(v,d)=>/^#[0-9a-f]{6}$/i.test(String(v||''))?String(v).toLowerCase():d;
+ const sounds=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,x.sounds?.[k]!==false]));
+ const fontFamily=['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(x.fontFamily)?x.fontFamily:'Inter';
+ return {intensity:number(x.intensity,65),volume:number(x.volume,54),soundEnabled:x.soundEnabled!==false,sounds,fontFamily,textColor:color(x.textColor,'#ffffff'),accentMode:x.accentMode==='custom'?'custom':'platform',accent:color(x.accent,'#caff5f')};
+}
 const socialDefaults={tiktokUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',fontFamily:'Segoe UI',fontSize:34,iconSize:46,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true,edge:'left',edgeOffset:0};
 const autoDefaults={enabled:true,counterTikTok:'',counterTwitch:'',counterKick:'',counterTikTokEnabled:false,counterTwitchEnabled:false,counterKickEnabled:false,counterStyle:'classic',counterCardColor:'#18232c',counterEdge:'left',counterEdgeOffset:0,alertStyle:'classic'};
 let usersStore=await readJson(USERS_FILE,{version:1,users:[]});
@@ -383,7 +392,7 @@ async function migrateLegacyIntoProfile(userId){
   // Solo el primer perfil puede importar el antiguo localStorage del chat de voz.
   await writeFile(profileFile('migrate-legacy-chat.flag',userId),'1','utf8').catch(()=>{});
 }
-let savedAuth={},savedAlertDesigns={},socialSettings={...socialDefaults},autoPrefs={...autoDefaults},obsToken='';
+let savedAuth={},savedAlertDesigns={},socialSettings={...socialDefaults},afterglowSettings=normalizeAfterglowSettings(),autoPrefs={...autoDefaults},obsToken='';
 
 // ===== GREÑA FIDELIDAD · ESTADO =====
 const loyaltyDefaults={rotateSeconds:8,topN:5,activeWindowMinutes:10};
@@ -396,6 +405,7 @@ async function loadProfileState(userId=activeUserId){
   savedAuth=activeUserId?await readJson(profileFile('auth.json'),{}):await readJsonWithLegacy(LEGACY_AUTH_FILE,join(ROOT,'.grena-auth.json'),{});
   savedAlertDesigns=activeUserId?await readJson(profileFile('alert-designs.json'),{}):await readJsonWithLegacy(LEGACY_ALERTS_FILE,join(ROOT,'.grena-alert-designs.json'),{});
   socialSettings={...socialDefaults,...(activeUserId?await readJson(profileFile('social.json'),{}):await readJsonWithLegacy(LEGACY_SOCIAL_FILE,join(ROOT,'.grena-social-gadget.json'),{}))};
+ afterglowSettings=normalizeAfterglowSettings(activeUserId?await readJson(profileFile('afterglow-settings.json'),{}):{});
   autoPrefs={...autoDefaults,...(activeUserId?await readJson(profileFile('auto-connect.json'),{}):await readJson(LEGACY_AUTO_FILE,{}))};
   obsToken='';
   if(activeUserId){
@@ -1901,8 +1911,8 @@ function camWsMessageInner(ws,req,data){
 // Rutas que usan los overlays de OBS (sin cookie) o que deben ser públicas por diseño.
 const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/twitch/device/status','/auth/twitch/callback']);
 const PUBLIC_GET_CLOUD=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite']);
-const OBS_PUBLIC_API=new Set(['/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
-const OBS_PUBLIC_PAGES=new Set(['/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/loyalty-overlay.html','/super-fans-overlay.html','/taptap-race.html']);
+const OBS_PUBLIC_API=new Set(['/api/afterglow-settings','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
+const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/loyalty-overlay.html','/super-fans-overlay.html','/taptap-race.html']);
 const PUBLIC_POST=new Set(['/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
 function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())}
@@ -2404,6 +2414,16 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/activity'){const limit=Math.max(1,Math.min(120,Number(url.searchParams.get('limit')||40)||40));return json(res,200,{ok:true,activity:activityHistory.slice(0,limit)});}
  if(pathname.startsWith('/api/oauth-config/')&&req.method==='GET'){const p=pathname.split('/').pop();if(!['twitch'].includes(p))return json(res,400,{ok:false,error:'Plataforma no válida'});return json(res,200,{ok:true,clientId:oauthConfig[p]?.clientId||'',hasClientSecret:!!oauthConfig[p]?.clientSecret});}
  if(pathname==='/api/oauth-config'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const p=body.platform;if(!['twitch'].includes(p))return json(res,400,{ok:false,error:'Plataforma no válida'});const clientId=String(body.clientId||'').trim();if(!clientId)return json(res,400,{ok:false,error:'Falta el Client ID'});const clientSecret=String(body.clientSecret||'').trim();oauthConfig[p]={...oauthConfig[p],clientId,...(clientSecret?{clientSecret}: {})};await persistOAuthConfig();return json(res,200,{ok:true,configured:configured(p)});}
+
+ if(pathname==='/api/afterglow-settings'&&req.method==='GET')return json(res,200,{ok:true,settings:afterglowSettings});
+ if(pathname==='/api/afterglow-settings'&&req.method==='POST')return withAccountTransition(async()=>{
+   if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'});
+   const body=JSON.parse((await readBody(req))||'{}');
+   afterglowSettings=normalizeAfterglowSettings(body);
+   if(activeUserId)await safeWriteJson(profileFile('afterglow-settings.json'),afterglowSettings);
+   broadcast({type:'afterglow-settings',settings:afterglowSettings});
+   return json(res,200,{ok:true,settings:afterglowSettings});
+ });
  if(pathname==='/api/alert-style'&&req.method==='GET')return json(res,200,{ok:true,style:['classic','option-a'].includes(autoPrefs.alertStyle)?autoPrefs.alertStyle:'classic'});
  if(pathname==='/api/alert-style'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const style=String(body.style||'classic');if(!['classic','option-a'].includes(style))return json(res,400,{ok:false,error:'Estilo de alerta no válido.'});autoPrefs.alertStyle=style;await persistAutoPrefs();broadcast({type:'alert-style',style});return json(res,200,{ok:true,style})});
  if(pathname==='/api/designs'&&req.method==='GET')return json(res,200,{ok:true,designs:savedAlertDesigns});
@@ -2434,7 +2454,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
- const interactive=new Set(['/','/index.html','/preview.html','/alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html']);
+ const interactive=new Set(['/','/index.html','/preview.html','/afterglow-studio.html','/alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html']);
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);if(!su){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
