@@ -174,7 +174,7 @@ $('#presentationButton').addEventListener('click',()=>{if(!document.body.classLi
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.body.classList.contains('presentation')){document.body.classList.remove('presentation');$('#presentationButton').textContent='⤢ VER GRANDE'}});
 const query=new URLSearchParams(location.search);if(query.has('overlay')){document.body.classList.add('presentation');if(query.get('overlay')==='transparent')live.classList.add('preview-checker');if(query.get('event')&&events.includes(query.get('event')))current=query.get('event');}setupButtons();updateColor();buttonSwitch('#soundSwitch',sound);
 function readConfiguration(){
-  const sounds={...defaultSounds};$('[data-sound-for]').forEach(el=>sounds[el.dataset.soundFor]=el.checked);
+  const sounds={...defaultSounds};$$('[data-sound-for]').forEach(el=>sounds[el.dataset.soundFor]=el.checked);
   return {intensity:+$('#intensity').value,volume:+$('#volume').value,soundEnabled:sound,audioRoute:$('#audioRoute').value,sounds,fontFamily:$('#fontChoice').value,textColor:$('#textColor').value,accentMode:$('#accentMode').value,accent:$('#accentCustom').value};
 }
 function applyConfiguration(v={}){
@@ -185,7 +185,7 @@ function applyConfiguration(v={}){
   $('#textColor').value=/^#[a-f\d]{6}$/i.test(v.textColor||'')?v.textColor:'#ffffff';
   $('#accentMode').value=v.accentMode==='custom'?'custom':'platform';
   $('#accentCustom').value=/^#[a-f\d]{6}$/i.test(v.accent||'')?v.accent:'#caff5f';
-  $('[data-sound-for]').forEach(el=>el.checked=v.sounds?.[el.dataset.soundFor]!==false);
+  $$('[data-sound-for]').forEach(el=>el.checked=v.sounds?.[el.dataset.soundFor]!==false);
   updateColor();
 }
 async function loadSettings(){
@@ -207,7 +207,7 @@ async function prepareLinks(){
     for(const layout of ['vertical','horizontal']){const u=new URL('/afterglow-overlay.html',root);u.searchParams.set('layout',layout);if(token)u.searchParams.set('obs',token);$('#link'+layout[0].toUpperCase()+layout.slice(1)).value=u.toString()}
   }catch(e){$('#saveStatus').textContent='Inicia sesión en GREÑA para obtener tus enlaces privados de OBS.'}
 }
-$('[data-copy-link]').forEach(button=>button.addEventListener('click',async()=>{
+$$('[data-copy-link]').forEach(button=>button.addEventListener('click',async()=>{
   const val=$('#'+button.dataset.copyLink).value;if(!val)return;
   try{await navigator.clipboard.writeText(val);const old=button.textContent;button.textContent='✓ COPIADO';setTimeout(()=>button.textContent=old,1500)}catch{$('#saveStatus').textContent='Selecciona y copia manualmente el enlace.'}
 }));
