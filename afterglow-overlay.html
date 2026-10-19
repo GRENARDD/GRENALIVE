@@ -50,7 +50,7 @@ body{min-height:0!important;background:transparent!important;user-select:none;po
 .fx{font-family:var(--after-font,'Segoe UI',Arial,sans-serif);color:var(--after-text,#fff)}
 .fx .headline{color:var(--after-text,#fff)}
 :root{--safe:38px} .fx .overline,.fx .meta{word-break:break-word}
-</style><link rel="stylesheet" href="/assets/afterglow-pro.css?v=21"></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script>
+</style><link rel="stylesheet" href="/assets/afterglow-pro.css?v=21"><link rel="stylesheet" href="/assets/afterglow-minecraft.css?v=1"></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script src="/assets/afterglow-minecraft.js?v=1"></script><script>
 (()=>{
 'use strict';
 const root=document.getElementById('effects'),live=document.getElementById('live');
@@ -60,7 +60,7 @@ if(layout==='horizontal')live.classList.add('wide');
 const colors={tiktok:['#4be9ff','rgba(75,233,255,.40)'],twitch:['#c49aff','rgba(196,154,255,.35)'],kick:['#caff5f','rgba(202,255,95,.40)'],starvios:['#ff8bc6','rgba(255,139,198,.37)'],youtube:['#ff5269','rgba(255,82,105,.40)']};
 const platformName={tiktok:'TIKTOK',twitch:'TWITCH',kick:'KICK',starvios:'STARVIOS',youtube:'YOUTUBE'};
 const events=['follow','gift','sub','raid','share','likes'];
-const defaults={intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
+const defaults={theme:'original',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
 let cfg={...defaults},platform='tiktok',activeTimer=null,retryTimer=null,socket=null,working=false,backoff=1500;
 const pending=[],MAX_PENDING=14,recentIds=new Map();
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]))}
@@ -114,17 +114,17 @@ function mapAlert(a={}){
 function normalizedSettings(src={}){
  const color=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?v:'#ffffff';
  const sounds=Object.fromEntries(events.map(e=>[e,src.sounds?.[e]!==false]));
- return {intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
+ return {theme:src.theme==='minecraft'?'minecraft':'original',intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
  soundEnabled:src.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(src.audioRoute)?src.audioRoute:'both',sounds,fontFamily:['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(src.fontFamily)?src.fontFamily:'Inter',
  textColor:color(src.textColor),accentMode:src.accentMode==='custom'?'custom':'platform',accent:color(src.accent||'#caff5f')};
 }
-function applySettings(src){cfg=normalizedSettings(src);live.style.setProperty('--after-font',cfg.fontFamily);live.style.setProperty('--after-text',cfg.textColor)}
+function applySettings(src){cfg=normalizedSettings(src);live.dataset.theme=cfg.theme;live.style.setProperty('--after-font',cfg.fontFamily);live.style.setProperty('--after-text',cfg.textColor)}
 function duration(event){return event==='raid'?6000:event==='likes'?4800:5500}
 function drain(){if(working||!pending.length)return;working=true;const next=pending.shift();
   if(Date.now()-Number(next._afterglowAt||0)>30000&&['like','likes','share'].includes(String(next.event||''))){working=false;drain();return}
   const {event,data}=mapAlert(next)||{};if(!event){working=false;drain();return}
   const palette=colorPair();live.style.setProperty('--accent',palette[0]);live.style.setProperty('--glow',palette[1]);
-  root.innerHTML=makeTemplate(event,data);
+  root.innerHTML=cfg.theme==='minecraft'&&window.AfterglowMinecraft?window.AfterglowMinecraft.render(event,data,{platform:platformName[platform],giftMarkup:giftArt(data),accent:palette[0]}):makeTemplate(event,data);
   activateGiftArt();fitLongNames();
   if(cfg.soundEnabled&&cfg.sounds[event]&&['both',layout].includes(cfg.audioRoute))window.AfterglowAudio?.play(event,{enabled:true,volume:cfg.volume});
   const ms=duration(event);const fx=root.firstElementChild;
@@ -154,6 +154,7 @@ async function load(){
  if(r.ok)applySettings((await r.json()).settings)}catch{}
  connect();
 }
+live.dataset.theme='original';
 window.addEventListener('pagehide',()=>{clearTimeout(retryTimer);clearTimeout(activeTimer);socket?.close()});
 if(qp.get('demo')==='1'){const demo={platform:qp.get('platform')||'TikTok',event:qp.get('event')||'follow',name:qp.get('name')||'grenero_07',count:5,giftName:'Rosa de oro'};setTimeout(()=>enqueue(demo),500)}
 load();
