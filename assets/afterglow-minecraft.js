@@ -44,7 +44,8 @@
     if(type==='gift')extra='<span class="mc-object">'+gift+'</span><span class="mc-count">×'+amount+'</span>';
     else if(type==='raid')extra='<span class="mc-count">'+amount+' ESPECTADORES</span>';
     else if(type==='likes')extra='<span class="mc-count">+'+amount+' ♥</span>';
-    return '<div class="mc-scene mc-'+type+'">'
+    const accent=/^#[0-9a-f]{6}$/i.test(String(options.accent||''))?options.accent:'#88ef83';
+    return '<div class="mc-scene mc-'+type+'" style="--ev-accent:'+accent+'">'
      +'<div class="mc-sparkles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>'
      +'<div class="mc-art" aria-hidden="true">'+giftIcon+'</div>'
      +'<div class="mc-content"><div class="mc-eyebrow">'+platform+' · TEAM GREÑA</div>'
