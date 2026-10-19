@@ -21,7 +21,7 @@ test('vertical: gift art is below the streamer camera without resizing the text'
 test('existing OBS browser URLs and token flow remain unchanged',()=>{
  assert.match(vertical,/qp\.get\('layout'\)==='horizontal'\?'horizontal':'vertical'/);
  assert.match(vertical,/qp\.get\('obs'\)\|\|''/);
- assert.match(vertical,/new WebSocket\(proto\+'\/\/'\+location\.host\+'\/'\+obsQuery\)/);
+ assert.ok(vertical.includes("new WebSocket(proto+'://'+location.host+'/'+obsQuery)"));
  assert.match(studio,/new URL\('\/afterglow-overlay\.html',root\)/);
  assert.match(studio,/u\.searchParams\.set\('layout',layout\)/);
 });
