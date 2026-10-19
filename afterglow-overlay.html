@@ -60,9 +60,9 @@ if(layout==='horizontal')live.classList.add('wide');
 const colors={tiktok:['#4be9ff','rgba(75,233,255,.40)'],twitch:['#c49aff','rgba(196,154,255,.35)'],kick:['#caff5f','rgba(202,255,95,.40)'],starvios:['#ff8bc6','rgba(255,139,198,.37)'],youtube:['#ff5269','rgba(255,82,105,.40)']};
 const platformName={tiktok:'TIKTOK',twitch:'TWITCH',kick:'KICK',starvios:'STARVIOS',youtube:'YOUTUBE'};
 const events=['follow','gift','sub','raid','share','likes'];
-const defaults={intensity:65,volume:54,soundEnabled:true,sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
+const defaults={intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
 let cfg={...defaults},platform='tiktok',activeTimer=null,retryTimer=null,socket=null,working=false,backoff=1500;
-const pending=[],MAX_PENDING=30,recentIds=new Map();
+const pending=[],MAX_PENDING=14,recentIds=new Map();
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]))}
 function colorPair(){if(cfg.accentMode==='custom'){const v=cfg.accent||'#caff5f';return[v,v+'66']}return colors[platform]||colors.tiktok}
 function particles(count,centerX=50,centerY=46){const arr=[];for(let i=0;i<count;i++){const theta=((i*137.5)%360)*Math.PI/180,dist=30+(i%7)*7;const x=centerX+Math.sin(i*2.4)*7,y=centerY+Math.cos(i*3.4)*7,ty=Math.sin(theta)*dist,tx=Math.cos(theta)*dist;const sz=2+(i%4)*2;arr.push(`<i class="particle" style="--x:${x}%;--y:${y}%;--s:${sz}px;--r:${i%3===0?'0':'50%'};--dur:${1.1+(i%5)*.26}s;--delay:${(i%8)*.075}s;--rot:${i*37}deg;--tx:${tx}vmin;--ty:${ty}vmin"></i>`)}return arr.join('')}
@@ -84,7 +84,7 @@ function mapAlert(a={}){
   if(['giftsub','membergift','membershipgift','kicks','shower','superchat','supersticker'].includes(kind))event='gift';
   if(['subrenew','membermilestone','membership','membershipreceived'].includes(kind))event='sub';
   if(!events.includes(event))return null;
-  const rawAmount=event==='raid'?a.viewers??a.count:event==='likes'?a.count??a.likes:event==='gift'?a.count??a.amount??a.bits:1;
+  const rawAmount=event==='raid'?a.viewers??a.count:event==='likes'?a.count??a.likes:event==='gift'?(raw==='cheer'||raw==='bits'?a.bits:kind==='kicks'?a.amount:a.count??a.amount):1;
   const amount=Math.max(1,Math.min(99999,Number(rawAmount)||1));
   return {event,data:{name:String(a.name||a.nickname||a.user||'Alguien').slice(0,64),amount,
     gift:String(a.giftName||a.giftNameOriginal||(raw==='cheer'?'Bits':kind==='kicks'?'KICKs':'Regalo')).slice(0,52),intensity:cfg.intensity}};
@@ -93,17 +93,18 @@ function normalizedSettings(src={}){
  const color=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?v:'#ffffff';
  const sounds=Object.fromEntries(events.map(e=>[e,src.sounds?.[e]!==false]));
  return {intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
- soundEnabled:src.soundEnabled!==false,sounds,fontFamily:['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(src.fontFamily)?src.fontFamily:'Inter',
+ soundEnabled:src.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(src.audioRoute)?src.audioRoute:'both',sounds,fontFamily:['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(src.fontFamily)?src.fontFamily:'Inter',
  textColor:color(src.textColor),accentMode:src.accentMode==='custom'?'custom':'platform',accent:color(src.accent||'#caff5f')};
 }
 function applySettings(src){cfg=normalizedSettings(src);live.style.setProperty('--after-font',cfg.fontFamily);live.style.setProperty('--after-text',cfg.textColor)}
 function duration(event){return event==='raid'?6000:event==='likes'?4800:5500}
 function drain(){if(working||!pending.length)return;working=true;const next=pending.shift();
+  if(Date.now()-Number(next._afterglowAt||0)>30000&&['like','likes','share'].includes(String(next.event||''))){working=false;drain();return}
   const {event,data}=mapAlert(next)||{};if(!event){working=false;drain();return}
   const palette=colorPair();live.style.setProperty('--accent',palette[0]);live.style.setProperty('--glow',palette[1]);
   root.innerHTML=makeTemplate(event,data);
   fitLongNames();
-  if(cfg.soundEnabled&&cfg.sounds[event])window.AfterglowAudio?.play(event,{enabled:true,volume:cfg.volume});
+  if(cfg.soundEnabled&&cfg.sounds[event]&&['both',layout].includes(cfg.audioRoute))window.AfterglowAudio?.play(event,{enabled:true,volume:cfg.volume});
   const ms=duration(event);const fx=root.firstElementChild;
   const endTimer=setTimeout(()=>{fx?.classList.add('outro')},ms-650);
   activeTimer=setTimeout(()=>{clearTimeout(endTimer);root.replaceChildren();working=false;drain()},ms);
@@ -112,7 +113,9 @@ function enqueue(a){
  if(!a||typeof a!=='object')return;
  const id=String(a.eventId||a.bridgeEventId||a.notificationId||a.msgId||'').slice(0,100);
  if(id){const key=String(a.platform)+':'+id,now=Date.now();if(recentIds.has(key))return;recentIds.set(key,now);for(const[k,at]of recentIds)if(now-at>120000)recentIds.delete(k)}
- if(!mapAlert(a))return;
+ const mapped=mapAlert(a);if(!mapped)return;
+ a={...a,_afterglowAt:Date.now()};
+ if(['likes','share'].includes(mapped.event)){const similar=pending.find(x=>String(x.platform)===String(a.platform)&&((String(x.event)==='like'?'likes':String(x.event))===mapped.event));if(similar){similar.count=Math.min(99999,(Number(similar.count)||1)+(Number(a.count)||1));return}}
  if(pending.length>=MAX_PENDING){const idx=pending.findIndex(x=>['like','likes','share'].includes(String(x.event||'').toLowerCase()));if(idx>=0)pending.splice(idx,1);else pending.shift()}
  pending.push(a);drain();
 }
