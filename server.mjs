@@ -2463,7 +2463,11 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);if(!su){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
- const file=resolveStaticFile(pathname);if(!file){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});return res.end('No encontrado')}const abs=join(ROOT,file);if(!abs.startsWith(ROOT)){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});return res.end('No encontrado')}const data=await readFile(abs);res.writeHead(200,{'content-type':mime[extname(file).toLowerCase()]||'application/octet-stream','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(req.method==='HEAD'?undefined:data)
+ const file=resolveStaticFile(pathname);if(!file){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});return res.end('No encontrado')}const abs=join(ROOT,file);if(!abs.startsWith(ROOT)){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});return res.end('No encontrado')}const data=await readFile(abs);
+ // Stamp the initial OBS HTML with the deployment version, so its first poll
+ // can detect a newly deployed release even if CEF kept an older document alive.
+ const page=file==='afterglow-overlay.html'?data.toString('utf8').replace('GRENA_RELEASE_PLACEHOLDER',OVERLAY_BUILD_ID):data;
+ res.writeHead(200,{'content-type':mime[extname(file).toLowerCase()]||'application/octet-stream','cache-control':'no-store, max-age=0','x-content-type-options':'nosniff'});res.end(req.method==='HEAD'?undefined:page)
  }catch(e){console.error(pathname,e);if(pathname.startsWith('/oauth/'))return callbackPage(res,false,e?.message||String(e));if(pathname.startsWith('/api/'))return json(res,e?.statusCode||400,{ok:false,error:e?.message||String(e)});res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});res.end('No encontrado')}});
 // Gateway público mínimo de Cam Room. Cloudflare apunta aquí, nunca al panel 8787.
 const CAM_GATEWAY_FILES=new Set(['/cam-join.html','/cam-join.js','/cam-room.css','/cam-webrtc.js','/cam-source.html','/cam-source.js']);
