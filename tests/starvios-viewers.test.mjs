@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseStarviosLiveDirectory,STARVIOS_LIVE_DIRECTORY_URL,buildStarviosFreshLiveDirectoryUrl,fetchStarviosDbLiveDirectory} from '../starvios-viewers.mjs';
+import {parseStarviosLiveDirectory,STARVIOS_LIVE_DIRECTORY_URL,buildStarviosFreshLiveDirectoryUrl,fetchStarviosDbLiveDirectory,confirmStarviosOffline} from '../starvios-viewers.mjs';
 
 test('Starvios directorio público usa cifras del propio LIVE',()=>{
  const rows=[{status:'live',profiles:{username:'GRENA_RD'},viewer_count:27},
@@ -98,4 +98,55 @@ test('cada lectura de audiencia evade caché sin alterar la ruta de Starvios',()
  assert.equal(a.pathname,'/api/public/live-now');
  assert.equal(a.searchParams.get('_live_ts'),'1760634000000');
  assert.notEqual(a.href,b.href);
+});
+
+
+test('Starvios no declara offline por fallos transitorios del directorio',()=>{
+ const now=200000;
+ assert.equal(confirmStarviosOffline({misses:1,missingSince:now-120000,lastLive:true,now}),false);
+ assert.equal(confirmStarviosOffline({misses:4,missingSince:now-20000,lastLive:true,now}),false);
+ assert.equal(confirmStarviosOffline({misses:4,missingSince:now-89000,lastLive:true,now}),false);
+ assert.equal(confirmStarviosOffline({misses:4,missingSince:now-90000,lastLive:true,now}),true);
+ assert.equal(confirmStarviosOffline({misses:4,missingSince:now-30000,lastLive:null,now}),true);
+ assert.equal(confirmStarviosOffline({misses:4,missingSince:0,lastLive:null,now}),false);
+});
+
+test('Starvios renueva LIVE confirmado después de pérdida del primer aviso',async()=>{
+ const {StarviosReader}=await import('../starvios-reader.mjs');
+ const previous=globalThis.fetch;
+ const signals=[];
+ const reader=new StarviosReader({onLive:s=>signals.push(s),onViewers:()=>{}});
+ reader.running=true;reader.generation=1;reader.channel='grena_rd';
+ globalThis.fetch=async()=>new Response(JSON.stringify({rows:[{status:'live',profiles:{username:'grena_rd'},viewer_count:3}]}),{status:200});
+ try {
+  reader.lastLive=true;
+  reader.lastLiveReportAt=Date.now()-31000;
+  await reader.scanLive();
+  assert.equal(signals.length,1);
+  assert.equal(signals[0].live,true);
+  await reader.scanLive();
+  assert.equal(signals.length,1);
+ }finally{globalThis.fetch=previous}
+});
+
+test('Starvios conserva LIVE al perder temporalmente el canal de la lista',async()=>{
+ const {StarviosReader}=await import('../starvios-reader.mjs');
+ const previous=globalThis.fetch;
+ const signals=[];
+ const reader=new StarviosReader({onLive:s=>signals.push(s),onViewers:()=>{}});
+ reader.running=true;reader.generation=1;reader.channel='grena_rd';
+ reader.lastLive=true;reader.lastViewerCount=2;
+ globalThis.fetch=async()=>new Response(JSON.stringify({rows:[]}),{status:200});
+ try{
+  await reader.scanLive();
+  assert.equal(reader.lastLive,true);
+  assert.equal(reader.lastViewerCount,2);
+  assert.equal(signals.length,0);
+  reader.liveDirectoryMisses=3;
+  reader.liveMissingSince=Date.now()-100000;
+  await reader.scanLive();
+  assert.equal(reader.lastLive,false);
+  assert.equal(signals.length,1);
+  assert.equal(signals[0].live,false);
+ }finally{globalThis.fetch=previous}
 });
