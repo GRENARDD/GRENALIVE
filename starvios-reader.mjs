@@ -48,6 +48,8 @@ export class StarviosReader {
     this.lastLiveReportAt=0;
     this.lastDirectoryGoodAt=0;
     this.directoryPrimaryRetryAt=0;
+    this.directoryPrimaryFailures=0;
+    this.dbSchemaRetryAt=0;
     this.directoryFallbackRetryAt=0;
     this.directoryBrowserRetryAt=0;
     this.lastDirectoryPrimaryError='';
@@ -599,10 +601,15 @@ export class StarviosReader {
           payload=await response.json();
           if(!payload||!Array.isArray(payload.rows))throw Error('Sin registros de directos');
           this.lastDirectoryPrimaryError='';
+          this.directoryPrimaryFailures=0;
+          this.directoryPrimaryRetryAt=0;
           this.directoryFallbackRetryAt=0;
         }catch(error){
           this.lastDirectoryPrimaryError=String(error?.message||error).slice(0,120);
-          this.directoryPrimaryRetryAt=Date.now()+90000;
+          // La fuente oficial sí funciona intermitentemente: reintentar pronto.
+          // Antes esperábamos 90 s y dependíamos de respaldos ya obsoletos.
+          this.directoryPrimaryFailures++;
+          this.directoryPrimaryRetryAt=Date.now()+Math.min(18000,3000*2**Math.min(3,this.directoryPrimaryFailures-1));
         }
       }
       // Refresh public primary data every 6s. Expensive browser/DB fallbacks
@@ -633,13 +640,20 @@ export class StarviosReader {
         }catch(error){browserViewerError=String(error?.message||error).slice(0,120)}
       }
       let dbViewerError='';
-      if(!payload){
+      if(!payload&&Date.now()>=this.dbSchemaRetryAt){
         try{
           payload=await fetchStarviosDbLiveDirectory(this.channel,{
             baseUrl:STARVIOS_PUBLIC_DB_URL,key:STARVIOS_PUBLIC_KEY,timeoutMs:6000
           });
           directorySource='Starvios public DB · respaldo';
-        }catch(error){dbViewerError=String(error?.message||error).slice(0,160)}
+        }catch(error){
+          dbViewerError=String(error?.message||error).slice(0,160);
+          // Starvios retiró/renombró tablas públicas. Evitar consultas 404
+          // repetidas durante el LIVE y volver a probarlas más tarde.
+          if(/PGRST205|Could not find the table/i.test(dbViewerError)){
+            this.dbSchemaRetryAt=Date.now()+10*60*1000;
+          }
+        }
       }
       // El directorio renderizado es la última fuente independiente. Solo
       // sobrescribe la lectura anterior si ofrece una cifra atribuible al canal.
@@ -734,7 +748,7 @@ export class StarviosReader {
     this.timer=null;this.liveTimer=null;this.eventTimer=null;this.reconnectTimer=null;
     this.reconnectFailures=0;
     this.missingContainerSince=0;
-    this.lastLive=null;this.liveDirectoryMisses=0;this.liveMissingSince=0;this.lastLiveReportAt=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryFallbackRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
+    this.lastLive=null;this.liveDirectoryMisses=0;this.liveMissingSince=0;this.lastLiveReportAt=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryPrimaryFailures=0;this.dbSchemaRetryAt=0;this.directoryFallbackRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
     this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();this.profileNames.clear();
     this.dbEventsReady=false;this.eventBusy=false;this.streamId='';this.channelId='';
     this.followerTotal=null;this.followerPollAt=0;this.followNameEvents=0;
