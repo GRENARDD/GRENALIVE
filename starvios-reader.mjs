@@ -3,7 +3,7 @@
 // y deben validarse con un LIVE real antes de promover esta fase a producción.
 import { chromium } from 'playwright-core';
 import {normalizeStarviosEvent} from './starvios-events.mjs';
-import {buildStarviosFreshLiveDirectoryUrl,parseStarviosLiveDirectory,fetchStarviosDbLiveDirectory} from './starvios-viewers.mjs';
+import {buildStarviosFreshLiveDirectoryUrl,parseStarviosLiveDirectory,fetchStarviosDbLiveDirectory,confirmStarviosOffline} from './starvios-viewers.mjs';
 import {STARVIOS_PUBLIC_DB_URL,STARVIOS_PUBLIC_KEY,parseStarviosChatEvent,parseStarviosFollowerCount,buildStarviosChatEventUrl,buildStarviosFollowerCountRequest,buildStarviosProfileLookupUrl,starviosPublicActor} from './starvios-public-events.mjs';
 
 export function normalizeStarviosChannel(input) {
@@ -44,8 +44,12 @@ export class StarviosReader {
     this.liveTimer=null;
     this.lastLive=null;
     this.liveDirectoryMisses=0;
+    this.liveMissingSince=0;
+    this.lastLiveReportAt=0;
     this.lastDirectoryGoodAt=0;
     this.directoryPrimaryRetryAt=0;
+    this.directoryPrimaryFailures=0;
+    this.dbSchemaRetryAt=0;
     this.directoryFallbackRetryAt=0;
     this.directoryBrowserRetryAt=0;
     this.lastDirectoryPrimaryError='';
@@ -597,10 +601,15 @@ export class StarviosReader {
           payload=await response.json();
           if(!payload||!Array.isArray(payload.rows))throw Error('Sin registros de directos');
           this.lastDirectoryPrimaryError='';
+          this.directoryPrimaryFailures=0;
+          this.directoryPrimaryRetryAt=0;
           this.directoryFallbackRetryAt=0;
         }catch(error){
           this.lastDirectoryPrimaryError=String(error?.message||error).slice(0,120);
-          this.directoryPrimaryRetryAt=Date.now()+90000;
+          // La fuente oficial sí funciona intermitentemente: reintentar pronto.
+          // Antes esperábamos 90 s y dependíamos de respaldos ya obsoletos.
+          this.directoryPrimaryFailures++;
+          this.directoryPrimaryRetryAt=Date.now()+Math.min(18000,3000*2**Math.min(3,this.directoryPrimaryFailures-1));
         }
       }
       // Refresh public primary data every 6s. Expensive browser/DB fallbacks
@@ -631,13 +640,20 @@ export class StarviosReader {
         }catch(error){browserViewerError=String(error?.message||error).slice(0,120)}
       }
       let dbViewerError='';
-      if(!payload){
+      if(!payload&&Date.now()>=this.dbSchemaRetryAt){
         try{
           payload=await fetchStarviosDbLiveDirectory(this.channel,{
             baseUrl:STARVIOS_PUBLIC_DB_URL,key:STARVIOS_PUBLIC_KEY,timeoutMs:6000
           });
           directorySource='Starvios public DB · respaldo';
-        }catch(error){dbViewerError=String(error?.message||error).slice(0,160)}
+        }catch(error){
+          dbViewerError=String(error?.message||error).slice(0,160);
+          // Starvios retiró/renombró tablas públicas. Evitar consultas 404
+          // repetidas durante el LIVE y volver a probarlas más tarde.
+          if(/PGRST205|Could not find the table/i.test(dbViewerError)){
+            this.dbSchemaRetryAt=Date.now()+10*60*1000;
+          }
+        }
       }
       // El directorio renderizado es la última fuente independiente. Solo
       // sobrescribe la lectura anterior si ofrece una cifra atribuible al canal.
@@ -664,11 +680,25 @@ export class StarviosReader {
       this.lastDirectoryGoodAt=Date.now();
       if(state.state==='offline'){
         this.liveDirectoryMisses++;
-        // Un directorio recién actualizado puede tardar en incluir al canal.
-        if(this.liveDirectoryMisses<2&&this.lastLive!==false)return;
+        if(!this.liveMissingSince)this.liveMissingSince=Date.now();
+        // No confundas un directorio vacío/atrasado con el final del directo.
+        // Tras un LIVE confirmado, necesitamos lecturas negativas sostenidas.
+        const confirmed=confirmStarviosOffline({
+          misses:this.liveDirectoryMisses,missingSince:this.liveMissingSince,lastLive:this.lastLive
+        });
+        if(!confirmed){
+          // Mientras comprobamos la emisión, no mostramos como actual una cifra vieja.
+          if(this.lastLive===true&&Date.now()-this.liveMissingSince>=20000&&this.lastViewerCount!==null){
+            this.lastViewerCount=null;
+            this.lastViewerReportedSource='Starvios · comprobando audiencia';
+            this.onViewers({count:null,source:this.lastViewerReportedSource,channel:this.channel});
+          }
+          return;
+        }
         this.streamId='';this.channelId='';this.followerTotal=null;this.dbEventsReady=false;
         if(this.lastLive!==false){
           this.lastLive=false;
+          this.lastLiveReportAt=Date.now();
           this.onLive({live:false,channel:this.channel,source:directorySource});
         }
         if(this.lastViewerCount!==0){
@@ -678,8 +708,12 @@ export class StarviosReader {
         return;
       }
       this.liveDirectoryMisses=0;
-      if(this.lastLive!==true){
+      this.liveMissingSince=0;
+      // Renovar la señal LIVE: si el primer aviso se perdió en el puente,
+      // la interfaz se sincroniza sola sin tener que reconectar Starvios.
+      if(this.lastLive!==true||Date.now()-this.lastLiveReportAt>=30000){
         this.lastLive=true;
+        this.lastLiveReportAt=Date.now();
         this.onLive({live:true,channel:this.channel,source:directorySource});
       }
       if(state.count===null){
@@ -714,7 +748,7 @@ export class StarviosReader {
     this.timer=null;this.liveTimer=null;this.eventTimer=null;this.reconnectTimer=null;
     this.reconnectFailures=0;
     this.missingContainerSince=0;
-    this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryFallbackRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
+    this.lastLive=null;this.liveDirectoryMisses=0;this.liveMissingSince=0;this.lastLiveReportAt=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryPrimaryFailures=0;this.dbSchemaRetryAt=0;this.directoryFallbackRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
     this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();this.profileNames.clear();
     this.dbEventsReady=false;this.eventBusy=false;this.streamId='';this.channelId='';
     this.followerTotal=null;this.followerPollAt=0;this.followNameEvents=0;
