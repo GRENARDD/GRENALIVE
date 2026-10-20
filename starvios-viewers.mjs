@@ -94,3 +94,11 @@ export async function fetchStarviosDbLiveDirectory(channel,{baseUrl,key,request=
   }
   return {rows:mapped};
 }
+
+// Las listas públicas pueden ir por detrás del reproductor. Una ausencia
+// aislada (incluso dos consultas vacías) no demuestra que el LIVE terminó.
+export function confirmStarviosOffline({misses=0,missingSince=0,lastLive=null,now=Date.now()}={}) {
+ const elapsed=Number(now)-Number(missingSince);
+ return Number(misses)>=4 && Number(missingSince)>0 && Number.isFinite(elapsed) &&
+  elapsed >= (lastLive===true?90000:30000);
+}
