@@ -150,3 +150,30 @@ test('Starvios conserva LIVE al perder temporalmente el canal de la lista',async
   assert.equal(signals[0].live,false);
  }finally{globalThis.fetch=previous}
 });
+
+
+test('Starvios recupera pronto el endpoint oficial tras un timeout y enfría la BD retirada',async()=>{
+ const {StarviosReader}=await import('../starvios-reader.mjs');
+ const previous=globalThis.fetch;
+ const reader=new StarviosReader();
+ reader.running=true;reader.generation=1;reader.channel='grena_rd';
+ reader.readViewerFromLiveDirectory=async()=>null;
+ let primaryRequests=0,dbRequests=0;
+ globalThis.fetch=async(url)=>{
+  if(String(url).includes('/api/public/live-now')){primaryRequests++;throw Error('simulated timeout');}
+  dbRequests++;
+  return new Response(JSON.stringify({code:'PGRST205',message:"Could not find the table 'public.streams' in the schema cache"}),{status:404});
+ };
+ try{
+  const now=Date.now();
+  await reader.scanLive();
+  assert.equal(primaryRequests,1);
+  assert.ok(reader.directoryPrimaryRetryAt>now);
+  assert.ok(reader.directoryPrimaryRetryAt<=Date.now()+18000);
+  assert.ok(reader.dbSchemaRetryAt>=now+9*60*1000);
+  reader.directoryFallbackRetryAt=0;
+  await reader.scanLive();
+  assert.equal(dbRequests,1);
+  assert.equal(reader.lastLive,null);
+ }finally{globalThis.fetch=previous}
+});
