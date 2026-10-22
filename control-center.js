@@ -72,12 +72,12 @@ function renderViewers(){
  $('totalViewers').textContent=total.toLocaleString('es-DO');
  renderViewerSparkline(total);
 }
-function platformAccount(p){const s=state.status[p]||{};const account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='youtube'?'YouTube':p==='starvios'?'Starvios':'Kick');return s.authenticated?(account?(p==='tiktok'?`@${String(account).replace(/^@/,'')} · LIVE vinculado`:`${account} · cuenta vinculada`):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada')}
+function platformAccount(p){const s=state.status[p]||{};const account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='youtube'?'YouTube':p==='starvios'?'Starvios':'Kick');if(p==='starvios')return s.configured?(account+' · canal por enlace público'):'Canal sin configurar';return s.authenticated?(account?(p==='tiktok'?`@${String(account).replace(/^@/,'')} · LIVE vinculado`:`${account} · cuenta vinculada`):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada')}
 function renderPlatforms(){
  const labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube',starvios:'Starvios'};
  const chipClass=status=>status==='ready'?' on':status==='degraded'||status==='connecting'?' warn':status==='fallback'?' fallback':status==='waiting'?' waiting':' off';
  for(const p of ['tiktok','twitch','kick','youtube','starvios']){
-  const s=state.status[p]||{},health=state.eventHealth[p]||{},auth=!!s.authenticated;
+  const s=state.status[p]||{},health=state.eventHealth[p]||{},auth=!!s.authenticated||(p==='starvios'&&!!s.configured);
   const runtimeLive=p==='kick'?!!(s.runtimeConnected||state.bridge[p]):!!state.bridge[p];
   const chatState=String(health.chat||(runtimeLive?'ready':auth?'waiting':'off'));
   const eventState=String(health.events||(auth?'waiting':'off'));
@@ -85,8 +85,8 @@ function renderPlatforms(){
   const a=$(p+'Auth'),l=$(p+'Live'),e=$(p+'Events'),btn=$('login'+labels[p]);
 
   a.className='state-chip'+(auth?' on':' off');
-  a.textContent=p==='tiktok'?(auth?'Link ✓':'Link —'):(auth?'Cuenta ✓':'Cuenta —');
-  a.title=p==='tiktok'?(auth?'LIVE de TikTok vinculado por enlace':'TikTok no vinculado'):(p==='youtube'?'El chat de YouTube puede conectarse por enlace público sin OAuth':auth?'Cuenta autorizada en GREÑA':'Cuenta no vinculada');
+  a.textContent=p==='tiktok'?(auth?'Link ✓':'Link —'):p==='starvios'?(auth?'Canal ✓':'Canal —'):(auth?'Cuenta ✓':'Cuenta —');
+  a.title=p==='tiktok'?(auth?'LIVE de TikTok vinculado por enlace':'TikTok no vinculado'):p==='starvios'?(auth?'Canal configurado por enlace público':'Canal sin configurar'):p==='youtube'?'El chat de YouTube puede conectarse por enlace público sin OAuth':auth?'Cuenta autorizada en GREÑA':'Cuenta no vinculada';
   if(p==='youtube'){
    const linkReady=!!state.bridge.youtube;
    a.textContent=linkReady?'Link ✓':'Link —';
@@ -237,7 +237,7 @@ for(const p of ['starvios','youtube']){
 }
 $('loginYouTube').onclick=()=>openChannelLinkModal('youtube');
 $('loginStarvios').onclick=async()=>{
- if(state.status.starvios?.authenticated){
+ if(state.status.starvios?.configured||state.bridge.starvios){
   try{
    if(chatWS?.readyState===WebSocket.OPEN)chatWS.send(JSON.stringify({type:'disconnect-platform',platform:'starvios'}));
    const r=await fetch('/api/disconnect/starvios',{method:'POST'});
