@@ -664,6 +664,31 @@ export class StarviosReader {
           directorySource='Starvios public DB · respaldo';
         }catch(error){dbViewerError=String(error?.message||error).slice(0,160)}
       }
+      // A directory row may show the count but omit the stream ID required for
+      // reading public chat. Resolve identity independently, and do not accept a
+      // cached "offline" directory as final if the public DB verifies a LIVE.
+      const originalStream=Array.isArray(payload?.rows)?payload.rows.find(row=>
+        row&&String(row.status||'').toLowerCase()==='live'&&
+        String(row.profiles?.username||'').toLowerCase()===this.channel.toLowerCase()):null;
+      if(payload&&(!originalStream?.id||!originalStream?.channel_id)){
+        try {
+          const fromDb=await fetchStarviosDbLiveDirectory(this.channel,{
+            baseUrl:STARVIOS_PUBLIC_DB_URL,key:STARVIOS_PUBLIC_KEY,timeoutMs:6000
+          });
+          const dbStream=Array.isArray(fromDb.rows)?fromDb.rows.find(row=>
+            row&&String(row.status||'').toLowerCase()==='live'&&
+            String(row.profiles?.username||'').toLowerCase()===this.channel.toLowerCase()):null;
+          if(dbStream&&parseStarviosLiveDirectory(fromDb,this.channel).state==='live'){
+            const verified=parseStarviosLiveDirectory(payload,this.channel);
+            if(verified.state==='live'&&verified.count!==null&&
+               parseStarviosLiveDirectory(fromDb,this.channel).count===null){
+              dbStream.viewer_count=verified.count;
+            }
+            payload=fromDb;
+            directorySource='Starvios public DB · identidad del LIVE';
+          }
+        }catch{} // A failed optional identity read cannot erase a verified viewer count.
+      }
       // El directorio renderizado es la última fuente independiente. Solo
       // sobrescribe la lectura anterior si ofrece una cifra atribuible al canal.
       if(!payload||parseStarviosLiveDirectory(payload,this.channel).count===null){
@@ -679,10 +704,10 @@ export class StarviosReader {
       if(generation!==this.generation||!this.running)return;
       const state=parseStarviosLiveDirectory(payload,this.channel);
       const stream=Array.isArray(payload.rows)?payload.rows.find(row=>row&&String(row.status||'').toLowerCase()==='live'&&String(row.profiles?.username||'').toLowerCase()===this.channel.toLowerCase()):null;
-      if(stream?.id&&stream?.channel_id){
+      if(stream?.id){
         const isNew=!!this.streamId&&this.streamId!==stream.id;
         if(isNew){this.eventSeen.clear();this.eventKeys.clear();this.chatSeen.clear();this.chatFingerprints.clear();this.profileNames.clear();this.dbEventsReady=false;this.sessionStartedAt=Date.now();this.eventCursorAt=this.sessionStartedAt;this.followerTotal=null;}
-        this.streamId=String(stream.id);this.channelId=String(stream.channel_id);
+        this.streamId=String(stream.id);this.channelId=String(stream.channel_id||'');
         this.scanEvents().catch(()=>{});
       }
       if(state.state==='unavailable')throw Error('Directorio de Starvios sin datos');
