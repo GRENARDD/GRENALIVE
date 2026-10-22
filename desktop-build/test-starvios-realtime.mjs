@@ -50,3 +50,23 @@ test('sin Chrome sigue consultando espectadores y mantiene reconexión visual',a
    assert.ok(reader.liveTimer&&reader.eventTimer);
  }finally{await reader.disconnect()}
 });
+
+test('Starvios diagnostica canales guardados sin fingir conexión activa',()=>{
+ const reader=new StarviosReader();
+ const before=reader.getDiagnostics();
+ assert.equal(before.running,false);
+ assert.equal(before.viewerCount,null);
+ reader.channel='canal';reader.running=true;reader.streamId=stream;
+ reader.lastDirectoryError='HTTP 503';reader.lastChatDbError='HTTP 401';
+ const diagnostics=reader.getDiagnostics();
+ assert.equal(diagnostics.streamIdResolved,true);
+ assert.equal(diagnostics.lastChatDbError,'HTTP 401');
+ assert.equal(diagnostics.lastDirectoryError,'HTTP 503');
+});
+
+test('el puente principal no borra espectadores cuando el navegador de Starvios falla',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const server=await readFile(new URL('../server.mjs',import.meta.url),'utf8');
+ assert.match(server,/if\(p!=='starvios'\)setViewers\(p,0,'desconectado por bridge'\)/);
+ assert.match(server,/previousAvailability!==meta\.available\)pushViewers\(\)/);
+});
