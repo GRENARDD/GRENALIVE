@@ -255,7 +255,11 @@ const KEY='grenaMultichatSettings_v2';
 const CHAT_HOST=location.hostname||'127.0.0.1';
 const CHAT_DIRECT=location.port==='8788';
 const CHAT_HTTP=CHAT_DIRECT?location.origin:`${location.origin}/chat`;
-const CHAT_WS=CHAT_DIRECT?`ws://${CHAT_HOST}:8788/ws`:`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`;
+// Solo el token privado que ya recibió esta Fuente de navegador OBS.
+// Propagamos el token por petición, sin depender de cookies ni de iniciar sesión.
+const OBS_ACCESS=new URLSearchParams(location.search).get('obs')||'';
+const OBS_SUFFIX=OBS_ACCESS?'&obs='+encodeURIComponent(OBS_ACCESS):'';
+const CHAT_WS=(CHAT_DIRECT?`ws://${CHAT_HOST}:8788/ws`:`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`)+(OBS_ACCESS?'?obs='+encodeURIComponent(OBS_ACCESS):'');
 const defaults={
   direction:'left',edgeOffset:0,fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,
   avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,
@@ -286,7 +290,7 @@ function setStatus(text,bad=false){
 }
 async function load(){
   try{
-    const r=await fetch(CHAT_HTTP+'/api/multichat-settings?ts='+Date.now(),{cache:'no-store'});
+    const r=await fetch(CHAT_HTTP+'/api/multichat-settings?ts='+Date.now()+OBS_SUFFIX,{cache:'no-store'});
     if(!r.ok)throw Error('HTTP '+r.status);
     const d=await r.json();
     cfg=sanitizeCfg(d.settings);
@@ -296,7 +300,7 @@ async function load(){
   }
   applyStage();
   try{
-    const r=await fetch(CHAT_HTTP+'/api/multichat-history?limit='+(cfg.maxMessages||6)+'&ts='+Date.now(),{cache:'no-store'});
+    const r=await fetch(CHAT_HTTP+'/api/multichat-history?limit='+(cfg.maxMessages||6)+'&ts='+Date.now()+OBS_SUFFIX,{cache:'no-store'});
     if(r.ok){
       const d=await r.json();
       for(const m of (d.messages||[])){
@@ -352,7 +356,7 @@ function add(d){
   let avatar='';
   if(cfg.showAvatar){
     if(d.avatar){
-      avatar=`<img class="avatar" data-avimg="1" style="width:${avatarSize}px;height:${avatarSize}px;flex-basis:${avatarSize}px" src="${CHAT_HTTP}/avatar?url=${encodeURIComponent(d.avatar)}">`;
+      avatar=`<img class="avatar" data-avimg="1" style="width:${avatarSize}px;height:${avatarSize}px;flex-basis:${avatarSize}px" src="${CHAT_HTTP}/avatar?url=${encodeURIComponent(d.avatar)}${OBS_SUFFIX}">`;
     }else{
       avatar=`<div class="fallback" style="width:${avatarSize}px;height:${avatarSize}px;flex-basis:${avatarSize}px">${safe(initialOf(nickname))}</div>`;
     }
