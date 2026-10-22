@@ -41,6 +41,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check server.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check starvios-public-events.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check starvios-reader.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Verify pack logic
@@ -53,6 +57,8 @@ jobs:
           node --test tests/voice-emoji-filter.test.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test desktop-build/test-starvios-dialog.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test desktop-build/test-starvios-realtime.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test desktop-build/test-obs-alert-cam-tiktok.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
