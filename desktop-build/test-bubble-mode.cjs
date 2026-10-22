@@ -17,8 +17,8 @@ test('burbuja recibe chat y eventos sin repetir el historial viejo',()=>{
  assert.match(html,/\/api\/viewers/);
  assert.match(html,/\/api\/activity\?limit=/);
  assert.match(html,/\/chat-ws/);
- assert.match(html,/m\?\.type==='chat'/);
- assert.match(html,/m\?\.type==='event'/);
+ assert.match(html,/d\?\.type==='chat'/);
+ assert.match(html,/d\?\.type==='event'/);
  assert.match(html,/Ignore 'chat-history'/);
  assert.match(html,/textContent=/);
  const js=html.match(/<script>([\s\S]*?)<\/script>/i);
