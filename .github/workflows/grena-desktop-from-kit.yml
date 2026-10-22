@@ -10,6 +10,9 @@ on:
       - GRENA_LIVE_Desktop_v5_Kit.zip
       - 'starvios-reader.mjs'
       - 'starvios-public-events.mjs'
+      - 'server.mjs'
+      - 'control-center.js'
+      - 'index.html'
       - 'starvios-viewers.mjs'
       - 'chat-server.mjs'
       - 'tests/starvios-*.test.mjs'
