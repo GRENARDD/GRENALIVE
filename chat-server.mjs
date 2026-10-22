@@ -214,6 +214,9 @@ let tiktokViewerPollBusy=false,tiktokViewerPollFailures=0,tiktokViewerNextPollAt
 let tiktokConnectionReady=false;
 const TIKTOK_CONNECTION_LOG=join(CHAT_LOG_DIR,'tiktok-connection.log');
 const tiktokRetry={failures:0,nextAt:0,kind:'',lastOutcome:'',lastAt:0,connectedAt:0};
+// Diagnóstico sin nombres, comentarios ni datos privados. Cuenta mensajes que el
+// conector realmente emitió, versus omitidos localmente por bloqueo o texto vacío.
+const tiktokChatStats={received:0,forwarded:0,empty:0,muted:0,lastReceivedAt:0,lastForwardedAt:0,sessionReceived:0,sessionForwarded:0};
 const TIKTOK_BACKOFF_MS=[15000,30000,60000,120000,240000,480000,600000];
 function tiktokConnectionLog(event,details={}){
  const line=JSON.stringify({at:new Date().toISOString(),event,...details});
@@ -253,7 +256,7 @@ function tiktokConnectionDiagnostics(){
  return {connected:tiktokConnectionReady&&!!tiktokConn,connecting:!!tiktokConn&&!tiktokConnectionReady,
   retryAt:tiktokRetry.nextAt,retryReason:tiktokRetry.kind,retryCount:tiktokRetry.failures,
   lastOutcome:tiktokRetry.lastOutcome,lastAttemptAt:tiktokRetry.lastAt,lastConnectedAt:tiktokRetry.connectedAt,
-  lastViewerSignalAt:tiktokViewerLastSignalAt,viewerFallbackFailures:tiktokViewerPollFailures};
+  lastViewerSignalAt:tiktokViewerLastSignalAt,viewerFallbackFailures:tiktokViewerPollFailures,comments:{...tiktokChatStats}};
 }
 let twitchClient = null;
 let kickConnected = false;
@@ -675,6 +678,11 @@ function extractTikTokChat(data) {
     data?.data?.text,
     data?.data?.content,
     data?.data?.commentText,
+    data?.data?.comment?.text,
+    data?.data?.message?.text,
+    data?.data?.content?.text,
+    data?.chat?.text,
+    data?.data?.chat?.text,
     data?.comment?.text,
     data?.message?.text,
     data?.content?.text
@@ -1618,6 +1626,7 @@ async function connectTikTok(input,{automatic=false}={}) {
 
   tiktokConn =
     connection;
+  tiktokChatStats.sessionReceived=0;tiktokChatStats.sessionForwarded=0;
   let likeTotal = 0;
   let lastLikeMilestone = 0;
   const recentFollows=new Map();
@@ -1646,6 +1655,7 @@ async function connectTikTok(input,{automatic=false}={}) {
   connection.on(
     WebcastEvent.CHAT,
     data => {
+      tiktokChatStats.received++;tiktokChatStats.sessionReceived++;tiktokChatStats.lastReceivedAt=Date.now();
       const chat =
         extractTikTokChat(
           data
@@ -1684,19 +1694,19 @@ async function connectTikTok(input,{automatic=false}={}) {
       }
 
       if(!chat.text){
-        console.log('[TIKTOK CHAT OMITIDO: sin texto]',JSON.stringify({keys:Object.keys(data||{}).slice(0,25),nestedKeys:Object.keys(data?.data||{}).slice(0,25)}));
+        tiktokChatStats.empty++;
+        // Sin cuerpo: guardar solamente el tipo de estructura, nunca los datos del espectador.
+        if(tiktokChatStats.empty<=3||tiktokChatStats.empty%50===0)console.warn('[GREÑA TikTok] comentario sin texto reconocido', {total:tiktokChatStats.empty});
         return;
       }
-      console.log(
-        '[TIKTOK CHAT]',
-        chat.user,
-        '|',
-        chat.isFollower
-          ? 'FOLLOWER'
-          : 'NO FOLLOWER',
-        '|',
-        chat.text
-      );
+      if(isLocallyMuted('tiktok',chat.user||chat.nickname)){
+        tiktokChatStats.muted++;
+        return; // Silenciamiento solicitado explícitamente por el creador.
+      }
+      // No registrar texto/nombres del público. Confirmar volumen sin filtrar información sensible.
+      tiktokChatStats.forwarded++;tiktokChatStats.sessionForwarded++;
+      tiktokChatStats.lastForwardedAt=Date.now();
+      if(tiktokChatStats.forwarded%100===0)tiktokConnectionLog('chat-summary',{received:tiktokChatStats.received,forwarded:tiktokChatStats.forwarded,empty:tiktokChatStats.empty,muted:tiktokChatStats.muted});
 
       broadcastPlatform(
         'tiktok',
