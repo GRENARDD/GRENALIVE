@@ -24,7 +24,7 @@
    }catch(e){status.textContent=e.message||'No se pudo cargar el estilo';status.classList.add('style-select-error')}
  }
  async function choose(next){
-   if(busy||next===theme)return;
+   if(busy)return; // Cada clic reafirma el tema y reenvía la actualización a OBS.
    const previous=theme;busy=true;buttons.forEach(b=>b.disabled=true);
    show(next);status.classList.remove('style-select-error');status.textContent='Guardando el estilo…';
    try{
