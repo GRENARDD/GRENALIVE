@@ -48,3 +48,13 @@ test('Kick uses officially recommended OAuth redirect workaround',()=>{
  assert.match(p,/params\.set\('redirect','127\.0\.0\.1'\)/);
  assert.match(p,/params\.set\('redirect_uri',redirect\)/);
 });
+
+test('reconexión multichat recupera mensajes perdidos sin volverlos a poner en la cola TTS',()=>{
+ const source=load('chat.html');
+ const section=source.match(/if\(m\.type === 'chat-history'[^]*?\n\s*}\n\s*if\(/)?.[0]||'';
+ assert.ok(section,'chat history replay handler exists');
+ assert.match(section,/m\.messages\.slice\(-300\)/);
+ assert.match(section,/receivedChatIds\.has/);
+ assert.match(section,/addMessage\(item\)/);
+ assert.doesNotMatch(section,/queueVoice\(item\)/);
+});
