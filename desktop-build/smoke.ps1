@@ -5,6 +5,8 @@ $modules=Join-Path (Get-Location) 'dist\win-unpacked\resources\app\node_modules'
 if (!(Test-Path $exe)) { throw "No existe el ejecutable $exe" }
 if (!(Test-Path $backend)) { throw "El motor Node no se empaquetó como archivo real: $backend" }
 if (!(Test-Path $modules)) { throw "Faltan las dependencias node_modules" }
+$bubble=Join-Path (Get-Location) 'dist\win-unpacked\resources\app\desktop-bubble.html'
+if (!(Test-Path $bubble)) { throw "Falta desktop-bubble.html en instalador GREÑA LIVE" }
 $env:ELECTRON_RUN_AS_NODE='1'
 $env:GRENA_CLOUD='0'
 $env:HOST='127.0.0.1'
