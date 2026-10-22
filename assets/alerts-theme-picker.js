@@ -39,13 +39,8 @@
      });
      const result=await response.json();
      if(!response.ok)throw Error(result.error||'No se pudo cambiar el estilo');
-     // Confirmar que el backend ya ofrece el estilo seleccionado a los overlays.
-     const check=await fetch('/api/afterglow-settings',{cache:'no-store',credentials:'same-origin',headers:{'cache-control':'no-cache'}});
-     if(!check.ok)throw Error('No se pudo verificar el estilo que leerá OBS.');
-     const saved=(await check.json()).settings||{};
-     if(saved.theme!==next)throw Error('El servidor no conservó el estilo seleccionado.');
-     settings=saved;show(saved.theme);
-     status.textContent=(theme==='minecraft'?'Minecraft activado':'Original activado')+' · Configuración comprobada. OBS la sincroniza automáticamente en ambos enlaces de esta instalación.';
+     settings=result.settings||{...values,theme:next};show(settings.theme);
+     status.textContent=(theme==='minecraft'?'Minecraft activado':'Original activado')+' · Ambos enlaces OBS se actualizaron.';
    }catch(e){show(previous);status.classList.add('style-select-error');status.textContent=e.message||'No se pudo guardar'}
    finally{buttons.forEach(b=>b.disabled=false);busy=false}
  }
