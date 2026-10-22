@@ -1,0 +1,49 @@
+name: GREÑA LIVE Desktop (kit de integración)
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify and apply GREÑA Desktop integration
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (!(Test-Path "GRENA_LIVE_Desktop_v5_Kit.zip")) {
+            throw "Falta GRENA_LIVE_Desktop_v5_Kit.zip en la raiz del repositorio. No se modifica la app."
+          }
+          Expand-Archive -Path "GRENA_LIVE_Desktop_v5_Kit.zip" -DestinationPath ".kit" -Force
+          python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
+          python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "."
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Verify pack logic
+        shell: pwsh
+        run: |
+          node --test assets/grena-packs/domino/tests/domino.test.js assets/grena-packs/domino/tests/system.test.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --test assets/grena-packs/minecraft/tests/phase1.test.js
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build Windows installer (manual)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: npx electron-builder --win nsis --x64 --publish never
+      - name: Publish Windows installer for updates (release tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win nsis --x64 --publish always
+      - name: Upload the Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: GRENA-LIVE-Installer-Windows
+          path: dist/*.exe
+          if-no-files-found: error
