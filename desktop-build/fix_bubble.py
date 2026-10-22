@@ -2,7 +2,17 @@
 """Attach a native, isolated Electron floating bubble to GREÑA Desktop."""
 from pathlib import Path
 import sys
+import json
 root=Path(sys.argv[1]).resolve()
+package=root/'package.json'
+pkg=json.loads(package.read_text(encoding='utf-8'))
+if pkg.get('version') != '5.0.6':
+    raise RuntimeError('Se esperaba version 5.0.6 antes del modo burbuja')
+pkg['version']='5.0.7'
+files=pkg.get('build',{}).get('files')
+if isinstance(files,list) and 'desktop-bubble.html' not in files:
+    files.append('desktop-bubble.html')
+package.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 main=root/'desktop'/'main.cjs'
 s=main.read_text(encoding='utf-8')
 if "let mainWindow, backend" not in s or "const { app" not in s or "ADDRESS" not in s:
@@ -73,6 +83,13 @@ s += r'''
  const attachGrenaBubbleNavigation=()=>{
    if(!mainWindow||mainWindow.isDestroyed()||grenaBubbleAttachedTo===mainWindow)return false;
    grenaBubbleAttachedTo=mainWindow;
+   const exposeBubbleControl=()=>{
+     if(!mainWindow.isDestroyed())mainWindow.webContents.executeJavaScript(
+       "(()=>{const b=document.getElementById('grenaBubbleModeControl');if(b)b.style.display='inline-flex'})()"
+     ).catch(()=>{});
+   };
+   mainWindow.webContents.on('dom-ready',exposeBubbleControl);
+   exposeBubbleControl();
    mainWindow.webContents.on('will-navigate',(event,url)=>{
      if(isBubbleAction(url,'/__grena_bubble_mode__')){
        event.preventDefault();enableGrenaBubble();
