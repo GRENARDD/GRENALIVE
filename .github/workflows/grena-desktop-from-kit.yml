@@ -8,6 +8,11 @@ on:
       - 'v*'
     paths:
       - GRENA_LIVE_Desktop_v5_Kit.zip
+      - 'starvios-reader.mjs'
+      - 'starvios-public-events.mjs'
+      - 'starvios-viewers.mjs'
+      - 'chat-server.mjs'
+      - 'tests/starvios-*.test.mjs'
       - 'desktop-build/**'
       - '.github/workflows/grena-desktop-from-kit.yml'
 permissions:
