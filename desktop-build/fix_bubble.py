@@ -8,7 +8,7 @@ package=root/'package.json'
 pkg=json.loads(package.read_text(encoding='utf-8'))
 if pkg.get('version') != '5.0.6':
     raise RuntimeError('Se esperaba version 5.0.6 antes del modo burbuja')
-pkg['version']='5.0.8'
+pkg['version']='5.0.9'
 files=pkg.get('build',{}).get('files')
 if isinstance(files,list):
     for required in ('desktop-bubble.html','desktop-bubble-preload.cjs'):
