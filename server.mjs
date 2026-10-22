@@ -1834,8 +1834,26 @@ async function camEnsureExternalAccess(){
  camTunnelStartPromise=camStartQuickTunnel();
  try{return await camTunnelStartPromise}finally{camTunnelStartPromise=null}
 }
-function camBaseForRoom(room,req){return camCleanBase(camTunnelUrl)||camCleanBase(process.env.GRENA_PUBLIC_URL)||camCleanBase(room?.publicBaseUrl)||camRequestBase(req)}
-function camHostPayload(room,req){if(!room)return null;const base=camBaseForRoom(room,req),externalReady=!!base&&base.startsWith('https://')&&!camIsLocalBase(base);return {id:room.id,code:room.code,createdAt:room.createdAt,active:room.active,publicBaseUrl:externalReady?base:'',externalReady,inviteToken:room.inviteToken,obsToken:room.obsToken,inviteUrl:`${base}/cam-join.html?invite=${encodeURIComponent(room.inviteToken)}`,localBase:`http://127.0.0.1:${PORT}`}}
+// No reutilizar URLs de túneles temporales que ya no estén activos.
+function camBaseForRoom(room,req){return camCleanBase(camTunnelUrl)||camCleanBase(process.env.GRENA_PUBLIC_URL)||camRequestBase(req)}
+// Validar el gateway externo: una URL HTTPS no prueba acceso de invitados.
+async function camProbeExternalGateway(base,attempts=3){
+  const url=camCleanBase(base);
+  if(!url.startsWith('https://')||camIsLocalBase(url))throw Error('Cam Room necesita un gateway HTTPS externo.');
+  let failure='sin respuesta';
+  for(let i=0;i<attempts;i++){
+    const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),4000);
+    try{
+      const r=await fetch(url+'/health',{cache:'no-store',signal:ac.signal});
+      const data=await r.json().catch(()=>({}));
+      if(r.ok&&data?.ok===true&&data?.app==='GREÑA Cam Gateway')return true;
+      failure='HTTP '+r.status+' (no corresponde al gateway de GREÑA)';
+    }catch(e){failure=String(e?.message||e).slice(0,160)}finally{clearTimeout(timer)}
+    if(i+1<attempts)await new Promise(done=>setTimeout(done,1250));
+  }
+  throw Error('El enlace HTTPS de Cam Room no responde desde internet. Diagnóstico: '+failure);
+}
+function camHostPayload(room,req){if(!room)return null;const base=camBaseForRoom(room,req),externalReady=!!base&&base.startsWith('https://')&&!camIsLocalBase(base)&&room.lastProbeOk===true&&camCleanBase(room.publicBaseUrl)===base;return {id:room.id,code:room.code,createdAt:room.createdAt,active:room.active,publicBaseUrl:externalReady?base:'',externalReady,inviteToken:room.inviteToken,obsToken:room.obsToken,inviteUrl:`${base}/cam-join.html?invite=${encodeURIComponent(room.inviteToken)}`,localBase:`http://127.0.0.1:${PORT}`}}
 function camPublicPeer(x){return {peerId:x.peerId,participantId:x.participantId,name:x.name,role:x.role}}
 function camSend(ws,payload){if(ws?.readyState===WebSocket.OPEN)try{ws.send(JSON.stringify(payload))}catch{}}
 function camPermissionsFor(a,b){
@@ -2131,15 +2149,25 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
 
  if(pathname==='/api/cam-room/current'&&req.method==='GET'){
   const su=sessionUser(req);if(!su)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});const room=camOwnerRoom(su.id);
-  if(room)try{room.publicBaseUrl=await camEnsureExternalAccess()}catch(e){camGatewayLastError=e?.message||String(e)}
+  if(room){
+    try{
+      const base=await camEnsureExternalAccess();
+      if(room.publicBaseUrl!==base){room.publicBaseUrl=base;room.lastProbeOk=false;room.lastProbeAt=0}
+      if(!room.lastProbeOk||Date.now()-Number(room.lastProbeAt||0)>45000){
+        room.lastProbeAt=Date.now();room.lastProbeOk=false;
+        await camProbeExternalGateway(base,2);room.lastProbeOk=true;camGatewayLastError='';
+      }
+    }catch(e){room.lastProbeOk=false;camGatewayLastError=e?.message||String(e)}
+  }
   return json(res,200,{ok:true,room:camHostPayload(room,req),participants:room?camParticipantList(room.id):[],connectedCount:room?camParticipantList(room.id).length:0,tunnelError:room&&!camHostPayload(room,req)?.externalReady?camGatewayLastError:''});
  }
  if(pathname==='/api/cam-room/create'&&req.method==='POST'){
   const su=sessionUser(req);if(!su)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
   for await(const _ of req){} // consume el body; la sala ya no acepta una URL pública manual.
   const externalBase=await camEnsureExternalAccess();if(!externalBase||camIsLocalBase(externalBase)||!externalBase.startsWith('https://'))return json(res,503,{ok:false,error:'No se pudo crear el enlace HTTPS externo de Cam Room.'});
+  await camProbeExternalGateway(externalBase,3);
   const old=camOwnerRoom(su.id);if(old)camCloseRoom(old,'El anfitrión creó una sala nueva.');
-  let code='';do{code=`GRENA${randomInt(1000,10000)}`}while([...camRooms.values()].some(r=>r.active&&r.code===code));const room={id:camId('room'),code,ownerUserId:su.id,ownerName:su.displayName||su.username,inviteToken:camToken(24),obsToken:'',obsTokens:{},publicBaseUrl:externalBase,createdAt:Date.now(),active:true};camRooms.set(room.id,room);return json(res,201,{ok:true,room:camHostPayload(room,req),participants:[]});
+  let code='';do{code=`GRENA${randomInt(1000,10000)}`}while([...camRooms.values()].some(r=>r.active&&r.code===code));const room={id:camId('room'),code,ownerUserId:su.id,ownerName:su.displayName||su.username,inviteToken:camToken(24),obsToken:'',obsTokens:{},publicBaseUrl:externalBase,lastProbeOk:true,lastProbeAt:Date.now(),createdAt:Date.now(),active:true};camRooms.set(room.id,room);return json(res,201,{ok:true,room:camHostPayload(room,req),participants:[]});
  }
  if(pathname==='/api/cam-room/close'&&req.method==='POST'){
   const su=sessionUser(req);if(!su)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});const room=camOwnerRoom(su.id);if(room)camCloseRoom(room);return json(res,200,{ok:true});
