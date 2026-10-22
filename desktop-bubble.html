@@ -46,7 +46,8 @@ body{display:flex;align-items:end;justify-content:center;padding:7px}
 'use strict';
 const byId=id=>document.getElementById(id);
 const names={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',starvios:'Starvios',youtube:'YouTube'};
-let notificationUntil=0,lastActivityKey='',startedAt=Date.now(),socket=null,retry=0,queue=[],showing=false;
+let notificationUntil=0,startedAt=Date.now(),socket=null,retry=0,queue=[],showing=false;
+const seenActivityKeys=new Set();
 const truncate=(str,max)=>{const s=String(str||'').replace(/\s+/g,' ').trim();return s.length>max?s.slice(0,max-1)+'…':s};
 function takeNext(){
  if(showing||!queue.length)return;
@@ -98,8 +99,9 @@ async function updateActivity(){
    const at=Date.parse(a.receivedAt||'')||Number(a.receivedAt)||0;
    if(at<startedAt)continue;
    const key=[a.platform,a.event,a.name,a.receivedAt].join('|');
-   if(key===lastActivityKey)continue;
-   lastActivityKey=key;
+   if(seenActivityKeys.has(key))continue;
+   seenActivityKeys.add(key);
+   if(seenActivityKeys.size>250)seenActivityKeys.delete(seenActivityKeys.values().next().value);
    if(a.event)enqueue({event:true,platform:a.platform,user:a.name,text:a.action||a.message||a.event});
   }
  }catch{}
