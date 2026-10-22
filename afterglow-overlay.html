@@ -187,15 +187,22 @@ function connect(){
  socket.onerror=()=>{try{socket.close()}catch{}}
  }catch{retryTimer=setTimeout(connect,backoff)}
 }
-async function load(){
+// Mantener OBS sincronizado cuando el tema se seleccionó antes de abrir la fuente
+// o se perdió el broadcast WebSocket durante una reconexión.
+let settingsSyncTimer=null;
+async function syncSettingsFromServer(){
  try{const r=await fetch('/api/afterglow-settings'+obsQuery,{cache:'no-store',credentials:'same-origin'});
- if(r.ok)applySettings((await r.json()).settings)}catch{}
+ if(r.ok){const d=await r.json();if(d?.settings)applySettings(d.settings)}}catch{}
+}
+async function load(){
+ await syncSettingsFromServer();
  connect();
  checkOverlayRelease();
  versionCheckTimer=setInterval(checkOverlayRelease,20000);
+ settingsSyncTimer=setInterval(syncSettingsFromServer,5000);
 }
 live.dataset.theme='original';
-window.addEventListener('pagehide',()=>{clearTimeout(retryTimer);clearTimeout(activeTimer);clearInterval(versionCheckTimer);socket?.close()});
+window.addEventListener('pagehide',()=>{clearTimeout(retryTimer);clearTimeout(activeTimer);clearInterval(versionCheckTimer);clearInterval(settingsSyncTimer);socket?.close()});
 if(qp.get('demo')==='1'){const demo={platform:qp.get('platform')||'TikTok',event:qp.get('event')||'follow',name:qp.get('name')||'grenero_07',count:5,giftName:'Rosa de oro'};setTimeout(()=>enqueue(demo),500)}
 load();
 })();
