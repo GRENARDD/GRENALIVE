@@ -8,10 +8,11 @@ package=root/'package.json'
 pkg=json.loads(package.read_text(encoding='utf-8'))
 if pkg.get('version') != '5.0.6':
     raise RuntimeError('Se esperaba version 5.0.6 antes del modo burbuja')
-pkg['version']='5.0.7'
+pkg['version']='5.0.8'
 files=pkg.get('build',{}).get('files')
-if isinstance(files,list) and 'desktop-bubble.html' not in files:
-    files.append('desktop-bubble.html')
+if isinstance(files,list):
+    for required in ('desktop-bubble.html','desktop-bubble-preload.cjs'):
+        if required not in files: files.append(required)
 package.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 main=root/'desktop'/'main.cjs'
 s=main.read_text(encoding='utf-8')
@@ -19,20 +20,43 @@ if "let mainWindow, backend" not in s or "const { app" not in s or "ADDRESS" not
     raise RuntimeError("GREÑA Electron main layout changed; refusing unsafe bubble patch")
 if "GRENA_FLOATING_BUBBLE_V1" in s:
     raise RuntimeError("Floating bubble patch was already applied")
-if not (root/'desktop-bubble.html').is_file():
-    raise RuntimeError("desktop-bubble.html missing from build")
+for required in ('desktop-bubble.html','desktop-bubble-preload.cjs'):
+    if not (root/required).is_file():
+        raise RuntimeError(required+" missing from build")
 
 s += r'''
 
 // GRENA_FLOATING_BUBBLE_V1
+// Version 2: full messages & alerts, safe automatic window sizing.
 // This feature owns only a separate isolated Electron window.
 // Never stop the Node backend or disconnect live channels when activating it.
 {
- const {screen}=require('electron');
+ const {screen,ipcMain}=require('electron');
  let grenaBubble=null;
  let grenaBubbleQuitting=false;
  let grenaBubbleAttachedTo=null;
  app.on('before-quit',()=>{grenaBubbleQuitting=true});
+ // The preload sends only a height and an optional expand flag.
+ // Never accept messages from the main window, renderer frames or other senders.
+ const applyGrenaBubbleLayout=(event,payload={})=>{
+   const popup=grenaBubble;
+   if(!popup||popup.isDestroyed()||event.sender!==popup.webContents)return;
+   const area=screen.getDisplayMatching(popup.getBounds()).workArea;
+   const wide=payload.expanded===true;
+   const width=Math.min(Math.max(280,area.width-20),wide?576:435);
+   const requested=Number(payload.height);
+   if(!Number.isFinite(requested))return;
+   const maxHeight=Math.max(160,Math.floor(area.height*.86));
+   const height=Math.min(maxHeight,Math.max(156,Math.ceil(requested)));
+   const old=popup.getBounds();
+   // Keep the bottom-right anchor fixed while the notification grows upward.
+   const right=old.x+old.width,bottom=old.y+old.height;
+   const x=Math.max(area.x+8,Math.min(area.x+area.width-width-8,right-width));
+   const y=Math.max(area.y+8,Math.min(area.y+area.height-height-8,bottom-height));
+   if(old.x!==x||old.y!==y||old.width!==width||old.height!==height)
+     popup.setBounds({x,y,width,height},false);
+ };
+ ipcMain.on('grena:bubble:layout',applyGrenaBubbleLayout);
  const isBubbleAction=(address,action)=>{
    try{
      const u=new URL(address);
@@ -51,7 +75,7 @@ s += r'''
    if(!mainWindow||mainWindow.isDestroyed())return;
    if(grenaBubble&&!grenaBubble.isDestroyed()){grenaBubble.show();grenaBubble.focus();mainWindow.hide();return}
    const display=screen.getDisplayMatching(mainWindow.getBounds());
-   const work=display.workArea;const w=318,h=156;
+   const work=display.workArea;const w=Math.min(435,Math.max(280,work.width-20)),h=166;
    grenaBubble=new BrowserWindow({
      x:Math.max(work.x,work.x+work.width-w-16),
      y:Math.max(work.y,work.y+work.height-h-12),
@@ -59,7 +83,7 @@ s += r'''
      show:false,frame:false,transparent:true,hasShadow:false,backgroundColor:'#00000000',
      alwaysOnTop:true,skipTaskbar:true,resizable:false,maximizable:false,fullscreenable:false,
      title:'GREÑA LIVE · Burbuja',
-     webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}
+     webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,preload:join(APP_ROOT,'desktop-bubble-preload.cjs')}
    });
    const popup=grenaBubble;
    popup.webContents.setWindowOpenHandler(()=>({action:'deny'}));
