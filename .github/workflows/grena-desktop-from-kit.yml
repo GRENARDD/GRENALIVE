@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - 'fix/desktop-obs-starvios-youtube-20261022'
     tags:
       - 'v*'
     paths:
@@ -35,8 +34,6 @@ jobs:
             throw "Falta GRENA_LIVE_Desktop_v5_Kit.zip en la raiz del repositorio. No se modifica la app."
           }
           Expand-Archive -Path "GRENA_LIVE_Desktop_v5_Kit.zip" -DestinationPath ".kit" -Force
-          python -c "import zipfile; z=zipfile.ZipFile('GRENA_LIVE_Desktop_v5_Kit.zip'); print('Kit paths:', [n for n in z.namelist() if any(k in n.lower() for k in ('domino','minecraft','overlay','alert','index','control-center'))][:100])"
-          python -c "from pathlib import Path; p=Path('.kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py'); print('Kit integration logic:', '\\n'.join(f'{i+1}: {ln}' for i,ln in enumerate(p.read_text(encoding='utf-8').splitlines()) if any(w in ln.lower() for w in ['def patch','replace_one','theme','domino','minecraft3d','afterglow-overlay'])))"
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "."
       - name: Fix Node backend packaging and enable startup diagnosis
