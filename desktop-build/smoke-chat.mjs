@@ -72,6 +72,19 @@ assert.match(js,/function openStarviosLinkModal\(\)/,'El botón de Starvios no a
 assert.match(js,/starviosLinkForm.*addEventListener\('submit',submitStarviosLink\)/,'El formulario Starvios no permite guardar el canal.');
 console.log('OK: panel empaquetado incluye formulario Starvios compatible con Electron.');
 
+// Comprobar contra el instalador REAL, no el HTML del repositorio, que se
+// empaquetó la burbuja con texto y alertas completos y diseño adaptable.
+const bubblePage=await get(main+'/desktop-bubble.html');
+assert.equal(bubblePage.status,200,'El HTML de la burbuja no está incluido en el instalador.');
+const bubbleHtml=await bubblePage.text();
+assert.match(bubbleHtml,/id="expand"/,'Falta ampliar/reducir burbuja.');
+assert.match(bubbleHtml,/white-space:pre-wrap/,'La ventana flotante sigue recortando líneas.');
+assert.match(bubbleHtml,/window\.grenaBubble\?\.resize/,'La burbuja no pide ajustar el tamaño de la ventana Electron.');
+assert.match(bubbleHtml,/d\?\.type==='alert'/,'La burbuja no escucha las alertas completas.');
+assert.doesNotMatch(bubbleHtml,/text-overflow:ellipsis/,'La burbuja sigue truncando el mensaje.');
+console.log('OK: ventana flotante empaquetada admite mensajes y alertas completos y ampliación nativa.');
+
+
 // Verificación real del caso reportado en OBS: navegador SIN cookie GREÑA.
 const obsResponse=await get(main+'/api/obs-token',{headers:{Cookie:cookie}});
 assert.equal(obsResponse.status,200,'No se pudo obtener el token OBS del perfil de prueba.');
