@@ -743,6 +743,7 @@ function acceptTikTokViewerJump(n,source,meta,now){
 function setViewers(platform,count,source='live'){
  const raw=Number(count);if(!Number.isFinite(raw)||!viewerMeta[platform])return false;
  const n=Math.max(0,Math.trunc(raw)),meta=viewerMeta[platform],now=Date.now();
+ const previousAvailability=platform==='starvios'?meta.available:undefined;
  if(platform==='starvios')meta.available=!/desconect|disconnect|unavailable/i.test(source);
  const forceZero=/offline|desconect|disconnect|reset|apagado|stopped|stream_end/i.test(String(source||''));
  // Las lecturas antiguas (incluido un 0 por API) no pueden sobrescribir el
@@ -767,6 +768,7 @@ function setViewers(platform,count,source='live'){
  else if(forceZero){meta.zeroHits=0;meta.lastZeroAt=now;meta.spikeValue=0;meta.spikeHits=0;meta.spikeAt=0;meta.spikeSources=[]}
  meta.source=source;
  if(viewers[platform]!==n){viewers[platform]=n;pushViewers()}
+ else if(platform==='starvios'&&previousAvailability!==meta.available)pushViewers();
  return true;
 }
 function readTikTokViewerCount(d,{roomUser=false}={}){
@@ -2226,7 +2228,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    }else{
     if(p==='tiktok')clearTikTokBridgeDisconnectGrace();
     setStatus(p,false,label||'No conectado',body.account);
-    setViewers(p,0,'desconectado por bridge');
+    // Starvios has a separate viewer API; visual chat failure is not offline proof.
+    if(p!=='starvios')setViewers(p,0,'desconectado por bridge');
    }
   }else setStatus(p,true,label||'Conectado',body.account);
   if(p==='tiktok'&&!body.connected&&wasConnected&&/termin[oó]|ended|stream_end/i.test(label))endTapTapSession();
