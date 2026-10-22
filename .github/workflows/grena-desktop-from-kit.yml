@@ -2,8 +2,12 @@ name: GREÑA LIVE Desktop (kit de integración)
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+    paths:
+      - GRENA_LIVE_Desktop_v5_Kit.zip
 permissions:
   contents: write
 jobs:
