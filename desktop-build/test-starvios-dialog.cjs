@@ -50,7 +50,8 @@ test('Starvios abre un modal interno real, sin prompt() ni popups externos',()=>
   assert.match(html,/id="starviosLinkInput"/);
   assert.match(html,/id="starviosLinkDisconnect"/);
   assert.match(css,/\.starvios-link-backdrop/);
-  assert.doesNotMatch(handler,/\b(?:prompt|confirm)\s*\(/);
+  const scriptWithoutComments=handler.split('\n').filter(line=>!line.trimStart().startsWith('//')).join('\n');
+  assert.doesNotMatch(scriptWithoutComments,/\b(?:prompt|confirm)\s*\(/);
   const ctx=setup();ctx.actions.get('loginStarvios:click')();
   assert.equal(ctx.elements.starviosLinkModal.classList.contains('show'),true);
   assert.equal(ctx.elements.starviosLinkModal.attrs['aria-hidden'],'false');
