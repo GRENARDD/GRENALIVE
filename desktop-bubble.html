@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GREÑA LIVE · Burbuja</title>
+<style>
+:root{color-scheme:dark;font:600 13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent!important}
+body{display:flex;align-items:end;justify-content:center;padding:7px}
+#bubble{width:100%;border:1px solid rgba(112,205,255,.48);border-radius:24px;
+ background:linear-gradient(145deg,rgba(19,27,44,.97),rgba(11,15,27,.98));
+ box-shadow:0 10px 27px #0009,0 0 21px #23b8ff37;overflow:hidden;user-select:none}
+#top{display:flex;align-items:center;gap:9px;padding:11px 12px 8px}
+#mark{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;
+ background:linear-gradient(135deg,#22e5fe,#c36cff);font-size:20px;font-weight:950;color:#081126;box-shadow:0 0 13px #1adbff55}
+#title{font-weight:900;color:#dfefff;font-size:11px;letter-spacing:.09em}
+#subtitle{font-size:10px;color:#a0b6cb;font-weight:500}
+#count{margin-left:auto;font-size:25px;line-height:1;font-weight:850;font-variant-numeric:tabular-nums;color:#f1faff}
+#count small{display:block;font-size:9px;color:#8ecbc6;text-align:center;margin-top:4px;font-weight:700}
+#open{border:1px solid #68a8d255;background:#23344c;color:#fff;cursor:pointer;line-height:1;
+ border-radius:10px;padding:8px;font-size:14px;text-decoration:none}
+#open:hover{background:#345371}
+#platforms{display:flex;gap:5px;padding:0 12px 9px;white-space:nowrap;overflow:hidden}
+.platform{color:#d7e3ff;background:#243049;border:1px solid #54718a55;font-size:10px;
+ padding:2px 6px;border-radius:8px;font-variant-numeric:tabular-nums}
+#notification{margin:0 8px 8px;padding:7px 10px;border:1px solid #485b78;
+ background:#1c2639;border-radius:12px;display:flex;align-items:center;gap:6px;min-height:33px}
+#notification.hidden{display:none}
+#kind{font-size:14px;flex-shrink:0}#line{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#eff3fa;font-size:11px}
+#label{color:#a9ceef;font-weight:800}#text{font-weight:500}
+.event #notification{border-color:#dca65c;background:#37291e}
+.offline{color:#8faac6!important}
+</style></head>
+<body><div id="bubble" aria-label="GREÑA LIVE en modo burbuja">
+  <div id="top">
+    <div id="mark">G</div><div><div id="title">GREÑA LIVE <span id="signal" style="color:#60d6ab">●</span></div><div id="subtitle">Multichat activo</div></div>
+    <div id="count">—<small>EN VIVO</small></div>
+    <a id="open" href="/__grena_bubble_restore__" title="Restaurar GREÑA LIVE" aria-label="Abrir aplicación">⤢</a>
+  </div>
+  <div id="platforms"></div>
+  <div id="notification" class="hidden" aria-live="polite">
+    <span id="kind">💬</span><div id="line"><span id="label"></span> <span id="text"></span></div>
+  </div>
+</div>
+<script>
+(()=>{
+'use strict';
+const byId=id=>document.getElementById(id);
+const names={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',starvios:'Starvios',youtube:'YouTube'};
+let notificationUntil=0,lastActivityKey='',startedAt=Date.now(),socket=null,retry=0,queue=[],showing=false;
+const truncate=(str,max)=>{const s=String(str||'').replace(/\s+/g,' ').trim();return s.length>max?s.slice(0,max-1)+'…':s};
+function takeNext(){
+ if(showing||!queue.length)return;
+ const item=queue.shift();showing=true;
+ byId('kind').textContent=item.event?'⚡':'💬';
+ byId('label').textContent=truncate((names[String(item.platform||'').toLowerCase()]||item.platform||'LIVE')+' · '+(item.user||'Usuario'),44);
+ byId('text').textContent=truncate(item.text,150);
+ byId('notification').classList.remove('hidden');
+ byId('bubble').classList.toggle('event',!!item.event);
+ notificationUntil=Date.now()+(item.event?6500:4800);
+ setTimeout(()=>{byId('notification').classList.add('hidden');byId('bubble').classList.remove('event');showing=false;setTimeout(takeNext,350)},item.event?6500:4800);
+}
+function enqueue(n){
+ if(!n||!n.text)return;
+ if(queue.length>18)queue=queue.slice(-15);
+ if(n.event)queue.unshift(n);else queue.push(n);
+ takeNext();
+}
+async function updateViewers(){
+ try{
+  const response=await fetch('/api/viewers',{cache:'no-store'});if(!response.ok)throw Error('Contador no disponible');
+  const payload=await response.json();const v=payload.viewers||{};
+  const total=Object.values(v).reduce((n,x)=>n+(Number(x)>0?Number(x):0),0);
+  byId('count').firstChild.textContent=total.toLocaleString('es-DO');
+  byId('count').classList.remove('offline');
+  byId('signal').style.color='#60d6ab';
+  const line=byId('platforms');line.replaceChildren();
+  for(const [key,val] of Object.entries(v)){
+   const n=Math.max(0,Number(val)||0);if(!n||!names[key])continue;
+   const badge=document.createElement('span');badge.className='platform';
+   badge.textContent=names[key]+' '+n.toLocaleString('es-DO');line.append(badge);
+  }
+  if(!line.children.length){
+   const badge=document.createElement('span');badge.className='platform';
+   badge.textContent='Esperando espectadores de tus directos';line.append(badge);
+  }
+ }catch{
+  byId('count').firstChild.textContent='—';
+  byId('count').classList.add('offline');
+  byId('signal').style.color='#f19f7f';
+ }
+}
+async function updateActivity(){
+ try{
+  const response=await fetch('/api/activity?limit=5',{cache:'no-store'});
+  if(!response.ok)return;
+  const data=await response.json();
+  for(const a of (data.activity||[]).slice().reverse()){
+   const at=Date.parse(a.receivedAt||'')||Number(a.receivedAt)||0;
+   if(at<startedAt)return;
+   const key=[a.platform,a.event,a.name,a.receivedAt].join('|');
+   if(key===lastActivityKey)continue;
+   lastActivityKey=key;
+   if(a.event)enqueue({event:true,platform:a.platform,user:a.name,text:a.action||a.message||a.event});
+  }
+ }catch{}
+}
+function connectChat(){
+ socket=new WebSocket((location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/chat-ws');
+ socket.addEventListener('open',()=>{retry=0;byId('subtitle').textContent='Multichat activo'});
+ socket.addEventListener('message',e=>{
+  let d;try{d=JSON.parse(e.data)}catch{return}
+  if(d?.type==='chat')enqueue({platform:d.platform,user:d.nickname||d.user,text:d.text});
+  if(d?.type==='event')enqueue({event:true,platform:d.platform,user:d.user,text:String(d.event||'evento')});
+  // Ignore 'chat-history': it is historic and must not trigger a popup.
+ });
+ socket.addEventListener('close',()=>{
+  byId('subtitle').textContent='Reconectando chat…';
+  setTimeout(connectChat,Math.min(10000,1200*Math.pow(1.5,Math.min(6,retry++))));
+ });
+ socket.addEventListener('error',()=>{try{socket.close()}catch{}});
+}
+updateViewers();updateActivity();connectChat();
+setInterval(updateViewers,1800);setInterval(updateActivity,3000);
+})();
+</script></body></html>
