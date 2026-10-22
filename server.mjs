@@ -371,8 +371,8 @@ function codeHash(code,id){return createHash('sha256').update(`${id}:${String(co
 function parseCookies(req){const out=Object.create(null),dec=x=>{try{return decodeURIComponent(x)}catch{return x}};for(const part of String(req.headers.cookie||'').split(';')){const i=part.indexOf('=');if(i>0)out[dec(part.slice(0,i).trim())]=dec(part.slice(i+1).trim())}return out}
 function sessionUser(req){const token=parseCookies(req).grena_session;if(!token)return null;const rec=sessionsStore.sessions[sessionHash(token)];if(!rec||Number(rec.expiresAt||0)<Date.now()||!activeUserId||rec.userId!==activeUserId)return null;return usersStore.users.find(u=>u.id===rec.userId)||null}
 function safeTokenEqual(a,b){const x=Buffer.from(String(a||'')),y=Buffer.from(String(b||''));return x.length===y.length&&x.length>0&&timingSafeEqual(x,y)}
-function obsAuthorized(req){if(!CLOUD_MODE||!activeUserId||!obsToken)return false;let supplied='';try{supplied=new URL(req.url||'/','http://127.0.0.1').searchParams.get('obs')||''}catch{};return safeTokenEqual(supplied||parseCookies(req).grena_obs,obsToken)}
-function assignObsCookie(req,res){let token='';try{token=new URL(req.url||'/','http://127.0.0.1').searchParams.get('obs')||''}catch{};if(token&&safeTokenEqual(token,obsToken))res.setHeader('Set-Cookie',`grena_obs=${encodeURIComponent(obsToken)}; HttpOnly; SameSite=Lax; Secure; Path=/`)}
+function obsAuthorized(req){if(!activeUserId||!obsToken)return false;let supplied='';try{supplied=new URL(req.url||'/','http://127.0.0.1').searchParams.get('obs')||''}catch{};return safeTokenEqual(supplied||parseCookies(req).grena_obs,obsToken)}
+function assignObsCookie(req,res){let token='';try{token=new URL(req.url||'/','http://127.0.0.1').searchParams.get('obs')||''}catch{};if(token&&safeTokenEqual(token,obsToken))res.setHeader('Set-Cookie',`grena_obs=${encodeURIComponent(obsToken)}; HttpOnly; SameSite=Lax; Path=/${CLOUD_MODE?'; Secure':''}`)}
 let accountTransition=Promise.resolve();
 async function withAccountTransition(fn){let release;const prev=accountTransition;accountTransition=new Promise(resolve=>{release=resolve});await prev;try{return await fn()}finally{release()}}
 function disconnectPrivateSockets(){for(const ws of [...clients,...chatProxyClients])try{ws.close(4001,'GRENA profile changed')}catch{try{ws.terminate()}catch{}}}
@@ -1975,7 +1975,10 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/chat'||pathname.startsWith('/chat/')){
     const chatOverlay=pathname==='/chat/multichat-overlay.html';
     const chatApi=pathname==='/chat/api/multichat-settings'||pathname==='/chat/api/multichat-history';
-    if(!sessionUser(req)&&!(CLOUD_MODE&&obsAuthorized(req)&&req.method==='GET'&&(chatOverlay||chatApi))){return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'})}
+    const chatAvatar=pathname==='/chat/avatar';
+    // OBS Browser Source no tiene cookie de GREÑA; debe usar el token privado
+    // incluso en el servidor local (GRENA_CLOUD=0). Los POST siguen requiriendo sesión.
+    if(!sessionUser(req)&&!(obsAuthorized(req)&&req.method==='GET'&&(chatOverlay||chatApi||chatAvatar))){return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'})}
     if(chatOverlay)assignObsCookie(req,res);
     return proxyChatHttp(req,res,url);
   }
