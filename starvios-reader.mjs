@@ -4,7 +4,7 @@
 import { chromium } from 'playwright-core';
 import {normalizeStarviosEvent} from './starvios-events.mjs';
 import {buildStarviosFreshLiveDirectoryUrl,parseStarviosLiveDirectory,fetchStarviosDbLiveDirectory} from './starvios-viewers.mjs';
-import {STARVIOS_PUBLIC_DB_URL,STARVIOS_PUBLIC_KEY,parseStarviosChatEvent,parseStarviosFollowerCount,buildStarviosChatEventUrl,buildStarviosFollowerCountRequest,buildStarviosProfileLookupUrl,starviosPublicActor} from './starvios-public-events.mjs';
+import {STARVIOS_PUBLIC_DB_URL,STARVIOS_PUBLIC_KEY,parseStarviosChatEvent,parseStarviosFollowerCount,buildStarviosChatEventUrl,buildStarviosFollowerCountRequest,buildStarviosProfileLookupUrl,starviosPublicActor,parseStarviosPublicChat} from './starvios-public-events.mjs';
 
 export function normalizeStarviosChannel(input) {
   let value=String(input||'').trim();
@@ -53,6 +53,8 @@ export class StarviosReader {
     this.lastViewerReportedSource='';
     this.eventKeys=new Map();
     this.eventSeen=new Map();
+    this.chatSeen=new Map();
+    this.chatFingerprints=new Map();
     this.eventTimer=null;
     this.eventBusy=false;
     this.streamId='';
@@ -84,12 +86,19 @@ export class StarviosReader {
     this.lastViewerReportedSource='Starvios · esperando espectadores';
     this.onViewers({count:null,source:this.lastViewerReportedSource,channel});
     const generation=++this.generation;
+    // Audience and database chat must not depend on Chrome/Edge being installed.
+    // Desktop builds can use the read-only public API even when Playwright fails.
+    this.liveTimer=setInterval(()=>this.scanLive().catch(e=>this.handleScanError(e)),6000);
+    this.eventTimer=setInterval(()=>this.scanEvents().catch(e=>this.handleScanError(e)),4000);
+    this.scanLive().catch(e=>this.handleScanError(e));
     try {
       await this.openChatPage(generation);
       return true;
     } catch(error) {
-      await this.disconnect();
-      throw error;
+      this.onError(error);
+      this.onState({connected:false,channel,label:'Starvios · lector visual no disponible, consultando datos públicos'});
+      this.scheduleRecovery('lector visual no disponible');
+      return true;
     }
   }
   async openChatPage(generation) {
@@ -137,11 +146,8 @@ export class StarviosReader {
       if(generation!==this.generation||!this.running)return;
       this.onState({connected:false,channel:this.channel,label:'Starvios · esperando chat de @'+this.channel});
       this.timer=setInterval(()=>this.scan().catch(e=>this.handleScanError(e)),1100);
-      // La detección auxiliar del directo usa HTTP ligero, NUNCA un reproductor extra.
-      this.liveTimer=setInterval(()=>this.scanLive().catch(()=>{}),6000);
-      this.eventTimer=setInterval(()=>this.scanEvents().catch(e=>this.handleScanError(e)),4000);
+      // Independently running API timers were started by connect().
       await this.scan();
-      this.scanLive().catch(()=>{});
     } catch(error) {
       if(this.browser===browser) {this.browser=null;this.page=null;}
       if(browser)try{await browser.close()}catch{}
@@ -166,9 +172,8 @@ export class StarviosReader {
     const generation=this.generation;
     this.recoverPromise=(async()=>{
       if(this.timer)clearInterval(this.timer);
-      if(this.liveTimer)clearInterval(this.liveTimer);
-      if(this.eventTimer)clearInterval(this.eventTimer);
-      this.timer=null;this.liveTimer=null;this.eventTimer=null;
+      // Do not stop the public directory/database poll while repairing Chrome.
+      this.timer=null;
       const browser=this.browser;
       this.browser=null;this.page=null;
       this.busy=false;
@@ -264,7 +269,7 @@ export class StarviosReader {
         });
       }
       for(const m of result.messages){
-        this.onChat({...m,channel:this.channel});
+        this.deliverChat(m);
         // El mensaje de Starvies también se conserva en el chat y TTS.
         // Una vez disponible la lectura pública de registros, evita duplicar su alerta.
         if(m.starvies>0&&!this.dbEventsReady)this.deliverEvent({kind:'gift',user:m.user,amount:m.starvies,count:1,id:m.id,message:m.text});
@@ -276,6 +281,24 @@ export class StarviosReader {
       }
       this.handleScanError(error);
     } finally { this.busy=false; }
+  }
+
+  deliverChat(message){
+    const user=String(message?.user||'').trim().slice(0,80);
+    const text=String(message?.text||'').trim().slice(0,1500);
+    const id=String(message?.id||'').trim().slice(0,128);
+    if(!user||!text)return;
+    const now=Date.now();
+    if(id&&this.chatSeen.has(id))return;
+    if(id)this.chatSeen.set(id,now);
+    // The public DB and rendered popout often report the same message with
+    // different IDs; collapse only near-simultaneous identical copies.
+    const fingerprint=user.toLowerCase()+'\u0000'+text;
+    if(now-(this.chatFingerprints.get(fingerprint)||0)<1800)return;
+    this.chatFingerprints.set(fingerprint,now);
+    if(this.chatSeen.size>1200)for(const [key,at] of this.chatSeen)if(now-at>300000||this.chatSeen.size>1000)this.chatSeen.delete(key);
+    if(this.chatFingerprints.size>1200)for(const [key,at] of this.chatFingerprints)if(now-at>10000||this.chatFingerprints.size>1000)this.chatFingerprints.delete(key);
+    this.onChat({...message,user,text,id,channel:this.channel});
   }
 
   // Sólo mensajes del protocolo que anuncian explícitamente un tipo de evento.
@@ -333,20 +356,20 @@ export class StarviosReader {
       const cursor=Math.max(this.sessionStartedAt,this.eventCursorAt-1500);
       const sinceIso=new Date(cursor).toISOString();
       const headers={apikey:STARVIOS_PUBLIC_KEY,accept:'application/json'};
-      let response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200),{
+      let response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200,true,true,true),{
         headers,signal:AbortSignal.timeout(9500)
       });
       // Si cambia la relación de perfiles, seguimos recibiendo los eventos
       // públicos sin atribuirles usuarios inventados.
       if(response.status===400){
         // El join puede fallar aunque el evento aún incluya su user_id.
-        response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200,false),{
+        response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200,false,true,true),{
           headers,signal:AbortSignal.timeout(9500)
         });
       }
       if(response.status===400){
         // Compatibilidad con versiones que no exponen user_id.
-        response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200,false,false),{
+        response=await fetch(buildStarviosChatEventUrl(streamId,sinceIso,200,false),{
           headers,signal:AbortSignal.timeout(9500)
         });
       }
@@ -393,6 +416,8 @@ export class StarviosReader {
         if(!Number.isFinite(created))continue;
         this.eventSeen.set(id,created);
         if(created>=this.sessionStartedAt){
+          const chat=parseStarviosPublicChat(row);
+          if(chat)this.deliverChat(chat);
           const event=parseStarviosChatEvent(row);
           if(event)this.deliverEvent(event);
         }
@@ -656,7 +681,7 @@ export class StarviosReader {
       const stream=Array.isArray(payload.rows)?payload.rows.find(row=>row&&String(row.status||'').toLowerCase()==='live'&&String(row.profiles?.username||'').toLowerCase()===this.channel.toLowerCase()):null;
       if(stream?.id&&stream?.channel_id){
         const isNew=!!this.streamId&&this.streamId!==stream.id;
-        if(isNew){this.eventSeen.clear();this.eventKeys.clear();this.profileNames.clear();this.dbEventsReady=false;this.sessionStartedAt=Date.now();this.eventCursorAt=this.sessionStartedAt;this.followerTotal=null;}
+        if(isNew){this.eventSeen.clear();this.eventKeys.clear();this.chatSeen.clear();this.chatFingerprints.clear();this.profileNames.clear();this.dbEventsReady=false;this.sessionStartedAt=Date.now();this.eventCursorAt=this.sessionStartedAt;this.followerTotal=null;}
         this.streamId=String(stream.id);this.channelId=String(stream.channel_id);
         this.scanEvents().catch(()=>{});
       }
@@ -715,7 +740,7 @@ export class StarviosReader {
     this.reconnectFailures=0;
     this.missingContainerSince=0;
     this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryFallbackRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
-    this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();this.profileNames.clear();
+    this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();this.chatSeen.clear();this.chatFingerprints.clear();this.profileNames.clear();
     this.dbEventsReady=false;this.eventBusy=false;this.streamId='';this.channelId='';
     this.followerTotal=null;this.followerPollAt=0;this.followNameEvents=0;
     const old=this.channel;
