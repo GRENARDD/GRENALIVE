@@ -108,7 +108,7 @@ test('la ventana Electron cambia de altura de forma segura sin salirse de la pan
  assert.match(native,/event\.sender!==popup\.webContents/);
  assert.match(native,/Math\.floor\(area\.height\*\.86\)/);
  assert.match(native,/old\.y\+old\.height/);
- assert.match(native,/pkg\['version'\]='5\.0\.8'/);
+ assert.match(native,/pkg\['version'\]='5\.0\.9'/);
  assert.match(preload,/contextBridge\.exposeInMainWorld\('grenaBubble'/);
  assert.match(preload,/ipcRenderer\.send\('grena:bubble:layout'/);
 });
