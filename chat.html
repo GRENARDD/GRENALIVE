@@ -3158,10 +3158,11 @@ function stripEmojisForVoice(text=''){
     : Array.from(input);
   const emoji=/[\p{Extended_Pictographic}\p{Emoji_Presentation}\u20E3\uFE0F\u{E0020}-\u{E007F}]/u;
   return units
-    .filter(unit=>!emoji.test(unit))
+    .map(unit=>emoji.test(unit)?' ':unit)
     .join('')
     .replace(/[\u200D\uFE0F\u{E0020}-\u{E007F}]/gu,'')
-    .replace(/[ \t]{2,}/g,' ')
+    .replace(/\s+([,.;!?])/g,'$1')
+    .replace(/\s+/g,' ')
     .trim();
 }
 // GRENA_VOICE_EMOJI_FILTER_END
