@@ -3,42 +3,59 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>GREÑA LIVE · Burbuja</title>
 <style>
-:root{color-scheme:dark;font:600 13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif}
-*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent!important}
-body{display:flex;align-items:end;justify-content:center;padding:7px}
-#bubble{width:100%;border:1px solid rgba(112,205,255,.48);border-radius:24px;
- background:linear-gradient(145deg,rgba(19,27,44,.97),rgba(11,15,27,.98));
- box-shadow:0 10px 27px #0009,0 0 21px #23b8ff37;overflow:hidden;user-select:none}
-#top{display:flex;align-items:center;gap:9px;padding:11px 12px 8px}
-#mark{width:36px;height:36px;display:grid;place-items:center;border-radius:50%;
+:root{color-scheme:dark;font:600 13px/1.42 system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent!important}
+body{display:flex;align-items:flex-end;justify-content:center;padding:7px}
+#bubble{width:100%;min-width:0;max-height:calc(100vh - 14px);overflow-x:hidden;overflow-y:auto;
+ border:1px solid rgba(112,205,255,.48);border-radius:22px;
+ background:linear-gradient(145deg,rgba(19,27,44,.98),rgba(11,15,27,.99));
+ box-shadow:0 10px 27px #0009,0 0 21px #23b8ff37;user-select:text;scrollbar-width:thin;scrollbar-color:#597ca2 transparent}
+#top{display:flex;align-items:center;gap:9px;padding:11px 12px 8px;-webkit-app-region:drag;user-select:none}
+#mark{width:36px;height:36px;flex-shrink:0;display:grid;place-items:center;border-radius:50%;
  background:linear-gradient(135deg,#22e5fe,#c36cff);font-size:20px;font-weight:950;color:#081126;box-shadow:0 0 13px #1adbff55}
-#title{font-weight:900;color:#dfefff;font-size:11px;letter-spacing:.09em}
-#subtitle{font-size:10px;color:#a0b6cb;font-weight:500}
-#count{margin-left:auto;font-size:25px;line-height:1;font-weight:850;font-variant-numeric:tabular-nums;color:#f1faff}
+#brand{min-width:0}
+#title{font-weight:900;color:#dfefff;font-size:11px;letter-spacing:.06em;white-space:nowrap}
+#subtitle{font-size:10px;color:#a0b6cb;font-weight:500;white-space:nowrap}
+#count{margin-left:auto;font-size:25px;line-height:1;font-weight:850;font-variant-numeric:tabular-nums;color:#f1faff;white-space:nowrap}
 #count small{display:block;font-size:9px;color:#8ecbc6;text-align:center;margin-top:4px;font-weight:700}
-#open{border:1px solid #68a8d255;background:#23344c;color:#fff;cursor:pointer;line-height:1;
- border-radius:10px;padding:8px;font-size:14px;text-decoration:none}
-#open:hover{background:#345371}
-#platforms{display:flex;gap:5px;padding:0 12px 9px;white-space:nowrap;overflow:hidden}
+.bubble-button{-webkit-app-region:no-drag;border:1px solid #68a8d255;background:#23344c;color:#fff;cursor:pointer;line-height:1;
+ border-radius:10px;padding:8px;font-size:14px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-width:32px;min-height:32px}
+.bubble-button:hover,.bubble-button:focus-visible{background:#345371;outline-color:#85e3fa}
+#platforms{display:flex;flex-wrap:wrap;gap:5px;padding:0 12px 9px;min-width:0}
 .platform{color:#d7e3ff;background:#243049;border:1px solid #54718a55;font-size:10px;
- padding:2px 6px;border-radius:8px;font-variant-numeric:tabular-nums}
-#notification{margin:0 8px 8px;padding:7px 10px;border:1px solid #485b78;
- background:#1c2639;border-radius:12px;display:flex;align-items:center;gap:6px;min-height:33px}
+ padding:2px 7px;border-radius:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+#notification{margin:0 8px 8px;padding:10px 11px 11px;border:1px solid #485b78;
+ background:#1c2639;border-radius:13px;min-width:0;overflow-wrap:anywhere}
 #notification.hidden{display:none}
-#kind{font-size:14px;flex-shrink:0}#line{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#eff3fa;font-size:11px}
-#label{color:#a9ceef;font-weight:800}#text{font-weight:500}
-.event #notification{border-color:#dca65c;background:#37291e}
+#note-head{display:flex;align-items:flex-start;gap:9px}
+#kind{font-size:18px;line-height:1.35;flex-shrink:0}
+#head-copy{flex:1;min-width:0}
+#label{font-size:12px;color:#9edaf1;font-weight:850;white-space:normal;overflow-wrap:anywhere}
+#eventTitle{font-size:10px;color:#ffe1ac;text-transform:uppercase;letter-spacing:.055em;margin-top:3px}
+#eventTitle.hidden,#thanks.hidden,#queueCount.hidden{display:none}
+#text{font-size:13px;color:#f4f7fd;font-weight:550;line-height:1.47;white-space:pre-wrap;overflow-wrap:anywhere;
+ word-break:normal;margin:7px 0 0;min-width:0}
+#thanks{font-size:12px;line-height:1.42;color:#f6dca6;background:rgba(255,210,134,.07);border-left:2px solid #eeb878;
+ padding:6px 9px;border-radius:3px;margin-top:9px;white-space:pre-wrap;overflow-wrap:anywhere}
+#queueCount{color:#91a8c4;font-size:10px;margin-top:9px;border-top:1px solid #ffffff14;padding-top:6px}
+.event #notification{border-color:#dca65c;background:linear-gradient(140deg,#30251c,#211e29)}
+.event #label{color:#ffce8e}
 .offline{color:#8faac6!important}
 </style></head>
 <body><div id="bubble" aria-label="GREÑA LIVE en modo burbuja">
   <div id="top">
-    <div id="mark">G</div><div><div id="title">GREÑA LIVE <span id="signal" style="color:#60d6ab">●</span></div><div id="subtitle">Multichat activo</div></div>
+    <div id="mark">G</div><div id="brand"><div id="title">GREÑA LIVE <span id="signal" style="color:#60d6ab">●</span></div><div id="subtitle">Multichat activo</div></div>
     <div id="count">—<small>EN VIVO</small></div>
-    <a id="open" href="/__grena_bubble_restore__" title="Restaurar GREÑA LIVE" aria-label="Abrir aplicación">⤢</a>
+    <button class="bubble-button" id="expand" type="button" title="Ampliar ventana flotante" aria-label="Ampliar ventana flotante" aria-pressed="false">⤢</button>
+    <a class="bubble-button" id="open" href="/__grena_bubble_restore__" title="Restaurar GREÑA LIVE" aria-label="Abrir aplicación completa">▣</a>
   </div>
   <div id="platforms"></div>
   <div id="notification" class="hidden" aria-live="polite">
-    <span id="kind">💬</span><div id="line"><span id="label"></span> <span id="text"></span></div>
+    <div id="note-head"><span id="kind">💬</span><div id="head-copy"><div id="label"></div><div id="eventTitle" class="hidden"></div></div></div>
+    <div id="text"></div>
+    <div id="thanks" class="hidden"></div>
+    <div id="queueCount" class="hidden"></div>
   </div>
 </div>
 <script>
@@ -46,25 +63,104 @@ body{display:flex;align-items:end;justify-content:center;padding:7px}
 'use strict';
 const byId=id=>document.getElementById(id);
 const names={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',starvios:'Starvios',youtube:'YouTube'};
-let notificationUntil=0,startedAt=Date.now(),socket=null,retry=0,queue=[],showing=false;
+const eventNames={follow:'Nuevo seguidor',sub:'Nueva suscripción',gift:'Regalo recibido',cheer:'Bits enviados',raid:'Raid',share:'Directo compartido',like:'Me gusta',likes:'Me gusta',giftsub:'Suscripción regalada',superchat:'Super Chat',supersticker:'Super Sticker'};
+let startedAt=Date.now(),socket=null,retry=0,queue=[],showing=false,expanded=false,showTimer=null,notificationUntil=0,hovered=false;
+let lastRequestedLayout='',layoutRaf=0;
 const seenActivityKeys=new Set();
-const truncate=(str,max)=>{const s=String(str||'').replace(/\s+/g,' ').trim();return s.length>max?s.slice(0,max-1)+'…':s};
+const plain=value=>String(value??'').replace(/\r\n?/g,'\n').trim();
+function requestLayout(){
+ if(layoutRaf)cancelAnimationFrame(layoutRaf);
+ layoutRaf=requestAnimationFrame(()=>{
+  layoutRaf=0;
+  // scrollHeight incluye el texto entero aunque la burbuja ya tenga scrollbar.
+  const height=Math.ceil(byId('bubble').scrollHeight+16);
+  const key=String(height)+':'+String(expanded);
+  if(key===lastRequestedLayout)return;
+  lastRequestedLayout=key;
+  window.grenaBubble?.resize?.({height,expanded});
+ });
+}
+new ResizeObserver(requestLayout).observe(byId('bubble'));
+byId('expand').addEventListener('click',()=>{
+ expanded=!expanded;
+ const button=byId('expand');
+ button.setAttribute('aria-pressed',String(expanded));
+ button.setAttribute('aria-label',expanded?'Reducir ventana flotante':'Ampliar ventana flotante');
+ button.title=expanded?'Reducir ventana flotante':'Ampliar ventana flotante';
+ button.textContent=expanded?'⤡':'⤢';
+ lastRequestedLayout='';
+ requestLayout();
+});
+function delayFor(item){
+ const chars=plain(item.text).length+plain(item.thanks).length;
+ const base=item.event?6500:4500;
+ const min=item.event?9000:6800;
+ return Math.min(40000,Math.max(min,base+Math.ceil(chars/14)*1000));
+}
+function endCurrent(){
+ if(hovered){showTimer=setTimeout(endCurrent,500);return}
+ if(Date.now()<notificationUntil){showTimer=setTimeout(endCurrent,Math.min(notificationUntil-Date.now(),650));return}
+ byId('notification').classList.add('hidden');
+ byId('bubble').classList.remove('event');
+ showing=false;
+ requestLayout();
+ showTimer=setTimeout(takeNext,320);
+}
+byId('notification').addEventListener('mouseenter',()=>{hovered=true});
+byId('notification').addEventListener('mouseleave',()=>{
+ hovered=false;
+ notificationUntil=Math.max(notificationUntil,Date.now()+2400);
+ if(showing){clearTimeout(showTimer);showTimer=setTimeout(endCurrent,600)}
+});
 function takeNext(){
  if(showing||!queue.length)return;
- const item=queue.shift();showing=true;
+ const item=queue.shift();
+ showing=true;
  byId('kind').textContent=item.event?'⚡':'💬';
- byId('label').textContent=truncate((names[String(item.platform||'').toLowerCase()]||item.platform||'LIVE')+' · '+(item.user||'Usuario'),44);
- byId('text').textContent=truncate(item.text,150);
+ byId('label').textContent=(names[String(item.platform||'').toLowerCase()]||item.platform||'LIVE')+' · '+(item.user||'Usuario');
+ const eventTitle=byId('eventTitle');
+ eventTitle.textContent=item.eventTitle||eventNames[item.eventKind]||'Alerta del directo';
+ eventTitle.classList.toggle('hidden',!item.event);
+ byId('text').textContent=plain(item.text);
+ const thanks=plain(item.thanks);
+ byId('thanks').textContent=thanks;
+ byId('thanks').classList.toggle('hidden',!item.event||!thanks||thanks===plain(item.text));
  byId('notification').classList.remove('hidden');
  byId('bubble').classList.toggle('event',!!item.event);
- notificationUntil=Date.now()+(item.event?6500:4800);
- setTimeout(()=>{byId('notification').classList.add('hidden');byId('bubble').classList.remove('event');showing=false;setTimeout(takeNext,350)},item.event?6500:4800);
+ byId('bubble').scrollTop=0;
+ const waiting=byId('queueCount');
+ waiting.textContent=queue.length?'Hay '+queue.length+' aviso(s) más en cola.':'';
+ waiting.classList.toggle('hidden',queue.length===0);
+ clearTimeout(showTimer);
+ notificationUntil=Date.now()+delayFor(item);
+ showTimer=setTimeout(endCurrent,Math.min(1500,delayFor(item)));
+ requestLayout();
 }
 function enqueue(n){
- if(!n||!n.text)return;
- if(queue.length>18)queue=queue.slice(-15);
+ if(!n||!plain(n.text))return;
+ if(queue.length>=50){const old=queue.findIndex(item=>!item.event);queue.splice(old<0?0:old,1)}
  if(n.event)queue.unshift(n);else queue.push(n);
+ const waiting=byId('queueCount');
+ if(showing&&queue.length){waiting.textContent='Hay '+queue.length+' aviso(s) más en cola.';waiting.classList.remove('hidden')}
  takeNext();
+}
+function activityKey(a){
+ return [a.platform||'',a.event||'',a.name||'',a.receivedAt||'',a.eventId||a.bridgeEventId||''].join('|');
+}
+function showActivity(a){
+ if(!a||!a.event)return;
+ const key=activityKey(a);
+ if(seenActivityKeys.has(key))return;
+ seenActivityKeys.add(key);
+ if(seenActivityKeys.size>350)seenActivityKeys.delete(seenActivityKeys.values().next().value);
+ const action=plain(a.action||a.summary||a.eventLabel||a.event||'Alerta');
+ const count=Number(a.count)||1;
+ let extra='';
+ if(a.event==='gift'&&a.giftName&&!action.toLowerCase().includes(String(a.giftName).toLowerCase())){
+  extra=' · '+a.giftName+(count>1?' ×'+count:'');
+ }
+ enqueue({event:true,eventKind:String(a.event||'').toLowerCase(),eventTitle:plain(a.eventLabel)||eventNames[a.event]||'Alerta del directo',
+  platform:a.platform,user:a.name||a.user||'Usuario',text:action+extra,thanks:a.message||''});
 }
 async function updateViewers(){
  try{
@@ -72,8 +168,7 @@ async function updateViewers(){
   const payload=await response.json();const v=payload.viewers||{};
   const total=Object.values(v).reduce((n,x)=>n+(Number(x)>0?Number(x):0),0);
   byId('count').firstChild.textContent=total.toLocaleString('es-DO');
-  byId('count').classList.remove('offline');
-  byId('signal').style.color='#60d6ab';
+  byId('count').classList.remove('offline');byId('signal').style.color='#60d6ab';
   const line=byId('platforms');line.replaceChildren();
   for(const [key,val] of Object.entries(v)){
    const n=Math.max(0,Number(val)||0);if(!n||!names[key])continue;
@@ -84,25 +179,21 @@ async function updateViewers(){
    const badge=document.createElement('span');badge.className='platform';
    badge.textContent='Esperando espectadores de tus directos';line.append(badge);
   }
+  requestLayout();
  }catch{
   byId('count').firstChild.textContent='—';
-  byId('count').classList.add('offline');
-  byId('signal').style.color='#f19f7f';
+  byId('count').classList.add('offline');byId('signal').style.color='#f19f7f';
  }
 }
 async function updateActivity(){
  try{
-  const response=await fetch('/api/activity?limit=5',{cache:'no-store'});
+  const response=await fetch('/api/activity?limit=12',{cache:'no-store'});
   if(!response.ok)return;
   const data=await response.json();
   for(const a of (data.activity||[]).slice().reverse()){
-   const at=Date.parse(a.receivedAt||'')||Number(a.receivedAt)||0;
+   const at=typeof a.receivedAt==='number'?a.receivedAt:(Date.parse(a.receivedAt||'')||Number(a.receivedAt)||0);
    if(at<startedAt)continue;
-   const key=[a.platform,a.event,a.name,a.receivedAt].join('|');
-   if(seenActivityKeys.has(key))continue;
-   seenActivityKeys.add(key);
-   if(seenActivityKeys.size>250)seenActivityKeys.delete(seenActivityKeys.values().next().value);
-   if(a.event)enqueue({event:true,platform:a.platform,user:a.name,text:a.action||a.message||a.event});
+   showActivity(a);
   }
  }catch{}
 }
@@ -112,8 +203,10 @@ function connectChat(){
  socket.addEventListener('message',e=>{
   let d;try{d=JSON.parse(e.data)}catch{return}
   if(d?.type==='chat')enqueue({platform:d.platform,user:d.nickname||d.user,text:d.text});
-  if(d?.type==='event')enqueue({event:true,platform:d.platform,user:d.user,text:String(d.event||'evento')});
-  // Ignore 'chat-history': it is historic and must not trigger a popup.
+  if(d?.type==='alert')showActivity(d.alert);
+  if(d?.type==='activity')showActivity(d.activity);
+  if(d?.type==='event')enqueue({event:true,eventKind:String(d.event||'').toLowerCase(),platform:d.platform,user:d.user,text:String(d.event||'evento')});
+  // Ignore 'chat-history': historial anterior, nunca reactivar mensajes viejos.
  });
  socket.addEventListener('close',()=>{
   byId('subtitle').textContent='Reconectando chat…';
@@ -123,5 +216,6 @@ function connectChat(){
 }
 updateViewers();updateActivity();connectChat();
 setInterval(updateViewers,1800);setInterval(updateActivity,3000);
+requestLayout();
 })();
 </script></body></html>
