@@ -38,7 +38,7 @@ export class YouTubeLiveReader {
   }
   async start(input){
     await this.stop();
-    if(!this.apiKey)throw new Error('Falta GRENA_YOUTUBE_API_KEY en Railway.');
+    if(!this.apiKey)throw new Error('Falta configurar GRENA_YOUTUBE_API_KEY en el motor de GREÑA LIVE Desktop.');
     const id=youtubeVideoId(input);if(!id)throw new Error('Introduce el enlace público de YouTube (Compartir → Copiar enlace), no el enlace de Studio.');
     this.videoId=id;this.running=true;this.nextPageToken='';this.seen.clear();this.backoff=0;
     try {await this.discoverChat();} catch(e){await this.stop();throw e}
