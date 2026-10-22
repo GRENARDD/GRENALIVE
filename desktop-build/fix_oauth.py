@@ -57,6 +57,6 @@ if not match or 'http://localhost:' not in match.group():
     raise RuntimeError('No se encontro la base OAuth localhost')
 server=server[:match.start()]+match.group().replace('http://localhost:','http://127.0.0.1:',1)+server[match.end():]
 server_path.write_text(server,encoding='utf-8')
-p['version']='5.0.2'
+p['version']='5.0.3'
 pkg_path.write_text(json.dumps(p,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
-print('OK: Desktop v5.0.2 OAuth con ventanas locales permitidas, configuracion privada intacta.')
+print('OK: Desktop v5.0.3 OAuth y filtro de emojis, configuracion privada intacta.')
