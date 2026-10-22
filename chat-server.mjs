@@ -1546,10 +1546,10 @@ const starviosReader=new StarviosReader({
   },
   onError:error=>logChatFault('STARVIOS',error)
 });
-async function connectStarvios(input){
+async function connectStarvios(input,{force=false}={}){
   const channel=normalizeStarviosChannel(input);
   if(!channel)throw Error('Introduce el usuario o enlace válido de Starvios.');
-  if(starviosReader.running && starviosReader.channel.toLowerCase()===channel.toLowerCase())return;
+  if(!force&&starviosReader.running && starviosReader.channel.toLowerCase()===channel.toLowerCase())return;
   await starviosReader.connect(channel);
 }
 async function disconnectStarvios(){await starviosReader.disconnect()}
@@ -2630,7 +2630,14 @@ const server =
             connectionPrefs=next;
             await saveConnectionPrefs();
             if(connectionPrefs.autoConnect){
-              setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectStarvios()},50);
+              const explicitStarvios=Object.prototype.hasOwnProperty.call(incoming,'starviosUrl')
+                &&connectionPrefs.starviosEnabled&&!!normalizeStarviosChannel(connectionPrefs.starviosUrl);
+              setTimeout(()=>{
+                autoConnectTwitch();autoConnectTikTok();autoConnectKick();
+                if(explicitStarvios)connectStarvios(connectionPrefs.starviosUrl,{force:true})
+                  .catch(error=>logChatFault('STARVIOS reconnect',error));
+                else autoConnectStarvios();
+              },50);
             }
             response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
             response.end(JSON.stringify({ok:true,prefs:connectionPrefs}));
