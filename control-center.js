@@ -1,5 +1,5 @@
 const $=id=>document.getElementById(id);
-const state={status:{},bridge:{tiktok:false,twitch:false,kick:false,youtube:false,starvios:false},eventHealth:{},viewers:{tiktok:0,twitch:0,kick:0,youtube:0,starvios:0},viewerMeta:{},activity:[],chatConnected:false,profile:null};
+const state={status:{},bridge:{tiktok:false,twitch:false,kick:false,youtube:false,starvios:false},eventHealth:{},viewers:{tiktok:0,twitch:0,kick:0,youtube:0,starvios:0},viewerMeta:{},activity:[],chatConnected:false,profile:null,starviosSavedChannel:''};
 const icons={follow:'＋',gift:'🎁',cheer:'◆',sub:'★',share:'↗',raid:'⚡',like:'♥'};
 
 async function initAccount(){
@@ -72,12 +72,19 @@ function renderViewers(){
  $('totalViewers').textContent=total.toLocaleString('es-DO');
  renderViewerSparkline(total);
 }
-function platformAccount(p){const s=state.status[p]||{};const account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='youtube'?'YouTube':p==='starvios'?'Starvios':'Kick');return s.authenticated?(account?(p==='tiktok'?`@${String(account).replace(/^@/,'')} · LIVE vinculado`:`${account} · cuenta vinculada`):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada')}
+function platformAccount(p){
+ if(p==='starvios'){
+   const s=state.status.starvios||{}, channel=String(state.starviosSavedChannel||(state.bridge.starvios?s.account:'')||'').trim();
+   return channel?'@'+channel.replace(/^@/,'')+' · canal guardado'+(state.bridge.starvios?' · chat conectado':' · esperando LIVE'):'Canal sin configurar';
+ }
+ const s=state.status[p]||{},account=s.account||(p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='youtube'?'YouTube':'Kick');
+ return s.authenticated?(account?(p==='tiktok'?'@'+String(account).replace(/^@/,'')+' · LIVE vinculado':account+' · cuenta vinculada'):(p==='tiktok'?'LIVE vinculado':'Cuenta vinculada')):(state.bridge[p]?'Conexión LIVE activa':'Cuenta no vinculada');
+}
 function renderPlatforms(){
  const labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube',starvios:'Starvios'};
  const chipClass=status=>status==='ready'?' on':status==='degraded'||status==='connecting'?' warn':status==='fallback'?' fallback':status==='waiting'?' waiting':' off';
  for(const p of ['tiktok','twitch','kick','youtube','starvios']){
-  const s=state.status[p]||{},health=state.eventHealth[p]||{},auth=!!s.authenticated;
+  const s=state.status[p]||{},health=state.eventHealth[p]||{},auth=p==='starvios'?!!(state.starviosSavedChannel||s.configured):!!s.authenticated;
   const runtimeLive=p==='kick'?!!(s.runtimeConnected||state.bridge[p]):!!state.bridge[p];
   const chatState=String(health.chat||(runtimeLive?'ready':auth?'waiting':'off'));
   const eventState=String(health.events||(auth?'waiting':'off'));
@@ -85,8 +92,8 @@ function renderPlatforms(){
   const a=$(p+'Auth'),l=$(p+'Live'),e=$(p+'Events'),btn=$('login'+labels[p]);
 
   a.className='state-chip'+(auth?' on':' off');
-  a.textContent=p==='tiktok'?(auth?'Link ✓':'Link —'):(auth?'Cuenta ✓':'Cuenta —');
-  a.title=p==='tiktok'?(auth?'LIVE de TikTok vinculado por enlace':'TikTok no vinculado'):(auth?'Cuenta autorizada en GREÑA':'Cuenta no vinculada');
+  a.textContent=p==='starvios'?(auth?'Canal ✓':'Canal —'):p==='tiktok'?(auth?'Link ✓':'Link —'):(auth?'Cuenta ✓':'Cuenta —');
+  a.title=p==='starvios'?(auth?'Canal público guardado; NO es un inicio de sesión OAuth':'Canal no configurado'):p==='tiktok'?(auth?'LIVE de TikTok vinculado por enlace':'TikTok no vinculado'):(auth?'Cuenta autorizada en GREÑA':'Cuenta no vinculada');
 
   const liveLabel=p==='tiktok'||p==='starvios'?'LIVE':'Chat';
   l.className='state-chip'+chipClass(chatState)+(chatState==='ready'?' live':'');
@@ -102,7 +109,7 @@ function renderPlatforms(){
    l.className='state-chip'+(s.live===true?' on':s.live===false?' off':' waiting');
    e.title='Starvios: eventos detectados experimentalmente desde el chat público y frames explícitos.';
   }
-  btn.textContent=auth?'Desconectar':'Conectar';btn.classList.toggle('connected',auth);btn.title=auth?`Desconectar ${labels[p]}`:`Conectar ${labels[p]}`;
+  btn.textContent=p==='starvios'?(auth?'Cambiar enlace':'Conectar'):(auth?'Desconectar':'Conectar');btn.classList.toggle('connected',auth&&p!=='starvios');btn.title=p==='starvios'?'Abrir formulario para vincular o cambiar el canal de Starvios':auth?`Desconectar ${labels[p]}`:`Conectar ${labels[p]}`;
  }
  maybeOnboarding();
 }
@@ -184,35 +191,140 @@ $('loginTikTok').onclick=()=>platformAction('tiktok','TikTok');
 $('loginTwitch').onclick=()=>platformAction('twitch','Twitch');
 $('loginKick').onclick=()=>platformAction('kick','Kick');
 $('loginYouTube').onclick=()=>platformAction('youtube','YouTube');
-$('loginStarvios').onclick=async()=>{
-  if(state.status.starvios?.authenticated){
-    if(!confirm('¿Desconectar el canal de Starvios de GREÑA LIVE?'))return;
-    try{
-      if(chatWS?.readyState===WebSocket.OPEN)chatWS.send(JSON.stringify({type:'disconnect-platform',platform:'starvios'}));
-      const r=await fetch('/api/disconnect/starvios',{method:'POST'});if(!r.ok)throw Error('No pude desconectar Starvios.');
-      state.status.starvios={connected:false,authenticated:false,label:'No conectado',account:''};
-      toast('Starvios desconectado.');await loadInitial();
-    }catch(e){toast(String(e.message||e))}
+// El prompt() del navegador no funciona de forma fiable dentro de Electron.
+// Starvios NO requiere contraseña: la vinculación es un nombre/enlace público.
+// Usamos un modal propio y persistimos las preferencias vía HTTP; el motor 8788
+// se reconecta automáticamente, aunque el WebSocket se encuentre reiniciando.
+async function refreshStarviosPrefs(updateUI=true){
+  try{
+    const r=await fetch('/api/connection-prefs',{cache:'no-store'});
+    if(!r.ok)throw Error('El motor de chat no responde');
+    const d=await r.json();
+    if(!d.ok)throw Error(d.error||'No pude leer los canales guardados');
+    state.starviosSavedChannel=String(d.prefs?.starviosEnabled?d.prefs?.starviosUrl||'':'').trim();
+    if(updateUI)renderPlatforms();
+    return d;
+  }catch{return null}
+}
+function normalizeStarviosChannelInput(input){
+  let value=String(input||'').trim();
+  if(!value)return '';
+  if(value.includes('/')||/^https?:/i.test(value)){
+    let u;
+    try{u=new URL(/^https?:\/\//i.test(value)?value:'https://'+value)}catch{return ''}
+    if(!/^(www\.)?starvios\.com$/i.test(u.hostname))return '';
+    const path=u.pathname.split('/').filter(Boolean);
+    if(!path.length)return '';
+    value=path[path.length-1];
+  }
+  value=value.replace(/^@/,'').trim();
+  return /^[a-zA-Z0-9_.-]{2,40}$/.test(value)?value:'';
+}
+function showStarviosHint(message,kind=''){
+  const hint=$('starviosLinkHint');
+  if(!hint)return;
+  hint.textContent=message;
+  hint.classList.toggle('error',kind==='error');
+  hint.classList.toggle('success',kind==='success');
+}
+function closeStarviosLinkModal(){
+  const modal=$('starviosLinkModal');
+  if(!modal)return;
+  modal.classList.remove('show');
+  modal.setAttribute('aria-hidden','true');
+}
+function openStarviosLinkModal(){
+  const modal=$('starviosLinkModal'),input=$('starviosLinkInput'),remove=$('starviosLinkDisconnect');
+  if(!modal||!input)return toast('No se pudo abrir el formulario de Starvios. Revisa la versión instalada.');
+  const saved=state.starviosSavedChannel||'';
+  input.value=saved||'';
+  if(remove)remove.hidden=!saved;
+  showStarviosHint(saved?'Canal guardado. Puedes cambiar el enlace o desvincularlo.':'Introduce tu usuario o el enlace público de Starvios; no se necesita contraseña.');
+  modal.classList.add('show');
+  modal.setAttribute('aria-hidden','false');
+  setTimeout(()=>input.focus(),30);
+}
+async function submitStarviosLink(e){
+  e?.preventDefault();
+  const value=normalizeStarviosChannelInput($('starviosLinkInput')?.value);
+  const save=$('starviosLinkConnect'),remove=$('starviosLinkDisconnect'),cancel=$('starviosLinkCancel');
+  if(!value){
+    showStarviosHint('Escribe un usuario válido o un enlace de starvios.com/tuusuario.','error');
+    $('starviosLinkInput')?.focus();
     return;
   }
-  const last=String(state.status.starvios?.account||'').replace(/^@/,'');
-  const account=prompt('Tu usuario o enlace público de Starvios:',last);
-  if(account===null)return;
-  const value=String(account||'').trim();
-  if(!value)return toast('Indica el usuario o enlace de Starvios.');
-  if(!chatWS||chatWS.readyState!==WebSocket.OPEN)return toast('El motor de chat se está reconectando. Vuelve a intentarlo.');
-  chatWS.send(JSON.stringify({type:'connect',platform:'starvios',url:value}));
-  toast('Conectando Starvios y guardando el canal…');
-};
+  save.disabled=true;
+  if(remove)remove.disabled=true;
+  if(cancel)cancel.disabled=true;
+  showStarviosHint('Guardando el canal y activando la conexión automática…');
+  try{
+    const r=await fetch('/api/connection-prefs',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({autoConnect:true,starviosUrl:value,starviosEnabled:true})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw Error(d.error||'GREÑA Chat no respondió. Comprueba que el motor de chat esté encendido.');
+    state.starviosSavedChannel=value;
+    renderPlatforms();
+    closeStarviosLinkModal();
+    toast('Starvios @'+value+' guardado. GREÑA intentará detectar el LIVE y conectar el chat.');
+    // "Guardado" no significa todavía "LIVE conectado"; el motor informará su estado real.
+  }catch(error){
+    showStarviosHint(error?.message||'No se pudo guardar el canal de Starvios.','error');
+  }finally{
+    save.disabled=false;
+    if(remove)remove.disabled=false;
+    if(cancel)cancel.disabled=false;
+  }
+}
+async function unlinkStarviosLink(){
+  const remove=$('starviosLinkDisconnect'),save=$('starviosLinkConnect'),cancel=$('starviosLinkCancel');
+  if(remove)remove.disabled=true;
+  if(save)save.disabled=true;
+  if(cancel)cancel.disabled=true;
+  showStarviosHint('Desvinculando Starvios…');
+  try{
+    const r=await fetch('/api/disconnect/starvios',{method:'POST'});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw Error(d.error||'No pude desvincular el canal.');
+    // El endpoint principal coordina la desconexión; confirmamos además
+    // que la autoconexión y el canal persitido queden desactivados.
+    const clear=await fetch('/api/connection-prefs',{
+      method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({starviosUrl:'',starviosEnabled:false})
+    });
+    const cleared=await clear.json().catch(()=>({}));
+    if(!clear.ok||!cleared.ok)throw Error('Desconectado, pero no pude limpiar la conexión guardada. Reinicia el motor y vuelve a intentarlo.');
+    state.starviosSavedChannel='';
+    state.bridge.starvios=false;
+    state.status.starvios={connected:false,authenticated:false,configured:false,account:'',label:'No conectado'};
+    closeStarviosLinkModal();
+    await loadInitial();
+    toast('Canal Starvios desvinculado.');
+  }catch(error){
+    showStarviosHint(error?.message||'No se pudo desvincular el canal.','error');
+  }finally{
+    if(remove)remove.disabled=false;
+    if(save)save.disabled=false;
+    if(cancel)cancel.disabled=false;
+  }
+}
+$('loginStarvios').addEventListener('click',openStarviosLinkModal);
+$('starviosLinkCancel')?.addEventListener('click',closeStarviosLinkModal);
+$('starviosLinkForm')?.addEventListener('submit',submitStarviosLink);
+$('starviosLinkDisconnect')?.addEventListener('click',unlinkStarviosLink);
+$('starviosLinkInput')?.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();closeStarviosLinkModal()}});
+$('starviosLinkModal')?.addEventListener('click',e=>{if(e.target===$('starviosLinkModal'))closeStarviosLinkModal()});
 
 function onboardingKey(){return profileKey('grenaOnboardingDismissedV4')}
 function maybeOnboarding(){
  const box=$('onboarding');if(!box||!state.profile)return;
- const any=['tiktok','twitch','kick'].some(p=>state.status[p]?.authenticated);
+ const any=['tiktok','twitch','kick'].some(p=>state.status[p]?.authenticated)||!!state.starviosSavedChannel;
  const dismissed=localStorage.getItem(onboardingKey())==='1';
  box.classList.toggle('show',!any&&!dismissed);box.setAttribute('aria-hidden',any||dismissed?'true':'false');
 }
-document.querySelectorAll('[data-onboard]').forEach(b=>b.onclick=()=>{const p=b.dataset.onboard,label=p==='tiktok'?'TikTok':p==='twitch'?'Twitch':'Kick';connectPlatformAccount(p,label)});
+document.querySelectorAll('[data-onboard]').forEach(b=>b.onclick=()=>{const p=b.dataset.onboard;if(p==='starvios')return openStarviosLinkModal();const label=p==='tiktok'?'TikTok':p==='twitch'?'Twitch':'Kick';connectPlatformAccount(p,label)});
 $('onboardingLater')?.addEventListener('click',()=>{localStorage.setItem(onboardingKey(),'1');maybeOnboarding()});
 
 // ===== NAVEGACIÓN PERSISTENTE =====
@@ -599,4 +711,4 @@ $('soundboardFile')?.addEventListener('change',async e=>{
  }catch(err){renderSoundPad(slot);toast(err.message||'No se pudo guardar el audio.')}
 });
 
-(async()=>{if(!(await initAccount()))return;await loadInitial();await loadSoundboard();connectCore();connectChatEngine();const m=moduleFromHash();if(m)openModule(m,{updateHash:false})})();
+(async()=>{if(!(await initAccount()))return;await refreshStarviosPrefs(false);await loadInitial();await loadSoundboard();connectCore();connectChatEngine();const m=moduleFromHash();if(m)openModule(m,{updateHash:false})})();
