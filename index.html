@@ -195,6 +195,23 @@
     <div class="tiktok-link-actions"><button type="button" id="tiktokLinkCancel" class="secondary">Cancelar</button><button type="button" id="tiktokLinkConnect" class="primary">Conectar LIVE</button></div>
   </section>
 </div>
+<div class="tiktok-link-backdrop starvios-link-backdrop" id="starviosLinkModal" aria-hidden="true">
+  <section class="tiktok-link-card starvios-link-card" role="dialog" aria-modal="true" aria-labelledby="starviosLinkTitle">
+    <div class="tiktok-link-brand starvios-link-brand"><img src="/assets/platforms/starvios.svg" alt=""><span>STARVIOS LIVE</span></div>
+    <h2 id="starviosLinkTitle">Vincular canal de Starvios</h2>
+    <p>Pega el enlace público de tu canal o escribe tu usuario. GREÑA guardará el canal en este equipo e intentará detectar el chat del directo automáticamente.</p>
+    <form id="starviosLinkForm">
+      <label for="starviosLinkInput">Usuario o enlace de Starvios</label>
+      <input id="starviosLinkInput" type="text" inputmode="url" maxlength="180" autocomplete="off" spellcheck="false" placeholder="https://www.starvios.com/tuusuario" required>
+      <small class="starvios-link-hint" id="starviosLinkHint" role="status" aria-live="polite">No necesitas contraseña. Vincular el canal no significa que el LIVE esté conectado.</small>
+      <div class="tiktok-link-actions starvios-link-actions">
+        <button type="button" class="secondary starvios-disconnect" id="starviosLinkDisconnect" hidden>Desvincular</button>
+        <button type="button" class="secondary" id="starviosLinkCancel">Cancelar</button>
+        <button type="submit" class="primary" id="starviosLinkConnect">Guardar y conectar</button>
+      </div>
+    </form>
+  </section>
+</div>
 <div class="onboarding-backdrop" id="onboarding" aria-hidden="true">
   <section class="onboarding-card" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
     <div class="onboarding-badge">GREÑA LIVE PRO</div>
@@ -204,6 +221,7 @@
       <button type="button" data-onboard="tiktok"><img src="/assets/platforms/tiktok.webp" alt=""> <span><b>TikTok</b><small>Link del LIVE · sin login</small></span><i>Conectar</i></button>
       <button type="button" data-onboard="twitch"><img src="/assets/platforms/twitch.webp" alt=""> <span><b>Twitch</b><small>Autorización segura</small></span><i>Conectar</i></button>
       <button type="button" data-onboard="kick"><img src="/assets/platforms/kick.svg" alt=""> <span><b>Kick</b><small>OAuth + LIVE</small></span><i>Conectar</i></button>
+      <button type="button" data-onboard="starvios"><img src="/assets/platforms/starvios.svg" alt=""> <span><b>Starvios</b><small>Usuario o enlace del canal · sin contraseña</small></span><i>Conectar</i></button>
     </div>
     <button type="button" class="onboarding-later" id="onboardingLater">Continuar por ahora</button>
   </section>
