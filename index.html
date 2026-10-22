@@ -126,7 +126,7 @@
           </article>
           <article class="platform-row" data-platform="youtube">
             <div class="platform-id"><span class="platform-logo" style="color:#ff3030;font-weight:900">▶</span><div><b>YouTube</b><small id="youtubeAccount">Enlace LIVE no configurado</small></div></div>
-            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="youtubeAuth">Enlace</span><span class="state-chip" id="youtubeLive">Chat</span><span class="state-chip" id="youtubeEvents">Eventos</span></div><button id="loginYouTube" class="platform-action">Configurar</button></div>
+            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="youtubeAuth">Enlace</span><span class="state-chip" id="youtubeLive">Chat</span><span class="state-chip" id="youtubeEvents">Eventos</span></div><button id="loginYouTube" class="platform-action">Conectar LIVE</button></div>
           </article>
           <article class="platform-row" data-platform="starvios">
             <div class="platform-id"><span class="platform-logo"><img src="/assets/platforms/starvios.svg" alt="Starvios"></span><div><b>Starvios</b><small id="starviosAccount">Canal sin configurar</small></div></div>
@@ -193,6 +193,28 @@
     <input id="tiktokLiveUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://www.tiktok.com/@grena_rd/live">
     <small id="tiktokLinkHint">No necesitas iniciar sesión ni autorizar permisos de TikTok.</small>
     <div class="tiktok-link-actions"><button type="button" id="tiktokLinkCancel" class="secondary">Cancelar</button><button type="button" id="tiktokLinkConnect" class="primary">Conectar LIVE</button></div>
+  </section>
+</div>
+<div class="tiktok-link-backdrop" id="starviosLinkModal" aria-hidden="true">
+  <section class="tiktok-link-card" role="dialog" aria-modal="true" aria-labelledby="starviosLinkTitle">
+    <div class="tiktok-link-brand"><img src="/assets/platforms/starvios.svg" alt=""><span>STARVIOS LIVE</span></div>
+    <h2 id="starviosLinkTitle">Conectar canal de Starvios</h2>
+    <p>Introduce tu @usuario o el enlace público de tu canal. GREÑA leerá los eventos disponibles sin solicitar tu contraseña. No es una autorización OAuth.</p>
+    <label for="starviosLiveUrl">Usuario o enlace público</label>
+    <input id="starviosLiveUrl" type="text" autocomplete="off" placeholder="https://starvios.com/tuusuario">
+    <small id="starviosLinkHint" role="status">La conexión detectará el LIVE cuando Starvios lo publique.</small>
+    <div class="tiktok-link-actions"><button type="button" id="starviosLinkCancel" class="secondary">Cancelar</button><button type="button" id="starviosLinkConnect" class="primary">Conectar canal</button></div>
+  </section>
+</div>
+<div class="tiktok-link-backdrop" id="youtubeLinkModal" aria-hidden="true">
+  <section class="tiktok-link-card" role="dialog" aria-modal="true" aria-labelledby="youtubeLinkTitle">
+    <div class="tiktok-link-brand"><img src="/assets/youtube-logo.svg" alt=""><span>YOUTUBE LIVE</span></div>
+    <h2 id="youtubeLinkTitle">Conectar directo de YouTube</h2>
+    <p>Usa el enlace público de tu transmisión para leer el chat y los eventos que proporciona YouTube. No necesitas iniciar sesión aquí; el motor requiere una clave YouTube Data API configurada por el administrador.</p>
+    <label for="youtubeLiveUrl">Enlace del vídeo en directo</label>
+    <input id="youtubeLiveUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://www.youtube.com/live/XXXXXXXXXXX">
+    <small id="youtubeLinkHint" role="status">La autenticación OAuth de YouTube es independiente de esta conexión por enlace.</small>
+    <div class="tiktok-link-actions"><button type="button" id="youtubeLinkCancel" class="secondary">Cancelar</button><button type="button" id="youtubeLinkConnect" class="primary">Conectar LIVE</button></div>
   </section>
 </div>
 <div class="onboarding-backdrop" id="onboarding" aria-hidden="true">
