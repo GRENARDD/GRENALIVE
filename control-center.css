@@ -102,3 +102,18 @@ body.module-open .topbar,body.module-open .workspace{ /* mantener renderizado: N
 .grena-control .soundboard-config-card p{margin:0;color:#909ab0;font-size:11px;line-height:1.6}
 .grena-control .soundboard-config-card .soundboard-replace-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .grena-control .soundboard-config-card button{cursor:pointer}
+
+/* Starvios link dialog: Electron does not reliably show JavaScript prompt().
+   A native DOM modal also stays usable with a visible error/status message. */
+.starvios-link-backdrop{z-index:160}
+.starvios-link-card{border-color:rgba(255,125,191,.28);box-shadow:0 32px 110px #000c,0 0 48px rgba(255,104,182,.055)}
+.starvios-link-brand{color:#ff9bd1}
+.starvios-link-card input:focus{border-color:rgba(255,132,202,.54);box-shadow:0 0 0 3px rgba(255,125,191,.12)}
+.starvios-link-card .starvios-link-hint{display:block;min-height:29px;margin-top:9px;color:#9ba5b8;font-size:10px;line-height:1.45}
+.starvios-link-card .starvios-link-hint.error{color:#ff9aa7}
+.starvios-link-card .starvios-link-hint.success{color:#88e5b9}
+.starvios-link-actions{flex-wrap:wrap}
+.starvios-link-actions .primary{border-color:rgba(255,133,207,.32);background:linear-gradient(135deg,rgba(237,94,174,.35),rgba(111,76,202,.35))}
+.starvios-link-actions .starvios-disconnect{margin-right:auto;border-color:rgba(255,126,148,.26);color:#ffacb9}
+.starvios-link-actions [hidden]{display:none!important}
+@media(max-width:420px){.starvios-link-card{padding:19px}.starvios-link-actions{justify-content:stretch}.starvios-link-actions button{flex:1}.starvios-link-actions .starvios-disconnect{flex-basis:100%}}
