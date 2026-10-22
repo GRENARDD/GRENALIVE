@@ -227,6 +227,29 @@ function showStarviosHint(message,kind=''){
   hint.classList.toggle('error',kind==='error');
   hint.classList.toggle('success',kind==='success');
 }
+function showStarviosDiagnostics(data){
+  const out=$('starviosLiveDiagnostics');
+  if(!out)return;
+  const d=data?.starviosDiagnostics||{};
+  if(!d.running){
+    out.textContent='Lector: DETENIDO · el canal puede estar guardado, pero no está escuchando mensajes. Comprueba que el motor GREÑA Chat esté activo.';
+    return;
+  }
+  const ago=at=>at?Math.max(0,Math.round((Date.now()-Number(at))/1000))+' s':'sin datos';
+  const chat=d.visualChatReady?'Chat visual activo':d.publicEventsReady?'Lectura pública de chat activa':'Chat esperando conexión';
+  const live=d.live===true?'LIVE detectado':d.live===false?'LIVE fuera de línea':'LIVE sin confirmar';
+  const audience=d.viewerCount===null||d.viewerCount===undefined?'sin cifra verificable':String(d.viewerCount)+' espectadores';
+  const details=[
+    'Lector: ACTIVO · '+live,
+    chat+' · último mensaje: '+ago(d.lastChatAt),
+    'Contador: '+audience+' · actualización: '+ago(d.lastViewerAt),
+    'Identificador de directo: '+(d.streamIdResolved?'detectado':'no detectado')
+  ];
+  if(d.lastReaderError)details.push('Navegador: '+String(d.lastReaderError).slice(0,145));
+  if(d.lastChatDbError)details.push('Datos de chat: '+String(d.lastChatDbError).slice(0,145));
+  if(d.lastDirectoryError)details.push('Espectadores: '+String(d.lastDirectoryError).slice(0,145));
+  out.textContent=details.join('\n');
+}
 function closeStarviosLinkModal(){
   const modal=$('starviosLinkModal');
   if(!modal)return;
@@ -243,6 +266,13 @@ function openStarviosLinkModal(){
   modal.classList.add('show');
   modal.setAttribute('aria-hidden','false');
   setTimeout(()=>input.focus(),30);
+  const details=$('starviosLiveDiagnostics');
+  if(details)details.textContent='Consultando el estado real del chat y contador...';
+  refreshStarviosPrefs(false).then(data=>{
+    if(!$('starviosLinkModal')?.classList.contains('show'))return;
+    if(data)showStarviosDiagnostics(data);
+    else if(details)details.textContent='Motor de chat sin respuesta. Revisa los registros de GREÑA.';
+  });
 }
 async function submitStarviosLink(e){
   e?.preventDefault();
