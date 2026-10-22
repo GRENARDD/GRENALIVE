@@ -40,6 +40,7 @@ test('sin Chrome sigue consultando espectadores y mantiene reconexión visual',a
  let scans=0,reconnections=0;
  const reader=new StarviosReader();
  reader.scanLive=async()=>{scans++};
+ reader.scanStreamIdentity=async()=>{};
  reader.openChatPage=async()=>{throw Error('Chrome no disponible')};
  reader.scheduleRecovery=()=>{reconnections++};
  try{
