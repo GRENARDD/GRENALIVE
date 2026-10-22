@@ -390,6 +390,14 @@ export class StarviosReader {
       if(!candidate||typeof candidate!=='object'||seen.has(candidate))continue;
       seen.add(candidate);
       if(Array.isArray(candidate)){queue.push(...candidate.slice(0,8));continue}
+      // The Starvios realtime socket can expose explicit public chat rows
+      // before React renders them. Forward only typed messages for this stream.
+      if(candidate.stream_id&&this.streamId&&String(candidate.stream_id)!==this.streamId)continue;
+      const directChat=parseStarviosPublicChat(candidate);
+      if(directChat){
+        this.deliverChat({...directChat,source:'Starvios WebSocket'});
+        return;
+      }
       const event=normalizeStarviosEvent(candidate);
       if(event){this.deliverEvent(event);return}
       if(candidate.kind&&candidate.id){
