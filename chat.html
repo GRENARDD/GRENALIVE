@@ -5484,6 +5484,24 @@ async function syncSavedConnections(){
   }catch{}
 }
 
+// Diagnóstico del chat de TikTok SIN comentarios personales ni identidades.
+// Recibido = evento que entregó el conector; emitido = enviado al multichat.
+// Si faltan comentarios incluso en "recibido", el fallo está aguas arriba.
+async function refreshTikTokCommentDiagnostics(){
+  try{
+    const r=await fetch('/api/connection-prefs',{cache:'no-store'});
+    if(!r.ok)return;
+    const d=await r.json(),c=d?.tiktokDiagnostics?.comments;
+    if(!c)return;
+    const node=$('tiktokStatus');if(!node)return;
+    node.title='TikTok · eventos recibidos: '+c.sessionReceived+' · enviados al chat: '+c.sessionForwarded+' · sin texto: '+c.empty+' · silenciados: '+c.muted+'. Si faltan eventos antes de llegar, revisa el conector de TikTok.';
+    if(d.runtime?.tiktok)node.textContent='TikTok: conectado · '+(Number(c.sessionForwarded)||0)+' mensajes';
+  }catch{}
+}
+refreshTikTokCommentDiagnostics();
+const tikTokDiagTimer=setInterval(refreshTikTokCommentDiagnostics,15000);
+window.addEventListener('pagehide',()=>clearInterval(tikTokDiagTimer),{once:true});
+
 /* =====================================================
    ESTADO GENERAL
 ===================================================== */
