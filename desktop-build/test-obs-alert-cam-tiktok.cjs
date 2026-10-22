@@ -79,9 +79,11 @@ test('Cam Room verifica el gateway HTTPS y rechaza enlaces viejos o de otro serv
   assert.match(cam,/tunnelError/);
 });
 test('TikTok reconoce textos anidados y cuenta posibles descartes sin mostrar datos privados',()=>{
-  const start=chat.indexOf('function extractTikTokChat(data) {'),end=chat.indexOf('\n}\n',start)+2;
+  // Windows git checkout usa CRLF en algunos archivos; normalizamos antes del corte.
+  const normalizedChat=chat.replace(/\r\n/g,'\n');
+  const start=normalizedChat.indexOf('function extractTikTokChat(data) {'),end=normalizedChat.indexOf('\n}\n',start)+2;
   assert.ok(start>0&&end>start);
-  const code=chat.slice(start,end);
+  const code=normalizedChat.slice(start,end);
   assert.match(code,/data\?\.data\?\.comment\?\.text/);
   const ctx=vm.createContext({
     firstString:(...xs)=>xs.find(x=>typeof x==='string'&&x.trim())||'',
