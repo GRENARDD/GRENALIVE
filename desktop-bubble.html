@@ -96,7 +96,7 @@ async function updateActivity(){
   const data=await response.json();
   for(const a of (data.activity||[]).slice().reverse()){
    const at=Date.parse(a.receivedAt||'')||Number(a.receivedAt)||0;
-   if(at<startedAt)return;
+   if(at<startedAt)continue;
    const key=[a.platform,a.event,a.name,a.receivedAt].join('|');
    if(key===lastActivityKey)continue;
    lastActivityKey=key;
