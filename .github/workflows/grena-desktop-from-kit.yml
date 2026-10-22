@@ -12,6 +12,7 @@ on:
       - 'desktop-build/**'
       - 'index.html'
       - 'control-center.js'
+      - 'youtube-live.mjs'
       - 'afterglow-overlay.html'
       - 'assets/alerts-theme-picker.js'
       - 'tests/desktop-connections-obs.test.cjs'
