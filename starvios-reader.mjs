@@ -57,6 +57,9 @@ export class StarviosReader {
     this.chatFingerprints=new Map();
     this.eventTimer=null;
     this.eventBusy=false;
+    this.streamIdentityTimer=null;
+    this.streamIdentityBusy=false;
+    this.lastStreamIdentityError='';
     this.streamId='';
     this.channelId='';
     this.sessionStartedAt=0;
@@ -92,7 +95,7 @@ export class StarviosReader {
       viewerSource:this.lastViewerReportedSource,
       lastEventPollAt:this.lastEventPollAt,lastBrowserScanAt:this.lastBrowserScanAt,
       lastChatDbError:this.lastChatDbError,lastDirectoryError:this.lastDirectoryError,
-      lastReaderError:this.lastReaderError,
+      lastReaderError:this.lastReaderError,lastStreamIdentityError:this.lastStreamIdentityError,
       live:this.lastLive
     };
   }
@@ -106,7 +109,7 @@ export class StarviosReader {
     this.eventCursorAt=this.sessionStartedAt;
     this.lastViewerCount=null;
     this.lastChatAt=0;this.lastViewerAt=0;this.lastEventPollAt=0;this.lastBrowserScanAt=0;
-    this.lastChatDbError='';this.lastDirectoryError='';this.lastReaderError='';this.lastChatSource='';
+    this.lastChatDbError='';this.lastDirectoryError='';this.lastReaderError='';this.lastChatSource='';this.lastStreamIdentityError='';
     this.lastViewerReportedSource='Starvios · esperando espectadores';
     this.onViewers({count:null,source:this.lastViewerReportedSource,channel});
     const generation=++this.generation;
@@ -114,6 +117,9 @@ export class StarviosReader {
     // Desktop builds can use the read-only public API even when Playwright fails.
     this.liveTimer=setInterval(()=>this.scanLive().catch(e=>this.handleScanError(e)),6000);
     this.eventTimer=setInterval(()=>this.scanEvents().catch(e=>this.handleScanError(e)),4000);
+    // Chat identity discovery is not gated on getting an audience number first.
+    this.streamIdentityTimer=setInterval(()=>this.scanStreamIdentity().catch(e=>this.handleScanError(e)),15000);
+    this.scanStreamIdentity().catch(e=>this.handleScanError(e));
     this.scanLive().catch(e=>this.handleScanError(e));
     try {
       await this.openChatPage(generation);
@@ -371,6 +377,39 @@ export class StarviosReader {
     if(this.eventKeys.size>600)for(const [id,at] of this.eventKeys)if(now-at>300000)this.eventKeys.delete(id);
     if(kind==='follow'&&!anonymous)this.followNameEvents++;
     this.onEvent({...raw,platform:'starvios',kind,user,anonymous,amount,channel:this.channel});
+  }
+
+  async scanStreamIdentity(){
+    if(!this.running||!this.channel||this.streamId||this.streamIdentityBusy)return;
+    this.streamIdentityBusy=true;
+    const generation=this.generation;
+    try{
+      const db=await fetchStarviosDbLiveDirectory(this.channel,{
+        baseUrl:STARVIOS_PUBLIC_DB_URL,key:STARVIOS_PUBLIC_KEY,timeoutMs:5000
+      });
+      if(!this.running||generation!==this.generation||this.streamId)return;
+      const row=(db?.rows||[]).find(x=>x&&String(x.status||'').toLowerCase()==='live'
+        &&String(x.profiles?.username||'').toLowerCase()===this.channel.toLowerCase()
+        &&/^[0-9a-f-]{20,80}$/i.test(String(x.id||'')));
+      if(!row)throw Error('Directo sin identificador público verificable');
+      this.streamId=String(row.id);
+      this.channelId=String(row.channel_id||'');
+      this.lastStreamIdentityError='';
+      if(this.lastLive!==true){
+        this.lastLive=true;
+        this.onLive({live:true,channel:this.channel,source:'Starvios base pública · directo localizado'});
+      }
+      const audience=parseStarviosLiveDirectory(db,this.channel);
+      if(audience.count!==null&&this.lastViewerCount===null){
+        this.lastViewerCount=audience.count;
+        this.lastViewerAt=Date.now();
+        this.lastViewerReportedSource='Starvios base pública · identidad del LIVE';
+        this.onViewers({count:audience.count,channel:this.channel,source:this.lastViewerReportedSource});
+      }
+      this.scanEvents().catch(error=>this.handleScanError(error));
+    }catch(error){
+      this.lastStreamIdentityError=String(error?.message||error).slice(0,240);
+    }finally{this.streamIdentityBusy=false}
   }
 
   // Public read-only records from the same live chat Starvios displays.
@@ -796,13 +835,14 @@ export class StarviosReader {
     if(this.timer) clearInterval(this.timer);
     if(this.liveTimer)clearInterval(this.liveTimer);
     if(this.eventTimer)clearInterval(this.eventTimer);
+    if(this.streamIdentityTimer)clearInterval(this.streamIdentityTimer);
     if(this.reconnectTimer)clearTimeout(this.reconnectTimer);
-    this.timer=null;this.liveTimer=null;this.eventTimer=null;this.reconnectTimer=null;
+    this.timer=null;this.liveTimer=null;this.eventTimer=null;this.streamIdentityTimer=null;this.reconnectTimer=null;
     this.reconnectFailures=0;
     this.missingContainerSince=0;
     this.lastLive=null;this.liveDirectoryMisses=0;this.lastDirectoryGoodAt=0;this.directoryPrimaryRetryAt=0;this.directoryFallbackRetryAt=0;this.directoryBrowserRetryAt=0;this.lastDirectoryPrimaryError='';this.lastDirectoryCardError='';
     this.lastViewerCount=null;this.eventKeys.clear();this.eventSeen.clear();this.chatSeen.clear();this.chatFingerprints.clear();this.profileNames.clear();
-    this.dbEventsReady=false;this.eventBusy=false;this.streamId='';this.channelId='';
+    this.dbEventsReady=false;this.eventBusy=false;this.streamIdentityBusy=false;this.streamId='';this.channelId='';this.lastStreamIdentityError='';
     this.followerTotal=null;this.followerPollAt=0;this.followNameEvents=0;
     const old=this.channel;
     this.running=false;
