@@ -333,6 +333,7 @@ $('onboardingLater')?.addEventListener('click',()=>{localStorage.setItem(onboard
 const moduleLayer=$('moduleLayer'), moduleFrame=$('moduleFrame'), moduleTitle=$('moduleTitle');
 const moduleMap={
   alerts:{path:'/alerts.html?embed=1',title:'Editor de alertas'},
+  studio:{path:'/afterglow-studio.html?embed=1',title:'AFTERGLOW Studio · Editor de alertas'},
   widgets:{path:'/widgets.html?embed=1',title:'Widgets OBS'},
   cam:{path:'/cam-room.html?embed=1',title:'GREÑA Cam Room · Cámaras para OBS'},
   catalog:{path:'/gift-catalog.html?embed=1',title:'Catálogo universal de regalos'}
