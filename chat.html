@@ -4492,7 +4492,7 @@ function openWS(){
             : 'ws')
           + '://'
           + location.host
-          + '/chat-ws'
+          + (location.port === '8788' ? '/ws' : '/chat-ws')
         );
 
       ws.onopen = () => {
@@ -5500,7 +5500,7 @@ updateVoiceStatus();
 // Respaldo HTTP: mantiene el multichat visible incluso si falla el WebSocket.
 async function pollLiveChat(){
   try{
-    const res=await fetch('/api/chat/live-messages',{cache:'no-store'});
+    const res=await fetch(location.port === '8788' ? '/api/live-messages' : '/api/chat/live-messages',{cache:'no-store'});
     if(!res.ok)return;
     const payload=await res.json();
     for(const item of (Array.isArray(payload.messages)?payload.messages:[])){
