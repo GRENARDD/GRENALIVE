@@ -228,17 +228,50 @@ export class StarviosReader {
     const generation=this.generation;
     try {
       const result=await this.page.evaluate(()=>{
-        const selector='main div.overscroll-contain.overflow-y-auto';
-        const container=document.querySelector(selector);
+        const container=document.querySelector('main div.overscroll-contain.overflow-y-auto')
+          ||document.querySelector('main [class*="overflow-y-auto"]')
+          ||document.querySelector('[data-testid="chat-messages"]');
         const state=window.__grenaStarvios||(window.__grenaStarvios={
-          container:null,seen:new WeakSet(),seenIds:new Set(),readyAt:0
+          container:null,seen:new WeakSet(),seenIds:new Set(),readyAt:0,queued:[],observer:null
         });
-        if(!container) return {ready:false,messages:[]};
-        if(container!==state.container) {
-          state.container=container;
-          state.seen=new WeakSet();
-          state.seenIds=new Set();
-          state.readyAt=Date.now()+1800;
+        if(!container)return {ready:false,messages:[]};
+        // Capture fast DOM mutations even if a message scrolls out before the
+        // next 1.1-second scan. Keep real row references until consumed.
+        const findRows=root=>{
+          if(!root||root.nodeType!==1)return [];
+          const buttons=[];
+          if(root.matches?.('p.break-words button.font-semibold'))buttons.push(root);
+          buttons.push(...root.querySelectorAll('p.break-words button.font-semibold'));
+          const rows=[];
+          for(const button of buttons){
+            let row=button;
+            while(row&&row.parentElement!==container&&row!==container)row=row.parentElement;
+            if(row&&row!==container&&!rows.includes(row))rows.push(row);
+          }
+          return rows;
+        };
+        if(container!==state.container){
+          state.observer?.disconnect();
+          state.container=container;state.seen=new WeakSet();state.seenIds=new Set();
+          state.queued=[];
+          // Existing history is never replayed as new speech.
+          for(const row of findRows(container))state.seen.add(row);
+          state.readyAt=Date.now();
+          state.observer=new MutationObserver(mutations=>{
+            for(const mutation of mutations){
+              if(mutation.type==='childList'){
+                for(const node of mutation.addedNodes){
+                  for(const row of findRows(node))state.queued.push(row);
+                }
+                // Message body may appear after the author label.
+                for(const row of findRows(mutation.target))state.queued.push(row);
+              }else if(mutation.type==='characterData'){
+                for(const row of findRows(mutation.target.parentElement))state.queued.push(row);
+              }
+            }
+            if(state.queued.length>350)state.queued.splice(0,state.queued.length-350);
+          });
+          state.observer.observe(container,{subtree:true,childList:true,characterData:true});
         }
         const messages=[];
         const extract=node=>{
@@ -249,10 +282,13 @@ export class StarviosReader {
           if(node.tagName==='BR') return '\n';
           return Array.from(node.childNodes).map(extract).join('');
         };
-        for(const row of container.children) {
-          if(state.seen.has(row)) continue;
+        const candidates=[...state.queued.splice(0),...findRows(container)];
+        for(const row of new Set(candidates)){
+          if(state.seen.has(row))continue;
           const name=row.querySelector('p.break-words button.font-semibold');
-          const body=name?.parentElement?.querySelector('span[class~="text-foreground/90"]');
+          const body=name?.parentElement?.querySelector('span[class~="text-foreground/90"]')
+            ||name?.parentElement?.querySelector('span.text-foreground\\/90')
+            ||name?.parentElement?.querySelector('span.break-words');
           if(!name || !body) continue;
           const user=String(name.textContent||'').trim();
           const text=extract(body).trim();
@@ -264,13 +300,15 @@ export class StarviosReader {
             const fiberKey=Object.keys(row).find(k=>k.startsWith('__reactFiber$'));
             id=fiberKey?String(row[fiberKey]?.key||''):'';
           } catch {}
-          if(id.startsWith('tmp-')) continue;
+          // "tmp-" can be a legitimate optimistic message from Starvios.
+          // Do not discard the actual chat just because React rekeys it later.
+          if(id.startsWith('tmp-'))id='';
           if(id && state.seenIds.has(id)) continue;
           if(id) {
             state.seenIds.add(id);
             if(state.seenIds.size>1000) state.seenIds.delete(state.seenIds.values().next().value);
           }
-          if(Date.now()<state.readyAt) continue;
+          if(Date.now()<state.readyAt)continue;
           let starvies=0;
           if(row.classList.contains('border-chat-starvie/70')) {
             const value=String(row.querySelector('p.tabular-nums')?.textContent||'');
@@ -323,10 +361,10 @@ export class StarviosReader {
     const now=Date.now();
     if(id&&this.chatSeen.has(id))return;
     if(id)this.chatSeen.set(id,now);
-    // The public DB and rendered popout often report the same message with
-    // different IDs; collapse only near-simultaneous identical copies.
+    // Only collapse simultaneous identical copies from browser/API.
+    // A viewer may intentionally repeat a message seconds later.
     const fingerprint=user.toLowerCase()+'\u0000'+text;
-    if(now-(this.chatFingerprints.get(fingerprint)||0)<1800)return;
+    if(now-(this.chatFingerprints.get(fingerprint)||0)<700)return;
     this.chatFingerprints.set(fingerprint,now);
     if(this.chatSeen.size>1200)for(const [key,at] of this.chatSeen)if(now-at>300000||this.chatSeen.size>1000)this.chatSeen.delete(key);
     if(this.chatFingerprints.size>1200)for(const [key,at] of this.chatFingerprints)if(now-at>10000||this.chatFingerprints.size>1000)this.chatFingerprints.delete(key);
