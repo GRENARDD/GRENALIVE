@@ -19,6 +19,17 @@ export function starviosPublicActor(row){
  ];
  return candidates.map(person).find(name=>name&&!/^(?:usuario(?: starvios)?|nuevo seguidor|unknown|anonymous|undefined|null)$/i.test(name))||'';
 }
+// Public chat data is independent of the visual popout. Only explicitly typed
+// message rows are forwarded, never system notices or moderation records.
+export function parseStarviosPublicChat(row){
+ if(!row||!row.id||!['chat','message'].includes(String(row.kind||'').toLowerCase().trim()))return null;
+ const meta=row.meta&&typeof row.meta==='object'&&!Array.isArray(row.meta)?row.meta:{};
+ const values=[row.content,row.message,row.body,row.text,meta.content,meta.message,meta.body,meta.text];
+ const raw=values.find(value=>typeof value==='string'&&value.trim());
+ if(!raw)return null;
+ const user=starviosPublicActor(row)||'Usuario Starvios';
+ return {id:String(row.id).slice(0,128),user,text:raw.trim().slice(0,1500),starvies:safeInt(row.coins)||0};
+}
 export function parseStarviosChatEvent(row){
  if(!row||typeof row!=='object'||!row.id)return null;
  const kind=String(row.kind||'').toLowerCase().trim();
@@ -45,12 +56,12 @@ export function parseStarviosFollowerCount(data,channelId){
  if(!entry)return 0; // the public aggregate omits channels that have no followers
  return safeInt(entry.followers,10000000);
 }
-export function buildStarviosChatEventUrl(streamId,sinceIso,limit=100,includeProfiles=true,includeUserId=true){
+export function buildStarviosChatEventUrl(streamId,sinceIso,limit=100,includeProfiles=true,includeUserId=true,includeMessageFields=false){
  if(!/^[0-9a-f-]{20,80}$/i.test(String(streamId||'')))throw Error('Starvios stream id invalid');
  const u=new URL(STARVIOS_PUBLIC_DB_URL+'/live_chat_messages');
  // El join público puede cambiar en Starvios. En ese caso leemos los
  // eventos públicos sin join, conservando nombres explícitos de meta.
- const columns='id,kind,coins,meta,created_at'+(includeUserId?',user_id':'');
+ const columns=includeMessageFields?'*':'id,kind,coins,meta,created_at'+(includeUserId?',user_id':'');
  u.searchParams.set('select',includeProfiles
   ?columns+',profiles:profiles!live_chat_messages_user_id_fkey(username,display_name)'
   :columns);
