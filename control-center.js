@@ -12,7 +12,9 @@ async function initAccount(){
   $('profileAvatar').textContent=String(d.user.displayName||d.user.username||'G').trim().slice(0,1).toUpperCase();
   const chat=$('chatFrame');
   const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);
-  const wanted=cloud?`${location.origin}/chat/?embed=1&profile=${encodeURIComponent(d.user.id)}`:`http://127.0.0.1:8788/?embed=1&profile=${encodeURIComponent(d.user.id)}`;
+  // El chat se sirve SIEMPRE por el mismo origen que el panel: /chat/ -> puente 8788.
+  // El iframe directo en :8788 rompía /chat-ws, /api/chat/live-messages y los iconos estáticos.
+  const wanted=`${location.origin}/chat/?embed=1&profile=${encodeURIComponent(d.user.id)}`;
   if(chat.src!==wanted)chat.src=wanted;
   return true;
  }catch{location.replace('/login.html');return false}
