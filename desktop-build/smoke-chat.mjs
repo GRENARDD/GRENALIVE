@@ -72,6 +72,46 @@ assert.match(js,/function openStarviosLinkModal\(\)/,'El botón de Starvios no a
 assert.match(js,/starviosLinkForm.*addEventListener\('submit',submitStarviosLink\)/,'El formulario Starvios no permite guardar el canal.');
 console.log('OK: panel empaquetado incluye formulario Starvios compatible con Electron.');
 
+// Verificación real del caso reportado en OBS: navegador SIN cookie GREÑA.
+const obsResponse=await get(main+'/api/obs-token',{headers:{Cookie:cookie}});
+assert.equal(obsResponse.status,200,'No se pudo obtener el token OBS del perfil de prueba.');
+const obsToken=(await obsResponse.json()).token;
+assert.ok(typeof obsToken==='string'&&obsToken.length>=40,'Token OBS inválido.');
+const suffix='?obs='+encodeURIComponent(obsToken);
+const obsHtml=await get(main+'/chat/multichat-overlay.html'+suffix);
+assert.equal(obsHtml.status,200,'OBS multichat requiere cookie aunque la URL lleva token privado.');
+assert.match(await obsHtml.text(),/OBS_ACCESS/,'La fuente multichat empaquetada no propaga su token.');
+for(const endpoint of [
+  '/chat/api/multichat-settings'+suffix,
+  '/chat/api/multichat-history'+suffix,
+  '/chat/avatar?url='+encodeURIComponent('https://invalid.example.invalid/a.png')+'&obs='+encodeURIComponent(obsToken)
+]){
+  const res=await get(main+endpoint);
+  assert.notEqual(res.status,401,'El recurso OBS exige sesión GREÑA indebidamente: '+endpoint);
+}
+const obsNoToken=await get(main+'/chat/multichat-overlay.html');
+assert.equal(obsNoToken.status,401,'El multichat OBS sin cookie ni token NO debe abrirse.');
+console.log('OK: OBS multichat, historial y avatar autorizados por token sin cookie; acceso sin token bloqueado.');
+
+// Tema elegido persistido y visible por la fuente OBS sin cookie de inicio de sesión.
+const savedTheme=await get(main+'/api/afterglow-settings',{
+  method:'POST',headers:{'content-type':'application/json',Origin:main,Cookie:cookie},
+  body:JSON.stringify({theme:'domino',soundEnabled:false})
+});
+assert.equal(savedTheme.status,200,'No se pudo activar el tema dominó en GREÑA.');
+const currentTheme=await get(main+'/api/afterglow-settings');
+assert.equal(currentTheme.status,200,'El overlay local no puede leer el tema guardado.');
+const afterglowState=await currentTheme.json();
+assert.equal(afterglowState.settings?.theme,'domino','El motor OBS aún usa otro tema después de seleccionarlo.');
+const afterglowSource=await get(main+'/afterglow-overlay.html');
+assert.equal(afterglowSource.status,200,'No se carga el overlay de AFTERGLOW.');
+assert.match(await afterglowSource.text(),/settingsSyncTimer/,'OBS no refresca el tema al reconectar.');
+const studio=await get(main+'/afterglow-studio.html?embed=1',{headers:{Cookie:cookie}});
+assert.equal(studio.status,200,'AFTERGLOW Studio no abre en la sesión del creador.');
+assert.match(js,/studio:\{path:'\/afterglow-studio.html\?embed=1'/,'Falta navegación interna a Studio.');
+console.log('OK: clic Dominó -> tema persistente -> API de OBS sin cookie y Studio en módulo Electron.');
+
+
 const ws=new WebSocket('ws://127.0.0.1:8787/chat-ws',{headers:{Origin:main,Cookie:cookie}});
 let resolveMessage,rejectMessage;
 const unique='GRENA-CI-CHAT-'+randomBytes(6).toString('hex');
