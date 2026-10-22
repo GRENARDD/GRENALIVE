@@ -84,7 +84,7 @@ assert.match(await obsHtml.text(),/OBS_ACCESS/,'La fuente multichat empaquetada 
 for(const endpoint of [
   '/chat/api/multichat-settings'+suffix,
   '/chat/api/multichat-history'+suffix,
-  '/chat/avatar?url='+encodeURIComponent('https://invalid.example.invalid/a.png')+'&obs='+encodeURIComponent(obsToken)
+  '/chat/avatar?obs='+encodeURIComponent(obsToken)
 ]){
   const res=await get(main+endpoint);
   assert.notEqual(res.status,401,'El recurso OBS exige sesión GREÑA indebidamente: '+endpoint);
