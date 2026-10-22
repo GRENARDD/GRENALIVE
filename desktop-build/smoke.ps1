@@ -33,6 +33,9 @@ try {
    throw 'FALLO: el motor empaquetado no levantó el servicio /health.'
  }
  Write-Host 'OK: GREÑA LIVE Desktop empaquetado responde /health 200.'
+ Write-Host 'Prueba completa: motor de chat, TikTok simulado, rutas, iconos y sesiones.'
+ node desktop-build/smoke-chat.mjs
+ if ($LASTEXITCODE -ne 0) { throw 'FALLO: multichat no pudo superar la prueba integrada.' }
 } finally {
  if ($p -and !$p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
  Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
