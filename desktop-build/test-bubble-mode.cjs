@@ -122,7 +122,7 @@ test('simulación: mensaje completo, alerta completa y expansión manual',()=>{
  }
  let raf=0;
  const sandbox={
-   document,window:{grenaBubble:{resize:x=>resizes.push(x)}},ResizeObserver:class{observe(){}},WebSocket:WS,
+   document,window:{grenaBubble:{resize:x=>resizes.push(x)}},location:{protocol:'http:',host:'127.0.0.1:8787'},ResizeObserver:class{observe(){}},WebSocket:WS,
    setTimeout:()=>1,clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{},
    requestAnimationFrame:fn=>{fn();return ++raf},cancelAnimationFrame:()=>{},
    fetch:async path=>({ok:true,json:async()=>path==='/api/viewers'?{viewers:{tiktok:184}}:{activity:[]}}),
