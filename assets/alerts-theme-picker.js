@@ -6,7 +6,7 @@
  if(!buttons.length)return;
  let settings={},theme='original',busy=false;
  function show(value){
-   theme=value==='minecraft'?'minecraft':'original';
+   theme=['minecraft','domino'].includes(value)?value:'original';
    for(const btn of buttons){
      const active=btn.dataset.grenaTheme===theme;
      btn.setAttribute('aria-pressed',String(active));
@@ -40,7 +40,7 @@
      const result=await response.json();
      if(!response.ok)throw Error(result.error||'No se pudo cambiar el estilo');
      settings=result.settings||{...values,theme:next};show(settings.theme);
-     status.textContent=(theme==='minecraft'?'Minecraft activado':'Original activado')+' · Ambos enlaces OBS se actualizaron.';
+     status.textContent=(theme==='minecraft'?'Minecraft activado':theme==='domino'?'Dominó activado':'Original activado')+' · Ambos enlaces OBS se actualizaron.';
    }catch(e){show(previous);status.classList.add('style-select-error');status.textContent=e.message||'No se pudo guardar'}
    finally{buttons.forEach(b=>b.disabled=false);busy=false}
  }
