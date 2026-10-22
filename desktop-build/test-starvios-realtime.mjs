@@ -71,3 +71,28 @@ test('el puente principal no borra espectadores cuando el navegador de Starvios 
  assert.match(server,/if\(p!=='starvios'\)setViewers\(p,0,'desconectado por bridge'\)/);
  assert.match(server,/previousAvailability!==meta\.available\)pushViewers\(\)/);
 });
+
+test('chat obtiene el ID del directo aunque no haya lectura previa del contador',async()=>{
+ const original=globalThis.fetch;
+ const profile='00000000-0000-4000-8000-000000000009';
+ const audience=[];const lives=[];let eventStarts=0;
+ const reader=new StarviosReader({onViewers:m=>audience.push(m),onLive:m=>lives.push(m)});
+ reader.channel='canal';reader.running=true;reader.generation=3;
+ reader.scanEvents=async()=>{eventStarts++};
+ globalThis.fetch=async url=>{
+   if(String(url).includes('/profiles?'))return {ok:true,json:async()=>[{id:profile,username:'canal'}]};
+   if(String(url).includes('/streams?'))return {ok:true,json:async()=>[
+     {id:stream,channel_id:profile,status:'live',viewer_count:7}
+   ]};
+   return {ok:true,json:async()=>[]};
+ };
+ try{
+   await reader.scanStreamIdentity();
+   assert.equal(reader.streamId,stream);
+   assert.equal(reader.channelId,profile);
+   assert.equal(reader.lastViewerCount,7);
+   assert.equal(audience.at(-1).count,7);
+   assert.equal(lives.at(-1).live,true);
+   assert.equal(eventStarts,1);
+ }finally{reader.running=false;globalThis.fetch=original}
+});
