@@ -19,6 +19,7 @@
     </div>
     <nav class="primary-nav" aria-label="Navegación principal">
       <a class="top-link nav-home active" href="/" data-home="1">⌂ <span>Inicio</span></a>
+      <a class="top-link grena-desktop-bubble-control" id="grenaBubbleModeControl" href="/__grena_bubble_mode__" style="display:none" title="Ocultar el panel y mostrar burbuja de espectadores, chat y alertas">🫧 <span>Modo burbuja</span></a>
       <a class="top-link" href="/alerts.html" data-module="alerts">✦ <span>Alertas</span></a>
       <a class="top-link" href="/widgets.html" data-module="widgets">▦ <span>Widgets OBS</span></a>
       <a class="top-link" href="/cam-room.html" data-module="cam">▣ <span>Cam Room</span></a>
@@ -229,6 +230,7 @@
 </div>
 <div class="toast" id="toast"></div>
 <script src="/control-center.js"></script>
+<script>if(/Electron\/\d+/i.test(navigator.userAgent)){const b=document.getElementById('grenaBubbleModeControl');if(b)b.style.display='inline-flex'}</script>
 <script src="/ui-v2.js"></script>
 <script src="/app-lifecycle.js"></script>
 <script>(()=>{const e=document.getElementById('overlayUrl');if(e)e.textContent=location.origin+'/overlay.html'})();</script>
