@@ -1184,7 +1184,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 
       <div class="help">
 
-        El modo inteligente reduce emojis repetidos, flood, mensajes iguales o casi iguales, enlaces y ruido de símbolos.
+        El chat muestra los emojis, pero la voz nunca los pronuncia. El modo inteligente controla flood, mensajes repetidos, enlaces y ruido de símbolos.
         Los mensajes filtrados no se enviarán a la voz; el chat visual seguirá mostrándolos normalmente.
 
       </div>
@@ -3146,6 +3146,26 @@ function limitRepeatedMentions(text){
 }
 
 
+// GRENA_VOICE_EMOJI_FILTER_BEGIN
+// Solo para lectura de voz: el comentario ORIGINAL se mantiene visible con emojis.
+// Unicode grapheme clusters evitan pronunciar partes de emojis complejos
+// (familias, banderas, tonos de piel, corazones, keycaps, ZWJ).
+function stripEmojisForVoice(text=''){
+  const input=String(text??'');
+  if(!input)return '';
+  const units=typeof Intl!=='undefined'&&typeof Intl.Segmenter==='function'
+    ? Array.from(new Intl.Segmenter('es',{granularity:'grapheme'}).segment(input),part=>part.segment)
+    : Array.from(input);
+  const emoji=/[\p{Extended_Pictographic}\p{Emoji_Presentation}\u20E3\uFE0F\u{E0020}-\u{E007F}]/u;
+  return units
+    .filter(unit=>!emoji.test(unit))
+    .join('')
+    .replace(/[\u200D\uFE0F\u{E0020}-\u{E007F}]/gu,'')
+    .replace(/[ \t]{2,}/g,' ')
+    .trim();
+}
+// GRENA_VOICE_EMOJI_FILTER_END
+
 /* =====================================================
    LIMPIEZA FINAL
 ===================================================== */
@@ -3186,14 +3206,12 @@ function cleanTextForVoice(text){
     );
 
   /*
-   * 3. Finalmente procesamos emojis.
-   *
-   * Esto hace que la voz no intente leer
-   * cada emoji directamente.
+   * 3. Nunca pronunciar emojis ni sus descripciones.
+   *    Se siguen mostrando sin cambios en el chat visual.
    */
 
   result =
-    convertEmojisAndLimit(
+    stripEmojisForVoice(
       result
     );
 
@@ -3793,7 +3811,8 @@ function unlockVoiceFromGesture(){
 function buildSpokenText(message){
 
   const text = String(message?.text || '').trim();
-  const spokenName = String(message?.nickname || message?.user || '').trim();
+  // Un nombre de usuario también puede contener emojis: no enviarlos al TTS.
+  const spokenName = stripEmojisForVoice(String(message?.nickname || message?.user || ''));
 
   return $('voiceReadUsername')?.checked && spokenName
     ? `${spokenName} dice: ${text}`
