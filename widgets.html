@@ -48,6 +48,8 @@ fetch('/api/obs-token',{cache:'no-store'}).then(async response=>{if(!response.ok
   const protect=(pathname)=>{const u=new URL(pathname,location.origin);u.searchParams.set('obs',token);return u.toString()};
   chat=protect('/chat/multichat-overlay.html');social=protect('/social-overlay.html');loyalty=protect('/loyalty-overlay.html');
   superfans=protect('/super-fans-overlay.html');taptap=protect('/taptap-race.html');counter=protect('/viewers.html');
+  // La vista previa también debe usar el enlace OBS autorizado; la versión sin token recibe 401.
+  document.getElementById('chatPreview').src=chat;
   for(const [id,value] of Object.entries({counterUrl:counter,chatUrl:chat,socialUrl:social,loyaltyUrl:loyalty,superFansUrl:superfans,taptapUrl:taptap})){
     const el=document.getElementById(id);if(el)el.value=value;
   }
