@@ -63,6 +63,14 @@ assert.match(body,/chat-ws/,'El chat embebido no contiene el WebSocket.');
 assert.match(body,/GRENA_VOICE_EMOJI_FILTER_BEGIN/,'El instalador no incluye el filtro actualizado de emojis para voz.');
 assert.match(body,/result\s*=\s*stripEmojisForVoice\(\s*result\s*\)/,'El TTS empaquetado aún lee descripciones de emojis.');
 console.log('OK: /chat/ carga el chat completo con la sesión autenticada.');
+const panel=await get(main+'/',{headers:{Cookie:cookie}});
+assert.equal(panel.status,200,'El panel principal no abre tras iniciar sesión.');
+const panelHtml=await panel.text();
+assert.match(panelHtml,/id="starviosLinkModal"/,'El formulario Starvios falta en el HTML del instalador.');
+assert.match(panelHtml,/id="starviosLinkInput"/,'El campo de usuario Starvios no está empaquetado.');
+assert.match(js,/function openStarviosLinkModal\(\)/,'El botón de Starvios no abre el modal nuevo.');
+assert.match(js,/starviosLinkForm.*addEventListener\('submit',submitStarviosLink\)/,'El formulario Starvios no permite guardar el canal.');
+console.log('OK: panel empaquetado incluye formulario Starvios compatible con Electron.');
 
 const ws=new WebSocket('ws://127.0.0.1:8787/chat-ws',{headers:{Origin:main,Cookie:cookie}});
 let resolveMessage,rejectMessage;
