@@ -1,0 +1,48 @@
+name: Verify published GREÑA Auth Kick OAuth configuration
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/verify-kick-auth-public.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Test live Worker configuration and OAuth redirect without user login
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { randomBytes, createHash } from 'node:crypto';
+          const base='https://grena-auth.omelicolon18.workers.dev';
+          const opts={redirect:'manual',signal:AbortSignal.timeout(12000)};
+          const h=await fetch(base+'/health',opts),health=await h.json();
+          const c=await fetch(base+'/v1/config',opts),cfg=await c.json();
+          const verifier=randomBytes(48).toString('base64url');
+          const challenge=createHash('sha256').update(verifier).digest('base64url');
+          const desired='http://127.0.0.1:8787/oauth/kick/callback';
+          const u=new URL(base+'/v1/authorize/kick');
+          u.searchParams.set('redirect_uri',desired);
+          u.searchParams.set('state',randomBytes(24).toString('base64url'));
+          u.searchParams.set('code_challenge',challenge);
+          const response=await fetch(u,opts);
+          const location=response.headers.get('location');
+          if(response.status!==302||!location)throw Error('Worker response: '+response.status);
+          const d=new URL(location),params=d.searchParams,scope=params.get('scope')||'';
+          const names=Array.from(params.keys());
+          const diagnostic={workerVersion:health.version,workerStatus:h.status,kickConfigured:!!cfg.providers?.kick?.enabled,
+            kickAuthorizationStatus:response.status,oauthHost:d.hostname,oauthPath:d.pathname,
+            redirectUri:params.get('redirect_uri'),sacrificialRedirect:params.get('redirect'),
+            sacrificialComesFirst:names.indexOf('redirect')<names.indexOf('redirect_uri'),
+            pkceMethod:params.get('code_challenge_method'),challengeLength:(params.get('code_challenge')||'').length,
+            scopes:scope.split(/\s+/),clientIdPresent:!!params.get('client_id'),
+            note:'This test cannot inspect callback URI registered on the Kick Developer app.'};
+          console.log('GRENA_KICK_DIAGNOSTIC',JSON.stringify(diagnostic));
+          if(health.version!==4||!diagnostic.kickConfigured||diagnostic.oauthHost!=='id.kick.com'
+            ||diagnostic.redirectUri!==desired||diagnostic.sacrificialRedirect!=='127.0.0.1'
+            ||!diagnostic.sacrificialComesFirst||diagnostic.pkceMethod!=='S256')
+            throw Error('Live Kick OAuth configuration does not meet expected shape');
+          NODE
