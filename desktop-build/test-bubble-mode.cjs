@@ -14,27 +14,27 @@ test('botón modo burbuja está en el panel de escritorio',()=>{
 
 test('Preview LIVE desaparece del panel, sin quitar las vistas de alertas y widgets',()=>{
  const panel=load('index.html');
- assert.doesNotMatch(panel,/href="\\/preview\\.html"/);
- assert.doesNotMatch(panel,/class="top-link preview-link"/);
- assert.match(panel,/href="\\/alerts\\.html"/);
- assert.match(panel,/href="\\/widgets\\.html"/);
+ assert.ok(!panel.includes('href="/preview.html"'));
+ assert.ok(!panel.includes('class="top-link preview-link"'));
+ assert.ok(panel.includes('href="/alerts.html"'));
+ assert.ok(panel.includes('href="/widgets.html"'));
 });
 
 test('pestaña flotante arrastrable y posición recordada entre varios monitores',()=>{
  const panel=load('index.html');
  const html=load('desktop-bubble.html');
  const native=load('desktop-build/fix_bubble.py');
- assert.match(panel,/Pestaña flotante/);
- assert.match(html,/-webkit-app-region:drag/);
- assert.match(html,/#handle/);
- assert.match(html,/cursor:grab/);
- assert.match(native,/readFloatingPosition/);
- assert.match(native,/FLOATING_POSITION_FILE/);
- assert.match(native,/popup\\.on\\('move'/);
- assert.match(native,/screen\\.getDisplayMatching/);
- assert.match(native,/clampFloatingPosition/);
- assert.match(native,/const nearBottom=/);
- assert.doesNotMatch(native,/const right=old\\.x\\+old\\.width/);
+ assert.ok(panel.includes('Pestaña flotante'));
+ assert.ok(html.includes('-webkit-app-region:drag'));
+ assert.ok(html.includes('#handle'));
+ assert.ok(html.includes('cursor:grab'));
+ assert.ok(native.includes('readFloatingPosition'));
+ assert.ok(native.includes('FLOATING_POSITION_FILE'));
+ assert.ok(native.includes("popup.on('move'"));
+ assert.ok(native.includes('screen.getDisplayMatching'));
+ assert.ok(native.includes('clampFloatingPosition'));
+ assert.ok(native.includes('const nearBottom='));
+ assert.ok(!native.includes('const right=old.x+old.width'));
 });
 
 test('burbuja recibe chat y eventos sin repetir el historial viejo',()=>{
