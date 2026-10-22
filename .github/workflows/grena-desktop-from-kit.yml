@@ -35,7 +35,11 @@ jobs:
         run: |
           python desktop-build/fix_startup.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/fix_oauth.py .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check desktop/main.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check server.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -60,6 +64,6 @@ jobs:
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: GRENA-LIVE-Installer-Windows-v5.0.1
+          name: GRENA-LIVE-Installer-Windows-v5.0.2
           path: dist/*.exe
           if-no-files-found: error
