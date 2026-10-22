@@ -17,7 +17,7 @@
 .grena-alerts .style-hub-header{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
 .grena-alerts .style-hub h2{font-size:clamp(23px,2.6vw,34px);letter-spacing:-.04em;line-height:1.13;margin:0 0 8px;color:#f0f6ff}
 .grena-alerts .style-hub-header p{color:#99abc3;line-height:1.55;font-size:13px;margin:0;max-width:580px}
-.grena-alerts .style-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.grena-alerts .style-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
 .grena-alerts button.style-choice{
  text-align:left;color:#ecf5ff;border:2px solid #33425c;position:relative;border-radius:17px;
  padding:0 0 19px;background:#0d1728;display:flex;flex-direction:column;gap:7px;
@@ -54,3 +54,6 @@
 .grena-alerts .style-select-error{color:#ffaaaa!important}
 .grena-alerts .bottom-grid .obs-panel .panel-title h3{font-size:16px}
 @media(max-width:800px){.grena-alerts .style-options{grid-template-columns:1fr}.grena-alerts button.style-choice{min-height:200px}.grena-alerts .style-illustration{height:120px}}
+
+.grena-alerts .style-illustration.domino-illustration{background:radial-gradient(ellipse at center,#326b42,#0e2a1b);display:flex;flex-direction:column;gap:0}
+@media(max-width:900px){.grena-alerts .style-options{grid-template-columns:repeat(1,minmax(0,1fr))}}
