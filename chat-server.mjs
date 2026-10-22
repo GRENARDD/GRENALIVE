@@ -1544,7 +1544,7 @@ const starviosReader=new StarviosReader({
     broadcastPlatform('starvios',{type:'event',event:e.kind,user:e.user,amount:e.amount||0,count:e.count||1,level:e.level||0});
     sendToAlerts('/api/internal/starvios-event',{...e,bridgeEventId:id},{reliable:true});
   },
-  onError:error=>console.warn('[STARVIOS]',String(error?.message||error).slice(0,400))
+  onError:error=>logChatFault('STARVIOS',error)
 });
 async function connectStarvios(input){
   const channel=normalizeStarviosChannel(input);
