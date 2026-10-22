@@ -8,6 +8,8 @@ on:
       - 'v*'
     paths:
       - GRENA_LIVE_Desktop_v5_Kit.zip
+      - 'desktop-build/**'
+      - '.github/workflows/grena-desktop-from-kit.yml'
 permissions:
   contents: write
 jobs:
@@ -28,6 +30,13 @@ jobs:
           Expand-Archive -Path "GRENA_LIVE_Desktop_v5_Kit.zip" -DestinationPath ".kit" -Force
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "."
+      - name: Fix Node backend packaging and enable startup diagnosis
+        shell: pwsh
+        run: |
+          python desktop-build/fix_startup.py .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check desktop/main.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Verify pack logic
@@ -45,9 +54,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --win nsis --x64 --publish always
+      - name: Smoke test compiled Windows backend
+        shell: pwsh
+        run: ./desktop-build/smoke.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: GRENA-LIVE-Installer-Windows
+          name: GRENA-LIVE-Installer-Windows-v5.0.1
           path: dist/*.exe
           if-no-files-found: error
