@@ -63,8 +63,8 @@ s += r'''
    const width=Math.min(Math.max(280,area.width-20),wide?576:435);
    const requested=Number(payload.height);
    if(!Number.isFinite(requested))return;
-   const maxHeight=Math.max(160,Math.floor(area.height*.86));
-   const height=Math.min(maxHeight,Math.max(156,Math.ceil(requested)));
+   const maxHeight=Math.max(100,Math.floor(area.height*.86));
+   const height=Math.min(maxHeight,Math.max(88,Math.ceil(requested)));
    const old=popup.getBounds();
    // Keep the tab where it was dragged, on whichever monitor contains it.
    // Notifications grow down in the top half, up in the bottom half.
