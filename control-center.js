@@ -246,6 +246,7 @@ function showStarviosDiagnostics(data){
     'Identificador de directo: '+(d.streamIdResolved?'detectado':'no detectado')
   ];
   if(d.lastReaderError)details.push('Navegador: '+String(d.lastReaderError).slice(0,145));
+  if(d.lastStreamIdentityError)details.push('Identificador LIVE: '+String(d.lastStreamIdentityError).slice(0,145));
   if(d.lastChatDbError)details.push('Datos de chat: '+String(d.lastChatDbError).slice(0,145));
   if(d.lastDirectoryError)details.push('Espectadores: '+String(d.lastDirectoryError).slice(0,145));
   out.textContent=details.join('\n');
