@@ -60,6 +60,8 @@ const embedded=await get(main+'/chat/?embed=1',{headers:{Cookie:cookie}});
 assert.equal(embedded.status,200,'El proxy /chat/ rechaza la sesion local.');
 const body=await embedded.text();
 assert.match(body,/chat-ws/,'El chat embebido no contiene el WebSocket.');
+assert.match(body,/GRENA_VOICE_EMOJI_FILTER_BEGIN/,'El instalador no incluye el filtro actualizado de emojis para voz.');
+assert.match(body,/result\s*=\s*stripEmojisForVoice\(\s*result\s*\)/,'El TTS empaquetado aún lee descripciones de emojis.');
 console.log('OK: /chat/ carga el chat completo con la sesión autenticada.');
 
 const ws=new WebSocket('ws://127.0.0.1:8787/chat-ws',{headers:{Origin:main,Cookie:cookie}});
