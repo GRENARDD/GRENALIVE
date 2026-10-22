@@ -73,6 +73,28 @@ export class StarviosReader {
     this.busy=false;
     this.generation=0;
     this.lastErrorAt=0;
+    this.lastChatAt=0;
+    this.lastViewerAt=0;
+    this.lastEventPollAt=0;
+    this.lastBrowserScanAt=0;
+    this.lastChatDbError='';
+    this.lastDirectoryError='';
+    this.lastReaderError='';
+    this.lastChatSource='';
+  }
+  getDiagnostics(){
+    return {
+      channel:this.channel,running:this.running,visualChatReady:this.connected,
+      browserRunning:!!this.browser,streamIdResolved:!!this.streamId,
+      publicEventsReady:this.dbEventsReady,
+      lastChatAt:this.lastChatAt,lastChatSource:this.lastChatSource,
+      lastViewerAt:this.lastViewerAt,viewerCount:this.lastViewerCount,
+      viewerSource:this.lastViewerReportedSource,
+      lastEventPollAt:this.lastEventPollAt,lastBrowserScanAt:this.lastBrowserScanAt,
+      lastChatDbError:this.lastChatDbError,lastDirectoryError:this.lastDirectoryError,
+      lastReaderError:this.lastReaderError,
+      live:this.lastLive
+    };
   }
   async connect(input) {
     const channel=normalizeStarviosChannel(input);
@@ -83,6 +105,8 @@ export class StarviosReader {
     this.sessionStartedAt=Date.now();
     this.eventCursorAt=this.sessionStartedAt;
     this.lastViewerCount=null;
+    this.lastChatAt=0;this.lastViewerAt=0;this.lastEventPollAt=0;this.lastBrowserScanAt=0;
+    this.lastChatDbError='';this.lastDirectoryError='';this.lastReaderError='';this.lastChatSource='';
     this.lastViewerReportedSource='Starvios · esperando espectadores';
     this.onViewers({count:null,source:this.lastViewerReportedSource,channel});
     const generation=++this.generation;
@@ -95,6 +119,7 @@ export class StarviosReader {
       await this.openChatPage(generation);
       return true;
     } catch(error) {
+      this.lastReaderError=String(error?.message||error).slice(0,240);
       this.onError(error);
       this.onState({connected:false,channel,label:'Starvios · lector visual no disponible, consultando datos públicos'});
       this.scheduleRecovery('lector visual no disponible');
@@ -254,6 +279,7 @@ export class StarviosReader {
         return {ready:true,messages};
       });
       if(generation!==this.generation || !this.running)return;
+      if(result.ready)this.lastBrowserScanAt=Date.now();
       if(!result.ready) {
         if(!this.missingContainerSince)this.missingContainerSince=Date.now();
         if(Date.now()-this.missingContainerSince>40000)this.scheduleRecovery('chat no disponible');
@@ -298,6 +324,8 @@ export class StarviosReader {
     this.chatFingerprints.set(fingerprint,now);
     if(this.chatSeen.size>1200)for(const [key,at] of this.chatSeen)if(now-at>300000||this.chatSeen.size>1000)this.chatSeen.delete(key);
     if(this.chatFingerprints.size>1200)for(const [key,at] of this.chatFingerprints)if(now-at>10000||this.chatFingerprints.size>1000)this.chatFingerprints.delete(key);
+    this.lastChatAt=now;
+    this.lastChatSource=message?.source||'Starvios visual/directo';
     this.onChat({...message,user,text,id,channel:this.channel});
   }
 
@@ -409,6 +437,8 @@ export class StarviosReader {
         if(name&&!starviosPublicActor(row))row.profiles={username:name};
       }
       this.dbEventsReady=true;
+      this.lastEventPollAt=Date.now();
+      this.lastChatDbError='';
       for(const row of rows){
         const id=String(row.id||'');
         if(!id||this.eventSeen.has(id))continue;
@@ -417,7 +447,7 @@ export class StarviosReader {
         this.eventSeen.set(id,created);
         if(created>=this.sessionStartedAt){
           const chat=parseStarviosPublicChat(row);
-          if(chat)this.deliverChat(chat);
+          if(chat)this.deliverChat({...chat,source:'Starvios base pública'});
           const event=parseStarviosChatEvent(row);
           if(event)this.deliverEvent(event);
         }
@@ -433,6 +463,7 @@ export class StarviosReader {
         await this.scanFollowers(generation);
       }
     }catch(error){
+      this.lastChatDbError=String(error?.message||error).slice(0,240);
       if(Date.now()-this.lastErrorAt>30000){
         this.lastErrorAt=Date.now();
         this.onError(error);
@@ -712,6 +743,7 @@ export class StarviosReader {
       }
       if(state.state==='unavailable')throw Error('Directorio de Starvios sin datos');
       this.lastDirectoryGoodAt=Date.now();
+      this.lastDirectoryError='';
       if(state.state==='offline'){
         this.liveDirectoryMisses++;
         // Un directorio recién actualizado puede tardar en incluir al canal.
@@ -723,6 +755,8 @@ export class StarviosReader {
         }
         if(this.lastViewerCount!==0){
           this.lastViewerCount=0;
+          this.lastViewerAt=Date.now();
+          this.lastViewerReportedSource='Starvios offline verificado';
           this.onViewers({count:0,source:'Starvios offline verificado',channel:this.channel});
         }
         return;
@@ -740,10 +774,12 @@ export class StarviosReader {
         }
       }else{
         this.lastViewerCount=state.count;
+        this.lastViewerAt=Date.now();
         this.lastViewerReportedSource=directorySource;
         this.onViewers({count:state.count,source:directorySource,channel:this.channel});
       }
     }catch(error){
+      this.lastDirectoryError=String(error?.message||error).slice(0,360);
       if(this.lastDirectoryGoodAt && Date.now()-this.lastDirectoryGoodAt>60000 && this.lastViewerCount!==null){
         this.lastViewerCount=null;
         this.onViewers({count:null,source:'Starvios · cifra sin actualizar',channel:this.channel});
