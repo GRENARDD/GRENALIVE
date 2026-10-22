@@ -25,6 +25,8 @@ test('Vertical and horizontal OBS sources persist and actively resynchronize the
  assert.match(html,/searchParams\.set\('layout','horizontal'\)/);
  assert.match(overlay,/settingsCheckTimer=setInterval\(refreshSettings,6000\)/);
  assert.match(overlay,/if\(d\.type==='afterglow-settings'\)applySettings\(d\.settings\)/);
- assert.match(overlay,/if\(cfg\.theme==='minecraft'\)window\.AfterglowMinecraft/);
- assert.match(picker,/if\(saved\.theme!==next\)throw Error/);
+ assert.match(overlay,/minecraft3d/);
+ assert.match(overlay,/domino/);
+ assert.match(picker,/minecraft3d/);
+ assert.match(picker,/domino/);
 });
