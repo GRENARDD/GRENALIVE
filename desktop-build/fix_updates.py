@@ -5,6 +5,8 @@ Run after the versioned 5.0.9 desktop patches. No destructive migration of user 
 from pathlib import Path
 import json
 import sys
+import os
+import re
 
 root=Path(sys.argv[1]).resolve()
 package=root/'package.json'
@@ -15,7 +17,8 @@ if pkg.get('version')!='5.0.9':
     raise RuntimeError('Se esperaba GREÑA Desktop 5.0.9 antes de activar actualizaciones.')
 if not isinstance(pkg.get('build'),dict):
     raise RuntimeError('electron-builder no está configurado; no se crean actualizaciones incompletas.')
-pkg['version']='5.0.10'
+tag=os.environ.get('GITHUB_REF_NAME','') if os.environ.get('GITHUB_REF_TYPE','')=='tag' else ''
+pkg['version']=tag[1:] if re.fullmatch(r'v5\.\d+\.\d+',tag) else '5.0.10'
 pkg.setdefault('dependencies',{})['electron-updater']='^6.6.2'
 pkg['build']['publish']=[{'provider':'github','owner':'GRENARDD','repo':'GRENALIVE','releaseType':'release'}]
 main=launcher.read_text(encoding='utf-8')
@@ -37,6 +40,7 @@ main += r'''
  else autoUpdater.autoInstallOnAppQuit=false;
  let updateBusy=false;
  let lastCheck=0;
+ let manualCheckPending=false;
  const updateLog=(...items)=>{try{logStartup('[UPDATES]',...items)}catch{console.log('[UPDATES]',...items)}};
  const notifyUpdateError=(error,manual)=>{
     updateLog('Error:',String(error?.message||error));
@@ -56,13 +60,15 @@ main += r'''
    if(!manual && Date.now()-lastCheck<20*60*1000)return;
    lastCheck=Date.now();
    updateBusy=true;
+   manualCheckPending=!!manual;
    try{
      const result=await autoUpdater.checkForUpdates();
      if(manual&&(!result||!result.updateInfo))updateLog('Sin información de nueva versión');
-   }catch(error){notifyUpdateError(error,manual)}
+   }catch(error){notifyUpdateError(error,manual);manualCheckPending=false}
    finally{updateBusy=false}
  };
  autoUpdater.on('update-available',async info=>{
+   manualCheckPending=false;
    updateLog('Disponible:',info.version);
    if(!mainWindow||mainWindow.isDestroyed())return;
    try{
@@ -96,6 +102,13 @@ main += r'''
  autoUpdater.on('error',err=>{updateLog('Updater error:',String(err?.message||err));if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1)});
  autoUpdater.on('update-not-available',()=>{
    updateLog('No hay actualizaciones.');
+   if(manualCheckPending&&mainWindow&&!mainWindow.isDestroyed())
+     updaterDialog.showMessageBox(mainWindow,{
+       type:'info',title:'GREÑA LIVE · Actualizaciones',
+       message:'Ya tienes la última versión publicada de GREÑA LIVE.',
+       buttons:['Entendido']
+     }).catch(()=>{});
+   manualCheckPending=false;
  });
  const attachUpdateNavigation=()=>{
    if(!mainWindow||mainWindow.isDestroyed())return false;
