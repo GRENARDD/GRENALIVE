@@ -9,10 +9,10 @@
  const layoutButtons=[...document.querySelectorAll('[data-preview-layout]')];
  const eventButtons=[...document.querySelectorAll('[data-preview-event]')];
  if(!buttons.length||!status)return;
- const validThemes=['original','minecraft','halloween'];
+ const validThemes=['original','minecraft','halloween','christmas'];
  let settings={},theme='original',busy=false,layout='horizontal',event='follow';
  let replay=0;
- const friendly={original:'Afterglow',minecraft:'Minecraft',halloween:'Halloween'};
+ const friendly={original:'Afterglow',minecraft:'Minecraft',halloween:'Halloween',christmas:'Navidad'};
  const normalize=t=>validThemes.includes(t)?t:'original';
  function show(value){
   theme=normalize(value);
@@ -25,9 +25,9 @@
  }
  function updatePreview(){
   if(!frame)return;
-  const isHalloween=theme==='halloween';
-  const u=new URL(isHalloween?'/halloween-alertas-3d.html':'/afterglow-overlay.html',location.origin);
-  if(isHalloween){
+  const isSeasonal=theme==='halloween'||theme==='christmas';
+  const u=new URL(theme==='christmas'?'/navidad-alertas-3d.html':theme==='halloween'?'/halloween-alertas-3d.html':'/afterglow-overlay.html',location.origin);
+  if(isSeasonal){
    u.searchParams.set('mode','overlay');
    u.searchParams.set('orient',layout==='horizontal'?'h':'v');
    u.searchParams.set('previewEvent',event);
