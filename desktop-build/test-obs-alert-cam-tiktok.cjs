@@ -42,7 +42,7 @@ test('Multichat OBS propaga token a API, historial, avatar y WebSocket',()=>{
   assert.match(widgets,/chat=protect\('\/chat\/multichat-overlay\.html'\)/);
 });
 test('el selector muestra Halloween y conserva las temáticas previas del kit cuando están instaladas',()=>{
- for(const name of ['original','minecraft','halloween']){
+ for(const name of ['original','minecraft','halloween','christmas']){
    assert.ok(alertHub.includes('data-grena-theme="'+name+'"'),'Falta tarjeta '+name);
  }
  const has3d=alertHub.includes('data-grena-theme="minecraft3d"');
@@ -51,6 +51,7 @@ test('el selector muestra Halloween y conserva las temáticas previas del kit cu
  assert.match(picker,/if\(busy\)return;/);
  assert.doesNotMatch(picker,/busy\|\|next===theme/);
  assert.match(alertOverlay,/halloweenAlertFor\(event,data,next\)/);
+ assert.match(alertOverlay,/christmasAlertFor\(event,data,next\)/);
  assert.match(alertOverlay,/settingsSyncTimer=setInterval\(syncSettingsFromServer,5000\)/);
  assert.match(server,/\/api\/afterglow-settings.*\/api\/overlay-version/);
 });
