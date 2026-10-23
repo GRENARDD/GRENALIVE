@@ -10,8 +10,9 @@ const dashboard=get('alerts.html'),settings=get('server.mjs'),overlay=get('after
 test('three selectable themes — Afterglow, Minecraft, Halloween and Navidad',()=>{
  const options=[...dashboard.matchAll(/data-grena-theme="([^"]+)"/g)].map(x=>x[1]);
  assert.deepEqual(options.filter(x=>['original','minecraft','halloween','christmas'].includes(x)),['original','minecraft','halloween','christmas']);
- const optional=options.filter(x=>['minecraft3d','domino'].includes(x));
- assert.ok(optional.length===0||optional.length===2,'Los paquetes adicionales deben ir juntos');
+ assert.ok(!options.includes('minecraft3d'),'Minecraft 3D fue eliminado');
+ assert.ok(!dashboard.includes('data-grena-theme="minecraft3d"'));
+ assert.ok(options.length===4 || (options.length===5&&options.includes('domino')),'Solo 5 temas o los 4 del código web');
  assert.match(simpleCss,/#dashboard>\.test-grid/);
  assert.match(simpleCss,/#dashboard>\.sv-alert-section/);
  assert.match(simpleCss,/\.ui-complexity-bar/);
