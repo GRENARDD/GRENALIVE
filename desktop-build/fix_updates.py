@@ -18,7 +18,7 @@ if pkg.get('version')!='5.0.9':
 if not isinstance(pkg.get('build'),dict):
     raise RuntimeError('electron-builder no está configurado; no se crean actualizaciones incompletas.')
 tag=os.environ.get('GITHUB_REF_NAME','') if os.environ.get('GITHUB_REF_TYPE','')=='tag' else ''
-pkg['version']=tag[1:] if re.fullmatch(r'v5\.\d+\.\d+',tag) else '5.0.10'
+pkg['version']=tag[1:] if re.fullmatch(r'v5\.\d+\.\d+',tag) else '5.0.11'
 pkg.setdefault('dependencies',{})['electron-updater']='^6.6.2'
 pkg['build']['publish']=[{'provider':'github','owner':'GRENARDD','repo':'GRENALIVE','releaseType':'release'}]
 files=pkg['build'].get('files')
@@ -153,4 +153,4 @@ idx=idx.replace(needle,'<a class="top-link" id="grenaUpdateControl" href="/__gre
 package.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 launcher.write_text(main,encoding='utf-8')
 index.write_text(idx,encoding='utf-8')
-print('GREÑA Desktop v5.0.10: actualización opt-in por GitHub Releases NSIS habilitada.')
+print('GREÑA Desktop v5.0.11: Minecraft 3D eliminado y actualizaciones opt-in habilitadas.')
