@@ -30,7 +30,7 @@ test('all five platforms map to proper visual palettes and live events',()=>{
  for(const[input,event,p]of cases){const result=local.mapAlert(input);assert.equal(result.event,event);assert.equal(local.platform(),p)}
 });
 test('six sonically distinct cues and independent switches',()=>{
- for(const kind of ['follow','gift','sub','raid','share','likes']){assert.match(audio,new RegExp("case '"+kind+"'"));assert.match(studio,new RegExp('data-sound-for="'+kind+'"'))}
+ for(const kind of ['follow','gift','sub','raid','share','likes']){assert.match(audio,new RegExp('\\\\b'+kind+'\\\\\\(b,t\\\\\\)'));assert.match(studio,new RegExp('data-sound-for="'+kind+'"'))}
  assert.match(audio,/createOscillator/);assert.match(audio,/createBiquadFilter/);assert.match(overlay,/AfterglowAudio\?\.play/);
  assert.match(overlay,/cfg\.sounds\[event\]/);
 });
