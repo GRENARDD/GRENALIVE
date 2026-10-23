@@ -23,10 +23,10 @@ pkg.setdefault('dependencies',{})['electron-updater']='^6.6.2'
 pkg['build']['publish']=[{'provider':'github','owner':'GRENARDD','repo':'GRENALIVE','releaseType':'release'}]
 files=pkg['build'].get('files')
 if isinstance(files,list):
-    for resource in ('halloween-alertas-3d.html','afterglow-overlay.html','alerts.html','assets/alerts-simple.css','assets/alerts-theme-picker.js'):
+    for resource in ('halloween-alertas-3d.html','navidad-alertas-3d.html','afterglow-overlay.html','alerts.html','assets/alerts-simple.css','assets/alerts-theme-picker.js'):
         if resource not in files: files.append(resource)
-if not (root/'halloween-alertas-3d.html').exists():
-    raise RuntimeError('Falta la temática Halloween 3D en el empaquetado.')
+if not (root/'halloween-alertas-3d.html').exists() or not (root/'navidad-alertas-3d.html').exists():
+    raise RuntimeError('Faltan las temáticas Halloween/Navidad 3D en el empaquetado.')
 
 main=launcher.read_text(encoding='utf-8')
 if 'GRENA_DESKTOP_UPDATER_V1' in main:
