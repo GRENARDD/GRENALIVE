@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Merge Halloween and compact preview UI after the pre-existing 4-theme Desktop kit.
-No modifications to the original 3D Minecraft / Domino theme pack logic.
+"""Merge Halloween / Navidad UI after applying the existing Desktop kit.
+Minecraft 3D was retired by request. Preserve standard Minecraft and Dominó.
 """
 from pathlib import Path
 import re
@@ -23,11 +23,10 @@ end='<div class="welcome">'
 start_ours=user_dashboard.index(marker)
 end_ours=user_dashboard.index(end,start_ours)
 hub=user_dashboard[start_ours:end_ours]
-extra='''  <button type="button" class="style-choice" data-grena-theme="minecraft3d" aria-pressed="false"><span class="style-illustration minecraft3d" aria-hidden="true"><span class="hw-logo">🧊</span><span class="logo-type">MINECRAFT 3D</span></span><span class="style-choice-name"><strong>Minecraft 3D</strong><span>Elegir</span></span></button>
-  <button type="button" class="style-choice" data-grena-theme="domino" aria-pressed="false"><span class="style-illustration domino" aria-hidden="true"><span class="hw-logo">🁫</span><span class="logo-type">DOMINÓ</span></span><span class="style-choice-name"><strong>Dominó</strong><span>Elegir</span></span></button>
+extra='''  <button type="button" class="style-choice" data-grena-theme="domino" aria-pressed="false"><span class="style-illustration domino" aria-hidden="true"><span class="hw-logo">🁫</span><span class="logo-type">DOMINÓ</span></span><span class="style-choice-name"><strong>Dominó</strong><span>Elegir</span></span></button>
 '''
 anchor=' </div>\n <div id="styleSaveStatus"'
-hub=once(hub,anchor,extra+anchor,'cards for Minecraft 3D + Domino')
+hub=once(hub,anchor,extra+anchor,'card for Dominó')
 if dashboard.count(marker)!=1 or dashboard.count(end)!=1:
     raise RuntimeError('No se reconoció el selector del Desktop kit.')
 a=dashboard.index(marker)
@@ -48,18 +47,17 @@ extra_css=newget('assets/alerts-simple.css')
 key='/* GREÑA · compact live theme picker'
 if key not in extra_css: raise RuntimeError('No se encontraron estilos compactos nuevos.')
 if key not in css: css+='\n'+extra_css[extra_css.index(key):]
-css+='''\n/* Kit de escritorio: seis temas completos, sin perder Dominó / Minecraft 3D. */
-.grena-alerts .style-options{grid-template-columns:repeat(6,minmax(0,1fr))}
+css+='''\n/* Kit de escritorio: cinco temas disponibles; Minecraft 3D eliminado. */
+.grena-alerts .style-options{grid-template-columns:repeat(5,minmax(0,1fr))}
 .grena-alerts .style-illustration.domino{background:radial-gradient(circle at 50% 100%,#ffaa3344,transparent),linear-gradient(120deg,#191f31,#13151e)}
-.grena-alerts .style-illustration.minecraft3d{background:radial-gradient(circle at 50% 100%,#65ff9c44,transparent),linear-gradient(120deg,#123a2f,#111c28)}
-.grena-alerts .style-illustration.domino .hw-logo,.grena-alerts .style-illustration.minecraft3d .hw-logo{font-size:41px}
+.grena-alerts .style-illustration.domino .hw-logo{font-size:41px}
 @media(max-width:760px){.grena-alerts .style-options{grid-template-columns:repeat(3,minmax(0,1fr))}}
 '''
 put('assets/alerts-simple.css',css)
 
 picker=newget('assets/alerts-theme-picker.js')
-picker=once(picker,"['original','minecraft','halloween','christmas']","['original','minecraft','minecraft3d','domino','halloween','christmas']",'picker allowed themes')
-picker=once(picker,"halloween:'Halloween',christmas:'Navidad'","minecraft3d:'Minecraft 3D',domino:'Dominó',halloween:'Halloween',christmas:'Navidad'",'picker labels')
+picker=once(picker,"['original','minecraft','halloween','christmas']","['original','minecraft','domino','halloween','christmas']",'picker allowed themes')
+picker=once(picker,"halloween:'Halloween',christmas:'Navidad'","domino:'Dominó',halloween:'Halloween',christmas:'Navidad'",'picker labels')
 put('assets/alerts-theme-picker.js',picker)
 
 server=get('server.mjs')
@@ -68,7 +66,7 @@ end=server.index('\n}',start)+2
 settings=server[start:end]
 match=re.search(r"return \{theme:.*?,intensity:",settings)
 if not match: raise RuntimeError('No se encontró la normalización del tema en el Desktop kit: '+settings[:850])
-settings=settings[:match.start()]+("return {theme:['minecraft','minecraft3d','domino','halloween','christmas'].includes(x.theme)?x.theme:'original',intensity:")+settings[match.end():]
+settings=settings[:match.start()]+("return {theme:x.theme==='minecraft3d'?'minecraft':(['minecraft','domino','halloween','christmas'].includes(x.theme)?x.theme:'original'),intensity:")+settings[match.end():]
 server=server[:start]+settings+server[end:]
 server=once(server,"'/afterglow-overlay.html',","'/afterglow-overlay.html','/halloween-alertas-3d.html','/navidad-alertas-3d.html',",'private OBS route')
 put('server.mjs',server)
@@ -81,13 +79,13 @@ helpers=fresh[hbeg:hend]
 if 'function ensureHalloweenFrame()' not in helpers or 'function ensureChristmasFrame()' not in helpers: raise RuntimeError('La nueva capa Halloween no está disponible.')
 if 'function ensureHalloweenFrame()' in overlay: raise RuntimeError('La capa Halloween se duplicaría.')
 overlay=once(overlay,'function applySettings(src)',helpers+'function applySettings(src)','Halloween frame functions')
-# Retain old theme logic (including 3D Minecraft and Domino), then extend it.
+# Preserve working normal Minecraft and Domino; retire the broken 3D theme.
 normalized_start=overlay.index('function normalizedSettings(')
 normalized_end=overlay.index('\n}',normalized_start)+2
 settings=overlay[normalized_start:normalized_end]
 match=re.search(r"return \{theme:.*?,intensity:",settings)
 if not match: raise RuntimeError('No se reconoció el tema del overlay Desktop: '+settings[:850])
-settings=settings[:match.start()]+("return {theme:['minecraft','minecraft3d','domino','halloween','christmas'].includes(src.theme)?src.theme:'original',intensity:")+settings[match.end():]
+settings=settings[:match.start()]+("return {theme:src.theme==='minecraft3d'?'minecraft':(['minecraft','domino','halloween','christmas'].includes(src.theme)?src.theme:'original'),intensity:")+settings[match.end():]
 overlay=overlay[:normalized_start]+settings+overlay[normalized_end:]
 wrapper="""const grenaBaseApplySettings=applySettings;
 applySettings=function(src){
@@ -114,4 +112,4 @@ overlay=once(overlay,target,target+"""
   }""",'Halloween event forwarding')
 overlay=overlay.replace('\n connect();\n checkOverlayRelease();','\n if(qp.get(\'preview\')!==\'1\')connect();\n checkOverlayRelease();',1)
 put('afterglow-overlay.html',overlay)
-print('OK: GREÑA Desktop: original, Minecraft, Minecraft 3D, Dominó, Halloween, Navidad; previsualización y OBS estables.')
+print('OK: GREÑA Desktop: original, Minecraft, Dominó, Halloween, Navidad; previsualización y OBS estables.')
