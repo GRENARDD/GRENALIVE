@@ -35,9 +35,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      - name: Preserve verified kit prerequisites
+        run: python desktop-build/prepare_kit_base.py .
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -48,6 +52,8 @@ jobs:
           Expand-Archive -Path "GRENA_LIVE_Desktop_v5_Kit.zip" -DestinationPath ".kit" -Force
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "."
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/apply_theme_after_kit.py .
       - name: Fix Node backend packaging and enable startup diagnosis
         shell: pwsh
         run: |
