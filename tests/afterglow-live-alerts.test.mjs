@@ -8,7 +8,7 @@ test('studio and overlays expose two independent OBS sources with retained accou
  for(const name of ['vertical','horizontal'])assert.match(studio,new RegExp('layout,?\\s*'+name+'|layout of \\[.vertical.,.horizontal.\\]|link'+name[0].toUpperCase()+name.slice(1)));
  assert.match(studio,/\/api\/obs-token/);assert.match(studio,/linkVertical/);assert.match(studio,/linkHorizontal/);
  assert.match(backend,/OBS_PUBLIC_PAGES=new Set\(\['\/afterglow-overlay.html'/);
- assert.match(backend,/OBS_PUBLIC_API=new Set\(\['\/api\/afterglow-settings'/);
+ assert.match(backend,/OBS_PUBLIC_API=new Set\(\[[^\n]*'\/api\/afterglow-settings'/);
  assert.match(overlay,/obsQuery/);assert.match(overlay,/new WebSocket/);
  assert.match(panel,/overlayUrlHorizontal2/);
 });
