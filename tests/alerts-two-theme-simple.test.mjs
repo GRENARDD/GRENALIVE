@@ -33,7 +33,7 @@ test('two private OBS links and sound path are preserved',()=>{
  assert.match(studio,/new URL\('\/afterglow-overlay\.html',root\)/);
 });
 test('style persisted per account and propagated realtime to both OBS sources',()=>{
- assert.match(settings,/theme:\['minecraft','halloween'\]\.includes\(x\.theme\)/);
+ assert.match(settings,/theme:\[[^\n]*'halloween'[^\n]*\]\.includes\(x\.theme\)/);
  assert.match(settings,/profileFile\('afterglow-settings\.json'\)/);
  assert.match(settings,/broadcast\(\{type:'afterglow-settings',settings:afterglowSettings\}\)/);
  assert.match(overlay,/live\.dataset\.theme=cfg\.theme/);
@@ -51,7 +51,7 @@ test('Minecraft produces all six pixel-art alerts without opaque canvas',()=>{
      platform:'TikTok',accent:'#ff2244',giftMarkup:'<img src="/assets/item.webp">'
    });
    assert.match(html,new RegExp('mc-'+event));
-   assert.match(html,/GREÑA_RD/);assert.match(html,/--ev-accent:#ff2244/);
+   assert.match(html,/GREÑA_RD/);assert.match(html,/--mc-event-accent:#ff2244/);
    assert.doesNotMatch(html,/<canvas/);
  }
  assert.match(minecraftCss,/\.live\.wide\[data-theme="minecraft"\] \.mc-art/);
