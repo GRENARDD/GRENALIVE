@@ -25,6 +25,7 @@ on:
       - 'alerts.html'
       - 'afterglow-overlay.html'
       - 'halloween-alertas-3d.html'
+      - 'navidad-alertas-3d.html'
       - 'assets/alerts-simple.css'
       - 'assets/alerts-theme-picker.js'
       - '.github/workflows/grena-desktop-from-kit.yml'
@@ -96,7 +97,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test desktop-build/test-obs-alert-cam-tiktok.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Test compact themes and Halloween source
+      - name: Test compact themes and seasonal overlay sources
         run: node --test tests/alerts-two-theme-simple.test.mjs
       - name: Probe public Kick authorization broker
         run: node desktop-build/probe-kick-auth.mjs
