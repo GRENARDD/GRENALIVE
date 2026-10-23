@@ -20,6 +20,11 @@ on:
       - 'chat-server.mjs'
       - 'tests/starvios-*.test.mjs'
       - 'desktop-build/**'
+      - 'alerts.html'
+      - 'afterglow-overlay.html'
+      - 'halloween-alertas-3d.html'
+      - 'assets/alerts-simple.css'
+      - 'assets/alerts-theme-picker.js'
       - '.github/workflows/grena-desktop-from-kit.yml'
 permissions:
   contents: write
@@ -51,6 +56,8 @@ jobs:
           python desktop-build/fix_starvios_version.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_bubble.py .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/fix_updates.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check desktop/main.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -97,6 +104,6 @@ jobs:
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: GRENA-LIVE-Installer-Windows-v5.0.9
+          name: GRENA-LIVE-Installer-Windows-v5.0.10
           path: dist/*.exe
           if-no-files-found: error
