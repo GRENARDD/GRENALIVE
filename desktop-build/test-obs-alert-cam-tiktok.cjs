@@ -47,7 +47,8 @@ test('el selector muestra Halloween y conserva las temáticas previas del kit cu
  }
  const has3d=alertHub.includes('data-grena-theme="minecraft3d"');
  const hasDomino=alertHub.includes('data-grena-theme="domino"');
- assert.equal(has3d,hasDomino,'Minecraft 3D y Dominó deben conservarse juntos en el instalador');
+ assert.equal(has3d,false,'Minecraft 3D fue retirado y no debe mostrarse');
+ assert.ok(hasDomino || !alertHub.includes('Minecraft 3D'),'No se deben conservar tarjetas rotas de Minecraft 3D');
  assert.match(picker,/if\(busy\)return;/);
  assert.doesNotMatch(picker,/busy\|\|next===theme/);
  assert.match(alertOverlay,/halloweenAlertFor\(event,data,next\)/);
