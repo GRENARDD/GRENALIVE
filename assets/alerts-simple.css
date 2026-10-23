@@ -100,3 +100,8 @@
  .grena-alerts .style-preview-window[data-layout=vertical] iframe{width:158px;height:280px}
  .grena-alerts .style-obs-grid{grid-template-columns:1fr}
 }
+
+/* GREÑA Christmas Magic 3D · compact theme card */
+.grena-alerts .style-illustration.christmas{background:radial-gradient(ellipse at 53% 90%,#ffd36b45,transparent 60%),linear-gradient(145deg,#0a3e29,#481727);color:#ffe7a8;flex-direction:column;gap:2px}
+.grena-alerts .style-illustration.christmas .hw-logo{font-size:42px;filter:drop-shadow(0 0 15px #d4fff899)}
+.grena-alerts .style-illustration.christmas .logo-type{font-weight:900;letter-spacing:.07em;color:#ffe2a4;text-shadow:0 0 12px #f33a4780}
