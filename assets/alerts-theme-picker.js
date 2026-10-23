@@ -1,50 +1,84 @@
-/* GREÑA Alerts two-style selection — uses existing authenticated settings
-   and the original private vertical/horizontal OBS sources. */
+/* GREÑA Alerts — per-account persistent themes + private OBS sources.
+   The preview iframe is not a second live overlay: ?preview=1 disables the live socket. */
 (function(){
  'use strict';
- const buttons=[...document.querySelectorAll('[data-grena-theme]')],status=document.getElementById('styleSaveStatus');
- if(!buttons.length)return;
- let settings={},theme='original',busy=false;
+ const buttons=[...document.querySelectorAll('[data-grena-theme]')];
+ const status=document.getElementById('styleSaveStatus');
+ const frame=document.getElementById('stylePreviewFrame');
+ const windowEl=document.getElementById('stylePreviewWindow');
+ const layoutButtons=[...document.querySelectorAll('[data-preview-layout]')];
+ const eventButtons=[...document.querySelectorAll('[data-preview-event]')];
+ if(!buttons.length||!status)return;
+ const validThemes=['original','minecraft','halloween'];
+ let settings={},theme='original',busy=false,layout='horizontal',event='follow';
+ let replay=0;
+ const friendly={original:'Afterglow',minecraft:'Minecraft',halloween:'Halloween'};
+ const normalize=t=>validThemes.includes(t)?t:'original';
  function show(value){
-   theme=value==='minecraft'?'minecraft':'original';
-   for(const btn of buttons){
-     const active=btn.dataset.grenaTheme===theme;
-     btn.setAttribute('aria-pressed',String(active));
-     const tag=btn.querySelector('.style-choice-name span');
-     if(tag)tag.textContent=active?'✓ Activo':'Elegir estilo';
-   }
+  theme=normalize(value);
+  for(const btn of buttons){
+   const active=btn.dataset.grenaTheme===theme;
+   btn.setAttribute('aria-pressed',String(active));
+   const tag=btn.querySelector('.style-choice-name span');
+   if(tag)tag.textContent=active?'✓ Activo':'Elegir';
+  }
+ }
+ function updatePreview(){
+  if(!frame)return;
+  const isHalloween=theme==='halloween';
+  const u=new URL(isHalloween?'/halloween-alertas-3d.html':'/afterglow-overlay.html',location.origin);
+  if(isHalloween){
+   u.searchParams.set('mode','overlay');
+   u.searchParams.set('orient',layout==='horizontal'?'h':'v');
+   u.searchParams.set('previewEvent',event);
+  }else{
+   u.searchParams.set('layout',layout);
+   u.searchParams.set('preview','1');
+   u.searchParams.set('demo','1');
+   u.searchParams.set('event',event==='premium'?'gift':event==='like'?'like':event==='cheer'?'cheer':event);
+  }
+  u.searchParams.set('replay',String(++replay));
+  if(windowEl)windowEl.dataset.layout=layout;
+  frame.src=u.toString();
+  for(const b of layoutButtons)b.setAttribute('aria-pressed',String(b.dataset.previewLayout===layout));
+  for(const b of eventButtons)b.setAttribute('aria-pressed',String(b.dataset.previewEvent===event));
  }
  async function load(){
-   try{
-     const r=await fetch('/api/afterglow-settings',{cache:'no-store',credentials:'same-origin'});
-     if(!r.ok)throw Error('Inicia sesión para elegir tu estilo.');
-     const json=await r.json();settings=json.settings||{};show(settings.theme);
-     status.textContent='Este diseño se utilizará en vertical y horizontal, sin cambiar tus enlaces.';
-     status.classList.remove('style-select-error');
-   }catch(e){status.textContent=e.message||'No se pudo cargar el estilo';status.classList.add('style-select-error')}
+  try{
+   const r=await fetch('/api/afterglow-settings',{cache:'no-store',credentials:'same-origin'});
+   if(!r.ok)throw Error('Inicia sesión para elegir el tema.');
+   const json=await r.json();settings=json.settings||{};show(settings.theme);
+   status.textContent='Tema activo: '+friendly[theme]+' · Se utiliza en ambos enlaces OBS.';
+   status.classList.remove('style-select-error');
+   updatePreview();
+  }catch(e){status.textContent=e.message||'No se pudo cargar el tema';status.classList.add('style-select-error')}
  }
  async function choose(next){
-   if(busy)return; // Cada clic reafirma el tema y reenvía la actualización a OBS.
-   const previous=theme;busy=true;buttons.forEach(b=>b.disabled=true);
-   show(next);status.classList.remove('style-select-error');status.textContent='Guardando el estilo…';
-   try{
-     // Always reload settings before POST so a recent sound/color change is retained.
-     const fresh=await fetch('/api/afterglow-settings',{cache:'no-store',credentials:'same-origin'});
-     if(!fresh.ok)throw Error('Sesión caducada.');
-     const values=(await fresh.json()).settings||settings;
-     const response=await fetch('/api/afterglow-settings',{
-       method:'POST',credentials:'same-origin',
-       headers:{'content-type':'application/json'},
-       body:JSON.stringify({...values,theme:next})
-     });
-     const result=await response.json();
-     if(!response.ok)throw Error(result.error||'No se pudo cambiar el estilo');
-     settings=result.settings||{...values,theme:next};show(settings.theme);
-     status.textContent=(theme==='minecraft'?'Minecraft activado':'Original activado')+' · Ambos enlaces OBS se actualizaron.';
-   }catch(e){show(previous);status.classList.add('style-select-error');status.textContent=e.message||'No se pudo guardar'}
-   finally{buttons.forEach(b=>b.disabled=false);busy=false}
+  if(busy)return;
+  next=normalize(next);
+  const previous=theme;busy=true;buttons.forEach(b=>b.disabled=true);
+  show(next);status.classList.remove('style-select-error');status.textContent='Aplicando '+friendly[next]+'…';
+  try{
+   const r=await fetch('/api/afterglow-settings',{cache:'no-store',credentials:'same-origin'});
+   if(!r.ok)throw Error('La sesión ha caducado.');
+   const values=(await r.json()).settings||settings;
+   const response=await fetch('/api/afterglow-settings',{
+    method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
+    body:JSON.stringify({...values,theme:next})
+   });
+   const result=await response.json();
+   if(!response.ok)throw Error(result.error||'No se pudo cambiar el tema');
+   settings=result.settings||{...values,theme:next};show(settings.theme);
+   status.textContent=friendly[theme]+' activado · OBS conserva sus enlaces actuales.';
+   updatePreview();
+  }catch(e){
+   show(previous);updatePreview();
+   status.classList.add('style-select-error');status.textContent=e.message||'No se pudo guardar el tema';
+  }finally{buttons.forEach(b=>b.disabled=false);busy=false}
  }
- buttons.forEach(b=>b.addEventListener('click',()=>choose(b.dataset.grenaTheme)));
+ for(const b of buttons)b.addEventListener('click',()=>choose(b.dataset.grenaTheme));
+ for(const b of layoutButtons)b.addEventListener('click',()=>{layout=b.dataset.previewLayout;updatePreview()});
+ for(const b of eventButtons)b.addEventListener('click',()=>{event=b.dataset.previewEvent;updatePreview()});
  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&!busy)load()});
  load();
 })();
