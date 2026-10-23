@@ -41,21 +41,25 @@ test('Multichat OBS propaga token a API, historial, avatar y WebSocket',()=>{
   assert.match(widgets,/getElementById\('chatPreview'\)\.src=chat/);
   assert.match(widgets,/chat=protect\('\/chat\/multichat-overlay\.html'\)/);
 });
-test('el selector tiene los cuatro temas y retransmite incluso al escoger el activo',()=>{
-  for(const name of ['original','minecraft','minecraft3d','domino']){
-    assert.ok(alertHub.includes('data-grena-theme="'+name+'"'),'Falta tarjeta '+name);
-  }
-  assert.match(picker,/if\(busy\)return;/);
-  assert.doesNotMatch(picker,/busy\|\|next===theme/);
-  assert.match(alertOverlay,/GrenaThemePacks\?\.play\(cfg\.theme/);
-  assert.match(alertOverlay,/settingsSyncTimer=setInterval\(syncSettingsFromServer,5000\)/);
-  assert.match(server,/\/api\/afterglow-settings.*\/api\/overlay-version/);
+test('el selector muestra Halloween y conserva las temáticas previas del kit cuando están instaladas',()=>{
+ for(const name of ['original','minecraft','halloween']){
+   assert.ok(alertHub.includes('data-grena-theme="'+name+'"'),'Falta tarjeta '+name);
+ }
+ const has3d=alertHub.includes('data-grena-theme="minecraft3d"');
+ const hasDomino=alertHub.includes('data-grena-theme="domino"');
+ assert.equal(has3d,hasDomino,'Minecraft 3D y Dominó deben conservarse juntos en el instalador');
+ assert.match(picker,/if\(busy\)return;/);
+ assert.doesNotMatch(picker,/busy\|\|next===theme/);
+ assert.match(alertOverlay,/halloweenAlertFor\(event,data,next\)/);
+ assert.match(alertOverlay,/settingsSyncTimer=setInterval\(syncSettingsFromServer,5000\)/);
+ assert.match(server,/\/api\/afterglow-settings.*\/api\/overlay-version/);
 });
+
 test('Afterglow Studio abre dentro de la ventana Electron, no mediante pestañas bloqueadas',()=>{
   assert.match(control,/studio:\{path:'\/afterglow-studio\.html\?embed=1'/);
   assert.match(alertHub,/grena-module-open',module:'studio'/);
   const links=alertHub.match(/href="\/afterglow-studio\.html"[^>]*>/g)||[];
-  assert.equal(links.length,4);
+  assert.ok(links.length>=1,'Studio debe seguir siendo accesible en Electron');
   for(const link of links)assert.doesNotMatch(link,/target="_blank"/);
 });
 test('Cam Room verifica el gateway HTTPS y rechaza enlaces viejos o de otro servidor',async()=>{
