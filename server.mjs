@@ -269,7 +269,7 @@ function normalizeAfterglowSettings(input={}){
  const color=(v,d)=>/^#[0-9a-f]{6}$/i.test(String(v||''))?String(v).toLowerCase():d;
  const sounds=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,x.sounds?.[k]!==false]));
  const fontFamily=['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(x.fontFamily)?x.fontFamily:'Inter';
- return {theme:['minecraft','halloween'].includes(x.theme)?x.theme:'original',intensity:number(x.intensity,65),volume:number(x.volume,54),soundEnabled:x.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(x.audioRoute)?x.audioRoute:'both',sounds,fontFamily,textColor:color(x.textColor,'#ffffff'),accentMode:x.accentMode==='custom'?'custom':'platform',accent:color(x.accent,'#caff5f')};
+ return {theme:['minecraft','halloween','christmas'].includes(x.theme)?x.theme:'original',intensity:number(x.intensity,65),volume:number(x.volume,54),soundEnabled:x.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(x.audioRoute)?x.audioRoute:'both',sounds,fontFamily,textColor:color(x.textColor,'#ffffff'),accentMode:x.accentMode==='custom'?'custom':'platform',accent:color(x.accent,'#caff5f')};
 }
 const socialDefaults={tiktokUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',fontFamily:'Segoe UI',fontSize:34,iconSize:46,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true,edge:'left',edgeOffset:0};
 const autoDefaults={enabled:true,counterTikTok:'',counterTwitch:'',counterKick:'',counterTikTokEnabled:false,counterTwitchEnabled:false,counterKickEnabled:false,counterStyle:'classic',counterCardColor:'#18232c',counterEdge:'left',counterEdgeOffset:0,alertStyle:'classic'};
@@ -1942,7 +1942,7 @@ function camWsMessageInner(ws,req,data){
 const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite','/api/afterglow-settings','/api/overlay-version','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/twitch/device/status','/auth/twitch/callback']);
 const PUBLIC_GET_CLOUD=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite']);
 const OBS_PUBLIC_API=new Set(['/api/overlay-version','/api/afterglow-settings','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
-const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/halloween-alertas-3d.html','/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/loyalty-overlay.html','/super-fans-overlay.html','/taptap-race.html']);
+const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/halloween-alertas-3d.html','/navidad-alertas-3d.html','/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/loyalty-overlay.html','/super-fans-overlay.html','/taptap-race.html']);
 const PUBLIC_POST=new Set(['/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
 function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())}
