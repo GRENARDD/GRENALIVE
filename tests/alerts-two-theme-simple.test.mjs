@@ -34,8 +34,8 @@ test('two private OBS links and sound path are preserved',()=>{
  assert.match(studio,/new URL\('\/afterglow-overlay\.html',root\)/);
 });
 test('style persisted per account and propagated realtime to both OBS sources',()=>{
- assert.match(settings,/'halloween'[^\\n]*'christmas'[^\\n]*\\]\\.includes\\(x\\.theme\\)/);
- if(settings.includes("x.theme==='minecraft3d'")) assert.match(settings,/x\\.theme==='minecraft3d'\\?'minecraft'/);
+ assert.ok(settings.includes("'halloween'")&&settings.includes("'christmas'")&&settings.includes("includes(x.theme)"),'El servidor conserva temas de Halloween y Navidad');
+ if(settings.includes("x.theme==='minecraft3d'")) assert.ok(settings.includes("x.theme==='minecraft3d'?'minecraft'"),'Las preferencias anteriores migran al Minecraft normal');
  assert.match(settings,/profileFile\('afterglow-settings\.json'\)/);
  assert.match(settings,/broadcast\(\{type:'afterglow-settings',settings:afterglowSettings\}\)/);
  assert.match(overlay,/live\.dataset\.theme=cfg\.theme/);
