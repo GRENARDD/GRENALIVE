@@ -6,10 +6,10 @@ const get=n=>readFileSync(new URL('../'+n,import.meta.url),'utf8');
 const dashboard=get('alerts.html'),settings=get('server.mjs'),overlay=get('afterglow-overlay.html'),
   studio=get('afterglow-studio.html'),minecraft=get('assets/afterglow-minecraft.js'),
   simpleCss=get('assets/alerts-simple.css'),minecraftCss=get('assets/afterglow-minecraft.css'),
-  picker=get('assets/alerts-theme-picker.js'),catalog=get('gift-catalog.js'),halloween=get('halloween-alertas-3d.html');
-test('three selectable themes — Afterglow, Minecraft and Halloween',()=>{
+  picker=get('assets/alerts-theme-picker.js'),catalog=get('gift-catalog.js'),halloween=get('halloween-alertas-3d.html'),christmas=get('navidad-alertas-3d.html');
+test('three selectable themes — Afterglow, Minecraft, Halloween and Navidad',()=>{
  const options=[...dashboard.matchAll(/data-grena-theme="([^"]+)"/g)].map(x=>x[1]);
- assert.deepEqual(options.filter(x=>['original','minecraft','halloween'].includes(x)),['original','minecraft','halloween']);
+ assert.deepEqual(options.filter(x=>['original','minecraft','halloween','christmas'].includes(x)),['original','minecraft','halloween','christmas']);
  const optional=options.filter(x=>['minecraft3d','domino'].includes(x));
  assert.ok(optional.length===0||optional.length===2,'Los paquetes adicionales deben ir juntos');
  assert.match(simpleCss,/#dashboard>\.test-grid/);
@@ -59,7 +59,7 @@ test('Minecraft produces all six pixel-art alerts without opaque canvas',()=>{
 });
 test('all inline and external scripts parse',()=>{
  for(const source of [minecraft,picker])new vm.Script(source);
- for(const html of [dashboard,overlay,studio,halloween]){
+ for(const html of [dashboard,overlay,studio,halloween,christmas]){
    for(const script of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){
      if(script[1].trim())new vm.Script(script[1]);
    }
