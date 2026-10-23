@@ -66,7 +66,7 @@ server=get('server.mjs')
 start=server.index('function normalizeAfterglowSettings(')
 end=server.index('\n}',start)+2
 settings=server[start:end]
-match=re.search(r"return \{theme:[^,\n]+,intensity:",settings)
+match=re.search(r"return \{theme:.*?,intensity:",settings)
 if not match: raise RuntimeError('No se encontró la normalización del tema en el Desktop kit: '+settings[:850])
 settings=settings[:match.start()]+("return {theme:['minecraft','minecraft3d','domino','halloween'].includes(x.theme)?x.theme:'original',intensity:")+settings[match.end():]
 server=server[:start]+settings+server[end:]
@@ -85,7 +85,7 @@ overlay=once(overlay,'function applySettings(src)',helpers+'function applySettin
 normalized_start=overlay.index('function normalizedSettings(')
 normalized_end=overlay.index('\n}',normalized_start)+2
 settings=overlay[normalized_start:normalized_end]
-match=re.search(r"return \{theme:[^,\n]+,intensity:",settings)
+match=re.search(r"return \{theme:.*?,intensity:",settings)
 if not match: raise RuntimeError('No se reconoció el tema del overlay Desktop: '+settings[:850])
 settings=settings[:match.start()]+("return {theme:['minecraft','minecraft3d','domino','halloween'].includes(src.theme)?src.theme:'original',intensity:")+settings[match.end():]
 overlay=overlay[:normalized_start]+settings+overlay[normalized_end:]
