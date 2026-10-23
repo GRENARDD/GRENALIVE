@@ -218,5 +218,12 @@ document.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{O=b.dataset.o;ps
 let dg=null;st.onpointerdown=e=>{if(!OBS)dg={x:e.clientX,y:e.clientY}};addEventListener('pointerup',()=>{if(dg){dg=null;sv()}});
 addEventListener('pointermove',e=>{if(!dg)return;const p=C.pos[O];p.x=Math.round(p.x+(e.clientX-dg.x)/K);p.y=Math.round(p.y+(e.clientY-dg.y)/K);dg={x:e.clientX,y:e.clientY};ap()});
 ap();
+if(OBS&&Q.has('previewEvent')){
+ const t=String(Q.get('previewEvent')||'follow').toLowerCase();
+ const accepted=['follow','sub','gift','premium','share','like','raid','cheer','welcome'];
+ if(accepted.includes(t)){
+   setTimeout(()=>{const d={user:'GREÑA_DEMO',plat:'tiktok',test:1,gift:t==='premium'?'León':'Rosa',icon:t==='premium'?'🦁':'🌹',img:'',value:t==='premium'?29999:1,qty:t==='premium'?2:1,months:3,viewers:85,amount:250,unit:'bits',count:15};push(t==='premium'?'gift':t,d)},550);
+ }
+}
 if(Q.get('demo')==='1'){const L=['follow','sub','gift','premium','share','like','raid','cheer'];let i=0;const f=()=>{const t=L[i++%L.length];push(t=='premium'?'gift':t,{...T(t),test:1,user:'Demo_Halloween',gift:t=='premium'?'León':'Corona',icon:t=='premium'?'🦁':'👑',value:t=='premium'?29999:299,qty:3,months:3,viewers:128,amount:500,count:8,plat:'tiktok'})};f();setInterval(f,9000)}
 </script></body></html>
