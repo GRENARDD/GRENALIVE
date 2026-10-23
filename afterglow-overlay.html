@@ -247,7 +247,7 @@ async function syncSettingsFromServer(){
 }
 async function load(){
  await syncSettingsFromServer();
- connect();
+ if(qp.get('preview')!=='1')connect();
  checkOverlayRelease();
  versionCheckTimer=setInterval(checkOverlayRelease,20000);
  settingsSyncTimer=setInterval(syncSettingsFromServer,5000);
