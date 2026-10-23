@@ -1,6 +1,8 @@
 name: GREÑA LIVE Desktop (kit de integración)
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches:
       - main
@@ -20,6 +22,12 @@ on:
       - 'chat-server.mjs'
       - 'tests/starvios-*.test.mjs'
       - 'desktop-build/**'
+      - 'alerts.html'
+      - 'afterglow-overlay.html'
+      - 'halloween-alertas-3d.html'
+      - 'navidad-alertas-3d.html'
+      - 'assets/alerts-simple.css'
+      - 'assets/alerts-theme-picker.js'
       - '.github/workflows/grena-desktop-from-kit.yml'
 permissions:
   contents: write
@@ -28,9 +36,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v5
         with:
           node-version: '22'
+      - name: Preserve verified kit prerequisites
+        run: python desktop-build/prepare_kit_base.py .
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -41,6 +53,8 @@ jobs:
           Expand-Archive -Path "GRENA_LIVE_Desktop_v5_Kit.zip" -DestinationPath ".kit" -Force
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "."
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/apply_theme_after_kit.py .
       - name: Fix Node backend packaging and enable startup diagnosis
         shell: pwsh
         run: |
@@ -51,6 +65,10 @@ jobs:
           python desktop-build/fix_starvios_version.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_bubble.py .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/remove_minecraft3d.py .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/fix_updates.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check desktop/main.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -69,8 +87,8 @@ jobs:
         run: |
           node --test assets/grena-packs/domino/tests/domino.test.js assets/grena-packs/domino/tests/system.test.js
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node --test assets/grena-packs/minecraft/tests/phase1.test.js
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (Test-Path 'assets/grena-packs/minecraft') { throw 'Minecraft 3D sigue en el instalador' }
+          if (!(Test-Path 'assets/afterglow-minecraft.js')) { throw 'Falta Minecraft normal' }
           node --test tests/voice-emoji-filter.test.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test desktop-build/test-starvios-dialog.cjs
@@ -81,6 +99,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test desktop-build/test-obs-alert-cam-tiktok.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Test compact themes and seasonal overlay sources
+        run: node --test tests/alerts-two-theme-simple.test.mjs
       - name: Probe public Kick authorization broker
         run: node desktop-build/probe-kick-auth.mjs
       - name: Build Windows installer (manual)
@@ -97,6 +117,6 @@ jobs:
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: GRENA-LIVE-Installer-Windows-v5.0.9
+          name: GRENA-LIVE-Installer-Windows-v5.0.11
           path: dist/*.exe
           if-no-files-found: error
