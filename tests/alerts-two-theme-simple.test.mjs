@@ -9,7 +9,9 @@ const dashboard=get('alerts.html'),settings=get('server.mjs'),overlay=get('after
   picker=get('assets/alerts-theme-picker.js'),catalog=get('gift-catalog.js'),halloween=get('halloween-alertas-3d.html');
 test('three selectable themes — Afterglow, Minecraft and Halloween',()=>{
  const options=[...dashboard.matchAll(/data-grena-theme="([^"]+)"/g)].map(x=>x[1]);
- assert.deepEqual(options,['original','minecraft','halloween']);
+ assert.deepEqual(options.filter(x=>['original','minecraft','halloween'].includes(x)),['original','minecraft','halloween']);
+ const optional=options.filter(x=>['minecraft3d','domino'].includes(x));
+ assert.ok(optional.length===0||optional.length===2,'Los paquetes adicionales deben ir juntos');
  assert.match(simpleCss,/#dashboard>\.test-grid/);
  assert.match(simpleCss,/#dashboard>\.sv-alert-section/);
  assert.match(simpleCss,/\.ui-complexity-bar/);
