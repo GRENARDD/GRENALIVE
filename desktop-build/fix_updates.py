@@ -21,6 +21,13 @@ tag=os.environ.get('GITHUB_REF_NAME','') if os.environ.get('GITHUB_REF_TYPE','')
 pkg['version']=tag[1:] if re.fullmatch(r'v5\.\d+\.\d+',tag) else '5.0.10'
 pkg.setdefault('dependencies',{})['electron-updater']='^6.6.2'
 pkg['build']['publish']=[{'provider':'github','owner':'GRENARDD','repo':'GRENALIVE','releaseType':'release'}]
+files=pkg['build'].get('files')
+if isinstance(files,list):
+    for resource in ('halloween-alertas-3d.html','afterglow-overlay.html','alerts.html','assets/alerts-simple.css','assets/alerts-theme-picker.js'):
+        if resource not in files: files.append(resource)
+if not (root/'halloween-alertas-3d.html').exists():
+    raise RuntimeError('Falta la temática Halloween 3D en el empaquetado.')
+
 main=launcher.read_text(encoding='utf-8')
 if 'GRENA_DESKTOP_UPDATER_V1' in main:
     raise RuntimeError('El módulo de actualización ya existe: evita duplicarlo.')
