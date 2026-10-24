@@ -813,6 +813,10 @@ body.voice-settings-modal-open{overflow:hidden!important}
         </label>
 
         <select id="voiceSelect"></select>
+        <div class="voice-field"><label for="voiceLanguageFilter">🌍 Idiomas de lectura</label>
+          <select id="voiceLanguageFilter"><option value="all">Todos los idiomas</option><option value="es">Solo español</option><option value="es-en">Español e inglés</option></select>
+          <small>Solo se filtra la voz; los mensajes siguen visibles.</small>
+        </div>
         <div id="voiceHint" style="margin-top:7px;color:#9ca3af;font-size:12px;line-height:1.4"></div>
 
       </div>
@@ -1508,6 +1512,8 @@ function saveSettings(){
       smartSpamLevel:
         $('smartSpamLevel')?.value || 'normal',
 
+      voiceLanguageFilter: $('voiceLanguageFilter')?.value || 'all',
+
       voiceName:
         voice?.name || '',
 
@@ -1652,6 +1658,7 @@ function restoreSettings(){
 
   }
 
+  if(['all','es','es-en'].includes(settings.voiceLanguageFilter)) $('voiceLanguageFilter').value=settings.voiceLanguageFilter;
   if(settings.voiceVolume != null){
 
     $('voiceVolume').value =
@@ -3587,6 +3594,32 @@ function dropLowestPriorityVoice(){
   return voiceQueue.splice(index,1)[0] || null;
 }
 
+function detectVoiceLanguage(text){
+  const raw=String(text||'').toLowerCase();
+  if(/[\u0400-\u052f\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(raw)) return 'other';
+  const words=raw.match(/[a-záéíóúüñàâçèêëîïôùûœãõ]+/gu)||[];
+  if(words.length<3) return 'unknown';
+  const dictionaries={
+    es:'el la los las un una unos unas de del que qué en con por para como cómo pero porque estoy está están eres soy hola gracias buenas buenos noches días quiero quieres tengo tienes vamos esto este esta estos estas eso esos esas muy más aquí ahí también cuando dónde quién no sí tu tú mi yo nosotros ustedes ellos ellas hacer hace hay fue era ser estar desde hasta bien amigo amiga gente mensaje leer juego jugando ahora puedo puedes',
+    en:'the and you your are is am was were this that these those what why where when who how hello hi thanks thank good morning night please with for from have has had not yes can could would should will just really very here there they them their we our i me my it its do does did to of in on at by as a an if but or so playing game stream chat read message today now',
+    other:'vous nous avec pour dans est une des les pas oui merci bonjour salut suis êtes sont cette mais muito obrigado obrigada você vocês não sim tudo então pelo pelos pela eu meu minha uma das dos'
+  };
+  const score={es:0,en:0,other:0};
+  for(const [lang,terms] of Object.entries(dictionaries)){
+    const set=new Set(terms.split(' '));
+    for(const word of words) if(set.has(word)) score[lang]++;
+  }
+  if(/[ñ¿¡]/u.test(raw)) score.es+=2;
+  const ranked=Object.keys(score).sort((a,b)=>score[b]-score[a]);
+  return score[ranked[0]]>=2 && score[ranked[0]]>score[ranked[1]] ? ranked[0] : 'unknown';
+}
+function languageAllowedForVoice(text){
+  const filter=$('voiceLanguageFilter')?.value||'all';
+  if(filter==='all') return true;
+  const lang=detectVoiceLanguage(text);
+  if(lang==='unknown') return true;
+  return filter==='es' ? lang==='es' : lang==='es'||lang==='en';
+}
 function queueVoice(m){
 
   if(
@@ -3654,6 +3687,8 @@ function queueVoice(m){
       '...';
 
   }
+
+  if(!languageAllowedForVoice(text)) return;
 
   // Antes de añadir otro comentario, purgamos los que ya perdieron
   // relevancia. En una avalancha (400/4000 personas) el motor permanece cerca
@@ -5295,6 +5330,7 @@ function installSettingsListeners(){
     'twitchUrl',
     'kickUrl',
     'voiceEnabled',
+    'voiceLanguageFilter',
     'voiceRate',
     'voiceVolume',
     'fishModelId1',
