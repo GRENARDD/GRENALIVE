@@ -813,25 +813,6 @@ body.voice-settings-modal-open{overflow:hidden!important}
         </label>
 
         <select id="voiceSelect"></select>
-        <div class="voice-field"><label for="voiceLanguageFilter">🌍 Idiomas de lectura</label>
-          <select id="voiceLanguageFilter"><option value="all">Todos los idiomas</option><option value="es">Solo español</option><option value="en">Solo inglés</option><option value="es-en">Español e inglés</option><option value="custom">Varios idiomas (seleccionar)</option></select>
-          <div id="voiceLanguageChoices" hidden style="margin-top:10px;padding:10px;border:1px solid #53617b;border-radius:10px"><small>Marca los idiomas permitidos:</small>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:7px">
-          <label><input name="voiceCustomLanguage" type="checkbox" value="es" checked> Español</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="en" checked> Inglés</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="pt"> Portugués</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="fr"> Francés</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="de"> Alemán</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="it"> Italiano</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="ru"> Ruso</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="ar"> Árabe</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="hi"> Hindi</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="ja"> Japonés</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="ko"> Coreano</label>
-          <label><input name="voiceCustomLanguage" type="checkbox" value="zh"> Chino</label></div>
-          <small>Los mensajes cuyo idioma no se pueda identificar no se leerán en modos restringidos.</small></div>
-          <small>Solo se filtra la voz; los mensajes siguen visibles.</small>
-        </div>
         <div id="voiceHint" style="margin-top:7px;color:#9ca3af;font-size:12px;line-height:1.4"></div>
 
       </div>
@@ -1136,6 +1117,27 @@ body.voice-settings-modal-open{overflow:hidden!important}
     <div class="voice-box filters-panel">
 
       <h3>🛡️ Filtros y anti-spam</h3>
+
+      <div class="voice-field"><label for="voiceLanguageFilter">🌍 Idiomas de lectura</label>
+          <select id="voiceLanguageFilter"><option value="all">Todos los idiomas</option><option value="es">Solo español</option><option value="en">Solo inglés</option><option value="es-en">Español e inglés</option><option value="custom">Varios idiomas (seleccionar)</option></select>
+          <div id="voiceLanguageChoices" hidden style="margin-top:10px;padding:10px;border:1px solid #53617b;border-radius:10px"><small>Marca los idiomas permitidos:</small>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:7px">
+          <label><input name="voiceCustomLanguage" type="checkbox" value="es" checked> Español</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="en" checked> Inglés</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="pt"> Portugués</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="fr"> Francés</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="de"> Alemán</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="it"> Italiano</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="ru"> Ruso</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="ar"> Árabe</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="hi"> Hindi</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="ja"> Japonés</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="ko"> Coreano</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="zh"> Chino</label></div>
+          <small>Los mensajes cuyo idioma no se pueda identificar no se leerán en modos restringidos.</small></div>
+          <small>Solo se filtra la voz; los mensajes siguen visibles.</small>
+        </div>
+
 
       <label class="voice-check" style="margin-bottom:10px">
         <input type="checkbox" id="smartSpamEnabled" checked>
