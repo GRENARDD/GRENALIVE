@@ -814,7 +814,22 @@ body.voice-settings-modal-open{overflow:hidden!important}
 
         <select id="voiceSelect"></select>
         <div class="voice-field"><label for="voiceLanguageFilter">🌍 Idiomas de lectura</label>
-          <select id="voiceLanguageFilter"><option value="all">Todos los idiomas</option><option value="es">Solo español</option><option value="es-en">Español e inglés</option></select>
+          <select id="voiceLanguageFilter"><option value="all">Todos los idiomas</option><option value="es">Solo español</option><option value="en">Solo inglés</option><option value="es-en">Español e inglés</option><option value="custom">Varios idiomas (seleccionar)</option></select>
+          <div id="voiceLanguageChoices" hidden style="margin-top:10px;padding:10px;border:1px solid #53617b;border-radius:10px"><small>Marca los idiomas permitidos:</small>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:7px">
+          <label><input name="voiceCustomLanguage" type="checkbox" value="es" checked> Español</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="en" checked> Inglés</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="pt"> Portugués</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="fr"> Francés</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="de"> Alemán</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="it"> Italiano</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="ru"> Ruso</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="ar"> Árabe</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="hi"> Hindi</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="ja"> Japonés</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="ko"> Coreano</label>
+          <label><input name="voiceCustomLanguage" type="checkbox" value="zh"> Chino</label></div>
+          <small>Los mensajes cuyo idioma no se pueda identificar no se leerán en modos restringidos.</small></div>
           <small>Solo se filtra la voz; los mensajes siguen visibles.</small>
         </div>
         <div id="voiceHint" style="margin-top:7px;color:#9ca3af;font-size:12px;line-height:1.4"></div>
@@ -1513,6 +1528,7 @@ function saveSettings(){
         $('smartSpamLevel')?.value || 'normal',
 
       voiceLanguageFilter: $('voiceLanguageFilter')?.value || 'all',
+      voiceCustomLanguages: [...document.querySelectorAll('input[name="voiceCustomLanguage"]:checked')].map(el=>el.value),
 
       voiceName:
         voice?.name || '',
@@ -1658,7 +1674,9 @@ function restoreSettings(){
 
   }
 
-  if(['all','es','es-en'].includes(settings.voiceLanguageFilter)) $('voiceLanguageFilter').value=settings.voiceLanguageFilter;
+  if(['all','es','en','es-en','custom'].includes(settings.voiceLanguageFilter)) $('voiceLanguageFilter').value=settings.voiceLanguageFilter;
+  if(Array.isArray(settings.voiceCustomLanguages)) document.querySelectorAll('input[name="voiceCustomLanguage"]').forEach(el=>{el.checked=settings.voiceCustomLanguages.includes(el.value);});
+  updateVoiceLanguageChoices();
   if(settings.voiceVolume != null){
 
     $('voiceVolume').value =
@@ -3594,31 +3612,41 @@ function dropLowestPriorityVoice(){
   return voiceQueue.splice(index,1)[0] || null;
 }
 
+function updateVoiceLanguageChoices(){
+  const node=$('voiceLanguageChoices');
+  if(node) node.hidden=$('voiceLanguageFilter')?.value!=='custom';
+}
 function detectVoiceLanguage(text){
-  const raw=String(text||'').toLowerCase();
-  if(/[\u0400-\u052f\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(raw)) return 'other';
-  const words=raw.match(/[a-záéíóúüñàâçèêëîïôùûœãõ]+/gu)||[];
-  if(words.length<3) return 'unknown';
+  const raw=String(text||'').toLowerCase().replace(/https?:\/\/\S+|@\w+/g,' ');
+  if(/[\u3040-\u30ff]/u.test(raw))return 'ja';
+  if(/[\uac00-\ud7af]/u.test(raw))return 'ko';
+  if(/[\u3400-\u9fff]/u.test(raw))return 'zh';
+  if(/[\u0400-\u052f]/u.test(raw))return 'ru';
+  if(/[\u0600-\u06ff]/u.test(raw))return 'ar';
+  if(/[\u0900-\u097f]/u.test(raw))return 'hi';
+  const words=raw.match(/[a-záéíóúüñàâçèêëîïôùûœãõß]+/gu)||[];
   const dictionaries={
-    es:'el la los las un una unos unas de del que qué en con por para como cómo pero porque estoy está están eres soy hola gracias buenas buenos noches días quiero quieres tengo tienes vamos esto este esta estos estas eso esos esas muy más aquí ahí también cuando dónde quién no sí tu tú mi yo nosotros ustedes ellos ellas hacer hace hay fue era ser estar desde hasta bien amigo amiga gente mensaje leer juego jugando ahora puedo puedes',
+    es:'el la los las un una de que qué en con por para como cómo pero porque estoy está están eres soy hola gracias buenas buenos noches días quiero quieres tengo tienes vamos esto este esta esos esas muy más aquí ahí también cuando dónde quién no sí tu tú mi yo nosotros ustedes ellos ellas hacer hace hay fue ser estar desde hasta bien amigo amiga gente mensaje leer juego jugando ahora puedo puedes',
     en:'the and you your are is am was were this that these those what why where when who how hello hi thanks thank good morning night please with for from have has had not yes can could would should will just really very here there they them their we our i me my it its do does did to of in on at by as a an if but or so playing game stream chat read message today now',
-    other:'vous nous avec pour dans est une des les pas oui merci bonjour salut suis êtes sont cette mais muito obrigado obrigada você vocês não sim tudo então pelo pelos pela eu meu minha uma das dos'
+    pt:'você vocês não sim tudo então pelo pelos pela eu meu minha uma das dos muito obrigado obrigada olá bom boa noite dia tarde estou está estamos falar jogo jogar gente agora aqui também quero porque para com isso essa hoje mais',
+    fr:'vous nous avec pour dans est une des les pas oui merci bonjour salut suis êtes sont cette mais je tu il elle ils elles mon ma mes notre votre pourquoi comment quoi qui où quand très bien ici aujourd parler jouer jeu aussi',
+    de:'ich du er sie wir ihr das der die den dem ein eine einen nicht und ist sind mit für wie was warum wo wann guten tag hallo danke bitte heute jetzt spielen spiel sehr auch mein deine kein haben',
+    it:'ciao grazie buongiorno buonasera sono sei siamo voi loro questo questa quello bella bene molto perché come dove quando cosa che con per non sì anche io tu noi mio mia gioco giocare oggi qui adesso'
   };
-  const score={es:0,en:0,other:0};
-  for(const [lang,terms] of Object.entries(dictionaries)){
-    const set=new Set(terms.split(' '));
-    for(const word of words) if(set.has(word)) score[lang]++;
-  }
-  if(/[ñ¿¡]/u.test(raw)) score.es+=2;
-  const ranked=Object.keys(score).sort((a,b)=>score[b]-score[a]);
-  return score[ranked[0]]>=2 && score[ranked[0]]>score[ranked[1]] ? ranked[0] : 'unknown';
+  const scores=Object.fromEntries(Object.keys(dictionaries).map(k=>[k,0]));
+  for(const [lang,terms] of Object.entries(dictionaries)){const set=new Set(terms.split(' '));for(const word of words)if(set.has(word))scores[lang]++;}
+  if(/[ñ¿¡]/u.test(raw))scores.es+=2;
+  if(/[ãõ]/u.test(raw))scores.pt+=2;
+  if(/[ß]/u.test(raw))scores.de+=2;
+  const ranked=Object.keys(scores).sort((a,b)=>scores[b]-scores[a]);
+  return scores[ranked[0]]>=2&&scores[ranked[0]]>scores[ranked[1]]?ranked[0]:'unknown';
 }
 function languageAllowedForVoice(text){
   const filter=$('voiceLanguageFilter')?.value||'all';
-  if(filter==='all') return true;
+  if(filter==='all')return true;
+  const allowed=filter==='custom'?[...document.querySelectorAll('input[name="voiceCustomLanguage"]:checked')].map(x=>x.value):filter==='es-en'?['es','en']:[filter];
   const lang=detectVoiceLanguage(text);
-  if(lang==='unknown') return true;
-  return filter==='es' ? lang==='es' : lang==='es'||lang==='en';
+  return lang!=='unknown'&&allowed.includes(lang);
 }
 function queueVoice(m){
 
@@ -5383,6 +5411,8 @@ function installSettingsListeners(){
     }
   );
 
+  $('voiceLanguageFilter')?.addEventListener('change',updateVoiceLanguageChoices);
+  document.querySelectorAll('input[name="voiceCustomLanguage"]').forEach(el=>el.addEventListener('change',saveSettings));
   document
     .querySelectorAll(
       'input[name="tiktokMode"], input[name="twitchMode"], input[name="kickMode"], input[name="starviosMode"]'
