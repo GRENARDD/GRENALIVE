@@ -351,7 +351,7 @@ function platformLabel(platform){return platform==='tiktok'?'TIKTOK':(platform==
 function cleanPlatformIcon(p){
   const svg=(body)=>'<svg viewBox="0 0 24 24" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">'+body+'</svg>';
   if(p==='twitch')return svg('<path fill="#9146ff" d="M3 2h19v14l-6 6h-5l-3 2v-2H3V2Zm3 3v13h5v2l2-2h3l3-3V5H6Z"/><path fill="#fff" d="M10 8h2v6h-2zm5 0h2v6h-2z"/>');
-  if(p==='kick')return svg('<rect width="24" height="24" rx="4" fill="#09120a"/><path fill="#53fc18" d="M4 4h6v6h3V7h3V4h5v6h-3v4h3v6h-6v-3h-2v-3h-3v6H4z"/>');
+  if(p==='kick')return svg('<path fill="#53FC18" d="M3 3h5.25v6.75h2.25L14.25 3H21l-5.25 8.625L21 21h-6.75L10.5 14.25H8.25V21H3z"/>');
   if(p==='tiktok')return svg('<rect width="24" height="24" rx="5" fill="#101116"/><path d="M13 4v10.2a3.5 3.5 0 1 1-3.5-3.5" fill="none" stroke="#25f4ee" stroke-width="3" stroke-linecap="round"/><path d="M14 4c.7 2.8 2.1 4 5 4" fill="none" stroke="#ff326f" stroke-width="3" stroke-linecap="round"/><path d="M14 4v10.2a3.5 3.5 0 1 1-3.5-3.5M14 4c.7 2.8 2.1 4 5 4" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/>');
   if(p==='starvios')return svg('<path fill="#ff88c8" d="m10 1.8 2.4 5.9 6.3.4-4.9 4 1.7 6.1-5.5-3.3-5.5 3.3 1.7-6.1-4.9-4 6.3-.4z"/><path fill="#ffd3ed" d="m19.6 12.4 1.1 2.7 2.9.2-2.3 1.9.8 2.8-2.5-1.5-2.5 1.5.8-2.8-2.3-1.9 2.9-.2z"/>');
   return svg('<rect x="1" y="3" width="22" height="18" rx="5" fill="#ff0033"/><path d="m10 7 8 5-8 5z" fill="white"/>');
