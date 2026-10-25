@@ -267,6 +267,23 @@
 .msg.theme-clean.youtube{--accent:#ff5476!important}
 @media(prefers-reduced-motion:reduce){.msg.theme-clean{animation:none!important}}
 
+
+/* GREÑA custom themes: foreground only, always transparent OBS canvas */
+.msg.theme-blossom,.msg.theme-comicpop{width:max-content;max-width:var(--clean-max-width,94%);display:flex;align-items:flex-start;gap:7px!important;overflow:visible!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;backdrop-filter:none!important;clip-path:none!important}
+.msg.theme-blossom::before,.msg.theme-blossom::after,.msg.theme-comicpop::before,.msg.theme-comicpop::after{display:none!important}
+.msg .style-icon{width:var(--clean-icon-size,24px);height:var(--clean-icon-size,24px);flex:0 0 var(--clean-icon-size,24px);display:grid;place-items:center;filter:drop-shadow(0 2px 2px #000a)}
+.msg .style-icon svg{width:100%;height:100%}
+.msg .style-box{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.msg .style-name{font-weight:900;overflow-wrap:anywhere}
+.msg .style-message{overflow-wrap:anywhere;white-space:pre-wrap;font-weight:650;line-height:1.35}
+.msg.theme-blossom .style-box{position:relative;border:1px solid #f79ad8;border-radius:10px;background:linear-gradient(160deg,rgba(89,27,68,.86),rgba(40,13,44,.86));padding:7px 26px 9px 10px;box-shadow:inset 0 0 0 1px #ffb8e53b,0 3px 14px #0008}
+.msg.theme-blossom .style-box:after{content:'✿';position:absolute;right:5px;top:50%;transform:translateY(-50%);color:#ffa2d6;font-size:21px;text-shadow:0 1px 4px #711}
+.msg.theme-blossom .style-name{font-size:.85em;color:#ffc0e5}
+.msg.theme-blossom .style-message{color:white;text-shadow:0 1px 3px #000}
+.msg.theme-comicpop .style-box{gap:0}
+.msg.theme-comicpop .style-name{align-self:flex-start;background:#ffe600;color:#151515;padding:3px 9px;border-radius:3px 3px 0 0;transform:skew(-4deg);box-shadow:2px 2px 0 #000;font-size:.82em;text-transform:uppercase}
+.msg.theme-comicpop .style-message{color:#171717;background:#fff;padding:9px 12px;border-radius:5px 5px 10px 10px;border:2px solid #181818;box-shadow:3px 3px 0 #000;text-shadow:none}
+
 </style>
 </head>
 <body>
@@ -296,7 +313,7 @@ function sanitizeCfg(src){
     else if(typeof def==='boolean'){out[k]=typeof v==='boolean'?v:def}
     else if(k==='readability'){out[k]=['none','shadow','outline','both'].includes(v)?v:def}
     else if(k==='direction'){out[k]=v==='right'?'right':'left'}
-    else if(k==='theme'){out[k]='clean'}
+    else if(k==='theme'){out[k]=['clean','blossom','comicpop'].includes(v)?v:'clean'}
     else{out[k]=def}
   }
   return out;
@@ -401,7 +418,7 @@ function add(d){
     ? `<span class="handle" style="font-size:${Math.max(10,nameSize-2)}px">${safe(handle)}</span>`
     : '';
 
-  if(theme==='clean'){
+  if(['clean','blossom','comicpop'].includes(theme)){
     const iconPx=Math.max(16,Math.min(40,Number(cfg.iconSize)||24));
     const strength=Math.max(0,Math.min(100,Number(cfg.shadowStrength??70)))/100;
     const look=cfg.readability||'both';
@@ -409,8 +426,13 @@ function add(d){
     el.style.setProperty('--clean-max-width',Math.max(10,Math.min(100,Number(cfg.bubbleWidth)||85))+'%');
     el.style.setProperty('--clean-outline',look==='both'||look==='outline'?'.6px':'0px');
     el.style.setProperty('--clean-text-shadow',look==='none'||look==='outline'?'none':`0 2px 3px rgba(0,0,0,${strength}),0 0 4px rgba(0,0,0,${strength*.75})`);
-    el.innerHTML=(cfg.showPlatform?'<span class="clean-icon">'+cleanPlatformIcon(d.platform)+'</span>':'')+
+    if(theme==='clean'){
+      el.innerHTML=(cfg.showPlatform?'<span class="clean-icon">'+cleanPlatformIcon(d.platform)+'</span>':'')+
       '<span class="clean-content" style="font-size:'+fontSize+'px"><span class="clean-name" style="font-size:'+nameSize+'px">'+safe(nickname)+':</span> <span class="clean-text">'+safe(d.text)+'</span></span>';
+    }else{
+      el.innerHTML=(cfg.showPlatform?'<span class="style-icon">'+cleanPlatformIcon(d.platform)+'</span>':'')+
+       '<span class="style-box" style="font-size:'+fontSize+'px"><span class="style-name" style="font-size:'+nameSize+'px">'+safe(nickname)+'</span><span class="style-message">'+safe(d.text)+'</span></span>';
+    }
   }else{
     el.innerHTML = `${avatar}<div class="body"><div class="top">${platform}<div class="nameRow"><span class="name" style="font-size:${nameSize}px">${safe(nickname)}</span>${handleHtml}</div></div><div class="text" style="font-size:${fontSize}px">${safe(d.text)}</div></div>`;
   }
