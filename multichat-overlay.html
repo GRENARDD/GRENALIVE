@@ -245,6 +245,28 @@
 .msg.tiktok .name,.msg.tiktok .handle,.msg.tiktok .platform{color:#25F4EE!important;text-shadow:0 0 8px rgba(37,244,238,.18)!important}
 .msg.tiktok .avatar,.msg.tiktok .avatar img{border-color:#25F4EE!important;box-shadow:0 0 12px rgba(37,244,238,.22)!important}
 
+
+/* Multichat Minimal PRO: sin fondos, iconos de 24px, nombres por plataforma. */
+.msg.theme-clean,.msg.theme-clean.tiktok,.msg.theme-clean.twitch,.msg.theme-clean.kick,.msg.theme-clean.starvios,.msg.theme-clean.youtube{
+  background:transparent!important;box-shadow:none!important;border:0!important;
+  backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
+  padding:2px 0!important;clip-path:none!important;overflow:visible!important;
+  width:max-content;max-width:94%;display:flex;align-items:flex-start;gap:7px!important;
+}
+.msg.theme-clean::before,.msg.theme-clean::after{display:none!important;content:none!important}
+.msg.theme-clean .clean-icon{width:24px;height:24px;min-width:24px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px}
+.msg.theme-clean .clean-icon svg{display:block;width:24px;height:24px}
+.msg.theme-clean .clean-content{min-width:0;flex:1;font-weight:700;line-height:1.36;
+  text-shadow:0 2px 3px #000,1px 1px 2px #000,-1px -1px 2px #000}
+.msg.theme-clean .clean-name{font-weight:900;color:var(--accent)!important}
+.msg.theme-clean .clean-text{color:#fff;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.theme-clean.tiktok{--accent:#ff437f!important}
+.msg.theme-clean.twitch{--accent:#ae79ff!important}
+.msg.theme-clean.kick{--accent:#53fc18!important}
+.msg.theme-clean.starvios{--accent:#ff88c8!important}
+.msg.theme-clean.youtube{--accent:#ff5476!important}
+@media(prefers-reduced-motion:reduce){.msg.theme-clean{animation:none!important}}
+
 </style>
 </head>
 <body>
@@ -325,6 +347,16 @@ function applyStage(){
 }
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function platformLabel(platform){return platform==='tiktok'?'TIKTOK':(platform==='twitch'?'TWITCH':platform==='youtube'?'YOUTUBE':platform==='starvios'?'STARVIOS':'KICK')}
+
+function cleanPlatformIcon(p){
+  const svg=(body)=>'<svg viewBox="0 0 24 24" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">'+body+'</svg>';
+  if(p==='twitch')return svg('<path fill="#9146ff" d="M3 2h19v14l-6 6h-5l-3 2v-2H3V2Zm3 3v13h5v2l2-2h3l3-3V5H6Z"/><path fill="#fff" d="M10 8h2v6h-2zm5 0h2v6h-2z"/>');
+  if(p==='kick')return svg('<rect width="24" height="24" rx="4" fill="#09120a"/><path fill="#53fc18" d="M4 4h6v6h3V7h3V4h5v6h-3v4h3v6h-6v-3h-2v-3h-3v6H4z"/>');
+  if(p==='tiktok')return svg('<rect width="24" height="24" rx="5" fill="#101116"/><path d="M13 4v10.2a3.5 3.5 0 1 1-3.5-3.5" fill="none" stroke="#25f4ee" stroke-width="3" stroke-linecap="round"/><path d="M14 4c.7 2.8 2.1 4 5 4" fill="none" stroke="#ff326f" stroke-width="3" stroke-linecap="round"/><path d="M14 4v10.2a3.5 3.5 0 1 1-3.5-3.5M14 4c.7 2.8 2.1 4 5 4" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/>');
+  if(p==='starvios')return svg('<path fill="#ff88c8" d="m10 1.8 2.4 5.9 6.3.4-4.9 4 1.7 6.1-5.5-3.3-5.5 3.3 1.7-6.1-4.9-4 6.3-.4z"/><path fill="#ffd3ed" d="m19.6 12.4 1.1 2.7 2.9.2-2.3 1.9.8 2.8-2.5-1.5-2.5 1.5.8-2.8-2.3-1.9 2.9-.2z"/>');
+  return svg('<rect x="1" y="3" width="22" height="18" rx="5" fill="#ff0033"/><path d="m10 7 8 5-8 5z" fill="white"/>');
+}
+
 function add(d){
   if(!d||d.type!=='chat'||!['tiktok','twitch','kick','youtube','starvios'].includes(d.platform))return;
   if(d._historyId){
@@ -368,7 +400,12 @@ function add(d){
     ? `<span class="handle" style="font-size:${Math.max(10,nameSize-2)}px">${safe(handle)}</span>`
     : '';
 
-  el.innerHTML = `${avatar}<div class="body"><div class="top">${platform}<div class="nameRow"><span class="name" style="font-size:${nameSize}px">${safe(nickname)}</span>${handleHtml}</div></div><div class="text" style="font-size:${fontSize}px">${safe(d.text)}</div></div>`;
+  if(theme==='clean'){
+    el.innerHTML=(cfg.showPlatform?'<span class="clean-icon">'+cleanPlatformIcon(d.platform)+'</span>':'')+
+      '<span class="clean-content" style="font-size:'+fontSize+'px"><span class="clean-name">'+safe(nickname)+':</span> <span class="clean-text">'+safe(d.text)+'</span></span>';
+  }else{
+    el.innerHTML = `${avatar}<div class="body"><div class="top">${platform}<div class="nameRow"><span class="name" style="font-size:${nameSize}px">${safe(nickname)}</span>${handleHtml}</div></div><div class="text" style="font-size:${fontSize}px">${safe(d.text)}</div></div>`;
+  }
   const avImg=el.querySelector('img[data-avimg]');
   if(avImg)avImg.addEventListener('error',()=>{const f=document.createElement('div');f.className='fallback';f.style.width=avatarSize+'px';f.style.height=avatarSize+'px';f.style.flexBasis=avatarSize+'px';f.textContent=initialOf(nickname);avImg.replaceWith(f)},{once:true});
   stage.appendChild(el);
@@ -404,8 +441,8 @@ load();
 function connect(){
   clearTimeout(retry);
   try{ ws=new WebSocket(CHAT_WS) }
-  catch{ setStatus('Motor del multichat desconectado',true); retry=setTimeout(connect,1200); return }
-  ws.onopen=()=>setStatus('');
+  catch{ setStatus('Motor del multichat desconectado',true); retry=setTimeout(connect,1800); return }
+  ws.onopen=()=>{setStatus('');load().catch(()=>{});};
   ws.onmessage=e=>{
     try{
       const d=JSON.parse(e.data);
