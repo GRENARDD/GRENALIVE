@@ -63,6 +63,13 @@ jobs:
           if ([regex]::Matches($source,$alertsPattern).Count -ne 1) { throw 'Se esperaba una funcion patch_alerts en el kit.' }
           $source = [regex]::Replace($source,$alertsPattern,("def patch_alerts(s):" + "`n" + "    return s" + "`n`n"))
           [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
+          # The current studio already supports Ascension and all modern themes.
+          # Old kit patch_studio expects a removed binary original/minecraft selector.
+          # Do not overwrite the existing multi-theme studio.
+          $studioPattern = '(?ms)^def patch_studio\\(s\\):.*?(?=^def |\\z)'
+          if ([regex]::Matches($source,$studioPattern).Count -ne 1) { throw 'Se esperaba una funcion patch_studio en el kit.' }
+          $source = [regex]::Replace($source,$studioPattern,("def patch_studio(s):" + "`n" + "    return s" + "`n`n"))
+          [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
           # Old v5 picker assumes two themes; preserve the current multi-theme selector.
           $pickerPattern = '(?ms)^def patch_picker\(s\):.*?(?=^def |\z)'
           if ([regex]::Matches($source,$pickerPattern).Count -ne 1) { throw 'Se esperaba una funcion patch_picker en el kit.' }
@@ -82,7 +89,9 @@ jobs:
                     python -m py_compile $kitPatch
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "."
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Fix Node backend packaging and enable startup diagnosis
         shell: pwsh
         run: |
