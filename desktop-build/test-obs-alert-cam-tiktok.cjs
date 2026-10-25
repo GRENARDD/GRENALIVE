@@ -60,6 +60,7 @@ test('se seleccionan PixelCraft, Dominó, Ascensión, las ocho básicas y las do
     assert.match(scene,/giftAnimatedImage/);
     assert.match(scene,/background:transparent!important/);
     assert.match(scene,/GrenaAlert/);
+    for(const match of scene.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(match[1].trim())new vm.Script(match[1]);
   }
   assert.match(alertOverlay,/grena-premium-catalog-obs\.html/);
   assert.match(alertOverlay,/grena-fullscreen-gift-obs\.html/);
