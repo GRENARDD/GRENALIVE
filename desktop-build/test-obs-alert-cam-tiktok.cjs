@@ -41,8 +41,8 @@ test('Multichat OBS propaga token a API, historial, avatar y WebSocket',()=>{
   assert.match(widgets,/getElementById\('chatPreview'\)\.src=chat/);
   assert.match(widgets,/chat=protect\('\/chat\/multichat-overlay\.html'\)/);
 });
-test('se seleccionan PixelCraft, Dominó y las ocho alertas básicas, sin Original',()=>{
-  const allowed=['minecraft','domino','celestial','sakura','comic','hologram','inferno','arcade','royal','void'];
+test('se seleccionan PixelCraft, Dominó, Ascensión, las ocho básicas y las dos premium, sin Original',()=>{
+  const allowed=['minecraft','domino','ascension','grena_catalog','grena_fullscreen','celestial','sakura','comic','hologram','inferno','arcade','royal','void'];
   for(const name of allowed){
     assert.ok(alertHub.includes('data-grena-theme="'+name+'"'),'Falta tarjeta '+name);
   }
@@ -53,6 +53,20 @@ test('se seleccionan PixelCraft, Dominó y las ocho alertas básicas, sin Origin
   assert.match(alertOverlay,/GrenaBasicAlerts\.render\(cfg\.theme/);
   assert.match(alertOverlay,/GrenaThemePacks\.play\('domino'/);
   assert.match(alertOverlay,/GrenaBasicAlerts\.play\(cfg\.theme/);
+  const premiumScene=get('assets/grena-premium-catalog-obs.html');
+  const fullScene=get('assets/grena-fullscreen-gift-obs.html');
+  for(const scene of [premiumScene,fullScene]){
+    assert.match(scene,/GRENA_OBS_ALERT/);
+    assert.match(scene,/giftAnimatedImage/);
+    assert.match(scene,/background:transparent!important/);
+    assert.match(scene,/GrenaAlert/);
+    for(const match of scene.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(match[1].trim())new vm.Script(match[1]);
+  }
+  assert.match(alertOverlay,/grena-premium-catalog-obs\.html/);
+  assert.match(alertOverlay,/grena-fullscreen-gift-obs\.html/);
+  assert.match(alertOverlay,/giftAnimatedImage:String\(a\.giftAnimatedImage/);
+  assert.match(server,/grena_catalog/);
+  assert.match(server,/grena_fullscreen/);
   assert.match(alertOverlay,/settingsSyncTimer=setInterval\(syncSettingsFromServer,5000\)/);
   assert.match(server,/\/api\/afterglow-settings.*\/api\/overlay-version/);
 });
