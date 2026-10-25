@@ -48,6 +48,18 @@ jobs:
             throw "Falta GRENA_LIVE_Desktop_v5_Kit.zip en la raiz del repositorio. No se modifica la app."
           }
           Expand-Archive -Path "GRENA_LIVE_Desktop_v5_Kit.zip" -DestinationPath ".kit" -Force
+          # The v5 kit predates multi-theme overlays. Its hard-coded replacement
+          # rejects the newer validated theme expression and is no longer needed.
+          # Keep all other kit patches and strict validation in place.
+          $kitPatch = ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py"
+          $source = Get-Content $kitPatch -Raw -Encoding UTF8
+          $lines = $source -split "\r?\n"
+          $legacy = @($lines | Where-Object { $_ -match "replace_one" -and $_ -match "'overlay theme'" })
+          if ($legacy.Count -ne 1) { throw "No se localizo exactamente una sustitucion obsoleta de overlay theme" }
+          $lines = @($lines | Where-Object { -not ($_ -match "replace_one" -and $_ -match "'overlay theme'") })
+          [System.IO.File]::WriteAllText((Resolve-Path $kitPatch), ($lines -join "`n"), [System.Text.UTF8Encoding]::new($false))
+          python -m py_compile $kitPatch
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "."
       - name: Fix Node backend packaging and enable startup diagnosis
