@@ -154,6 +154,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test desktop-build/test-obs-alert-cam-tiktok.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify real OBS transparency and rising bubbles in Chromium
+        run: node desktop-build/verify-premium-alpha.cjs
       - name: Probe public Kick authorization broker
         run: node desktop-build/probe-kick-auth.mjs
       - name: Build Windows installer (manual)
