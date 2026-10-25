@@ -13,6 +13,9 @@ on:
       - 'server.mjs'
       - 'control-center.js'
       - 'index.html'
+      - 'widgets.html'
+      - 'social-overlay.html'
+      - 'social-overlay-classic.html'
       - 'chat.html'
       - 'desktop-bubble.html'
       - 'desktop-bubble-preload.cjs'
@@ -62,6 +65,23 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check starvios-reader.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify Starvios white SVG inside OBS widgets
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          foreach ($path in @("social-overlay.html", "social-overlay-classic.html")) {
+            $html = Get-Content $path -Raw -Encoding UTF8
+            if ($html -notmatch 'aria-label="Starvios"' -or $html -notmatch 'fill="#ffffff"') {
+              throw "El widget $path no contiene las estrellas Starvios blancas integradas."
+            }
+            if ($html -match '<img[^>]+starvios\\.svg') {
+              throw "El widget $path vuelve a usar el SVG rosado."
+            }
+          }
+          $preview = Get-Content widgets.html -Raw -Encoding UTF8
+          if ($preview -notmatch 'social-overlay\\.html\\?preview=1') {
+            throw "La vista previa del widget no tiene activado el modo oscuro."
+          }
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Verify pack logic
