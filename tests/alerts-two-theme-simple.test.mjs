@@ -13,11 +13,11 @@ test('current alert gallery contains the requested themes, without Afterglow Ori
    assert.ok(options.includes(value),'Falta '+value);
  }
  assert.ok(!options.includes('original'),'Original was intentionally removed');
- assert.match(simpleCss,/#dashboard>\\.test-grid/);
- assert.match(simpleCss,/#dashboard>\\.sv-alert-section/);
- assert.match(simpleCss,/\\.ui-complexity-bar/);
+ assert.match(simpleCss,/#dashboard>\.test-grid/);
+ assert.match(simpleCss,/#dashboard>\.sv-alert-section/);
+ assert.match(simpleCss,/\.ui-complexity-bar/);
  assert.match(simpleCss,/#quickTest/);
- assert.match(dashboard,/href="\\/gift-catalog\\.html"/);
+ assert.match(dashboard,/href="\/gift-catalog\.html"/);
 });
 test('catalog runs real test-alert endpoint; no duplicate visible test buttons',()=>{
  assert.match(catalog,/async function testGift\(/);
