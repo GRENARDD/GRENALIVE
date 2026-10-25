@@ -262,14 +262,14 @@ function ensureBuiltInGiftCatalog(){
  for(const tier of ['Tier 1','Tier 2','Tier 3'])upsertCatalogItem({platform:'Twitch',id:`sub:${tier.toLowerCase().replace(/\s+/g,'-')}`,name:`Gifted subscription · ${tier}`,nameEs:`Suscripción regalada · ${tier}`,category:'subscription',giftKind:'subscription',amount:1,unit:'sub',source:'Twitch',updatedAt:now});
 }
 ensureBuiltInGiftCatalog();
-const AFTERGLOW_DEFAULTS={theme:'original',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
+const AFTERGLOW_DEFAULTS={theme:'minecraft',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
 function normalizeAfterglowSettings(input={}){
  const x=input&&typeof input==='object'&&!Array.isArray(input)?input:{};
  const number=(v,d)=>Number.isFinite(Number(v))?Math.max(0,Math.min(100,Number(v))):d;
  const color=(v,d)=>/^#[0-9a-f]{6}$/i.test(String(v||''))?String(v).toLowerCase():d;
  const sounds=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,x.sounds?.[k]!==false]));
  const fontFamily=['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(x.fontFamily)?x.fontFamily:'Inter';
- return {theme:['original','minecraft','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(x.theme)?x.theme:'original',intensity:number(x.intensity,65),volume:number(x.volume,54),soundEnabled:x.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(x.audioRoute)?x.audioRoute:'both',sounds,fontFamily,textColor:color(x.textColor,'#ffffff'),accentMode:x.accentMode==='custom'?'custom':'platform',accent:color(x.accent,'#caff5f')};
+ return {theme:['minecraft','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(x.theme)?x.theme:'minecraft',intensity:number(x.intensity,65),volume:number(x.volume,54),soundEnabled:x.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(x.audioRoute)?x.audioRoute:'both',sounds,fontFamily,textColor:color(x.textColor,'#ffffff'),accentMode:x.accentMode==='custom'?'custom':'platform',accent:color(x.accent,'#caff5f')};
 }
 const socialDefaults={socialLayout:'classic',tiktokUser:'',instagramUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',enabledNetworks:['tiktok','instagram','twitch','kick','youtube','starvios'],fontFamily:'Segoe UI',fontSize:34,iconSize:46,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true,edge:'left',edgeOffset:0};
 const autoDefaults={enabled:true,counterTikTok:'',counterTwitch:'',counterKick:'',counterTikTokEnabled:false,counterTwitchEnabled:false,counterKickEnabled:false,counterStyle:'classic',counterCardColor:'#18232c',counterEdge:'left',counterEdgeOffset:0,alertStyle:'classic'};
