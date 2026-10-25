@@ -1,0 +1,24 @@
+/* GREÑA BASIC ALERTS · OBS background remains transparent */
+.basic-alert{position:absolute;left:50%;top:50%;width:min(78vw,680px);min-height:164px;padding:23px 34px 23px 154px;transform:translate(-50%,-50%) scale(.72);border-radius:22px;background:linear-gradient(115deg,color-mix(in srgb,var(--basic-a) 18%,#080815 82%),rgba(9,11,26,.91));border:2px solid var(--basic-a);box-shadow:0 0 22px color-mix(in srgb,var(--basic-a) 48%,transparent),inset 0 0 34px color-mix(in srgb,var(--basic-b) 18%,transparent),0 14px 45px #0009;color:white;opacity:0;animation:basic-arrive .55s cubic-bezier(.18,1.2,.29,1) forwards;isolation:isolate;overflow:hidden}
+.basic-alert.outro{animation:basic-leave .65s ease forwards!important}
+.basic-crest{position:absolute;left:24px;top:50%;transform:translateY(-50%);width:106px;height:106px;display:grid;place-items:center;font:900 52px/1 Impact,Arial,sans-serif;color:var(--basic-a);border:2px solid var(--basic-a);border-radius:50%;text-shadow:0 0 24px var(--basic-a);background:radial-gradient(circle,color-mix(in srgb,var(--basic-b) 30%,#080815),#090a19);box-shadow:0 0 20px color-mix(in srgb,var(--basic-a) 48%,transparent);animation:basic-pulse 1.5s ease-in-out infinite alternate}
+.basic-copy{display:flex;flex-direction:column;gap:8px;position:relative;z-index:2;text-shadow:0 2px 4px #000}
+.basic-kicker{font:800 13px/1.2 Arial,sans-serif;letter-spacing:.16em;color:var(--basic-a)}
+.basic-person{font:900 clamp(22px,4.4vw,42px)/1.08 Impact,'Arial Black',sans-serif;overflow-wrap:anywhere}
+.basic-detail{font:600 15px/1.4 Arial,sans-serif;color:#f6f3ff}
+.basic-sparks{position:absolute;inset:0;background:radial-gradient(circle at 75% 25%,var(--basic-a) 0 2px,transparent 3px),radial-gradient(circle at 85% 75%,var(--basic-b) 0 3px,transparent 4px),radial-gradient(circle at 30% 15%,var(--basic-a) 0 3px,transparent 4px);animation:basic-float 2s linear infinite;opacity:.8}
+.basic-trail{position:absolute;bottom:0;left:-70%;height:4px;width:70%;background:linear-gradient(90deg,transparent,var(--basic-a),white);animation:basic-sweep 1.5s ease infinite}
+.basic-sakura{border-radius:24px 9px 24px 9px}.basic-sakura .basic-crest{border-radius:50% 15% 50% 15%;transform:translateY(-50%) rotate(-12deg)}
+.basic-comic{border:4px solid #181818;border-radius:10px;box-shadow:8px 9px 0 var(--basic-a),0 0 20px #0008;background:#fff;color:#171717;transform:translate(-50%,-50%) rotate(-2deg) scale(.72)}
+.basic-comic .basic-copy{text-shadow:none}.basic-comic .basic-person{color:#151515}.basic-comic .basic-detail{color:#252525}.basic-comic .basic-crest{color:#181818;text-shadow:none;border:4px solid #111;background:var(--basic-a);border-radius:15px;box-shadow:5px 5px 0 #111;font-size:36px}
+.basic-hologram{background:linear-gradient(0deg,rgba(3,31,47,.87),rgba(4,13,34,.92));border-radius:7px;clip-path:polygon(0 0,96% 0,100% 15%,100% 100%,4% 100%,0 85%)}
+.basic-inferno{background:linear-gradient(130deg,#37130e,#130c11 80%)}
+.basic-arcade{border-radius:0;box-shadow:7px 7px 0 var(--basic-b),0 0 25px var(--basic-a)}
+.basic-royal{border-radius:14px 14px 35px 35px;border:3px double var(--basic-a)}
+.basic-void{border-radius:80px 18px 80px 18px;background:linear-gradient(115deg,#271044,#090717)}
+@keyframes basic-arrive{to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@keyframes basic-leave{to{opacity:0;transform:translate(-50%,-60%) scale(.93)}}
+@keyframes basic-pulse{to{filter:brightness(1.5);box-shadow:0 0 36px var(--basic-a)}}
+@keyframes basic-float{50%{transform:translateY(-9px) rotate(2deg)}}
+@keyframes basic-sweep{to{left:120%}}
+@media(max-width:700px){.basic-alert{width:94vw;padding:18px 20px 18px 110px;min-height:130px}.basic-crest{left:13px;width:82px;height:82px;font-size:39px}.basic-kicker{font-size:10px}.basic-detail{font-size:12px}}
