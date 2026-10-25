@@ -50,7 +50,7 @@ test('Minecraft produces all six pixel-art alerts without opaque canvas',()=>{
      platform:'TikTok',accent:'#ff2244',giftMarkup:'<img src="/assets/item.webp">'
    });
    assert.match(html,new RegExp('mc-'+event));
-   assert.match(html,/GREÑA_RD/);assert.match(html,/--ev-accent:#ff2244/);
+   assert.match(html,/GREÑA_RD/);assert.match(html,/--mc-event-accent:#ff2244/);
    assert.doesNotMatch(html,/<canvas/);
  }
  assert.match(minecraftCss,/\.live\.wide\[data-theme="minecraft"\] \.mc-art/);
