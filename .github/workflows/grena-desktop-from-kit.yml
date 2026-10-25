@@ -135,6 +135,8 @@ jobs:
           }
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Verify complete Node suite before building installer
+        run: npm test
       - name: Verify pack logic
         shell: pwsh
         run: |
