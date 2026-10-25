@@ -11,11 +11,11 @@ arcade:{name:'Retro Arcade',icon:'★',accent:'#bd65ff',accent2:'#21f4df',sound:
 royal:{name:'Royal Relic',icon:'♛',accent:'#ffe39b',accent2:'#ca8a22',sound:480},
 void:{name:'Void Portal',icon:'◉',accent:'#d18dff',accent2:'#5c2edf',sound:390}
 };
-const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;':'&quot;',"'":'&#39;'}[c]));
+const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const evt={follow:'NUEVO SEGUIDOR',gift:'REGALO RECIBIDO',sub:'NUEVA SUSCRIPCIÓN',raid:'RAID ENTRANTE',share:'DIRECTO COMPARTIDO',likes:'LLUVIA DE LIKES'};
-function render(key,event,data,{platform='GREÑA'}={}){
+function render(key,event,data,{platform='EN VIVO'}={}){
 const t=themes[key]||themes.celestial;const label=evt[event]||'NUEVO EVENTO';
-const details=event==='gift'?escape(data.gift||'Regalo')+' ×'+escape(data.amount||1):event==='raid'?escape(data.amount||1)+' espectadores':event==='likes'?'+'+escape(data.amount||1)+' likes':event==='follow'?'¡Bienvenido al Team GREÑA!':event==='sub'?'Gracias por apoyar el directo':event==='share'?'Gracias por compartir el LIVE':'';
+const details=event==='gift'?escape(data.gift||'Regalo')+' ×'+escape(data.amount||1):event==='raid'?escape(data.amount||1)+' espectadores':event==='likes'?'+'+escape(data.amount||1)+' likes':event==='follow'?'¡Bienvenido a la comunidad!':event==='sub'?'Gracias por apoyar el directo':event==='share'?'Gracias por compartir el LIVE':'';
 return '<section class="basic-alert basic-'+key+'" style="--basic-a:'+t.accent+';--basic-b:'+t.accent2+'"><div class="basic-sparks" aria-hidden="true"></div><div class="basic-crest" aria-hidden="true">'+t.icon+'</div><div class="basic-copy"><span class="basic-kicker">'+escape(platform)+' · '+label+'</span><strong class="basic-person">'+escape(data.name||'Usuario')+'</strong><span class="basic-detail">'+details+'</span></div><div class="basic-trail" aria-hidden="true"></div></section>';
 }
 let ctx;
