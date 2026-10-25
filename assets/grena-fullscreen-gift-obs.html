@@ -102,13 +102,14 @@ button{cursor:pointer;font-weight:800}
 @keyframes shake{0%{transform:translate(0,0)}15%{transform:translate(-9px,5px)}30%{transform:translate(8px,-6px)}45%{transform:translate(-6px,-3px)}60%{transform:translate(4px,4px)}80%{transform:translate(-2px,1px)}100%{transform:none}}
 @keyframes aout{to{opacity:0;transform:scale(1.12);filter:blur(8px) brightness(1.8)}}
 </style>
+<script>if(new URLSearchParams(location.search).has('obs'))document.documentElement.classList.add('grena-obs-mode')</script>
 <style id="grena-obs-stage">
-html,body{width:100%;height:100%;overflow:hidden!important;margin:0!important;padding:0!important;background:transparent!important;color-scheme:dark}
-body>.app,.app{display:block!important;min-height:0!important;width:100%!important;height:100%!important}
-.side,.hint,.hills{display:none!important}
-.main{display:block!important;padding:0!important;margin:0!important;width:100%!important;height:100%!important}
-.main>div{width:100%!important;height:100%!important}
-.stage,.stage[data-o="h"],.stage[data-o="v"]{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;min-width:0!important;min-height:0!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
+html.grena-obs-mode,html.grena-obs-mode body{width:100%;height:100%;overflow:hidden!important;margin:0!important;padding:0!important;background:transparent!important;color-scheme:dark}
+html.grena-obs-mode body>.app,html.grena-obs-mode .app{display:block!important;min-height:0!important;width:100%!important;height:100%!important}
+html.grena-obs-mode .side,html.grena-obs-mode .hint,html.grena-obs-mode .hills{display:none!important}
+html.grena-obs-mode .main{display:block!important;padding:0!important;margin:0!important;width:100%!important;height:100%!important}
+html.grena-obs-mode .main>div{width:100%!important;height:100%!important}
+html.grena-obs-mode .stage,html.grena-obs-mode .stage[data-o="h"],html.grena-obs-mode .stage[data-o="v"]{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;min-width:0!important;min-height:0!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
 </style>
 </head>
 <body>
@@ -158,6 +159,8 @@ body>.app,.app{display:block!important;min-height:0!important;width:100%!importa
 <script>
 const $=id=>document.getElementById(id);
 const svg=b=>'data:image/svg+xml;utf8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">'+b+'</svg>');
+// An unknown live gift must never be represented by an unrelated demo trophy.
+const genericGiftArt=svg('<circle cx="100" cy="100" r="74" fill="#213556" stroke="#8dbbff" stroke-width="6"/><path d="M54 92h92v66H54zM46 69h108v30H46z" fill="#e9b65c" stroke="#fff0bd" stroke-width="5"/><path d="M100 69v89M73 69c-28-2-25-40-5-40 17 0 27 21 32 40 5-19 15-40 32-40 20 0 23 38-5 40" fill="none" stroke="#fff" stroke-width="9"/>');
 const sp=(x,y,d)=>`<path d="M${x} ${y}l4 12 12 4-12 4-4 12-4-12-12-4 12-4z" fill="#fff"><animate attributeName="opacity" values="0;1;0" dur="1.4s" begin="${d}s" repeatCount="indefinite"/></path>`;
 let catalog=[
  {name:'Trofeo Supremo',src:svg(`<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3b0"/><stop offset="1" stop-color="#e8940f"/></linearGradient></defs><g><animateTransform attributeName="transform" type="translate" values="0 0;0 -5;0 0" dur="2s" repeatCount="indefinite"/><path d="M62 30h76v50c0 30-17 48-38 48S62 110 62 80z" fill="url(#g)" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M62 44H34c0 30 12 42 32 44M138 44h28c0 30-12 42-32 44" fill="none" stroke="#f5a623" stroke-width="9" stroke-linecap="round"/><rect x="90" y="126" width="20" height="24" fill="#f5a623"/><rect x="64" y="150" width="72" height="18" rx="6" fill="url(#g)" stroke="#fff" stroke-width="3"/><path d="M100 50l7 15 16 2-12 11 3 16-14-8-14 8 3-16-12-11 16-2z" fill="#fff"><animate attributeName="opacity" values="1;.4;1" dur="1.6s" repeatCount="indefinite"/></path></g>${sp(160,24,0)}${sp(26,40,.7)}`)},
@@ -203,20 +206,23 @@ function sound(){
   o('sawtooth',120,900,0,.42,.05);o('sine',140,38,.42,.7,.28);[880,1175,1480,1760].forEach((f,i)=>o('triangle',f,f*1.002,.5+i*.08,.5,.06))}catch(e){}
 }
 
-const E={share:()=> 'compartió el directo',likes:()=> 'envió likes',gift:g=>`envió <b>${g}</b>`,sub:()=>'se suscribió al canal',follow:()=>'ahora te sigue',raid:()=>'llegó con una raid'};
+const E={share:'compartió el directo',likes:'envió likes',sub:'se suscribió al canal',follow:'ahora te sigue',raid:'llegó con una raid'};
 const K={share:'Compartido',likes:'Likes',gift:'Regalo',sub:'Suscripción',follow:'Nuevo seguidor',raid:'Raid'};
 
 function show(o={}){
-  const gift=o.gift||catalog[sel],user=String(o.user||$('user').value||'GREÑA_FAN_RD'),amount=+(o.amount||$('amount').value)||1,ev=o.event||$('ev').value,plat=o.platform||$('plat').value,dur=(o.duration||+$('dur').value)*1000;
+  const gift=o.gift||catalog[sel],user=String(o.user||$('user').value||'Usuario'),amount=+(o.amount||$('amount').value)||1,rawEvent=o.event||$('ev').value,ev=['gift','follow','sub','raid','share','likes'].includes(rawEvent)?rawEvent:'gift',plat=o.platform||$('plat').value,dur=(o.duration||+$('dur').value)*1000;
   if(o.orientation)setO(o.orientation,true);if(o.position){stage.dataset.p=o.position;$('pos').value=o.position}
   clearTimeout(timer);al.classList.remove('in','out');$('amt').classList.remove('pop');live=false;
-  const img=$('gimg');img.onload=go;img.onerror=()=>{img.onerror=null;img.src=catalog[0].src};img.src=gift.animatedImage||gift.image||gift.src||catalog[0].src;
+  const img=$('gimg');img.onload=go;img.onerror=()=>{img.onerror=null;img.src=genericGiftArt};img.src=gift.animatedImage||gift.image||gift.src||genericGiftArt;
   function go(){
     img.onload=null;colorize(img);
     $('kick').textContent=plat+' · '+K[ev];
     const n=user.length,base=orient==='h'?6.5:11,avail=orient==='h'?40:80,fs=Math.min(base,avail/(n*.62));
     const U=$('uname');U.style.fontSize=`calc(var(--u)*${fs})`;U.innerHTML='';[...user].forEach((c,i)=>{const s=document.createElement('span');s.className='ch';s.style.setProperty('--i',i);s.textContent=c;U.appendChild(s)});
-    $('what').innerHTML=E[ev](gift.name);$('amtv').textContent='x1';
+    const what=$('what');what.replaceChildren();
+    if(ev==='gift'){what.append(document.createTextNode('envió '));const strong=document.createElement('b');strong.textContent=String(gift.name||'Regalo');what.append(strong)}
+    else what.textContent=E[ev]||'participó en el directo';
+    $('amtv').textContent='x1';
     $('amt').style.display=ev==='follow'?'none':'';
     void al.offsetWidth;al.classList.add('in');live=true;kick();if(o.soundEnabled!==false)sound();
     setTimeout(()=>{stage.classList.remove('shake');void stage.offsetWidth;stage.classList.add('shake');burst(200,1.9)},430);
