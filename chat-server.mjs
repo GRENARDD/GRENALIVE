@@ -170,7 +170,7 @@ function sanitizeMultichatSettings(input,defaults){
     if(typeof def==='number'){const n=Number(v);const [lo,hi]=MC_RANGES[k]||[0,1000];out[k]=Number.isFinite(n)?Math.min(hi,Math.max(lo,n)):def}
     else if(typeof def==='boolean'){out[k]=typeof v==='boolean'?v:def}
     else if(k==='direction'){out[k]=v==='right'?'right':'left'}
-    else if(k==='theme'){out[k]=(typeof v==='string'&&/^[a-z0-9_-]{1,24}$/i.test(v))?v:def}
+    else if(k==='theme'){out[k]='clean'}
     else{out[k]=typeof v==='string'?v.slice(0,64):def}
   }
   return out;
@@ -188,7 +188,7 @@ async function hostIsPublic(hostname){
   try{const list=await dns.lookup(h,{all:true});return list.length>0&&list.every(a=>!isPrivateIp(a.address))}catch{return false}
 }
 
-const multichatDefaults = {direction:'left',edgeOffset:0,fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,showPlatform:true,theme:'neon',showHandle:false,fadeAfter:5};
+const multichatDefaults = {direction:'left',edgeOffset:0,fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,showPlatform:true,theme:'clean',showHandle:false,fadeAfter:5};
 let multichatSettings = sanitizeMultichatSettings(await readJson(MULTICHAT_SETTINGS_FILE,{}),multichatDefaults);
 async function loadChatProfile(userId=''){
   activeProfileId=String(userId||'');
