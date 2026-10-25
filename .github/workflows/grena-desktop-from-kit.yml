@@ -48,16 +48,16 @@ jobs:
             throw "Falta GRENA_LIVE_Desktop_v5_Kit.zip en la raiz del repositorio. No se modifica la app."
           }
           Expand-Archive -Path "GRENA_LIVE_Desktop_v5_Kit.zip" -DestinationPath ".kit" -Force
-          # The v5 kit predates multi-theme overlays. Its hard-coded replacement
-          # rejects the newer validated theme expression and is no longer needed.
-          # Keep all other kit patches and strict validation in place.
+          # The checked-in overlay already implements the current theme renderer.
+          # Preserve it instead of running the outdated kit's patch_overlay routine.
           $kitPatch = ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py"
           $source = Get-Content $kitPatch -Raw -Encoding UTF8
-          $lines = $source -split "\r?\n"
-          $legacy = @($lines | Where-Object { $_ -match "replace_one" -and $_ -match "'overlay theme'" })
-          if ($legacy.Count -ne 1) { throw "No se localizo exactamente una sustitucion obsoleta de overlay theme" }
-          $lines = @($lines | Where-Object { -not ($_ -match "replace_one" -and $_ -match "'overlay theme'") })
-          [System.IO.File]::WriteAllText((Resolve-Path $kitPatch), ($lines -join "`n"), [System.Text.UTF8Encoding]::new($false))
+          $pattern = '(?ms)^def patch_overlay\(s\):.*?(?=^def |\z)'
+          $matchesFound = [regex]::Matches($source, $pattern)
+          if ($matchesFound.Count -ne 1) { throw "Se esperaba una unica funcion patch_overlay en el kit." }
+          $replacement = "def patch_overlay(s):" + "`n" + "    return s" + "`n`n"
+          $source = [regex]::Replace($source,$pattern,$replacement)
+          [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
           python -m py_compile $kitPatch
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
