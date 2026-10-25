@@ -1,8 +1,8 @@
 {
   "direction": "left",
-  "fontSize": 12,
-  "nameSize": 11,
-  "bubbleWidth": 40,
+  "fontSize": 17,
+  "nameSize": 17,
+  "bubbleWidth": 85,
   "bubbleScale": 92,
   "padY": 7,
   "padX": 10,
@@ -16,5 +16,8 @@
   "showPlatform": true,
   "theme": "clean",
   "showHandle": false,
-  "fadeAfter": 5
+  "fadeAfter": 5,
+  "iconSize": 24,
+  "readability": "both",
+  "shadowStrength": 70
 }
