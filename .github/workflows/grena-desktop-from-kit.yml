@@ -30,7 +30,7 @@ on:
       - 'desktop-bubble-preload.cjs'
       - 'starvios-viewers.mjs'
       - 'chat-server.mjs'
-      - 'tests/starvios-*.test.mjs'
+      - 'tests/**'
       - 'desktop-build/**'
       - '.github/workflows/grena-desktop-from-kit.yml'
 permissions:
