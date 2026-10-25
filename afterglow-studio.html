@@ -191,7 +191,7 @@ function readConfiguration(){
   return {streamerNames:Object.fromEntries(['tiktok','twitch','kick','starvios','youtube'].map(k=>[k,document.getElementById('creator-'+k)?.value.trim()||''])),theme:$('#afterglowTheme').value,intensity:+$('#intensity').value,volume:+$('#volume').value,soundEnabled:sound,audioRoute:$('#audioRoute').value,sounds,fontFamily:$('#fontChoice').value,textColor:$('#textColor').value,accentMode:$('#accentMode').value,accent:$('#accentCustom').value};
 }
 function applyConfiguration(v={}){
-  $('#afterglowTheme').value=["minecraft","domino","ascension","celestial","sakura","comic","hologram","inferno","arcade","royal","void"].includes(v.theme)?v.theme:'minecraft';
+  $('#afterglowTheme').value=["minecraft","domino","ascension","grena_catalog","grena_fullscreen","celestial","sakura","comic","hologram","inferno","arcade","royal","void"].includes(v.theme)?v.theme:'minecraft';
    for(const k of ['tiktok','twitch','kick','starvios','youtube'])document.getElementById('creator-'+k).value=String(v.streamerNames?.[k]||'').slice(0,64);
   $('#intensity').value=v.intensity??65;$('#intensityOut').textContent=$('#intensity').value+'%';
   $('#volume').value=v.volume??54;$('#volumeOut').textContent=$('#volume').value+'%';
