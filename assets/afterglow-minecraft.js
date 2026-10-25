@@ -99,7 +99,7 @@ function giftType(gift){
  return ['chest','gold'];
 }
 const labels={
- follow:['NUEVO JUGADOR','ENTRÓ A TEAM GREÑA','player','diamond','experience'],
+ follow:['NUEVO JUGADOR','SE UNIÓ AL DIRECTO','player','diamond','experience'],
  gift:['OBJETO CONSEGUIDO','¡TESORO RECIBIDO!','chest','gold','pickup'],
  sub:['LOGRO DESBLOQUEADO','MIEMBRO DEL EQUIPO','crown','gold','levelup'],
  raid:['¡HORDA ENTRANTE!','SE UNEN A LA AVENTURA','sword','magic','raid'],
@@ -108,7 +108,7 @@ const labels={
 };
 function render(type,data={},opts={}){
  const event=labels[type]?type:'follow',meta=labels[event],amount=Math.max(1,Math.min(99999,Number(data.amount)||1));
- const name=safe(String(data.name||'GREÑERO').slice(0,54)),platform=safe(String(opts.platform||'LIVE').slice(0,24));
+ const name=safe(String(data.name||'Alguien').slice(0,54)),platform=safe(String(opts.platform||'LIVE').slice(0,24));
  const gift=safe(String(data.gift||'Regalo').slice(0,54));
  const original=event==='gift'&&typeof opts.giftSource==='string'&&opts.giftSource.length<1900?opts.giftSource:'';
  const [item,itemPalette]=event==='gift'?giftType(data.gift):[meta[2],meta[3]];
@@ -121,7 +121,7 @@ function render(type,data={},opts={}){
  return '<div class="mc-scene mc-'+event+'" data-mc-event="'+event+'" style="--mc-event-accent:'+accent+'">'
    +'<div class="mc-particles" aria-hidden="true">'+bits+'</div><div class="mc-item" aria-hidden="true"><div class="mc-pixel-shadow"></div>'
    +sprite(item,itemPalette)+giftCanvas+count+'</div>'
-   +'<div class="mc-copy"><div class="mc-tiny">'+platform+' <span class="mc-pixel-dot">◆</span> GREÑA CRAFT</div>'
+   +'<div class="mc-copy"><div class="mc-tiny">'+platform+' <span class="mc-pixel-dot">◆</span> PIXELCRAFT</div>'
    +'<div class="mc-title">'+meta[0]+'</div><div class="mc-person">'+name+'</div>'
    +extra+'<div class="mc-subtitle">'+meta[1]+'</div>'+hud
    +'<div class="mc-xp-bar" aria-hidden="true"><span></span></div>'
