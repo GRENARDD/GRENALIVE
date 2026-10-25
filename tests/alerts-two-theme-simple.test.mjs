@@ -7,14 +7,17 @@ const dashboard=get('alerts.html'),settings=get('server.mjs'),overlay=get('after
   studio=get('afterglow-studio.html'),minecraft=get('assets/afterglow-minecraft.js'),
   simpleCss=get('assets/alerts-simple.css'),minecraftCss=get('assets/afterglow-minecraft.css'),
   picker=get('assets/alerts-theme-picker.js'),catalog=get('gift-catalog.js');
-test('only two user-visible styles — Original and Minecraft',()=>{
+test('current alert gallery contains the requested themes, without Afterglow Original',()=>{
  const options=[...dashboard.matchAll(/data-grena-theme="([^"]+)"/g)].map(x=>x[1]);
- assert.deepEqual(options,['original','minecraft']);
- assert.match(simpleCss,/#dashboard>\.test-grid/);
- assert.match(simpleCss,/#dashboard>\.sv-alert-section/);
- assert.match(simpleCss,/\.ui-complexity-bar/);
+ for(const value of ['minecraft','domino','ascension','grena_catalog','grena_fullscreen','celestial','sakura','comic','hologram','inferno','arcade','royal','void']){
+   assert.ok(options.includes(value),'Falta '+value);
+ }
+ assert.ok(!options.includes('original'),'Original was intentionally removed');
+ assert.match(simpleCss,/#dashboard>\\.test-grid/);
+ assert.match(simpleCss,/#dashboard>\\.sv-alert-section/);
+ assert.match(simpleCss,/\\.ui-complexity-bar/);
  assert.match(simpleCss,/#quickTest/);
- assert.match(dashboard,/href="\/gift-catalog\.html"/);
+ assert.match(dashboard,/href="\\/gift-catalog\\.html"/);
 });
 test('catalog runs real test-alert endpoint; no duplicate visible test buttons',()=>{
  assert.match(catalog,/async function testGift\(/);
@@ -29,7 +32,7 @@ test('two private OBS links and sound path are preserved',()=>{
  assert.match(studio,/new URL\('\/afterglow-overlay\.html',root\)/);
 });
 test('style persisted per account and propagated realtime to both OBS sources',()=>{
- assert.match(settings,/theme:x\.theme==='minecraft'\?'minecraft':'original'/);
+ assert.match(settings,/grena_fullscreen/);
  assert.match(settings,/profileFile\('afterglow-settings\.json'\)/);
  assert.match(settings,/broadcast\(\{type:'afterglow-settings',settings:afterglowSettings\}\)/);
  assert.match(overlay,/live\.dataset\.theme=cfg\.theme/);
