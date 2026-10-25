@@ -76,7 +76,7 @@ jobs:
                     # Overlay current deliberately imports Domino pack. It is not a duplicated kit patch.
           $guardOld = "if 'grena-theme-packs.js?v=1' in source and path.startswith('afterglow'):"
           $guardNew = "if 'grena-theme-packs.js?v=1' in source and path.startswith('afterglow') and path != 'afterglow-overlay.html':"
-          if ($source.Split(@($guardOld), [StringSplitOptions]::None).Count -ne 2) { throw 'No se localizo una sola proteccion de duplicado.' }
+          if ([regex]::Matches($source,[regex]::Escape($guardOld)).Count -ne 1) { throw 'No se localizo una sola proteccion de duplicado.' }
           $source = $source.Replace($guardOld,$guardNew)
           [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
                     python -m py_compile $kitPatch
