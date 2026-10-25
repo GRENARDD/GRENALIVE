@@ -284,7 +284,7 @@ function count(to,event,run){
  const el=$('amtv'),t0=performance.now(),prefix=event==='raid'?'+':'x';
  (function s(t){if(run!==activeRun)return;const k=Math.min((t-t0)/900,1);el.textContent=prefix+Math.round(to*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(s)})(t0);
 }
-const K={gift:'Regalo',sub:'Suscripción',follow:'Nuevo seguidor',raid:'Raid'};
+const K={gift:'Regalo',sub:'Suscripción',follow:'Nuevo seguidor',raid:'Raid',share:'Compartido',likes:'Likes'};
 const evtAsset=kind=>{const b={follow:'<path d="M100 36a26 26 0 100 52 26 26 0 000-52zM48 163c3-38 20-58 52-58s49 20 52 58" fill="none" stroke="#91efff" stroke-width="12" stroke-linecap="round"/><path d="M151 74h34m-17-17v34" stroke="#faffc0" stroke-width="10" stroke-linecap="round"/>',sub:'<path d="M25 137 18 58l41 28 41-60 41 60 41-28-7 79z" fill="#ffca55" stroke="#fff1aa" stroke-width="5"/><rect x="27" y="139" width="146" height="23" rx="8" fill="#ffe19a"/>',raid:'<path d="M24 105 100 24l76 81-76 71z" fill="#b47aff" stroke="#e8d6ff" stroke-width="8"/><path d="M100 45v80m-25-20 25 30 25-30" stroke="#fff" stroke-width="11" fill="none"/>'};return svg(b[kind]||b.follow)};
 function pickGift(o){
  const pf=normPlat(o.platform||$('plat').value);const obj=(o.gift&&typeof o.gift==='object')?normalizeCatalogItem(o.gift):null;
@@ -296,9 +296,9 @@ function pickGift(o){
 }
 function show(o={}){
  const run=++activeRun;
- const ev=['gift','sub','follow','raid'].includes(o.event)?o.event:$('ev').value;
+ const ev=['gift','sub','follow','raid','share','likes'].includes(o.event)?o.event:$('ev').value;
  const plat=String(o.platform||$('plat').value);
- const gift=ev==='gift'?pickGift(o):{id:ev,name:ev,src:evtAsset(ev),color:'#70caff'};
+ const gift=ev==='gift'?pickGift(o):{id:ev,name:ev,src:evtAsset(['share','likes'].includes(ev)?'follow':ev),color:'#70caff'};
  const user=String(o.user||o.name||o.nickname||o.sender||$('user').value||'Usuario').slice(0,64);
  const amount=Math.min(999999,Math.max(1,Number(o.count??o.amount??$('amount').value)||1));
  const duration=Math.max(3,Math.min(12,Number(o.duration??$('dur').value)||6))*1000;
@@ -314,7 +314,7 @@ function show(o={}){
   $('kick').textContent=plat+' · '+K[ev];$('uname').textContent=user;
   const what=$('what');what.replaceChildren();
   if(ev==='gift'){what.append(document.createTextNode('envió '));const strong=document.createElement('b');strong.textContent=gift.name||'Regalo';what.appendChild(strong)}
-  else what.textContent={sub:'se suscribió al canal',follow:'ahora te sigue',raid:'llegó con una raid'}[ev];
+  else what.textContent={sub:'se suscribió al canal',follow:'ahora te sigue',raid:'llegó con una raid',share:'compartió el directo',likes:'envió likes'}[ev];
   const amountBadge=al.querySelector('.amt');amountBadge.style.display=['gift','raid','sub'].includes(ev)?'grid':'none';
   $('amtv').textContent=(ev==='raid'?'+':'x')+amount;
   void al.offsetWidth;al.classList.add('in');
