@@ -12,9 +12,9 @@
   "opacity": 88,
   "maxMessages": 5,
   "duration": 12,
-  "showAvatar": true,
+  "showAvatar": false,
   "showPlatform": true,
-  "theme": "minimal",
+  "theme": "clean",
   "showHandle": false,
   "fadeAfter": 5
 }
