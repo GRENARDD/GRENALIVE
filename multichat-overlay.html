@@ -251,13 +251,13 @@
   background:transparent!important;box-shadow:none!important;border:0!important;
   backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
   padding:2px 0!important;clip-path:none!important;overflow:visible!important;
-  width:max-content;max-width:94%;display:flex;align-items:flex-start;gap:7px!important;
+  width:max-content;max-width:var(--clean-max-width,94%);display:flex;align-items:flex-start;gap:7px!important;
 }
 .msg.theme-clean::before,.msg.theme-clean::after{display:none!important;content:none!important}
-.msg.theme-clean .clean-icon{width:24px;height:24px;min-width:24px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 24px}
-.msg.theme-clean .clean-icon svg{display:block;width:24px;height:24px}
+.msg.theme-clean .clean-icon{width:var(--clean-icon-size,24px);height:var(--clean-icon-size,24px);min-width:var(--clean-icon-size,24px);display:inline-flex;align-items:center;justify-content:center;flex:0 0 var(--clean-icon-size,24px);filter:drop-shadow(0 2px 2px rgba(0,0,0,.75))}
+.msg.theme-clean .clean-icon svg{display:block;width:100%;height:100%}
 .msg.theme-clean .clean-content{min-width:0;flex:1;font-weight:700;line-height:1.36;
-  text-shadow:0 2px 3px #000,1px 1px 2px #000,-1px -1px 2px #000}
+  text-shadow:var(--clean-text-shadow,0 2px 3px #000);-webkit-text-stroke:var(--clean-outline,.55px) rgba(0,0,0,.92)}
 .msg.theme-clean .clean-name{font-weight:900;color:var(--accent)!important}
 .msg.theme-clean .clean-text{color:#fff;white-space:pre-wrap;overflow-wrap:anywhere}
 .msg.theme-clean.tiktok{--accent:#ff437f!important}
@@ -282,18 +282,19 @@ const CHAT_HTTP=CHAT_DIRECT?location.origin:`${location.origin}/chat`;
 const OBS_ACCESS=new URLSearchParams(location.search).get('obs')||'';
 const OBS_SUFFIX=OBS_ACCESS?'&obs='+encodeURIComponent(OBS_ACCESS):'';
 const CHAT_WS=(CHAT_DIRECT?`ws://${CHAT_HOST}:8788/ws`:`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`)+(OBS_ACCESS?'?obs='+encodeURIComponent(OBS_ACCESS):'');
-const defaults={
+const defaults={iconSize:24,readability:'both',shadowStrength:70,
   direction:'left',edgeOffset:0,fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,
   avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,
   showPlatform:true,theme:'clean',showHandle:false,fadeAfter:5
 };
-const CFG_RANGES={edgeOffset:[0,80],fontSize:[8,96],nameSize:[8,64],bubbleWidth:[10,100],bubbleScale:[30,200],padY:[0,60],padX:[0,80],avatarSize:[12,120],gap:[0,80],radius:[0,80],opacity:[0,100],maxMessages:[1,30],duration:[1,120],fadeAfter:[0,120]};
+const CFG_RANGES={iconSize:[16,40],shadowStrength:[0,100],edgeOffset:[0,80],fontSize:[8,96],nameSize:[8,64],bubbleWidth:[10,100],bubbleScale:[30,200],padY:[0,60],padX:[0,80],avatarSize:[12,120],gap:[0,80],radius:[0,80],opacity:[0,100],maxMessages:[1,30],duration:[1,120],fadeAfter:[0,120]};
 function sanitizeCfg(src){
   src=(src&&typeof src==='object')?src:{};const out={};
   for(const [k,def] of Object.entries(defaults)){
     const v=src[k];
     if(typeof def==='number'){const n=Number(v),[lo,hi]=CFG_RANGES[k]||[0,1000];out[k]=Number.isFinite(n)?Math.min(hi,Math.max(lo,n)):def}
     else if(typeof def==='boolean'){out[k]=typeof v==='boolean'?v:def}
+    else if(k==='readability'){out[k]=['none','shadow','outline','both'].includes(v)?v:def}
     else if(k==='direction'){out[k]=v==='right'?'right':'left'}
     else if(k==='theme'){out[k]='clean'}
     else{out[k]=def}
@@ -401,8 +402,15 @@ function add(d){
     : '';
 
   if(theme==='clean'){
+    const iconPx=Math.max(16,Math.min(40,Number(cfg.iconSize)||24));
+    const strength=Math.max(0,Math.min(100,Number(cfg.shadowStrength??70)))/100;
+    const look=cfg.readability||'both';
+    el.style.setProperty('--clean-icon-size',iconPx+'px');
+    el.style.setProperty('--clean-max-width',Math.max(10,Math.min(100,Number(cfg.bubbleWidth)||85))+'%');
+    el.style.setProperty('--clean-outline',look==='both'||look==='outline'?'.6px':'0px');
+    el.style.setProperty('--clean-text-shadow',look==='none'||look==='outline'?'none':`0 2px 3px rgba(0,0,0,${strength}),0 0 4px rgba(0,0,0,${strength*.75})`);
     el.innerHTML=(cfg.showPlatform?'<span class="clean-icon">'+cleanPlatformIcon(d.platform)+'</span>':'')+
-      '<span class="clean-content" style="font-size:'+fontSize+'px"><span class="clean-name">'+safe(nickname)+':</span> <span class="clean-text">'+safe(d.text)+'</span></span>';
+      '<span class="clean-content" style="font-size:'+fontSize+'px"><span class="clean-name" style="font-size:'+nameSize+'px">'+safe(nickname)+':</span> <span class="clean-text">'+safe(d.text)+'</span></span>';
   }else{
     el.innerHTML = `${avatar}<div class="body"><div class="top">${platform}<div class="nameRow"><span class="name" style="font-size:${nameSize}px">${safe(nickname)}</span>${handleHtml}</div></div><div class="text" style="font-size:${fontSize}px">${safe(d.text)}</div></div>`;
   }
