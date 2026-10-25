@@ -12,7 +12,7 @@ test('redes: borde fijo, nombres largos y rotación con entrada desde el lado el
   assert.match(html,/function fitNetworks\(\)/);
   assert.match(html,/const available=Math\.max\(30,stage\.clientWidth-offset-10\)/);
   assert.match(html,/scale\*=available\/Math\.max/);
-  assert.match(html,/max-width:100%/);
+  assert.match(html,/host\.style\.maxWidth='100%'/);
   assert.match(html,/enterFromRight/);
 });
 
