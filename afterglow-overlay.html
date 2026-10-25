@@ -148,7 +148,7 @@ function mapAlert(a={}){
 function normalizedSettings(src={}){
  const color=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?v:'#ffffff';
  const sounds=Object.fromEntries(events.map(e=>[e,src.sounds?.[e]!==false]));
- return {theme:['minecraft','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(src.theme)?src.theme:'minecraft',intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
+ return {theme:['minecraft','domino','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(src.theme)?src.theme:'minecraft',intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
  soundEnabled:src.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(src.audioRoute)?src.audioRoute:'both',sounds,fontFamily:['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(src.fontFamily)?src.fontFamily:'Inter',
  textColor:color(src.textColor),accentMode:src.accentMode==='custom'?'custom':'platform',accent:color(src.accent||'#caff5f')};
 }
@@ -158,17 +158,26 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
   if(Date.now()-Number(next._afterglowAt||0)>30000&&['like','likes','share'].includes(String(next.event||''))){working=false;drain();return}
   const {event,data}=mapAlert(next)||{};if(!event){working=false;drain();return}
   const palette=colorPair();live.style.setProperty('--accent',palette[0]);live.style.setProperty('--glow',palette[1]);
-  root.innerHTML=window.GrenaBasicAlerts?.themes?.[cfg.theme]?window.GrenaBasicAlerts.render(cfg.theme,event,data,{platform:platformName[platform]}):cfg.theme==='minecraft'&&window.AfterglowMinecraft?window.AfterglowMinecraft.render(event,data,{platform:platformName[platform],giftSource:safeGiftSrc(data.giftImage),accent:palette[0]}):makeTemplate(event,data);
-  activateGiftArt();fitLongNames();
-  if(cfg.theme==='minecraft')window.AfterglowMinecraft?.prepare(root);
-  if(cfg.soundEnabled&&cfg.sounds[event]&&['both',layout].includes(cfg.audioRoute)){
-    if(window.GrenaBasicAlerts?.themes?.[cfg.theme])window.GrenaBasicAlerts.play(cfg.theme,event,{enabled:true,volume:cfg.volume});
-    else if(cfg.theme==='minecraft')window.AfterglowMinecraftSound?.play(event,{enabled:true,volume:cfg.volume});
-    else window.AfterglowAudio?.play(event,{enabled:true,volume:cfg.volume});
+  const canSound=cfg.soundEnabled&&cfg.sounds[event]&&['both',layout].includes(cfg.audioRoute);
+  // Domino uses the original animated domino pack shipped in the Desktop kit.
+  const pack=cfg.theme==='domino'&&window.GrenaThemePacks?.play;
+  const packed=pack?window.GrenaThemePacks.play('domino',event,data,{
+    root,layout,platform:platformName[platform],volume:cfg.volume,soundEnabled:canSound
+  }):null;
+  if(!packed){
+    root.innerHTML=window.GrenaBasicAlerts?.themes?.[cfg.theme]?window.GrenaBasicAlerts.render(cfg.theme,event,data,{platform:platformName[platform]}):cfg.theme==='minecraft'&&window.AfterglowMinecraft?window.AfterglowMinecraft.render(event,data,{platform:platformName[platform],giftSource:safeGiftSrc(data.giftImage),accent:palette[0]}):makeTemplate(event,data);
+    activateGiftArt();fitLongNames();
+    if(cfg.theme==='minecraft')window.AfterglowMinecraft?.prepare(root);
+    if(canSound){
+      if(window.GrenaBasicAlerts?.themes?.[cfg.theme])window.GrenaBasicAlerts.play(cfg.theme,event,{enabled:true,volume:cfg.volume});
+      else if(cfg.theme==='minecraft')window.AfterglowMinecraftSound?.play(event,{enabled:true,volume:cfg.volume});
+      else window.AfterglowAudio?.play(event,{enabled:true,volume:cfg.volume});
+    }
   }
-  const ms=duration(event);const fx=root.firstElementChild;
-  const endTimer=setTimeout(()=>{fx?.classList.add('outro')},ms-650);
-  activeTimer=setTimeout(()=>{clearTimeout(endTimer);root.replaceChildren();working=false;if(!refreshWhenIdle())drain()},ms);
+  const ms=packed?.durationMs||duration(event);
+  const fx=root.firstElementChild;
+  const endTimer=packed?null:setTimeout(()=>{fx?.classList.add('outro')},ms-650);
+  activeTimer=setTimeout(()=>{if(endTimer)clearTimeout(endTimer);root.replaceChildren();working=false;if(!refreshWhenIdle())drain()},ms);
 }
 function enqueue(a){
  if(!a||typeof a!=='object')return;
@@ -202,9 +211,9 @@ async function load(){
  versionCheckTimer=setInterval(checkOverlayRelease,20000);
  settingsSyncTimer=setInterval(syncSettingsFromServer,5000);
 }
-live.dataset.theme='original';
+live.dataset.theme='minecraft';
 window.addEventListener('pagehide',()=>{clearTimeout(retryTimer);clearTimeout(activeTimer);clearInterval(versionCheckTimer);clearInterval(settingsSyncTimer);socket?.close()});
 if(qp.get('demo')==='1'){const demo={platform:qp.get('platform')||'TikTok',event:qp.get('event')||'follow',name:qp.get('name')||'grenero_07',count:5,giftName:'Rosa de oro'};setTimeout(()=>enqueue(demo),500)}
 load();
 })();
-</script></body></html>
+</script><script type="module" src="/assets/grena-theme-packs.js?v=1"></script></body></html>
