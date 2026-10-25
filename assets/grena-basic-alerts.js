@@ -11,7 +11,7 @@ arcade:{name:'Retro Arcade',icon:'★',accent:'#bd65ff',accent2:'#21f4df',sound:
 royal:{name:'Royal Relic',icon:'♛',accent:'#ffe39b',accent2:'#ca8a22',sound:480},
 void:{name:'Void Portal',icon:'◉',accent:'#d18dff',accent2:'#5c2edf',sound:390}
 };
-const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;':'&quot;',"'":'&#39;'}[c]));
+const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const evt={follow:'NUEVO SEGUIDOR',gift:'REGALO RECIBIDO',sub:'NUEVA SUSCRIPCIÓN',raid:'RAID ENTRANTE',share:'DIRECTO COMPARTIDO',likes:'LLUVIA DE LIKES'};
 function render(key,event,data,{platform='EN VIVO'}={}){
 const t=themes[key]||themes.celestial;const label=evt[event]||'NUEVO EVENTO';
