@@ -57,6 +57,11 @@ jobs:
           if ($matchesFound.Count -ne 1) { throw "Se esperaba una unica funcion patch_overlay en el kit." }
           $replacement = "def patch_overlay(s):" + "`n" + "    return s" + "`n`n"
           $source = [regex]::Replace($source,$pattern,$replacement)
+          # The new alert hub already contains eight basic themes; do not overwrite it
+          # with the legacy kit's obsolete two/four-style selector.
+          $alertsPattern = '(?ms)^def patch_alerts\(s\):.*?(?=^def |\z)'
+          if ([regex]::Matches($source,$alertsPattern).Count -ne 1) { throw 'Se esperaba una funcion patch_alerts en el kit.' }
+          $source = [regex]::Replace($source,$alertsPattern,("def patch_alerts(s):" + "`n" + "    return s" + "`n`n"))
           [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
           python -m py_compile $kitPatch
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
