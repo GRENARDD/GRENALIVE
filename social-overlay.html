@@ -1,6 +1,6 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA LIVE · Redes en línea</title><style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden}body{font-family:Arial,Helvetica,sans-serif;color:#fff}.stage{height:100%;width:100%;display:flex;justify-content:center;align-items:center}.networks{display:flex;align-items:center;justify-content:center;gap:clamp(12px,2vw,30px);padding:18px 25px;max-width:100%;flex-wrap:nowrap}.network{display:flex;align-items:center;gap:8px;white-space:nowrap;color:white;opacity:1;transform:translateY(0);transition:transform 600ms cubic-bezier(.33,0,.2,1),opacity 500ms ease;will-change:transform,opacity;font-size:clamp(14px,1.55vw,22px);font-weight:650;letter-spacing:-.015em;line-height:1.25;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}.network.down{opacity:0;transform:translate(var(--enter-x,-32px),38px)}.network{min-width:0;max-width:100%}.network .name{display:block;min-width:0;max-width:min(18em,28vw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.network .icon{width:27px;height:27px;flex-shrink:0;display:flex;align-items:center}.network .icon svg{width:100%;height:100%;display:block;fill:white;stroke:white;shape-rendering:geometricPrecision}.network .icon img{width:100%;height:100%;object-fit:contain;display:block}.network .icon svg[fill="none"]{fill:none}.network .icon svg[fill="none"] circle:last-child{fill:white}.network[data-network="starvios"] svg{stroke:none}@media(max-width:1050px){.networks{gap:18px}.network{font-size:15px}.network .icon{width:22px;height:22px}}@media(max-width:650px){.networks{gap:11px;padding:8px}.network{font-size:12px}.network .icon{width:17px;height:17px}}@media(prefers-reduced-motion:reduce){.network{transition:none}}</style></head><body><div id="stage" class="stage"><div id="networks" class="networks"></div><iframe id="legacy" title="Redes clásicas" src="/social-overlay-classic.html" style="display:none;width:100%;height:100%;border:0;background:transparent;position:absolute;inset:0"></iframe></div><script>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA LIVE · Redes en línea</title><style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:transparent!important;overflow:hidden}body{font-family:Arial,Helvetica,sans-serif;color:#fff}.stage{height:100%;width:100%;display:flex;justify-content:center;align-items:center}.networks{display:flex;align-items:center;justify-content:center;gap:12px;padding:4px 8px;width:max-content;max-width:none;flex-wrap:nowrap}.network{display:flex;align-items:center;gap:8px;white-space:nowrap;color:white;opacity:1;transform:translateY(0);transition:transform 600ms cubic-bezier(.33,0,.2,1),opacity 500ms ease;will-change:transform,opacity;font-size:clamp(14px,1.55vw,22px);font-weight:650;letter-spacing:-.015em;line-height:1.25;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}.network.down{opacity:0;transform:translate(var(--enter-x,-32px),38px)}.network{min-width:max-content;max-width:none;flex:0 0 auto}.network .name{display:block;flex:0 0 auto;max-width:none;overflow:visible;text-overflow:clip;white-space:nowrap}.network .icon{width:27px;height:27px;flex-shrink:0;display:flex;align-items:center}.network .icon svg{width:100%;height:100%;display:block;fill:white;stroke:white;shape-rendering:geometricPrecision}.network .icon img{width:100%;height:100%;object-fit:contain;display:block}.network .icon svg[fill="none"]{fill:none}.network .icon svg[fill="none"] circle:last-child{fill:white}.network[data-network="starvios"] svg{stroke:none}@media(max-width:1050px){.networks{gap:18px}.network{font-size:15px}.network .icon{width:22px;height:22px}}@media(max-width:650px){.networks{gap:11px;padding:8px}.network{font-size:12px}.network .icon{width:17px;height:17px}}@media(prefers-reduced-motion:reduce){.network{transition:none}}</style></head><body><div id="stage" class="stage"><div id="networks" class="networks"></div><iframe id="legacy" title="Redes clásicas" src="/social-overlay-classic.html" style="display:none;width:100%;height:100%;border:0;background:transparent;position:absolute;inset:0"></iframe></div><script>
 if(new URLSearchParams(location.search).get('preview')==='1'){document.getElementById('stage').style.background='linear-gradient(180deg,#090d18,#171d2b)';}
-const defaults={tiktokUser:'',instagramUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',enabledNetworks:['tiktok','instagram','twitch','kick','youtube','starvios'],socialLayout:'classic',fontFamily:'Arial',fontSize:24,iconSize:31,holdSeconds:4,transitionSeconds:.65,showAt:true,edge:'left',edgeOffset:0};
+const defaults={tiktokUser:'',instagramUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',enabledNetworks:['tiktok','instagram','twitch','kick','youtube','starvios'],socialLayout:'classic',fontFamily:'Arial',fontSize:18,iconSize:22,holdSeconds:4,transitionSeconds:.65,showAt:true,edge:'left',edgeOffset:0};
 const legacy=document.getElementById('legacy');const platforms=['tiktok','instagram','twitch','kick','youtube','starvios'];let cfg={...defaults},timer=null,token=0,previewOverride=false;const stage=document.getElementById('stage'),host=document.getElementById('networks');
 const icons={
 tiktok:`<svg viewBox="0 0 24 24"><path d="M16.5 2c.2 3 1.8 4.7 4.5 4.9v3.4a10.2 10.2 0 0 1-4.6-1.2v6.7c0 4.4-3.2 7.2-7.3 7.2a7.3 7.3 0 0 1-7-7.3c0-4 3.2-7.2 7.2-7.2.5 0 1 .05 1.5.16v3.8c-.5-.2-1-.3-1.5-.3a3.6 3.6 0 1 0 3.5 3.6V2z"/></svg>`,
@@ -19,7 +19,7 @@ function render(){
   stage.style.justifyContent=edge==='right'?'flex-end':'flex-start';
   stage.style.paddingLeft=edge==='left'?edgeOffset+'px':'0px';
   stage.style.paddingRight=edge==='right'?edgeOffset+'px':'0px';
-  const fontSize=Math.max(12,Math.min(80,Number(cfg.fontSize)||24)),iconSize=Math.max(14,Math.min(110,Number(cfg.iconSize)||31));
+  const fontSize=Math.max(12,Math.min(24,Number(cfg.fontSize)||18)),iconSize=Math.max(14,Math.min(28,Number(cfg.iconSize)||22));
   const transition=Math.max(.15,Math.min(2.5,Number(cfg.transitionSeconds)||.65));
   host.style.fontFamily=String(cfg.fontFamily||'Segoe UI');
   host.style.maxWidth='100%';
@@ -33,8 +33,35 @@ function render(){
     const label=document.createElement('span');label.className='name';label.textContent=username(cfg[p+'User']);if(cfg.uppercase)label.style.textTransform='uppercase';
     item.append(mark,label);host.append(item);
   }
-  if(visible.length)cycle(token);
+  if(visible.length){fitNetworks();cycle(token)}
 }
+// Ajusta las redes al ancho real del preview o de OBS sin ocultar nombres.
+function fitNetworks(){
+  if(cfg.socialLayout!=='animated')return;
+  const items=[...host.querySelectorAll('.network')];
+  if(!items.length)return;
+  const baseFont=Math.max(12,Math.min(24,Number(cfg.fontSize)||18));
+  const baseIcon=Math.max(14,Math.min(28,Number(cfg.iconSize)||22));
+  const offset=Math.max(0,Math.min(80,Number(cfg.edgeOffset)||0));
+  const available=Math.max(30,stage.clientWidth-offset-10);
+  let scale=1;
+  for(let pass=0;pass<7;pass++){
+    host.style.gap=(12*scale).toFixed(2)+'px';
+    host.style.padding='4px '+(8*scale).toFixed(2)+'px';
+    for(const item of items){
+      item.style.fontSize=(baseFont*scale).toFixed(2)+'px';
+      item.style.gap=(6*scale).toFixed(2)+'px';
+      const mark=item.querySelector('.icon');
+      mark.style.width=(baseIcon*scale).toFixed(2)+'px';
+      mark.style.height=(baseIcon*scale).toFixed(2)+'px';
+    }
+    const natural=host.scrollWidth;
+    if(natural<=available+1)break;
+    scale*=available/Math.max(available,natural);
+  }
+}
+window.addEventListener('resize',fitNetworks);
+if(document.fonts)document.fonts.ready.then(fitNetworks);
 async function cycle(id){
   const wait=ms=>new Promise(resolve=>{timer=setTimeout(resolve,ms)});
   while(id===token){
