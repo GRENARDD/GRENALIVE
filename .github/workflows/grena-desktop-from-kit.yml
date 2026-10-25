@@ -73,6 +73,12 @@ jobs:
           if ([regex]::Matches($source,$serverPattern).Count -ne 1) { throw 'Se esperaba una funcion patch_server en el kit.' }
           $source = [regex]::Replace($source,$serverPattern,("def patch_server(s):" + "`n" + "    return s" + "`n`n"))
           [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
+                    # Overlay current deliberately imports Domino pack. It is not a duplicated kit patch.
+          $guardOld = "if 'grena-theme-packs.js?v=1' in source and path.startswith('afterglow'):"
+          $guardNew = "if 'grena-theme-packs.js?v=1' in source and path.startswith('afterglow') and path != 'afterglow-overlay.html':"
+          if ([regex]::Matches($source,[regex]::Escape($guardOld)).Count -ne 1) { throw 'No se localizo una sola proteccion de duplicado.' }
+          $source = $source.Replace($guardOld,$guardNew)
+          [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
                     python -m py_compile $kitPatch
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
