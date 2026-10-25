@@ -8,11 +8,10 @@ const studio=get('afterglow-studio.html');
 const visual=get('assets/afterglow-pro.css');
 const audio=get('assets/afterglow-sound.js');
 const backend=get('server.mjs');
-const inline=(html)=>html.slice(html.lastIndexOf('<script>')+8,html.lastIndexOf('</script>'));
+const inline=html=>[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(m=>m[1]).filter(x=>x.trim());
 
 test('both visual scripts and premium audio engine parse',()=>{
-  new vm.Script(inline(overlay));
-  new vm.Script(inline(studio));
+  for(const source of [...inline(overlay),...inline(studio)])new vm.Script(source);
   new vm.Script(audio);
 });
 
@@ -27,7 +26,8 @@ test('OBS private links and existing realtime subscriptions are unchanged',()=>{
 });
 
 test('gift platform icon and verified fallback are used without a rectangular backdrop',()=>{
-  assert.match(overlay,/giftImage:String\(a\.giftImage\|\|a\.giftAnimatedImage/);
+  assert.match(overlay,/giftImage:String\(a\.giftImage\|\|''\)/);
+  assert.match(overlay,/giftAnimatedImage:String\(a\.giftAnimatedImage\|\|''\)/);
   assert.match(overlay,/giftArt\(s\)/);
   assert.match(overlay,/activateGiftArt\(\);fitLongNames\(\)/);
   assert.match(overlay,/https:\\\/\\\//);

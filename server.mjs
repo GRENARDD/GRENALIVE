@@ -959,15 +959,18 @@ async function refreshTwitchGiftCatalog(force=false){
  const rows=[];for(const c of d.data||[]){for(const tier of c.tiers||[]){const amount=Math.max(0,Number(tier.min_bits||tier.id||0)||0);rows.push(normalizeCatalogItem({platform:'Twitch',id:`cheermote:${c.prefix}:${tier.id||amount}`,name:`${c.prefix} ${amount.toLocaleString('en-US')} Bits`,nameEs:`${amount.toLocaleString('es-DO')} Bits · ${c.prefix}`,category:'bits',giftKind:'bits',amount,unit:'bits',image:twitchCheermoteImage(tier,'static'),animatedImage:twitchCheermoteImage(tier,'animated'),source:'Twitch Helix',updatedAt:Date.now(),meta:{prefix:c.prefix||'Cheer',tier:String(tier.id||amount),type:c.type||'',color:tier.color||'',lastUpdated:c.last_updated||''}}))}}
  giftCatalogCache.items=giftCatalogCache.items.filter(x=>!(x.platform==='Twitch'&&x.source==='Twitch Helix'));giftCatalogCache.items.push(...rows);giftCatalogCache.sources.twitch={updatedAt:Date.now(),source:'Twitch Helix',count:rows.length,error:''};scheduleGiftCatalogSave();return {ok:true,cached:false,count:rows.length};
 }
-function catalogMatch(platform,{name='',amount=0,event='gift'}={}){
+function catalogMatch(platform,{id='',name='',amount=0,event='gift'}={}){
  const p=catalogPlatform(platform),n=giftTextKey(name),num=Math.max(0,Number(amount)||0),items=giftCatalogCache.items.filter(x=>x.platform===p);
+ // Prefer the real gift ID; translated names and amounts are not guaranteed unique.
+ const giftId=String(id||'').trim();
+ if(giftId){const exactId=items.find(x=>x.id===giftId||x.id==='live:'+giftId||String(x.meta?.liveGiftId||'')===giftId);if(exactId)return exactId}
  if(n){const exact=items.find(x=>giftTextKey(x.name)===n||giftTextKey(x.nameEs)===n);if(exact)return exact}
  if(p==='Twitch'&&event==='cheer'&&num>0){return items.filter(x=>x.giftKind==='bits'&&Number(x.amount)<=num).sort((a,b)=>Number(b.amount)-Number(a.amount))[0]||null}
  if(p==='Kick'&&num>0){return items.find(x=>x.giftKind==='kicks'&&Number(x.amount)===num)||null}
  return null;
 }
 function rememberObservedCatalogGift(platform,event,extra={}){
- if(event!=='gift'&&event!=='cheer')return;const p=catalogPlatform(platform);if(p==='Starvios')return;const amount=p==='Twitch'?Number(extra.bits||0):p==='Kick'?Number(extra.amount||0):Number(extra.unitDiamonds||0);const name=String(extra.giftNameOriginal||extra.giftName||(event==='cheer'?'Bits':'Regalo')).trim();let hit=catalogMatch(p,{name,amount,event});
+ if(event!=='gift'&&event!=='cheer')return;const p=catalogPlatform(platform);if(p==='Starvios')return;const amount=p==='Twitch'?Number(extra.bits||0):p==='Kick'?Number(extra.amount||0):Number(extra.unitDiamonds||0);const name=String(extra.giftNameOriginal||extra.giftName||(event==='cheer'?'Bits':'Regalo')).trim();let hit=catalogMatch(p,{id:extra.giftId,name,amount,event});
  if(p==='Kick'&&name&&!/^\d[\d,.]*\s*KICKs?$/i.test(name)&&hit?.id?.startsWith('kicks:'))hit=null;
  const liveId=extra.giftId?`live:${extra.giftId}`:(p==='Kick'&&name?`live:${giftTextKey(name).replace(/[^a-z0-9]+/g,'-')}:${amount}`:'');
  const raw={platform:p,id:hit?.id||liveId,name:hit?.name||name,nameEs:p==='TikTok'?tiktokGiftSpanishName(name):(hit?.nameEs||name),category:event==='cheer'?'bits':'gift',giftKind:extra.giftKind||hit?.giftKind||'',amount:hit?.amount||amount,unit:hit?.unit||(p==='Twitch'?'bits':p==='Kick'?'KICKs':'diamonds'),image:extra.giftImage||hit?.image||'',animatedImage:extra.giftAnimatedImage||extra.animatedImage||hit?.animatedImage||'',source:hit?.source||'LIVE observado',region:hit?.region||'',observed:true,updatedAt:Date.now(),meta:{...(hit?.meta||{}),liveGiftId:extra.giftId||'',lastSeenAt:Date.now()}};
@@ -987,7 +990,7 @@ function enrichAlertMedia(platform,event,extra={}){
    extra={...extra,giftImage:extra.giftImage||'/assets/youtube-events/'+kind+'.svg',giftKind:kind,giftName:labels[kind]};
   }
  }
- const p=catalogPlatform(platform),amount=p==='Twitch'?Number(extra.bits||0):p==='Kick'?Number(extra.amount||0):Number(extra.unitDiamonds||0),name=String(extra.giftNameOriginal||extra.giftName||'');const hit=catalogMatch(p,{name,amount,event});if(!hit)return extra;
+ const p=catalogPlatform(platform),amount=p==='Twitch'?Number(extra.bits||0):p==='Kick'?Number(extra.amount||0):Number(extra.unitDiamonds||0),name=String(extra.giftNameOriginal||extra.giftName||'');const hit=catalogMatch(p,{id:extra.giftId,name,amount,event});if(!hit)return extra;
  const out={...extra};if(!out.giftImage&&hit.image)out.giftImage=hit.image;if(!out.giftAnimatedImage&&hit.animatedImage)out.giftAnimatedImage=hit.animatedImage;if(p==='TikTok'&&hit.nameEs){out.giftNameOriginal=out.giftNameOriginal||out.giftName||hit.name;out.giftName=hit.nameEs}return out;
 }
 function publicGiftCatalog({platform='',q='',animatedOnly=false}={}){
