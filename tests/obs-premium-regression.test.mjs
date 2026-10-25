@@ -17,7 +17,10 @@ test('animated social widget respects selected side, margin and user sizing',()=
   assert.match(social,/cfg\.fontSize/);
   assert.match(social,/cfg\.iconSize/);
   assert.match(social,/enterFromRight/);
-  assert.match(social,/\.name\{[^}]*text-overflow:ellipsis/);
+  assert.match(social,/\\.name\\{[^}]*text-overflow:clip/);
+  assert.match(social,/function fitNetworks\\(\\)/);
+  assert.match(social,/host\\.scrollWidth/);
+  assert.match(social,/addEventListener\\('resize',fitNetworks\\)/);
 });
 
 test('catalog resolves actual gift ID ahead of same-name gifts',()=>{

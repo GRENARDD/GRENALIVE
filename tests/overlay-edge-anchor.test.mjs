@@ -8,7 +8,10 @@ test('redes: borde fijo, nombres largos y rotación con entrada desde el lado el
   assert.match(html,/stage\.style\.justifyContent=edge==='right'\?'flex-end':'flex-start'/);
   assert.match(html,/stage\.style\.paddingLeft=/);
   assert.match(html,/stage\.style\.paddingRight=/);
-  assert.match(html,/\.name\{[^}]*text-overflow:ellipsis/);
+  assert.match(html,/\\.name\\{[^}]*text-overflow:clip/);
+  assert.match(html,/function fitNetworks\\(\\)/);
+  assert.match(html,/const available=Math\\.max\\(30,stage\\.clientWidth-offset-10\\)/);
+  assert.match(html,/scale\\*=available\\/Math\\.max/);
   assert.match(html,/max-width:100%/);
   assert.match(html,/enterFromRight/);
 });
