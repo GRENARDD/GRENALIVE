@@ -131,6 +131,26 @@ case 'raid':middle=`<div class="raid-band"></div><div class="raid-diagonal"></di
 case 'share':middle=`<div class="share-ping"></div><div class="share-nodes"><i style="--dx:-74px;--dy:35px"></i><i style="--dx:92px;--dy:-30px"></i><i style="--dx:120px;--dy:90px"></i><i style="--dx:-100px;--dy:-80px"></i></div><div class="share-type"><div class="overline">${pl} / LA SEÑAL CRECE</div><div class="headline">SIGNAL<br>BOOSTED ↗</div><div class="meta">${name} compartió el directo</div></div>`;break;
 case 'likes':middle=`<div class="likes-wave"><div class="likes-heart">♥</div><div class="likes-type"><div class="overline">${pl} / ENERGÍA DEL DIRECTO</div><div class="headline">+${amount}</div><div class="meta">TAP TAPS de <strong>${name}</strong></div></div></div>`;break;}
 return `<div class="fx fx--${type}" style="--ev-accent:${colorPair()[0]};--ev-glow:${colorPair()[1]}">${middle}${extras}</div>`}
+function personalizeLegacy(root,owner){
+ // Older optional packs may contain creator-specific marketing labels.
+ // Never modify real participant names, gift names, or user-submitted content.
+ if(!root||typeof document.createTreeWalker!=='function')return;
+ const preferred=String(owner||'').trim().slice(0,64);
+ const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+ let textNode;
+ while((textNode=walker.nextNode())){
+  const parent=textNode.parentElement;
+  if(!parent||parent.closest('.dynamic-name,.mc-person,.basic-person,.gift-author,.mc-item-name,.nameplate h2'))continue;
+  const val=textNode.nodeValue;
+  if(!/GREÑA|GREÑERA/i.test(val))continue;
+  textNode.nodeValue=val
+   .replace(/TEAM\s+GREÑA/gi,preferred?'COMUNIDAD DE '+preferred:'LA COMUNIDAD')
+   .replace(/COMUNIDAD\s+GREÑA/gi,preferred?'COMUNIDAD DE '+preferred:'LA COMUNIDAD')
+   .replace(/GREÑA\s+RD/gi,preferred||'EN DIRECTO')
+   .replace(/GREÑA\s+CRAFT/gi,'PIXELCRAFT')
+   .replace(/ENERGÍA\s+GREÑERA/gi,'ENERGÍA DEL DIRECTO');
+ }
+}
 function fitLongNames(){root.querySelectorAll('.dynamic-name,.dynamic-gift').forEach(el=>{let px=Math.ceil(parseFloat(getComputedStyle(el).fontSize));while(el.scrollHeight>el.clientHeight+2&&px>14){px-=1;el.style.fontSize=px+'px'}})}
 
 function mapAlert(a={}){
@@ -177,7 +197,8 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
       else window.AfterglowAudio?.play(event,{enabled:true,volume:cfg.volume});
     }
   }
-  const ms=packed?.durationMs||(cfg.theme==='ascension'?7200:duration(event));
+  personalizeLegacy(root,ownerFor(platform));
+   const ms=packed?.durationMs||(cfg.theme==='ascension'?7200:duration(event));
   const fx=root.firstElementChild;
   const endTimer=packed?null:setTimeout(()=>{fx?.classList.add('outro')},ms-650);
   activeTimer=setTimeout(()=>{if(endTimer)clearTimeout(endTimer);root.replaceChildren();working=false;if(!refreshWhenIdle())drain()},ms);
