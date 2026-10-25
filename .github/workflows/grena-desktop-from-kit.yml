@@ -79,7 +79,7 @@ jobs:
             }
           }
           $preview = Get-Content widgets.html -Raw -Encoding UTF8
-          if ($preview -notmatch 'social-overlay\\.html\\?preview=1') {
+          if (-not $preview.Contains('social-overlay.html?preview=1')) {
             throw "La vista previa del widget no tiene activado el modo oscuro."
           }
       - name: Install dependencies
