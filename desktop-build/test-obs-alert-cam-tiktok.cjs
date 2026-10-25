@@ -41,13 +41,17 @@ test('Multichat OBS propaga token a API, historial, avatar y WebSocket',()=>{
   assert.match(widgets,/getElementById\('chatPreview'\)\.src=chat/);
   assert.match(widgets,/chat=protect\('\/chat\/multichat-overlay\.html'\)/);
 });
-test('el selector tiene los cuatro temas y retransmite incluso al escoger el activo',()=>{
-  for(const name of ['original','minecraft','minecraft3d','domino']){
+test('solo se seleccionan PixelCraft y las ocho alertas básicas, sin Original',()=>{
+  const allowed=['minecraft','celestial','sakura','comic','hologram','inferno','arcade','royal','void'];
+  for(const name of allowed){
     assert.ok(alertHub.includes('data-grena-theme="'+name+'"'),'Falta tarjeta '+name);
   }
+  assert.doesNotMatch(alertHub,/data-grena-theme="original"/,'Afterglow Original no debe estar visible');
+  assert.match(alertHub,/Alertas básicas/);
   assert.match(picker,/if\(busy\)return;/);
   assert.doesNotMatch(picker,/busy\|\|next===theme/);
-  assert.match(alertOverlay,/GrenaThemePacks\?\.play\(cfg\.theme/);
+  assert.match(alertOverlay,/GrenaBasicAlerts\.render\(cfg\.theme/);
+  assert.match(alertOverlay,/GrenaBasicAlerts\.play\(cfg\.theme/);
   assert.match(alertOverlay,/settingsSyncTimer=setInterval\(syncSettingsFromServer,5000\)/);
   assert.match(server,/\/api\/afterglow-settings.*\/api\/overlay-version/);
 });
