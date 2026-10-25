@@ -104,13 +104,14 @@ button{cursor:pointer;font-weight:800}
 .stage[data-o=h] .txt{--ty:-50%}
 .hint{margin-top:12px;color:var(--mu);font-size:12px;text-align:center}
 </style>
+<script>if(new URLSearchParams(location.search).has('obs'))document.documentElement.classList.add('grena-obs-mode')</script>
 <style id="grena-obs-stage">
-html,body{width:100%;height:100%;overflow:hidden!important;margin:0!important;padding:0!important;background:transparent!important;color-scheme:dark}
-body>.app,.app{display:block!important;min-height:0!important;width:100%!important;height:100%!important}
-.side,.hint,.hills{display:none!important}
-.main{display:block!important;padding:0!important;margin:0!important;width:100%!important;height:100%!important}
-.main>div{width:100%!important;height:100%!important}
-.stage,.stage[data-o="h"],.stage[data-o="v"]{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;min-width:0!important;min-height:0!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
+html.grena-obs-mode,html.grena-obs-mode body{width:100%;height:100%;overflow:hidden!important;margin:0!important;padding:0!important;background:transparent!important;color-scheme:dark}
+html.grena-obs-mode body>.app,html.grena-obs-mode .app{display:block!important;min-height:0!important;width:100%!important;height:100%!important}
+html.grena-obs-mode .side,html.grena-obs-mode .hint,html.grena-obs-mode .hills{display:none!important}
+html.grena-obs-mode .main{display:block!important;padding:0!important;margin:0!important;width:100%!important;height:100%!important}
+html.grena-obs-mode .main>div{width:100%!important;height:100%!important}
+html.grena-obs-mode .stage,html.grena-obs-mode .stage[data-o="h"],html.grena-obs-mode .stage[data-o="v"]{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;min-width:0!important;min-height:0!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
 </style>
 </head>
 <body>
@@ -157,7 +158,7 @@ body>.app,.app{display:block!important;min-height:0!important;width:100%!importa
           <div class="amt"><span id="amtv"></span></div>
         </div>
       </div>
-      <div class="hint">PROTOTIPO · Compatible con <code>GrenaAlert.show({event,platform,user,giftId,giftImage,giftAnimatedImage,count})</code>. No se ha instalado todavía en el programa.</div>
+      <div class="hint">Compatible con <code>GrenaAlert.show({event,platform,user,giftId,giftImage,giftAnimatedImage,count})</code>.</div>
     </div>
   </main>
 </div>
@@ -285,14 +286,14 @@ function count(to,event,run){
  (function s(t){if(run!==activeRun)return;const k=Math.min((t-t0)/900,1);el.textContent=prefix+Math.round(to*(1-Math.pow(1-k,3)));if(k<1)requestAnimationFrame(s)})(t0);
 }
 const K={gift:'Regalo',sub:'Suscripción',follow:'Nuevo seguidor',raid:'Raid',share:'Compartido',likes:'Likes'};
-const evtAsset=kind=>{const b={follow:'<path d="M100 36a26 26 0 100 52 26 26 0 000-52zM48 163c3-38 20-58 52-58s49 20 52 58" fill="none" stroke="#91efff" stroke-width="12" stroke-linecap="round"/><path d="M151 74h34m-17-17v34" stroke="#faffc0" stroke-width="10" stroke-linecap="round"/>',sub:'<path d="M25 137 18 58l41 28 41-60 41 60 41-28-7 79z" fill="#ffca55" stroke="#fff1aa" stroke-width="5"/><rect x="27" y="139" width="146" height="23" rx="8" fill="#ffe19a"/>',raid:'<path d="M24 105 100 24l76 81-76 71z" fill="#b47aff" stroke="#e8d6ff" stroke-width="8"/><path d="M100 45v80m-25-20 25 30 25-30" stroke="#fff" stroke-width="11" fill="none"/>'};return svg(b[kind]||b.follow)};
+const evtAsset=kind=>{const b={gift:'<rect x="49" y="86" width="102" height="77" rx="9" fill="#5b8ad8" stroke="#e9f2ff" stroke-width="6"/><rect x="38" y="63" width="124" height="32" rx="6" fill="#e9b65c" stroke="#fff0bd" stroke-width="5"/><path d="M100 63v100M75 63c-28-3-26-39-4-39 15 0 24 19 29 39 5-20 14-39 29-39 22 0 24 36-4 39" fill="none" stroke="#fff" stroke-width="8"/>',follow:'<path d="M100 36a26 26 0 100 52 26 26 0 000-52zM48 163c3-38 20-58 52-58s49 20 52 58" fill="none" stroke="#91efff" stroke-width="12" stroke-linecap="round"/><path d="M151 74h34m-17-17v34" stroke="#faffc0" stroke-width="10" stroke-linecap="round"/>',sub:'<path d="M25 137 18 58l41 28 41-60 41 60 41-28-7 79z" fill="#ffca55" stroke="#fff1aa" stroke-width="5"/><rect x="27" y="139" width="146" height="23" rx="8" fill="#ffe19a"/>',raid:'<path d="M24 105 100 24l76 81-76 71z" fill="#b47aff" stroke="#e8d6ff" stroke-width="8"/><path d="M100 45v80m-25-20 25 30 25-30" stroke="#fff" stroke-width="11" fill="none"/>'};return svg(b[kind]||b.follow)};
 function pickGift(o){
  const pf=normPlat(o.platform||$('plat').value);const obj=(o.gift&&typeof o.gift==='object')?normalizeCatalogItem(o.gift):null;
  if(obj)return obj;
  const all=[...realCatalog,...demoCatalog];const id=String(o.giftId||'');const name=String(o.giftName||o.nameOfGift||'').toLowerCase();
  const matched=(id&&all.find(g=>normPlat(g.platform)===pf&&g.id===id)) || (name&&all.find(g=>normPlat(g.platform)===pf&&String(g.name).toLowerCase()===name));
  const live=normalizeCatalogItem({id,platform:o.platform||$('plat').value,name:o.giftName||matched?.name||'',image:o.giftImage||o.image||matched?.image||matched?.src,animatedImage:o.giftAnimatedImage||o.animatedImage||matched?.animatedImage,color:matched?.color});
- return live||matched||currentGift();
+ return live||matched||(id||name?{id,name:o.giftName||o.nameOfGift||'Regalo',platform:o.platform||$('plat').value,image:evtAsset('gift'),animatedImage:'',kind:'missing'}:currentGift());
 }
 function show(o={}){
  const run=++activeRun;
@@ -305,7 +306,7 @@ function show(o={}){
  const requested=o.orientation; if(requested){orient=['v','vertical'].includes(requested)?'v':'h';stage.dataset.o=orient;$('oh').classList.toggle('on',orient==='h');$('ov').classList.toggle('on',orient==='v')}
  clearTimeout(timer);al.classList.remove('in','out');parts=[];
  $img.hidden=false;$video.hidden=true;try{$video.pause()}catch{}
- const selectedSrc=safeMediaUrl(gift.animatedImage||gift.image||gift.src)||demoCatalog[0].src;
+ const selectedSrc=safeMediaUrl(gift.animatedImage||gift.image||gift.src)||evtAsset('gift');
  const isVideo=/\.(mp4|webm)(?:[?#]|$)/i.test(selectedSrc)||/^data:video\//i.test(selectedSrc);
  let loaded=false;
  function go(media){
@@ -325,7 +326,7 @@ function show(o={}){
   timer=setTimeout(()=>{if(run!==activeRun)return;al.classList.replace('in','out');timer=setTimeout(()=>{if(run===activeRun)al.classList.remove('out')},650)},duration);
  }
  if(isVideo){$img.hidden=true;$video.hidden=false;$video.src=selectedSrc;$video.onloadeddata=()=>go($video);$video.onerror=()=>{
-    $video.hidden=true;$img.hidden=false;$img.src=gift.image||gift.src||demoCatalog[0].src;$img.onload=()=>go($img)
+    $video.hidden=true;$img.hidden=false;$img.src=gift.image||gift.src||evtAsset('gift');$img.onload=()=>go($img)
   };
   $video.load();$video.play().catch(()=>{});setTimeout(()=>{if(!loaded&&run===activeRun)go($video)},400);
  }else{
@@ -334,7 +335,7 @@ function show(o={}){
    if(run!==activeRun)return;
    const fallback=safeMediaUrl(gift.image||gift.src);
    if(fallback&&$img.src!==fallback){$img.src=fallback;return}
-   if($img.src!==demoCatalog[0].src){$img.src=demoCatalog[0].src;return}
+   if($img.src!==evtAsset('gift')){$img.src=evtAsset('gift');return}
    go($img)
   };
   $img.src=selectedSrc;
