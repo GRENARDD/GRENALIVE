@@ -66,7 +66,7 @@ jobs:
           # The current studio already supports Ascension and all modern themes.
           # Old kit patch_studio expects a removed binary original/minecraft selector.
           # Do not overwrite the existing multi-theme studio.
-          $studioPattern = '(?ms)^def patch_studio\\(s\\):.*?(?=^def |\\z)'
+          $studioPattern = '(?ms)^def patch_studio\(s\):.*?(?=^def |\z)'
           if ([regex]::Matches($source,$studioPattern).Count -ne 1) { throw 'Se esperaba una funcion patch_studio en el kit.' }
           $source = [regex]::Replace($source,$studioPattern,("def patch_studio(s):" + "`n" + "    return s" + "`n`n"))
           [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
