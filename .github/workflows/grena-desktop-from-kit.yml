@@ -68,15 +68,11 @@ jobs:
           if ([regex]::Matches($source,$pickerPattern).Count -ne 1) { throw 'Se esperaba una funcion patch_picker en el kit.' }
           $source = [regex]::Replace($source,$pickerPattern,("def patch_picker(s):" + "`n" + "    return s" + "`n`n"))
           [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
-          Write-Host 'GRENA LEGACY KIT PATCH SUMMARY:'
-          Select-String -Path $kitPatch -Pattern '^def patch_|^def main\(' | ForEach-Object { Write-Host $_.Line }
                     # Current server settings already validate PixelCraft + eight basic themes.
           $serverPattern = '(?ms)^def patch_server\(s\):.*?(?=^def |\z)'
           if ([regex]::Matches($source,$serverPattern).Count -ne 1) { throw 'Se esperaba una funcion patch_server en el kit.' }
           $source = [regex]::Replace($source,$serverPattern,("def patch_server(s):" + "`n" + "    return s" + "`n`n"))
           [System.IO.File]::WriteAllText((Resolve-Path $kitPatch),$source,[System.Text.UTF8Encoding]::new($false))
-          Write-Host "GRENA v5 integration kit (public source, diagnostic):"
-          Get-Content $kitPatch -Encoding UTF8 | ForEach-Object { Write-Host $_ }
                     python -m py_compile $kitPatch
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python ".kit/GRENA_LIVE_Desktop_v5/tools/aplicar_a_grena.py" "." --dry-run
