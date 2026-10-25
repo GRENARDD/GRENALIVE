@@ -7,7 +7,7 @@ instagram:`<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
 twitch:`<svg viewBox="0 0 24 24"><path d="M3 2h19v13l-5.6 5.6h-4.2L9 24H6v-3.4H2V6zM5.3 4.3v13.8h4.8v2.3l2.3-2.3h4l3.3-3.3V4.3zm5.2 3h2.2v6.4h-2.2zm5.3 0H18v6.4h-2.2z"/></svg>`,
 kick:`<svg viewBox="0 0 24 24"><path d="M3 2h6v8h3V7h3V4h6v6h-3v4h3v6h-6v-3h-3v-3H9v8H3z"/></svg>`,
 youtube:`<svg viewBox="0 0 24 24"><path d="M23 7.1a2.8 2.8 0 0 0-2-2C19.2 4.6 12 4.6 12 4.6s-7.2 0-9 .5a2.8 2.8 0 0 0-2 2C.5 8.9.5 12 .5 12s0 3.1.5 4.9a2.8 2.8 0 0 0 2 2c1.8.5 9 .5 9 .5s7.2 0 9-.5a2.8 2.8 0 0 0 2-2c.5-1.8.5-4.9.5-4.9s0-3.1-.5-4.9ZM9.6 15.5v-7l6.2 3.5z"/></svg>`,
-starvios:`<img src="/assets/platforms/starvios.svg" alt="" aria-hidden="true">`
+starvios:`<img style="filter:brightness(0) invert(1)" src="/assets/platforms/starvios.svg" alt="" aria-hidden="true">`
 };
 function names(){const enabled=Array.isArray(cfg.enabledNetworks)?cfg.enabledNetworks:platforms;return platforms.filter(p=>enabled.includes(p)&&String(cfg[p+'User']||'').trim())}
 function username(raw){let v=String(raw||'').trim();if(!v)return '';if(cfg.showAt===false)return v.replace(/^@/,'');return v.startsWith('@')?v:'@'+v}
