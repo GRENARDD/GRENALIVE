@@ -60,7 +60,7 @@ if(layout==='horizontal')live.classList.add('wide');
 const colors={tiktok:['#4be9ff','rgba(75,233,255,.40)'],twitch:['#c49aff','rgba(196,154,255,.35)'],kick:['#caff5f','rgba(202,255,95,.40)'],starvios:['#ff8bc6','rgba(255,139,198,.37)'],youtube:['#ff5269','rgba(255,82,105,.40)']};
 const platformName={tiktok:'TIKTOK',twitch:'TWITCH',kick:'KICK',starvios:'STARVIOS',youtube:'YOUTUBE'};
 const events=['follow','gift','sub','raid','share','likes'];
-const defaults={theme:'original',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
+const defaults={theme:'minecraft',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
 let cfg={...defaults},platform='tiktok',activeTimer=null,retryTimer=null,socket=null,working=false,backoff=1500;
 const pending=[],MAX_PENDING=14,recentIds=new Map();
 // OBS Browser Source keeps its JS alive when deployed pages change.
@@ -148,7 +148,7 @@ function mapAlert(a={}){
 function normalizedSettings(src={}){
  const color=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?v:'#ffffff';
  const sounds=Object.fromEntries(events.map(e=>[e,src.sounds?.[e]!==false]));
- return {theme:['original','minecraft','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(src.theme)?src.theme:'original',intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
+ return {theme:['minecraft','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(src.theme)?src.theme:'minecraft',intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
  soundEnabled:src.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(src.audioRoute)?src.audioRoute:'both',sounds,fontFamily:['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(src.fontFamily)?src.fontFamily:'Inter',
  textColor:color(src.textColor),accentMode:src.accentMode==='custom'?'custom':'platform',accent:color(src.accent||'#caff5f')};
 }
