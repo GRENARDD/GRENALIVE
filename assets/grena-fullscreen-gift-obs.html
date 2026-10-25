@@ -29,23 +29,24 @@ button{cursor:pointer;font-weight:800}
 .cat .up{font-size:22px;color:var(--mu)}
 .main{padding:18px;display:grid;place-items:center}
 .stage{position:relative;overflow:hidden;container-type:size;border-radius:20px;border:1px solid var(--line);box-shadow:0 20px 60px rgba(0,0,0,.45);background:radial-gradient(circle at 20% 30%,rgba(255,150,80,.3),transparent 34%),radial-gradient(circle at 82% 16%,rgba(120,100,255,.28),transparent 28%),linear-gradient(150deg,#111b38,#08101c 60%,#04080f)}
-.stage[data-o=h]{width:min(100%,1100px);aspect-ratio:16/9;--gx:80%;--gy:37%;--gs:30;--iw:42;--fu:1}
+.stage[data-o=h]{width:min(100%,1100px);aspect-ratio:16/9;--gx:50%;--gy:39%;--gs:30;--iw:58;--fu:1}
+.stage[data-o=h][data-p=r]{--gx:80%}
 .stage[data-o=h][data-p=l]{--gx:20%}
 .stage[data-o=h][data-p=c]{--gx:50%}
-.stage[data-o=v]{height:min(82vh,860px);aspect-ratio:9/16;max-width:100%;--gx:50%;--gy:36%;--gs:46;--iw:84;--fu:1.6}
+.stage[data-o=v]{height:min(82vh,860px);aspect-ratio:9/16;max-width:100%;--gx:50%;--gy:38%;--gs:38;--iw:80;--fu:1.25}
 .hills{position:absolute;inset:auto 0 0 0;height:40%;background:linear-gradient(180deg,transparent,rgba(0,0,0,.55)),conic-gradient(from 200deg at 70% 100%,#27395f,#14203a 30%,transparent 31%)}
 .stage.shake{animation:shake .55s ease-out}
-.fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:6}
+.fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;background:transparent!important}
 
 .alert{--u:1cqmin;--c1:#ffc64a;--c2:#ff7a59;position:absolute;inset:0;opacity:0;pointer-events:none;z-index:5;perspective:calc(var(--u)*120)}
 .alert.in{opacity:1}
 .alert.out{opacity:1;animation:aout .6s ease-in forwards}
-.dim{position:absolute;inset:0;background:radial-gradient(circle at var(--gx) var(--gy),rgba(0,0,0,.04),rgba(0,0,0,.36) 80%);opacity:0}
+.dim{display:none!important}
 .aura{position:absolute;inset:0;box-shadow:inset 0 0 calc(var(--u)*24) calc(var(--u)*2) color-mix(in srgb,var(--c1) 55%,transparent);opacity:0}
 .in .aura{animation:fade 1s .4s forwards,apulse 3s 1.4s ease-in-out infinite}
 @keyframes apulse{50%{opacity:.5}}
 .in .dim{animation:fade .5s forwards}
-.bar{position:absolute;left:0;right:0;height:calc(var(--u)*6);background:#000;transform:scaleY(0);z-index:4}
+.bar{display:none!important}
 .bar.t{top:0;transform-origin:top;border-bottom:1px solid var(--c1);box-shadow:0 0 calc(var(--u)*3) var(--c1)}
 .bar.b{bottom:0;transform-origin:bottom;border-top:1px solid var(--c1);box-shadow:0 0 calc(var(--u)*3) var(--c1)}
 .in .bar{animation:bar .5s cubic-bezier(.2,.9,.3,1) forwards}
@@ -101,6 +102,18 @@ button{cursor:pointer;font-weight:800}
 @keyframes bump{50%{transform:scale(1.18)}}
 @keyframes shake{0%{transform:translate(0,0)}15%{transform:translate(-9px,5px)}30%{transform:translate(8px,-6px)}45%{transform:translate(-6px,-3px)}60%{transform:translate(4px,4px)}80%{transform:translate(-2px,1px)}100%{transform:none}}
 @keyframes aout{to{opacity:0;transform:scale(1.12);filter:blur(8px) brightness(1.8)}}
+
+/* The stage itself never paints a backdrop in OBS. No full-screen black vignette or bars. */
+.stage{background:transparent!important;isolation:isolate}
+.hills,.dim,.bar{display:none!important}
+html:not(.grena-obs-mode) .stage{
+ background:repeating-conic-gradient(#1e293b 0% 25%,#101827 0% 50%) 50%/28px 28px!important;
+}
+html.grena-obs-mode,html.grena-obs-mode body,html.grena-obs-mode .app,
+html.grena-obs-mode .main,html.grena-obs-mode .stage{
+ background:transparent!important;background-image:none!important;
+}
+html.grena-obs-mode .alert{background:transparent!important}
 </style>
 <script>if(new URLSearchParams(location.search).has('obs'))document.documentElement.classList.add('grena-obs-mode')</script>
 <style id="grena-obs-stage">
@@ -122,7 +135,7 @@ html.grena-obs-mode .stage,html.grena-obs-mode .stage[data-o="h"],html.grena-obs
     <input type="file" id="file" accept="image/*" hidden>
     <label>Pantalla</label>
     <div class="seg"><button id="oh" class="on">Horizontal</button><button id="ov">Vertical</button></div>
-    <label>Posición de la alerta</label><select id="pos"><option value="r">Derecha</option><option value="l">Izquierda</option><option value="c">Centro</option></select>
+    <label>Posición de la alerta</label><select id="pos"><option value="r">Derecha</option><option value="l">Izquierda</option><option value="c" selected>Centro</option></select>
     <div class="row">
       <div><label>Plataforma</label><select id="plat"><option>TikTok</option><option>Twitch</option><option>Kick</option><option>Starvios</option><option>YouTube</option></select></div>
       <div><label>Evento</label><select id="ev"><option value="gift">Regalo</option><option value="sub">Suscripción</option><option value="follow">Seguidor</option><option value="raid">Raid</option></select></div>
@@ -136,7 +149,7 @@ html.grena-obs-mode .stage,html.grena-obs-mode .stage[data-o="h"],html.grena-obs
     <button class="play" id="play">▶ Probar alerta</button>
   </aside>
   <main class="main"><div>
-    <div class="stage" id="stage" data-o="h" data-p="r">
+    <div class="stage" id="stage" data-o="h" data-p="c">
       <div class="hills"></div>
       <div class="alert" id="alert">
         <div class="dim"></div><div class="aura"></div><div class="bar t"></div><div class="bar b"></div>
@@ -153,7 +166,7 @@ html.grena-obs-mode .stage,html.grena-obs-mode .stage[data-o="h"],html.grena-obs
       </div>
       <canvas class="fx" id="fx"></canvas>
     </div>
-    <div class="hint">Vista previa. En tu app: <code>GrenaAlert.show({...})</code>.</div>
+    <div class="hint">Los cuadritos solo indican transparencia en la vista previa. En OBS se ve el video detrás de las partículas.</div>
   </div></main>
 </div>
 <script>
@@ -189,13 +202,60 @@ function burst(n,power){
   for(let i=0;i<n;i++){const a=Math.random()*6.28,s=(2+Math.random()*9)*power;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1.5,l:1,d:.007+Math.random()*.015,r:1.5+Math.random()*3.5,g:.14,c:Math.random()<.3?'#fff':cols[i%2]})}
   kick();
 }
-function kick(){if(!raf)raf=requestAnimationFrame(loop)}
-function loop(){
-  const w=cv.width=stage.clientWidth,h=cv.height=stage.clientHeight;cx.clearRect(0,0,w,h);cx.globalCompositeOperation='lighter';
-  if(live){const k=Math.round(w*h/200000)+2;for(let i=0;i<k;i++){const b=Math.random()<.14;parts.push({x:Math.random()*w,y:h+20,vx:(Math.random()-.5)*.6,vy:-(.8+Math.random()*(b?1.4:3)),l:1,d:(b?.0022:.0032)+Math.random()*.003,r:b?7+Math.random()*14:1+Math.random()*3,g:-.003,ph:Math.random()*6.28,a:b?.2:0,c:Math.random()<.2?'#fff':cols[i%2]})}}
-  parts=parts.filter(p=>p.l>0&&p.y>-20);
-  for(const p of parts){p.x+=p.vx;p.y+=p.vy;p.vy+=p.g;p.vx*=.992;p.l-=p.d;if(p.ph!==undefined){p.ph+=.03;p.x+=Math.sin(p.ph)*.5}cx.globalAlpha=Math.max(p.l,0)*(p.a||1);cx.fillStyle=p.c;cx.shadowColor=p.c;cx.shadowBlur=p.a?0:10;cx.beginPath();cx.arc(p.x,p.y,p.r*Math.max(p.l,.25),0,6.28);cx.fill()}
-  raf=(live||parts.length)?requestAnimationFrame(loop):0;
+let lastFrame=0,emitCredit=0,bubblesSeeded=false;
+const bubbleColors=['#55e6ff','#ff73cd','#ffd56f','#a992ff','#8fffce','#ff9d76'];
+function spawnBubble(w,h,anywhere=false){
+ const scale=Math.max(0.75,Math.min(1.6,Math.min(w,h)/750));
+ const radius=(4+Math.random()*12)*scale;
+ return {bubble:true,x:Math.random()*w,y:anywhere?Math.random()*h:h+radius+Math.random()*45,
+   vx:(Math.random()-.5)*0.85*scale,vy:-(h/300)*(0.7+Math.random()*.65),
+   r:radius,l:1,alpha:.32+Math.random()*.45,phase:Math.random()*Math.PI*2,
+   c:bubbleColors[Math.floor(Math.random()*bubbleColors.length)]};
+}
+function kick(){if(!raf){lastFrame=0;raf=requestAnimationFrame(loop)}}
+function loop(now){
+ const w=Math.max(1,stage.clientWidth),h=Math.max(1,stage.clientHeight);
+ const dpr=Math.min(1.5,window.devicePixelRatio||1);
+ const px=Math.round(w*dpr),py=Math.round(h*dpr);
+ if(cv.width!==px||cv.height!==py){cv.width=px;cv.height=py}
+ cx.setTransform(dpr,0,0,dpr,0,0);
+ cx.clearRect(0,0,w,h);
+ cx.globalCompositeOperation='source-over';
+ const dt=Math.min(50,Math.max(1,lastFrame?now-lastFrame:16.67));lastFrame=now;
+ const step=dt/16.67;
+ if(live){
+   if(!bubblesSeeded){for(let i=0;i<46;i++)parts.push(spawnBubble(w,h,true));bubblesSeeded=true}
+   emitCredit+=dt*.05; // ~50 bubbles a second, not hundreds per frame
+   const create=Math.min(5,Math.floor(emitCredit));emitCredit-=create;
+   for(let i=0;i<create;i++)parts.push(spawnBubble(w,h));
+ }
+ const next=[];
+ for(const p of parts){
+   if(p.bubble){
+     p.y+=p.vy*step;p.phase+=.04*step;p.x+=(p.vx+Math.sin(p.phase)*.45)*step;
+     if(!live)p.l-=.025*step;
+     const visibility=Math.min(1,Math.max(0,(h-p.y)/(h*.15)))*Math.min(1,Math.max(0,(p.y+p.r*2)/(h*.12)));
+     if(p.y<-(p.r*2)||p.l<=0)continue;
+     cx.globalAlpha=p.alpha*p.l*visibility;
+     cx.fillStyle=p.c;cx.strokeStyle=p.c;cx.lineWidth=Math.max(.8,p.r*.15);
+     cx.shadowBlur=Math.min(20,p.r*1.2);cx.shadowColor=p.c;
+     cx.beginPath();cx.arc(p.x,p.y,p.r,0,Math.PI*2);cx.fill();
+     cx.globalAlpha=Math.min(1,p.alpha*p.l*visibility*.9);
+     cx.shadowBlur=0;cx.stroke();
+     cx.globalAlpha=.65*p.l*visibility;cx.fillStyle='#ffffff';
+     cx.beginPath();cx.arc(p.x-p.r*.28,p.y-p.r*.30,Math.max(.7,p.r*.16),0,Math.PI*2);cx.fill();
+   }else{
+     p.x+=p.vx*step;p.y+=p.vy*step;p.vy+=(p.g||0)*step;
+     p.vx*=Math.pow(.992,step);p.l-=p.d*step;
+     if(p.l<=0)continue;
+     cx.globalAlpha=Math.max(0,p.l)*(p.a??1);cx.fillStyle=p.c;cx.shadowColor=p.c;
+     cx.shadowBlur=p.a?0:10;cx.beginPath();cx.arc(p.x,p.y,p.r*Math.max(p.l,.25),0,Math.PI*2);cx.fill();
+   }
+   next.push(p);
+ }
+ parts=next.slice(-430);cx.shadowBlur=0;cx.globalAlpha=1;
+ raf=(live||parts.length)?requestAnimationFrame(loop):0;
+ if(!raf){lastFrame=0;emitCredit=0;bubblesSeeded=false;cx.clearRect(0,0,w,h)}
 }
 function count(to){const el=$('amtv'),t0=performance.now();(function s(t){const k=Math.min((t-t0)/1000,1);el.textContent='x'+Math.max(1,Math.round(to*(1-Math.pow(1-k,3))));if(k<1)requestAnimationFrame(s);else{$('amt').classList.add('pop')}})(t0)}
 
@@ -212,7 +272,7 @@ const K={share:'Compartido',likes:'Likes',gift:'Regalo',sub:'Suscripción',follo
 function show(o={}){
   const gift=o.gift||catalog[sel],user=String(o.user||$('user').value||'Usuario'),amount=+(o.amount||$('amount').value)||1,rawEvent=o.event||$('ev').value,ev=['gift','follow','sub','raid','share','likes'].includes(rawEvent)?rawEvent:'gift',plat=o.platform||$('plat').value,dur=(o.duration||+$('dur').value)*1000;
   if(o.orientation)setO(o.orientation,true);if(o.position){stage.dataset.p=o.position;$('pos').value=o.position}
-  clearTimeout(timer);al.classList.remove('in','out');$('amt').classList.remove('pop');live=false;
+  clearTimeout(timer);al.classList.remove('in','out');$('amt').classList.remove('pop');live=false;parts=[];emitCredit=0;bubblesSeeded=false;
   const img=$('gimg');img.onload=go;img.onerror=()=>{img.onerror=null;img.src=genericGiftArt};img.src=gift.animatedImage||gift.image||gift.src||genericGiftArt;
   function go(){
     img.onload=null;colorize(img);
@@ -245,7 +305,7 @@ renderCat();if(!new URLSearchParams(location.search).has('obs'))setTimeout(show,
  const layout=params.get('layout')==='vertical'?'v':'h';
  const stage=document.getElementById('stage');
  if(stage)stage.dataset.o=layout;
- if('full'==='full')stage.dataset.p='r';
+ stage.dataset.p='c';
  window.addEventListener('message',event=>{
    if(event.origin!==location.origin||event.source!==window.parent)return;
    const message=event.data;
@@ -265,7 +325,7 @@ renderCat();if(!new URLSearchParams(location.search).has('obs'))setTimeout(show,
    try{
      window.GrenaAlert?.show({event:safe(incoming.event,20),platform:safe(incoming.platform,30),user:safe(incoming.name,64),
        count:incoming.amount,amount:incoming.amount,giftId:gift.id,giftName:gift.name,giftImage:gift.image,giftAnimatedImage:gift.animatedImage,
-       gift,orientation:layout,position:'r',duration:Math.max(3,Math.min(12,Number(incoming.duration)||6)),soundEnabled:false});
+       gift,orientation:layout,position:'c',duration:Math.max(3,Math.min(12,Number(incoming.duration)||6)),soundEnabled:false});
    }catch(error){console.error('GRENA OBS full',error)}
  });
  window.parent.postMessage({type:'GRENA_OBS_READY',theme:'full'},location.origin);

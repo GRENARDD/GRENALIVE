@@ -1,6 +1,15 @@
 name: GREÑA LIVE Desktop (kit de integración)
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'assets/grena-fullscreen-gift-obs.html'
+      - 'assets/grena-premium-catalog-obs.html'
+      - 'desktop-build/verify-premium-alpha.cjs'
+      - 'tests/premium-transparent-overlay.test.mjs'
+      - '.github/workflows/grena-desktop-from-kit.yml'
   push:
     branches:
       - main
@@ -154,6 +163,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test desktop-build/test-obs-alert-cam-tiktok.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify real OBS transparency and rising bubbles in Chromium
+        run: node desktop-build/verify-premium-alpha.cjs
       - name: Probe public Kick authorization broker
         run: node desktop-build/probe-kick-auth.mjs
       - name: Build Windows installer (manual)

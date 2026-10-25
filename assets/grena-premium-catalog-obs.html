@@ -103,6 +103,23 @@ button{cursor:pointer;font-weight:800}
 @keyframes bump{0%{transform:scale(.4)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
 .stage[data-o=h] .txt{--ty:-50%}
 .hint{margin-top:12px;color:var(--mu);font-size:12px;text-align:center}
+
+/* No opaque backgrounds in the actual OBS overlay. The checkerboard is EDITOR-ONLY. */
+.stage{background:transparent!important;isolation:isolate}
+.hills{display:none!important}
+.card{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border:0!important;box-shadow:none!important}
+.card::before,.card::after{display:none!important}
+.shine{background:transparent!important}
+.user,.what,.chip{text-shadow:0 2px 12px rgba(0,0,0,.9),0 0 22px rgba(0,0,0,.65)}
+.gwrap,.gbox,.txt,.rays,.glow,.amt{background-color:transparent}
+html:not(.grena-obs-mode) .stage{
+ background:repeating-conic-gradient(#1e293b 0% 25%,#101827 0% 50%) 50%/28px 28px!important;
+}
+html.grena-obs-mode,html.grena-obs-mode body,html.grena-obs-mode .app,
+html.grena-obs-mode .main,html.grena-obs-mode .stage{
+ background:transparent!important;background-image:none!important;
+}
+html.grena-obs-mode .alert{background:transparent!important}
 </style>
 <script>if(new URLSearchParams(location.search).has('obs'))document.documentElement.classList.add('grena-obs-mode')</script>
 <style id="grena-obs-stage">
@@ -158,7 +175,7 @@ html.grena-obs-mode .stage,html.grena-obs-mode .stage[data-o="h"],html.grena-obs
           <div class="amt"><span id="amtv"></span></div>
         </div>
       </div>
-      <div class="hint">Compatible con <code>GrenaAlert.show({event,platform,user,giftId,giftImage,giftAnimatedImage,count})</code>.</div>
+      <div class="hint">Los cuadritos indican transparencia solo en el editor; en OBS el fondo es totalmente transparente.</div>
     </div>
   </main>
 </div>
