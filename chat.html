@@ -1134,7 +1134,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
           <label><input name="voiceCustomLanguage" type="checkbox" value="ja"> Japonés</label>
           <label><input name="voiceCustomLanguage" type="checkbox" value="ko"> Coreano</label>
           <label><input name="voiceCustomLanguage" type="checkbox" value="zh"> Chino</label></div>
-          <small>Los mensajes cuyo idioma no se pueda identificar no se leerán en modos restringidos.</small></div>
+          <small>El filtro detecta español e inglés incluso en mensajes cortos; los mensajes muy breves y ambiguos pueden leerse para no silenciar la voz.</small></div>
           <small>Solo se filtra la voz; los mensajes siguen visibles.</small>
         </div>
 
@@ -3618,6 +3618,7 @@ function updateVoiceLanguageChoices(){
   const node=$('voiceLanguageChoices');
   if(node) node.hidden=$('voiceLanguageFilter')?.value!=='custom';
 }
+// GRENA_VOICE_LANGUAGE_FILTER_BEGIN
 function detectVoiceLanguage(text){
   const raw=String(text||'').toLowerCase().replace(/https?:\/\/\S+|@\w+/g,' ');
   if(/[\u3040-\u30ff]/u.test(raw))return 'ja';
@@ -3628,8 +3629,8 @@ function detectVoiceLanguage(text){
   if(/[\u0900-\u097f]/u.test(raw))return 'hi';
   const words=raw.match(/[a-záéíóúüñàâçèêëîïôùûœãõß]+/gu)||[];
   const dictionaries={
-    es:'el la los las un una de que qué en con por para como cómo pero porque estoy está están eres soy hola gracias buenas buenos noches días quiero quieres tengo tienes vamos esto este esta esos esas muy más aquí ahí también cuando dónde quién no sí tu tú mi yo nosotros ustedes ellos ellas hacer hace hay fue ser estar desde hasta bien amigo amiga gente mensaje leer juego jugando ahora puedo puedes',
-    en:'the and you your are is am was were this that these those what why where when who how hello hi thanks thank good morning night please with for from have has had not yes can could would should will just really very here there they them their we our i me my it its do does did to of in on at by as a an if but or so playing game stream chat read message today now',
+    es:'hola saludos saludo salúdame saludame oye dale hermano hermanos amiga amigos chicas chicos jajaja jaja klk adiós genial mañana juego jugando sí que qué cómo bien el la los las un una de que qué en con por para como cómo pero porque estoy está están eres soy hola gracias buenas buenos noches días quiero quieres tengo tienes vamos esto este esta esos esas muy más aquí ahí también cuando dónde quién no sí tu tú mi yo nosotros ustedes ellos ellas hacer hace hay fue ser estar desde hasta bien amigo amiga gente mensaje leer juego jugando ahora puedo puedes',
+    en:'hello hi hey yo thanks thank you cool awesome great nice love bro guys dude epic build building follow follower subscribe subscriber welcome bye goodbye yeah yup nope lets im dont wanna gonna help please gg lol lmao omg wow win winning streamers okay ok the and you your are is am was were this that these those what why where when who how hello hi thanks thank good morning night please with for from have has had not yes can could would should will just really very here there they them their we our i me my it its do does did to of in on at by as a an if but or so playing game stream chat read message today now',
     pt:'você vocês não sim tudo então pelo pelos pela eu meu minha uma das dos muito obrigado obrigada olá bom boa noite dia tarde estou está estamos falar jogo jogar gente agora aqui também quero porque para com isso essa hoje mais',
     fr:'vous nous avec pour dans est une des les pas oui merci bonjour salut suis êtes sont cette mais je tu il elle ils elles mon ma mes notre votre pourquoi comment quoi qui où quand très bien ici aujourd parler jouer jeu aussi',
     de:'ich du er sie wir ihr das der die den dem ein eine einen nicht und ist sind mit für wie was warum wo wann guten tag hallo danke bitte heute jetzt spielen spiel sehr auch mein deine kein haben',
@@ -3641,15 +3642,26 @@ function detectVoiceLanguage(text){
   if(/[ãõ]/u.test(raw))scores.pt+=2;
   if(/[ß]/u.test(raw))scores.de+=2;
   const ranked=Object.keys(scores).sort((a,b)=>scores[b]-scores[a]);
-  return scores[ranked[0]]>=2&&scores[ranked[0]]>scores[ranked[1]]?ranked[0]:'unknown';
+  // Una sola pista distintiva ("hello", "hola", "thanks") basta en chats cortos.
+  // Los empates siguen siendo ambiguos, en lugar de adivinar un idioma.
+  return scores[ranked[0]]>=1&&scores[ranked[0]]>scores[ranked[1]]?ranked[0]:'unknown';
 }
 function languageAllowedForVoice(text){
   const filter=$('voiceLanguageFilter')?.value||'all';
   if(filter==='all')return true;
   const allowed=filter==='custom'?[...document.querySelectorAll('input[name="voiceCustomLanguage"]:checked')].map(x=>x.value):filter==='es-en'?['es','en']:[filter];
   const lang=detectVoiceLanguage(text);
-  return lang!=='unknown'&&allowed.includes(lang);
+  if(lang==='unknown'){
+    // "gg", "xd", un nombre o una frase corta no deben silenciar el TTS.
+    // Solo en los modos de español/inglés, y solo si no se detectó otro idioma.
+    const words=String(text||'').match(/[a-záéíóúüñàâçèêëîïôùûœãõß]+/giu)||[];
+    return allowed.some(code=>code==='es'||code==='en') &&
+      words.length>0 && words.length<=3 &&
+      !/[\u0400-\u052f\u0600-\u06ff\u0900-\u097f\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(String(text||''));
+  }
+  return allowed.includes(lang);
 }
+// GRENA_VOICE_LANGUAGE_FILTER_END
 function queueVoice(m){
 
   if(
@@ -4455,7 +4467,11 @@ $('testVoice').onclick =
       platform: 'system',
       user: '',
       nickname: '',
-      text: 'Hola. Soy la voz de Greña. La voz está funcionando de forma clara y estable.'
+      text: $('voiceLanguageFilter')?.value === 'en'
+         ? 'Hello. This is the voice test. English messages should be read aloud.'
+         : $('voiceLanguageFilter')?.value === 'es-en'
+           ? 'Hola, la voz funciona en español. Hello, the voice also works in English.'
+           : 'Hola. Soy la voz de Greña. La voz está funcionando de forma clara y estable.'
     });
 
     // La prueba debe funcionar incluso si el interruptor general estaba apagado.
