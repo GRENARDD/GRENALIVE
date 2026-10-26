@@ -20,6 +20,8 @@ import tmi from 'tmi.js';
 import {YouTubeLiveReader} from './youtube-live.mjs';
 import { chromium } from 'playwright-core';
 import { StarviosReader, normalizeStarviosChannel } from './starvios-reader.mjs';
+import fishNaturalVoice from './fish-natural-voice.cjs';
+const {prepareFishNaturalRequest} = fishNaturalVoice;
 
 // GREÑA 3.1.7: no usar los fallbacks premium de EulerStream para Room ID / estado LIVE.
 RoomIdRouteConfig.skipFetchRoomIdFromEulerRoute = true;
@@ -2436,6 +2438,8 @@ const server =
           }
 
           const text=String(incoming.text||'').trim();
+          // New clients send per-profile speech options. Old clients are left unchanged.
+          const naturalSpeech=prepareFishNaturalRequest(text,incoming.natural);
           const referenceId=String(incoming.reference_id||'').trim();
           if(!text || text.length>600){
             response.writeHead(400,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -2489,7 +2493,7 @@ const server =
                     'model':FISH_AUDIO_MODEL,
                     'Accept':'audio/mpeg,application/octet-stream'
                   },
-                  body:JSON.stringify({text,reference_id:referenceId,format:'mp3'}),
+                  body:JSON.stringify({text:naturalSpeech.text,reference_id:referenceId,format:'mp3',...naturalSpeech.params}),
                   signal:upstreamController.signal
                 });
 
