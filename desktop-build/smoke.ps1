@@ -9,6 +9,12 @@ $bubble=Join-Path (Get-Location) 'dist\win-unpacked\resources\app\desktop-bubble
 if (!(Test-Path $bubble)) { throw "Falta desktop-bubble.html en instalador GREÑA LIVE" }
 $preload=Join-Path (Get-Location) 'dist\win-unpacked\resources\app\desktop-bubble-preload.cjs'
 if (!(Test-Path $preload)) { throw "Falta el controlador seguro del tamaño de burbuja en el instalador GREÑA LIVE" }
+# Garantizar que las alertas personales están incluidas en el EXE, no solo en GitHub.
+foreach ($required in @('custom-alerts.html', 'custom-alerts.mjs', 'assets\custom-alert-renderer.js', 'assets\custom-alert-renderer.css')) {
+ $shipped=Join-Path (Get-Location) ('dist\win-unpacked\resources\app\' + $required)
+ if (!(Test-Path $shipped)) { throw "Falta $required en el instalador de Windows." }
+}
+
 $env:ELECTRON_RUN_AS_NODE='1'
 $env:GRENA_CLOUD='0'
 $env:HOST='127.0.0.1'
