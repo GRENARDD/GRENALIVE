@@ -42,7 +42,7 @@ process.on('uncaughtException',e=>logProcessFault('uncaughtException',e));
 // server.mjs directamente se crea aquí y se hereda al proceso de chat que lanza server.mjs.
 const BRIDGE_TOKEN=process.env.GRENA_BRIDGE_TOKEN||(process.env.GRENA_BRIDGE_TOKEN=randomBytes(24).toString('hex'));
 const MAX_BODY_BYTES=1024*1024, MAX_AI_BODY_BYTES=9*1024*1024;
-function bodyLimitFor(req){try{return new URL(String(req.url||'/'),'http://127.0.0.1').(pathname==='/api/ai-alert'||pathname==='/api/custom-alerts/media')?MAX_AI_BODY_BYTES:MAX_BODY_BYTES}catch{return MAX_BODY_BYTES}}
+function bodyLimitFor(req){try{return ['/api/ai-alert','/api/custom-alerts/media'].includes(new URL(String(req.url||'/'),'http://127.0.0.1').pathname)?MAX_AI_BODY_BYTES:MAX_BODY_BYTES}catch{return MAX_BODY_BYTES}}
 function readBody(req,limit=bodyLimitFor(req)){
   return new Promise((resolve,reject)=>{
     const chunks=[];let size=0,over=false;
