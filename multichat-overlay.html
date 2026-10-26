@@ -13,10 +13,17 @@
     overflow:hidden;
     background:transparent!important;
     font-family:Inter,Segoe UI,Arial,sans-serif;
+    text-rendering:optimizeLegibility;
   }
+  /* OBS: el lienzo es exactamente el viewport de la fuente del navegador.
+     Configurar la fuente a 1920 x 1080 conserva la resolución Full HD original.
+     No escalar este contenedor con transform/zoom: texto e iconos se dibujan
+     nativamente en Chromium y OBS puede reducirlo sin ampliar píxeles. */
   .stage{
-    position:absolute;
+    position:fixed;
     inset:0;
+    width:100vw;
+    height:100vh;
     display:flex;
     flex-direction:column;
     justify-content:flex-end;
@@ -361,6 +368,31 @@ function applyStage(){
     [...el.classList].filter(c=>c.startsWith('theme-')).forEach(c=>el.classList.remove(c));
     el.classList.add(theme);
     el.style.transformOrigin=cfg.direction==='right'?'right center':'left center';
+    resizeVisibleMessage(el);
+  }
+}
+/* Los controles de tamaño cambian los nodos reales del DOM, sin agrandar
+   una captura, imagen o canvas ya rasterizado. También actúa en mensajes visibles. */
+function resizeVisibleMessage(el){
+  const scale=Math.max(.3,Math.min(2,Number(cfg.bubbleScale??100)/100));
+  const fontSize=Math.max(10,Math.round((cfg.fontSize??16)*scale));
+  const nameSize=Math.max(9,Math.round((cfg.nameSize??14)*scale));
+  const avatarSize=Math.max(18,Math.round((cfg.avatarSize??36)*scale));
+  const iconPx=Math.max(12,Math.round(Math.max(16,Math.min(40,Number(cfg.iconSize)||24))*scale));
+  const padY=Math.max(3,Math.round((cfg.padY??8)*scale));
+  const padX=Math.max(5,Math.round((cfg.padX??13)*scale));
+  el.style.setProperty('--clean-icon-size',iconPx+'px');
+  el.style.setProperty('--clean-max-width',Math.max(10,Math.min(100,Number(cfg.bubbleWidth)||85))+'%');
+  el.style.maxWidth=(cfg.bubbleWidth??94)+'%';
+  el.style.padding=padY+'px '+padX+'px';
+  el.style.borderRadius=Math.max(4,Math.round((cfg.radius??17)*scale))+'px';
+  el.style.gap=Math.max(8,Math.round(avatarSize*.30))+'px';
+  for(const n of el.querySelectorAll('.clean-content,.style-box,.text'))n.style.fontSize=fontSize+'px';
+  for(const n of el.querySelectorAll('.clean-name,.style-name,.name'))n.style.fontSize=nameSize+'px';
+  for(const n of el.querySelectorAll('.platform'))n.style.fontSize=Math.max(8,nameSize-4)+'px';
+  for(const n of el.querySelectorAll('.handle'))n.style.fontSize=Math.max(10,nameSize-2)+'px';
+  for(const n of el.querySelectorAll('.avatar,.fallback')){
+    n.style.width=avatarSize+'px';n.style.height=avatarSize+'px';n.style.flexBasis=avatarSize+'px';
   }
 }
 function safe(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -385,7 +417,7 @@ function add(d){
   if(d._historyId)el.dataset.hid=d._historyId;
   const theme=cfg.theme||'neon';
   el.className=`msg theme-${theme} ${d.platform}`;
-  const scale=Math.max(.45,Math.min(1.4,Number(cfg.bubbleScale??100)/100));
+  const scale=Math.max(.3,Math.min(2,Number(cfg.bubbleScale??100)/100));
   const avatarSize=Math.max(18,Math.round((cfg.avatarSize??36)*scale));
   const nameSize=Math.max(9,Math.round((cfg.nameSize??14)*scale));
   const fontSize=Math.max(10,Math.round((cfg.fontSize??16)*scale));
@@ -419,7 +451,7 @@ function add(d){
     : '';
 
   if(['clean','blossom','comicpop'].includes(theme)){
-    const iconPx=Math.max(16,Math.min(40,Number(cfg.iconSize)||24));
+    const iconPx=Math.max(12,Math.round(Math.max(16,Math.min(40,Number(cfg.iconSize)||24))*scale));
     const strength=Math.max(0,Math.min(100,Number(cfg.shadowStrength??70)))/100;
     const look=cfg.readability||'both';
     el.style.setProperty('--clean-icon-size',iconPx+'px');
