@@ -15,7 +15,7 @@ test('Natural Spanish preserves meaning and adds sentence ending only for TTS',(
   assert.equal(result.text,'Hola gente.');
   assert.equal(text,'  Hola   gente  ');
   assert.equal(result.params.prosody.speed,0.95);
-  assert.equal(result.params.temperature,0.78);
+  assert.equal(result.params.temperature,0.77);
 });
 test('English and Spanish short chat stay neutral and audible',()=>{
   for(const line of ['Hola','Hello','Gracias','GG']){
