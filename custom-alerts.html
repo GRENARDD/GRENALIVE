@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GREÑA LIVE · Alertas personalizadas</title>
+<link rel="stylesheet" href="/assets/custom-alert-renderer.css?v=1">
+<style>
+:root{color-scheme:dark;--bg:#090d17;--panel:#121a2a;--panel2:#101723;--stroke:#29374c;--ink:#f2f6ff;--muted:#9babc3;--accent:#a781ff;--mint:#64e5d4}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,'Segoe UI',Arial,sans-serif}button,input,textarea,select{font:inherit}a{color:inherit;text-decoration:none}button{cursor:pointer}button:disabled{opacity:.55;cursor:wait}
+.layout{min-height:100vh;display:grid;grid-template-columns:235px minmax(0,1fr)}
+aside{background:#0d1422;border-right:1px solid var(--stroke);padding:28px 16px;position:sticky;top:0;height:100vh}
+.brand{display:flex;gap:13px;align-items:center;font-size:15px;font-weight:900;letter-spacing:.03em;margin:0 0 38px}.logo{width:38px;height:38px;background:linear-gradient(145deg,#b38eff,#5d57e5);color:#fff;border-radius:12px;display:grid;place-items:center;font-weight:950;font-size:22px}
+.brand small{display:block;font-size:10px;color:var(--muted);margin-top:5px;letter-spacing:.12em}
+.side-link{display:block;padding:14px;border-radius:12px;color:#a3b1c6;font-weight:750;font-size:13px;margin:7px 0}.side-link.active{background:#a781ff1a;color:#deceff;border:1px solid #a781ff55}.side-link:hover{background:#ffffff0a}
+.side-foot{color:#788ca5;font-size:11px;line-height:1.6;margin-top:35px;padding:15px;border-top:1px solid var(--stroke)}
+main{min-width:0;max-width:1850px;width:100%;margin:0 auto;padding:28px clamp(14px,2vw,32px) 70px}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:25px}.eyebrow{text-transform:uppercase;font-size:10px;font-weight:900;letter-spacing:.2em;color:var(--mint)}
+h1{font-size:clamp(26px,3.2vw,39px);letter-spacing:-.05em;margin:9px 0 8px}p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}.pill{padding:9px 13px;border-radius:100px;border:1px solid #51ceaf55;background:#2ecc9a13;color:#91e8d7;font-size:11px;font-weight:900;white-space:nowrap}
+.columns{display:grid;grid-template-columns:minmax(255px,.72fr) minmax(415px,1.35fr);gap:20px;align-items:start}
+.panel{background:linear-gradient(160deg,#131c2d,#0e1522);border:1px solid var(--stroke);border-radius:19px;padding:21px;box-shadow:0 15px 50px #0002;min-width:0}
+.panel h2{font-size:18px;margin:0 0 5px;letter-spacing:-.03em}
+.panel-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px}
+button.primary{border:0;background:linear-gradient(115deg,#b294ff,#6c73f2);color:#090b1b;font-size:12px;font-weight:950;padding:13px 17px;border-radius:10px}
+button.secondary{border:1px solid #485572;background:#1d2940;color:#e4e8f4;font-size:12px;font-weight:850;padding:12px 14px;border-radius:10px}
+button.ghost{background:transparent;border:1px solid #405069;color:#c7d1e2;border-radius:10px;padding:10px 12px;font-size:12px}
+button:hover{filter:brightness(1.13)}.search{width:100%;background:#0a1220;border:1px solid var(--stroke);border-radius:10px;padding:12px;color:#fff;margin-bottom:14px}
+.rule-list{display:grid;gap:10px}.rule-row{width:100%;background:#101929;border:1px solid var(--stroke);border-radius:12px;padding:13px;display:flex;align-items:center;gap:10px;text-align:left;color:inherit}.rule-row.selected{border-color:#aa8cff;background:#291e44}
+.rule-mark{width:36px;height:36px;display:grid;place-items:center;background:#6946a02b;border:1px solid #8e6cba55;border-radius:11px;color:#d3c0ff;font-size:19px}.rule-info{min-width:0;flex:1}.rule-info strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.rule-info small{display:block;font-size:10px;color:#90a0ba;margin-top:5px;line-height:1.4}.state{color:#67ddbd;font-size:11px}.state.off{color:#f5a8a8}
+.empty{border:1px dashed #495772;border-radius:12px;padding:28px 17px;color:#8f9eb7;text-align:center;font-size:12px;line-height:1.8}
+.form-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.form-actions{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0 0}
+label{display:grid;gap:6px;color:#b8c7de;font-size:12px;font-weight:750;margin:11px 0}
+input[type=text],input[type=number],input[type=url],select,textarea{width:100%;border:1px solid #334257;background:#0b1422;color:#f2f6fb;padding:11px 12px;border-radius:9px;outline:none;min-width:0}
+input:focus,textarea:focus,select:focus{border-color:#aa82ff}input[type=color]{height:42px;width:65px;background:transparent;border:0;padding:2px;cursor:pointer}
+textarea{resize:vertical;min-height:65px}
+h3{font-size:14px;margin:24px 0 12px;display:flex;gap:10px;align-items:center;color:#e4eafa;border-bottom:1px solid #2b3850;padding-bottom:10px}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 13px}
+.choice-grid{display:flex;flex-wrap:wrap;gap:9px}
+.option{display:flex;align-items:center;gap:8px;background:#0b1525;border:1px solid #34425c;border-radius:9px;padding:10px 12px;font-weight:750;font-size:12px;cursor:pointer;margin:0}
+.option:has(input:checked){border-color:#9974f4;background:#33244f70;color:#f0e6ff}
+.option input{accent-color:#9b7cf7}
+.option img{height:17px;width:17px;object-fit:contain}.hint{font-size:11px;color:#8fa0bb;line-height:1.6;margin-top:7px}
+.preview-wrap{margin-top:18px;border-radius:16px;padding:13px;background:#070b12;border:1px solid #354053}.preview-stage{height:285px;background-color:#152033;background-image:linear-gradient(45deg,#263449 25%,transparent 25%),linear-gradient(-45deg,#263449 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#263449 75%),linear-gradient(-45deg,transparent 75%,#263449 75%);background-size:22px 22px;background-position:0 0,0 11px,11px -11px,-11px 0;position:relative;overflow:hidden;border-radius:9px;container-type:inline-size}
+.preview-stage .gca-stage{padding-bottom:7%}.preview-stage .gca-card{max-width:88%;padding:8px 12px 13px;border-radius:10px}.preview-stage .gca-media{width:55px;height:55px}.preview-stage .gca-symbol{font-size:45px}.preview-stage .gca-title{font-size:clamp(16px,5cqw,29px)}.preview-stage .gca-message{font-size:clamp(11px,2.8cqw,17px)}.preview-stage .gca-platform{font-size:10px;margin-bottom:5px}.preview-stage .gca-content{gap:5px}.preview-stage .gca-spark{animation:none}
+.upload{border:1px dashed #596a88;background:#141f31;border-radius:10px;padding:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.upload input{font-size:11px;max-width:100%}
+.mini{font-size:10px;color:#8399b7;word-break:break-all}
+.notice{border:1px solid #38536b;background:#101f2b;border-radius:12px;padding:14px;font-size:11px;color:#9fb6cc;line-height:1.65;margin-top:17px}
+.footer-actions{position:sticky;bottom:0;background:#0e1624ec;border:1px solid #2c394f;border-radius:13px;padding:12px;margin:18px 0;display:flex;gap:10px;justify-content:flex-end;backdrop-filter:blur(10px)}
+#toast{position:fixed;bottom:24px;right:24px;max-width:min(450px,90vw);padding:14px 20px;background:#b798ff;color:#17102b;font-weight:900;border-radius:11px;opacity:0;transform:translateY(12px);pointer-events:none;transition:.2s;z-index:200;font-size:12px}#toast.show{opacity:1;transform:none}
+@media(max-width:1100px){.layout{grid-template-columns:1fr}aside{height:auto;position:static;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:12px 16px}.brand{margin:0 auto 0 0}.side-link{margin:0}.side-foot{display:none}}
+@media(max-width:920px){.columns{grid-template-columns:1fr}.top{flex-wrap:wrap}}@media(max-width:540px){.grid-2{grid-template-columns:1fr}.panel{padding:15px}.footer-actions{flex-wrap:wrap}.brand small{display:none}}
+</style></head>
+<body><div class="layout"><aside>
+<div class="brand"><div class="logo">G</div><div>GREÑA LIVE PRO<small>ALERTAS + OBS</small></div></div>
+<a class="side-link" href="/alerts.html?embed=1">✦ Mis alertas</a>
+<a class="side-link active" href="/custom-alerts.html?embed=1">✧ Personalizadas</a>
+<a class="side-link" href="/afterglow-studio.html">◈ Afterglow Studio</a>
+<div class="side-foot">Los eventos reales activan alertas en OBS. Tus reglas y multimedia son privadas para tu perfil GREÑA.</div>
+</aside><main>
+<div class="top"><div><span class="eyebrow">GREÑA ALERT ENGINE · MULTIPLATAFORMA</span><h1>Alertas personalizadas</h1><p>Crea la acción, elige las plataformas y decide qué eventos de tus espectadores la activarán.</p></div><span class="pill">● Configuración por usuario</span></div>
+<div class="columns"><section class="panel"><div class="panel-header"><div><h2>Mis acciones</h2><p id="count">0 alertas guardadas</p></div><button id="addRule" class="primary" type="button">＋ Nueva</button></div>
+<input id="search" class="search" type="search" placeholder="Buscar alertas…">
+<div id="ruleList" class="rule-list"><div class="empty">Cargando alertas de tu cuenta…</div></div>
+<div class="notice">Una misma acción puede escuchar varios eventos y plataformas. Si coinciden varias reglas, se usa la de mayor prioridad. Las demás alertas existentes continúan funcionando como siempre.</div>
+</section>
+<section class="panel"><div class="form-bar"><div><span class="eyebrow">EDITOR DE ACCIONES Y EVENTOS</span><h2 id="formHeading" style="margin-top:7px">Nueva alerta</h2></div><label style="display:flex;align-items:center;gap:9px;margin:0"><input id="enabled" type="checkbox" checked> Habilitada</label></div>
+<form id="editor" autocomplete="off">
+<label>Nombre de esta alerta<input id="name" maxlength="75" type="text" required placeholder="Ej. Rosa legendaria" value="Mi nueva alerta"></label>
+<h3>① ¿Quién activa la alerta? · Plataformas</h3><div id="platforms" class="choice-grid"></div>
+<h3>② ¿Qué la dispara? · Eventos</h3><div id="events" class="choice-grid"></div>
+<div class="grid-2">
+<label>Usuario específico (opcional)<input id="username" type="text" maxlength="64" placeholder="Cualquier usuario"></label>
+<label>Nombre del regalo (opcional)<input id="giftName" type="text" maxlength="100" placeholder="Rosa, Galaxy, etc."></label>
+<label>Cantidad mínima (opcional)<input id="minCount" type="number" min="0" max="1000000" value="0"></label>
+<label>Valor mínimo (opcional)<input id="minValue" type="number" min="0" max="100000000" value="0"></label>
+</div><p class="hint">Los filtros de regalos usan el nombre y el valor que devuelve cada plataforma. En TikTok, diamantes; Twitch, Bits; Kick, KICKs; Starvios, Starvies, cuando están disponibles. Cero = sin mínimo.</p>
+<h3>③ ¿Qué debe ocurrir? · Diseño y multimedia</h3>
+<label>Título de la alerta<input id="title" type="text" maxlength="120" value="¡NUEVO APOYO!"></label>
+<label>Texto dinámico<textarea id="message" maxlength="280">¡Gracias {user} por apoyar el directo!</textarea></label>
+<div class="hint">Variables: {user}, {platform}, {gift}, {count}, {value} y {owner}. El espectador real reemplaza el nombre de prueba.</div>
+<div class="grid-2">
+<label>Estilo<select id="style"><option value="neon">Neón premium</option><option value="glass">Cristal / Glass</option><option value="impact">Impacto</option><option value="minimal">Minimalista</option></select></label>
+<label>Entrada<select id="animation"><option value="pop">Pop dinámico</option><option value="slide">Deslizar</option><option value="zoom">Zoom cinemático</option><option value="bounce">Rebote</option><option value="float">Flotar</option></select></label>
+<label>Duración en segundos<input id="duration" type="number" min="2" max="30" value="7"></label>
+<label>Se muestra en<select id="orientation"><option value="both">Vertical y horizontal</option><option value="vertical">Solo vertical</option><option value="horizontal">Solo horizontal</option></select></label>
+<label>Color principal<input id="color" type="color" value="#a855f7"></label>
+<label>Color del texto<input id="textColor" type="color" value="#ffffff"></label>
+</div>
+<div id="mediaFields">
+<label>Imagen o GIF (archivo o enlace HTTPS)<input id="image" type="text" maxlength="600" placeholder="https://... o subir archivo"></label><div class="upload"><input id="uploadImage" type="file" accept="image/png,image/jpeg,image/gif,image/webp"><span class="mini">Imagen/GIF máximo 6 MB</span></div>
+<label>Sonido (archivo o enlace HTTPS)<input id="audio" type="text" maxlength="600" placeholder="https://... o subir archivo"></label><div class="upload"><input id="uploadAudio" type="file" accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg"><span class="mini">MP3/WAV/OGG máximo 6 MB</span></div>
+<label>Video corto (archivo o enlace HTTPS)<input id="video" type="text" maxlength="600" placeholder="https://... o subir archivo"></label><div class="upload"><input id="uploadVideo" type="file" accept="video/mp4,video/webm"><span class="mini">MP4/WebM máximo 6 MB · video sobre imagen</span></div>
+</div>
+<div class="choice-grid" style="margin-top:16px"><label class="option"><input id="showAvatar" type="checkbox" checked> Avatar</label><label class="option"><input id="showGift" type="checkbox" checked> Regalo real</label><label class="option"><input id="playAudio" type="checkbox" checked> Reproducir sonido</label><label class="option"><input id="tts" type="checkbox"> Leer texto TTS</label></div>
+<div class="grid-2">
+<label>Volumen (0–100)<input id="volume" type="number" min="0" max="100" value="70"></label>
+<label>Prioridad (0–100)<input id="priority" type="number" min="0" max="100" value="50"></label>
+<label>Espera general (segundos)<input id="cooldownGlobal" type="number" min="0" max="3600" value="0"></label>
+<label>Espera por espectador (segundos)<input id="cooldownUser" type="number" min="0" max="3600" value="0"></label>
+</div>
+<p class="hint">La lectura TTS usa las voces disponibles en el navegador de OBS; no está garantizada en todas las instalaciones. Nunca ejecuta comandos externos.</p>
+<h3>④ Vista previa transparente</h3><div class="preview-wrap"><div class="preview-stage" id="previewContent"></div><p class="hint" style="margin-top:10px">El fondo de cuadros solo ayuda a comprobar la transparencia. No aparece en OBS.</p></div>
+<div class="form-actions"><button type="button" id="previewBtn" class="secondary">▶ Vista previa</button><button type="button" id="testBtn" class="secondary">▶ Enviar prueba a OBS</button><button type="button" id="duplicateBtn" class="ghost">Duplicar</button><button type="button" id="deleteBtn" class="ghost" style="color:#ffabad">Eliminar</button></div>
+<div class="footer-actions"><button id="cancelBtn" type="button" class="secondary">Restablecer</button><button id="saveBtn" type="submit" class="primary">✓ Guardar en mi cuenta</button></div>
+</form></section></div>
+<div class="notice">Se integra con el overlay AFTERGLOW que ya tienes en OBS: no hay que reemplazar tus enlaces. Para que se activen eventos en vivo, la plataforma debe estar conectada y reportar esos eventos a GREÑA.</div>
+</main></div><div id="toast" role="status"></div>
+<script src="/assets/custom-alert-renderer.js?v=1"></script>
+<script>
+(function(){
+'use strict';
+const platforms=[['tiktok','TikTok','/assets/platforms/tiktok.webp'],['twitch','Twitch','/assets/platforms/twitch.webp'],['kick','Kick','/assets/platforms/kick.svg'],['starvios','Starvios','/assets/platforms/starvios.svg'],['youtube','YouTube','/assets/youtube-logo.svg']];
+const events=[['follow','Seguidor'],['gift','Regalo / apoyo'],['sub','Suscripción'],['subrenew','Renovación'],['giftsub','Subs regaladas'],['shower','Lluvia de estrellas'],['cheer','Bits'],['share','Compartir'],['like','Me gusta / Tap Taps'],['raid','Raid']];
+const $=id=>document.getElementById(id);let alerts=[],editingId='',busy=false,previewHandle=null;
+function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),3800)}
+function clean(text){return String(text||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]))}
+function checked(group){return [...document.querySelectorAll('#'+group+' input:checked')].map(x=>x.value)}
+function numeric(id){return Number($(id).value)||0}
+function drawChoices(){
+  $('platforms').innerHTML=platforms.map(p=>'<label class="option"><input type="checkbox" name="network" value="'+p[0]+'"><img src="'+p[2]+'" alt="">'+p[1]+'</label>').join('');
+  $('events').innerHTML=events.map(e=>'<label class="option"><input type="checkbox" name="trigger" value="'+e[0]+'">'+e[1]+'</label>').join('');
+}
+function fresh(){
+  return {id:crypto.randomUUID(),name:'Mi nueva alerta',enabled:true,platforms:['tiktok','twitch','kick','starvios'],events:['gift'],
+    conditions:{username:'',giftName:'',minCount:0,minValue:0},
+    action:{title:'¡NUEVO APOYO!',message:'¡Gracias {user} por apoyar el directo!',image:'',audio:'',video:'',color:'#a855f7',textColor:'#ffffff',style:'neon',animation:'pop',duration:7,orientation:'both',volume:70,showAvatar:true,showGift:true,playAudio:true,tts:false,priority:50,cooldownGlobal:0,cooldownUser:0}};
+}
+function fill(rule){
+  const r=rule||fresh(),a=r.action||{},c=r.conditions||{};
+  editingId=r.id;$('formHeading').textContent=alerts.some(x=>x.id===r.id)?'Editando: '+r.name:'Nueva alerta';
+  $('name').value=r.name;$('enabled').checked=r.enabled!==false;
+  document.querySelectorAll('#platforms input').forEach(el=>el.checked=(r.platforms||[]).includes(el.value));
+  document.querySelectorAll('#events input').forEach(el=>el.checked=(r.events||[]).includes(el.value));
+  for(const id of ['username','giftName','minCount','minValue'])$(id).value=c[id]??'';
+  for(const id of ['title','message','image','audio','video','color','textColor','style','animation','duration','orientation','volume','priority','cooldownGlobal','cooldownUser'])$(id).value=a[id]??'';
+  for(const id of ['showAvatar','showGift','playAudio','tts'])$(id).checked=a[id]===true||(a[id]===undefined&&id!=='tts');
+  renderList();preview();
+}
+function snapshot(){
+  const values=id=>$(id).value;
+  return {id:editingId||crypto.randomUUID(),name:values('name').trim()||'Nueva alerta',enabled:$('enabled').checked,platforms:checked('platforms'),events:checked('events'),
+    conditions:{username:values('username'),giftName:values('giftName'),minCount:numeric('minCount'),minValue:numeric('minValue')},
+    action:{title:values('title'),message:values('message'),image:values('image'),audio:values('audio'),video:values('video'),
+      color:values('color'),textColor:values('textColor'),style:values('style'),animation:values('animation'),duration:numeric('duration'),orientation:values('orientation'),
+      volume:numeric('volume'),priority:numeric('priority'),cooldownGlobal:numeric('cooldownGlobal'),cooldownUser:numeric('cooldownUser'),
+      showAvatar:$('showAvatar').checked,showGift:$('showGift').checked,playAudio:$('playAudio').checked,tts:$('tts').checked}};
+}
+function checkRule(r){
+  if(!r.platforms.length)throw Error('Selecciona una plataforma como mínimo.');
+  if(!r.events.length)throw Error('Selecciona al menos un evento.');
+  if(!r.name.trim())throw Error('Ponle un nombre a la alerta.');
+  return r;
+}
+function renderList(){
+  const list=$('ruleList'),term=$('search').value.trim().toLowerCase();
+  $('count').textContent=alerts.length+' alerta'+(alerts.length===1?'':'s')+' guardada'+(alerts.length===1?'':'s');
+  const matches=alerts.filter(r=>r.name.toLowerCase().includes(term));
+  if(!matches.length){list.innerHTML='<div class="empty">'+(alerts.length?'Sin resultados.':'Todavía no tienes alertas personalizadas.<br>Crea tu primera acción con + Nueva.')+'</div>';return}
+  list.replaceChildren();
+  for(const rule of matches){
+    const b=document.createElement('button');b.type='button';b.className='rule-row'+(rule.id===editingId?' selected':'');
+    b.innerHTML='<span class="rule-mark">✦</span><span class="rule-info"><strong>'+clean(rule.name)+'</strong><small>'+clean(rule.platforms.join(' · '))+'<br>'+clean(rule.events.join(' · '))+'</small></span><span class="state'+(rule.enabled?'':' off')+'">'+(rule.enabled?'●':'○')+'</span>';
+    b.onclick=()=>fill(rule);list.appendChild(b);
+  }
+}
+async function api(path,opts){
+ const r=await fetch(path,{credentials:'same-origin',cache:'no-store',...(opts||{})});const d=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(d.error||'HTTP '+r.status);
+ return d;
+}
+async function persist(next,message){
+ if(busy)return;busy=true;$('saveBtn').disabled=true;
+ try{const d=await api('/api/custom-alerts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({alerts:next})});
+ alerts=d.alerts||[];const found=alerts.find(x=>x.id===editingId);
+ if(found)fill(found);else fill(alerts[0]||fresh());renderList();toast(message||'Guardado en tu cuenta GREÑA.');
+ }catch(e){toast('Error: '+e.message)}
+ finally{busy=false;$('saveBtn').disabled=false}
+}
+function preview(){
+ if(previewHandle)previewHandle.destroy();
+ const r=snapshot(),root=$('previewContent');root.replaceChildren();
+ previewHandle=window.GrenaCustomAlerts.create(root,{customAction:r.action,name:'USUARIO_PRUEBA',giftName:r.conditions.giftName||'Rosa',count:5,totalDiamonds:500,platform:r.platforms[0]||'TikTok'},{
+ preview:true,layout:r.action.orientation==='horizontal'?'horizontal':'vertical',owner:'Tu canal'
+ });
+}
+async function upload(id,field){
+ const file=$(id).files[0];if(!file)return;
+ if(file.size>6*1024*1024){toast('Máximo 6 MB por archivo. Usa una URL HTTPS para archivos mayores.');$(id).value='';return}
+ const allowed=field==='image'?['image/png','image/jpeg','image/gif','image/webp']:field==='audio'?['audio/mpeg','audio/mp3','audio/wav','audio/ogg','audio/x-wav']:['video/mp4','video/webm'];
+ if(!allowed.includes(file.type)){toast('Formato de archivo no permitido.');$(id).value='';return}
+ const target=$(field);target.disabled=true;toast('Subiendo '+file.name+' a tu perfil…');
+ try{
+  const data=await new Promise((resolve,reject)=>{const f=new FileReader();f.onload=()=>resolve(String(f.result).split(',')[1]);f.onerror=()=>reject(Error('No se pudo leer el archivo.'));f.readAsDataURL(file)});
+  const mime=file.type==='audio/x-wav'?'audio/wav':file.type;
+  const result=await api('/api/custom-alerts/media',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mime,data})});
+  target.value=result.url;preview();toast('Archivo subido. Pulsa Guardar para asignarlo a la alerta.');
+ }catch(e){toast('Error al subir: '+e.message)}
+ finally{target.disabled=false;$(id).value=''}
+}
+async function init(){
+ drawChoices();
+ try{const d=await api('/api/custom-alerts');alerts=d.alerts||[];fill(alerts[0]||fresh())}
+ catch(e){$('ruleList').innerHTML='<div class="empty">No se pudo leer tu cuenta: '+clean(e.message)+'</div>';fill(fresh());toast('Inicia sesión en GREÑA para guardar.')}
+}
+$('addRule').onclick=()=>fill(fresh());
+$('search').oninput=renderList;
+$('previewBtn').onclick=preview;
+$('cancelBtn').onclick=()=>fill(alerts.find(x=>x.id===editingId)||fresh());
+$('duplicateBtn').onclick=()=>{const r=snapshot();r.id=crypto.randomUUID();r.name=r.name+' (copia)';fill(r);toast('Copia lista. Pulsa Guardar para conservarla.')};
+$('deleteBtn').onclick=()=>{if(!alerts.some(x=>x.id===editingId)){fill(fresh());return}if(confirm('¿Eliminar esta alerta personalizada?'))persist(alerts.filter(x=>x.id!==editingId),'Alerta eliminada de tu cuenta.')};
+$('editor').onsubmit=e=>{e.preventDefault();try{const r=checkRule(snapshot());const next=alerts.filter(x=>x.id!==r.id).concat(r);persist(next,'Alerta personalizada guardada en tu cuenta.')}catch(err){toast(err.message)}};
+$('testBtn').onclick=async()=>{try{const r=checkRule(snapshot());const d=await api('/api/custom-alerts/test',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({rule:r})});toast(d.message+' Revisa las fuentes de OBS.')}catch(e){toast(e.message)}};
+$('uploadImage').onchange=()=>upload('uploadImage','image');
+$('uploadAudio').onchange=()=>upload('uploadAudio','audio');
+$('uploadVideo').onchange=()=>upload('uploadVideo','video');
+init();
+})();
+</script></body></html>
