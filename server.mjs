@@ -1979,7 +1979,8 @@ function panelGuard(req,res,pathname){
   if(method==='POST'&&PUBLIC_POST.has(pathname)&&(!CLOUD_MODE||pathname!=='/api/viewers/test'))return true;
   if(internalBridgeAllowed(req))return true;                    // chat-server -> server con token por arranque
   if(sessionUser(req))return true;
-  if(method==='GET'&&(OBS_PUBLIC_API.has(pathname)||/^\/api\/custom-alerts\/media\/[A-Za-z0-9_-]{10,80}\.(png|jpg|gif|webp|mp3|wav|ogg|mp4|webm)$/.test(pathname))&&obsAuthorized(req))return true;
+  if(method==='GET'&&OBS_PUBLIC_API.has(pathname)&&obsAuthorized(req))return true;
+   if(method==='GET'&&/^\/api\/custom-alerts\/media\/[A-Za-z0-9_-]{10,80}\.(png|jpg|gif|webp|mp3|wav|ogg|mp4|webm)$/.test(pathname)&&(!CLOUD_MODE||obsAuthorized(req)))return true;
   json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});return false;
 }
 // ===== GREÑA WEB: proxy interno del motor de chat (8788) sobre el mismo HTTPS público =====
@@ -2511,7 +2512,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   }
   const customMediaMatch=/^\/api\/custom-alerts\/media\/([A-Za-z0-9_-]{10,80})\.(png|jpg|gif|webp|mp3|wav|ogg|mp4|webm)$/.exec(pathname);
   if(customMediaMatch&&req.method==='GET'){
-    if(!activeUserId||(!sessionUser(req)&&!obsAuthorized(req)))return json(res,401,{ok:false,error:'Enlace privado requerido.'});
+    if(!activeUserId||(CLOUD_MODE&&!sessionUser(req)&&!obsAuthorized(req)))return json(res,401,{ok:false,error:'Enlace privado requerido.'});
     const ext=customMediaMatch[2],mimeType={png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp',mp3:'audio/mpeg',wav:'audio/wav',ogg:'audio/ogg',mp4:'video/mp4',webm:'video/webm'}[ext];
     const file=join(profileDir(), 'custom-alert-media',customMediaMatch[1]+'.'+ext);
     let blob;try{blob=await readFile(file)}catch{return json(res,404,{ok:false,error:'Archivo multimedia no encontrado.'})}
