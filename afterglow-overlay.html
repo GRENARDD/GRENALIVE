@@ -50,7 +50,7 @@ body{min-height:0!important;background:transparent!important;user-select:none;po
 .fx{font-family:var(--after-font,'Segoe UI',Arial,sans-serif);color:var(--after-text,#fff)}
 .fx .headline{color:var(--after-text,#fff)}
 :root{--safe:38px} .fx .overline,.fx .meta{word-break:break-word}
-</style><link rel="stylesheet" href="/assets/afterglow-pro.css?v=21"><link rel="stylesheet" href="/assets/afterglow-minecraft.css?v=2"><link rel="stylesheet" href="/assets/grena-basic-alerts.css?v=1"><style id="grena-premium-scene-frame">.grena-premium-scene-frame{position:absolute;inset:0;width:100%;height:100%;display:block;border:0;background:transparent;pointer-events:none}.grena-premium-scene-frame.outro{opacity:0;transition:opacity .65s ease}</style></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script src="/assets/afterglow-minecraft.js?v=2"></script><script src="/assets/afterglow-minecraft-sound.js?v=2"></script><script src="/assets/grena-basic-alerts.js?v=1"></script><script src="/assets/ascension-alerts.js?v=1"></script><script>
+</style><link rel="stylesheet" href="/assets/afterglow-pro.css?v=21"><link rel="stylesheet" href="/assets/afterglow-minecraft.css?v=2"><link rel="stylesheet" href="/assets/grena-basic-alerts.css?v=1"><link rel="stylesheet" href="/assets/custom-alert-renderer.css?v=1"><style id="grena-premium-scene-frame">.grena-premium-scene-frame{position:absolute;inset:0;width:100%;height:100%;display:block;border:0;background:transparent;pointer-events:none}.grena-premium-scene-frame.outro{opacity:0;transition:opacity .65s ease}</style></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script src="/assets/afterglow-minecraft.js?v=2"></script><script src="/assets/afterglow-minecraft-sound.js?v=2"></script><script src="/assets/grena-basic-alerts.js?v=1"></script><script src="/assets/ascension-alerts.js?v=1"></script><script src="/assets/custom-alert-renderer.js?v=1"></script><script>
 (()=>{
 'use strict';
 const root=document.getElementById('effects'),live=document.getElementById('live');
@@ -176,6 +176,20 @@ function normalizedSettings(src={}){
 function applySettings(src){cfg=normalizedSettings(src);live.dataset.theme=cfg.theme;live.style.setProperty('--after-font',cfg.fontFamily);live.style.setProperty('--after-text',cfg.textColor)}
 function duration(event){return event==='raid'?6000:event==='likes'?4800:5500}
 function drain(){if(working||!pending.length)return;working=true;const next=pending.shift();
+   // Las alertas personales usan la MISMA cola y los MISMOS enlaces de OBS.
+   // Un diseño dirigido solo a vertical/horizontal cae al tema normal en la otra fuente.
+   const custom=next.customAction&&window.GrenaCustomAlerts?.create(root,next,{
+     layout,obsToken:token,
+     owner:ownerFor(String(next.platform||'tiktok').toLowerCase()),
+     soundEnabled:cfg.soundEnabled&&['both',layout].includes(cfg.audioRoute),
+     volume:cfg.volume
+   });
+   if(custom){
+     const ms=custom.durationMs;
+     const endTimer=setTimeout(()=>custom.leave(),Math.max(0,ms-550));
+     activeTimer=setTimeout(()=>{clearTimeout(endTimer);custom.destroy();working=false;if(!refreshWhenIdle())drain()},ms);
+     return;
+   }
   if(Date.now()-Number(next._afterglowAt||0)>30000&&['like','likes','share'].includes(String(next.event||''))){working=false;drain();return}
   const {event,data}=mapAlert(next)||{};if(!event){working=false;drain();return}
   const palette=colorPair();live.style.setProperty('--accent',palette[0]);live.style.setProperty('--glow',palette[1]);
