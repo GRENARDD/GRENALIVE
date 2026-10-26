@@ -13,6 +13,7 @@ import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfi
 import { chromium } from 'playwright-core';
 import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
 import {STARVIOS_SUPPORT_CATALOG,normalizeStarviosEvent} from './starvios-events.mjs';
+import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 
 // GREÑA 3.1.7: evita los fallbacks premium de EulerStream para resolver Room ID / estado LIVE.
 // La conexión de lectura usa primero las rutas públicas/directas de TikTok.
@@ -41,7 +42,7 @@ process.on('uncaughtException',e=>logProcessFault('uncaughtException',e));
 // server.mjs directamente se crea aquí y se hereda al proceso de chat que lanza server.mjs.
 const BRIDGE_TOKEN=process.env.GRENA_BRIDGE_TOKEN||(process.env.GRENA_BRIDGE_TOKEN=randomBytes(24).toString('hex'));
 const MAX_BODY_BYTES=1024*1024, MAX_AI_BODY_BYTES=9*1024*1024;
-function bodyLimitFor(req){try{return new URL(String(req.url||'/'),'http://127.0.0.1').pathname==='/api/ai-alert'?MAX_AI_BODY_BYTES:MAX_BODY_BYTES}catch{return MAX_BODY_BYTES}}
+function bodyLimitFor(req){try{return new URL(String(req.url||'/'),'http://127.0.0.1').(pathname==='/api/ai-alert'||pathname==='/api/custom-alerts/media')?MAX_AI_BODY_BYTES:MAX_BODY_BYTES}catch{return MAX_BODY_BYTES}}
 function readBody(req,limit=bodyLimitFor(req)){
   return new Promise((resolve,reject)=>{
     const chunks=[];let size=0,over=false;
@@ -395,6 +396,8 @@ async function migrateLegacyIntoProfile(userId){
   // Solo el primer perfil puede importar el antiguo localStorage del chat de voz.
   await writeFile(profileFile('migrate-legacy-chat.flag',userId),'1','utf8').catch(()=>{});
 }
+let customAlerts=[];
+const customAlertCooldowns=new Map();
 let savedAuth={},savedAlertDesigns={},socialSettings={...socialDefaults},afterglowSettings=normalizeAfterglowSettings(),autoPrefs={...autoDefaults},obsToken='';
 
 // ===== GREÑA FIDELIDAD · ESTADO =====
@@ -407,6 +410,8 @@ async function loadProfileState(userId=activeUserId){
   if(activeUserId)await mkdir(profileDir(),{recursive:true}).catch(()=>{});
   savedAuth=activeUserId?await readJson(profileFile('auth.json'),{}):await readJsonWithLegacy(LEGACY_AUTH_FILE,join(ROOT,'.grena-auth.json'),{});
   savedAlertDesigns=activeUserId?await readJson(profileFile('alert-designs.json'),{}):await readJsonWithLegacy(LEGACY_ALERTS_FILE,join(ROOT,'.grena-alert-designs.json'),{});
+   try{customAlerts=activeUserId?normalizeCustomRules(await readJson(profileFile('custom-alerts.json'),[])):[]}catch(e){console.warn('Alertas personalizadas invalidas:',e.message);customAlerts=[]}
+   customAlertCooldowns.clear();
   socialSettings={...socialDefaults,...(activeUserId?await readJson(profileFile('social.json'),{}):await readJsonWithLegacy(LEGACY_SOCIAL_FILE,join(ROOT,'.grena-social-gadget.json'),{}))};
  afterglowSettings=normalizeAfterglowSettings(activeUserId?await readJson(profileFile('afterglow-settings.json'),{}):{});
   autoPrefs={...autoDefaults,...(activeUserId?await readJson(profileFile('auto-connect.json'),{}):await readJson(LEGACY_AUTO_FILE,{}))};
@@ -1046,7 +1051,9 @@ function alert(platform,event,name,message='',extra={}){
  rememberActivity(a);
  if(['TikTok','Twitch','Kick'].includes(platform)&&event!=='like'&&!['GREÑA_FAN','USUARIO_PRUEBA'].includes(String(a.name||'').toUpperCase()))recordLoyaltyEvent({platform,kind:event,user:a.name,nickname:a.name,avatar:a.avatar||'',count:a.count,totalDiamonds:a.totalDiamonds,bits:a.bits,amount:a.amount,viewers:a.viewers});
  if(event==='follow')followerGoalFollow(platform,platform==='Starvios'?extra.count:1);
- broadcast({type:'alert',alert:a});broadcast({type:'activity',activity:a})
+ const custom=findCustomRule(customAlerts,a,Date.now(),customAlertCooldowns);
+  if(custom){a.customRuleId=custom.id;a.customAction=custom.action}
+  broadcast({type:'alert',alert:a});broadcast({type:'activity',activity:a})
 }
 function json(res,code,obj){res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj))}
 async function persistAuth(){await safeWriteJson(stateFile('auth.json',LEGACY_AUTH_FILE),savedAuth).catch(()=>{})}
@@ -1972,7 +1979,7 @@ function panelGuard(req,res,pathname){
   if(method==='POST'&&PUBLIC_POST.has(pathname)&&(!CLOUD_MODE||pathname!=='/api/viewers/test'))return true;
   if(internalBridgeAllowed(req))return true;                    // chat-server -> server con token por arranque
   if(sessionUser(req))return true;
-  if(method==='GET'&&OBS_PUBLIC_API.has(pathname)&&obsAuthorized(req))return true;
+  if(method==='GET'&&(OBS_PUBLIC_API.has(pathname)||/^\/api\/custom-alerts\/media\/[A-Za-z0-9_-]{10,80}\.(png|jpg|gif|webp|mp3|wav|ogg|mp4|webm)$/.test(pathname))&&obsAuthorized(req))return true;
   json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});return false;
 }
 // ===== GREÑA WEB: proxy interno del motor de chat (8788) sobre el mismo HTTPS público =====
@@ -2477,7 +2484,65 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  });
  if(pathname==='/api/alert-style'&&req.method==='GET')return json(res,200,{ok:true,style:['classic','option-a'].includes(autoPrefs.alertStyle)?autoPrefs.alertStyle:'classic'});
  if(pathname==='/api/alert-style'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const body=JSON.parse(b||'{}');const style=String(body.style||'classic');if(!['classic','option-a'].includes(style))return json(res,400,{ok:false,error:'Estilo de alerta no válido.'});autoPrefs.alertStyle=style;await persistAutoPrefs();broadcast({type:'alert-style',style});return json(res,200,{ok:true,style})});
- if(pathname==='/api/designs'&&req.method==='GET')return json(res,200,{ok:true,designs:savedAlertDesigns});
+ // Alertas personalizadas: aisladas por perfil; ningún navegador sin sesión puede editarlas.
+  if(pathname==='/api/custom-alerts'&&req.method==='GET')return json(res,200,{ok:true,alerts:customAlerts});
+  if(pathname==='/api/custom-alerts'&&req.method==='POST')return withAccountTransition(async()=>{
+    const user=sessionUser(req);if(!user)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
+    const body=JSON.parse((await readBody(req))||'{}');
+    const next=normalizeCustomRules(body.alerts);
+    await safeWriteJson(profileFile('custom-alerts.json',user.id),next);
+    customAlerts=next;customAlertCooldowns.clear();
+    return json(res,200,{ok:true,alerts:next});
+  });
+  if(pathname==='/api/custom-alerts/test'&&req.method==='POST'){
+    if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'});
+    const b=JSON.parse((await readBody(req))||'{}'),rule=normalizeCustomRule(b.rule);
+    const platform=rule.platforms.includes(String(b.platform||'').toLowerCase())?String(b.platform).toLowerCase():rule.platforms[0];
+    const ev=rule.events.includes(b.event)?b.event:rule.events[0];
+    const eventKind=['giftsub','subrenew','shower'].includes(ev)?ev:undefined;
+    const event=['giftsub','shower'].includes(ev)?'gift':ev==='subrenew'?'sub':ev;
+    const sample={platform:platform==='starvios'?'Starvios':platform==='tiktok'?'TikTok':platform==='twitch'?'Twitch':platform==='kick'?'Kick':'YouTube',
+      event,eventKind,name:'USUARIO_PRUEBA',giftName:rule.conditions.giftName||'Rosa',
+      giftImage:'/assets/starvios-events/starvies.svg',count:Math.max(5,rule.conditions.minCount||0),
+      totalDiamonds:Math.max(100,rule.conditions.minValue||0),bits:Math.max(500,rule.conditions.minValue||0),amount:Math.max(500,rule.conditions.minValue||0),
+      customRuleId:rule.id,customAction:rule.action,receivedAt:Date.now(),isPreview:true};
+    broadcast({type:'alert',alert:sample});
+    return json(res,200,{ok:true,message:'Prueba enviada a OBS.'});
+  }
+  const customMediaMatch=/^\/api\/custom-alerts\/media\/([A-Za-z0-9_-]{10,80})\.(png|jpg|gif|webp|mp3|wav|ogg|mp4|webm)$/.exec(pathname);
+  if(customMediaMatch&&req.method==='GET'){
+    if(!activeUserId||(!sessionUser(req)&&!obsAuthorized(req)))return json(res,401,{ok:false,error:'Enlace privado requerido.'});
+    const ext=customMediaMatch[2],mimeType={png:'image/png',jpg:'image/jpeg',gif:'image/gif',webp:'image/webp',mp3:'audio/mpeg',wav:'audio/wav',ogg:'audio/ogg',mp4:'video/mp4',webm:'video/webm'}[ext];
+    const file=join(profileDir(), 'custom-alert-media',customMediaMatch[1]+'.'+ext);
+    let blob;try{blob=await readFile(file)}catch{return json(res,404,{ok:false,error:'Archivo multimedia no encontrado.'})}
+    res.writeHead(200,{'content-type':mimeType,'content-length':blob.length,'cache-control':'private, no-store','x-content-type-options':'nosniff'});
+    return res.end(blob);
+  }
+  if(pathname==='/api/custom-alerts/media'&&req.method==='POST')return withAccountTransition(async()=>{
+    const user=sessionUser(req);if(!user)return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'});
+    const b=JSON.parse((await readBody(req))||'{}');
+    const types={'image/png':'png','image/jpeg':'jpg','image/gif':'gif','image/webp':'webp','audio/mpeg':'mp3','audio/mp3':'mp3','audio/wav':'wav','audio/ogg':'ogg','video/mp4':'mp4','video/webm':'webm'};
+    const type=String(b.mime||'').toLowerCase(),ext=types[type],encoded=String(b.data||'');
+    if(!ext||!encoded||encoded.length>8400000||!/^[A-Za-z0-9+/]*={0,2}$/.test(encoded))return json(res,400,{ok:false,error:'Formato o tamaño no permitido (máximo 6 MB).'});
+    const buf=Buffer.from(encoded,'base64');
+    if(!buf.length||buf.length>6*1024*1024)return json(res,413,{ok:false,error:'El archivo supera 6 MB.'});
+    const sig=buf.subarray(0,16),str=(a,z)=>buf.toString('ascii',a,z);
+    const valid=ext==='png'?sig.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])):
+      ext==='jpg'?sig[0]===255&&sig[1]===216:
+      ext==='gif'?/^GIF8[79]a$/.test(str(0,6)):
+      ext==='webp'?str(0,4)==='RIFF'&&str(8,12)==='WEBP':
+      ext==='mp3'?str(0,3)==='ID3'||(sig[0]===255&&(sig[1]&0xe0)===0xe0):
+      ext==='wav'?str(0,4)==='RIFF'&&str(8,12)==='WAVE':
+      ext==='ogg'?str(0,4)==='OggS':
+      ext==='mp4'?str(4,8)==='ftyp':
+      ext==='webm'?sig.subarray(0,4).equals(Buffer.from([26,69,223,163])):false;
+    if(!valid)return json(res,415,{ok:false,error:'El contenido no coincide con el formato declarado.'});
+    const id=randomBytes(18).toString('base64url'),dir=join(profileDir(user.id),'custom-alert-media');
+    await mkdir(dir,{recursive:true});
+    await writeFile(join(dir,id+'.'+ext),buf,{flag:'wx'});
+    return json(res,200,{ok:true,url:'/api/custom-alerts/media/'+id+'.'+ext});
+  }
+  if(pathname==='/api/designs'&&req.method==='GET')return json(res,200,{ok:true,designs:savedAlertDesigns});
  if(pathname==='/api/design'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const d=JSON.parse(b||'{}');const ev=String(d.event||'follow');savedAlertDesigns[ev]={...d,soundProfileVersion:SOUND_PROFILE_VERSION};await safeWriteJson(stateFile('alert-designs.json',LEGACY_ALERTS_FILE),savedAlertDesigns);return json(res,200,{ok:true,event:ev})});
  if(pathname==='/api/alert'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(a.platform&&a.event&&['follow','sub','gift','cheer','share','raid','like'].includes(String(a.event))){alert(String(a.platform),String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,receivedAt:Date.now()}})}return json(res,200,{ok:true})});
  if(pathname==='/api/tiktok/browser-login'&&req.method==='POST'){json(res,202,{ok:true,message:'Abriendo TikTok…'});beginTikTokBrowserLogin().catch(e=>{console.error('TikTok Browser Login:',e);if(tiktokLoginContext){tiktokLoginContext.close().catch(()=>{});tiktokLoginContext=null}setStatus('tiktok',false,'Error de login: '+(e?.message||e))});return}
@@ -2505,7 +2570,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
- const interactive=new Set(['/','/index.html','/preview.html','/afterglow-studio.html','/alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html']);
+ const interactive=new Set(['/','/index.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html']);
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);if(!su){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
