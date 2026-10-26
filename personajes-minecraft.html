@@ -148,12 +148,12 @@ if(!Q.get('clean')){document.getElementById('tools').style.display='flex';
   if(d.type==='chat' && d.text){
    emit({type:'chat',platform:normPlatform(d.platform),user:d.nickname||d.user||d.username,text:d.text});return;
   }
-  if(d.type==='alert'||d.type==='activity'){
+  if(d.type==='alert'){
    const a=d.alert||d.activity||{};
-   const kind=String(a.type||a.event||a.kind||'').toLowerCase();
+   const kind=String(a.event||a.type||a.kind||'').toLowerCase();
    if(!/gift|donat|cheer|bits|tip|superchat|subscription|sub/.test(kind))return;
-   const user=a.user||a.nickname||a.username||a.uniqueId||a.displayName;
-   const value=Number(a.coins||a.diamonds||a.bits||a.amount||a.value||0);
+   const user=a.name||a.user||a.nickname||a.username||a.uniqueId||a.displayName;
+   const value=Number(a.totalDiamonds||a.bits||a.amount||a.coins||a.diamonds||a.value||0);
    emit({type:'gift',platform:normPlatform(a.platform),user,gift:a.giftName||a.gift||a.title||'Apoyo',coins:Math.max(1,value),count:1});
   }
  }
