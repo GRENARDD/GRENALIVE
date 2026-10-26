@@ -110,11 +110,18 @@ async function counterConnect(platform){const id=platform==='tiktok'?'ttLink':pl
 <script>
 (function(){
  const q='/personajes-minecraft.html?clean=1';
- const u=typeof protect==='function'?protect(q):location.origin+q;
  const field=document.getElementById('minecraftUrl');
- if(field)field.value=u;
  const frame=document.getElementById('minecraftPreview');
- if(frame)frame.src=u;
+ const refresh=()=>{
+  const existing=document.getElementById('chatUrl')?.value||'';
+  let token='';try{token=new URL(existing).searchParams.get('obs')||''}catch{}
+  if(!token)return false;
+  const u=new URL(q,location.origin);u.searchParams.set('obs',token);
+  if(field && field.value!==u.toString())field.value=u.toString();
+  if(frame && frame.src!==u.toString())frame.src=u.toString();
+  return true;
+ };
+ if(!refresh()){const timer=setInterval(()=>{if(refresh())clearInterval(timer)},400)}
  const send=type=>{
    const user='Prueba Minecraft';
    frame?.contentWindow?.postMessage(type==='chat'?{type:'chat',platform:'tiktok',user,text:'¡Hola desde GREÑA LIVE!'}:{type:'gift',platform:'tiktok',user,gift:'Diamante',coins:450,count:1},location.origin);
