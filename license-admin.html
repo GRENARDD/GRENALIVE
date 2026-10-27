@@ -33,9 +33,9 @@
 </section>
 <section class="panel" id="fishAdminPanel" style="border-color:#357f88">
 <h2>Fish Audio · API individual por GREÑA ID</h2>
-<p>Asigna la API de Fish Audio de Yaqui u otro usuario desde aquí. La clave se cifra en Cloudflare D1, pertenece solo a su cuenta y no modifica tus dos APIs actuales. Nadie puede ver la clave guardada; solo reemplazarla o quitarla.</p>
+<p>Selecciona la cuenta GREÑA ID real de Yaqui (o de otro usuario registrado) desde la lista para asignarle su API de Fish Audio. La clave se cifra en Cloudflare D1, pertenece solo a su cuenta y no modifica tus dos APIs actuales. Nadie puede ver la clave guardada; solo reemplazarla o quitarla.</p>
 <form id="fishAdminForm" autocomplete="off">
- <div class="line"><label for="fishAdminUser">GREÑA ID</label><input id="fishAdminUser" placeholder="Ej. yaqui_gr" value="yaqui_gr" maxlength="33" autocapitalize="none" spellcheck="false" required><label for="fishAdminKey">API Fish Audio de esa persona</label><input id="fishAdminKey" type="password" placeholder="Pegar API privada" autocomplete="new-password" spellcheck="false" minlength="20" maxlength="512" required><button id="fishAdminSave" type="submit">Guardar API cifrada</button><button id="fishAdminRemove" type="button" class="danger">Quitar API</button></div>
+ <div class="line"><label for="fishAdminUser">GREÑA ID</label><input id="fishAdminUser" placeholder="Selecciona un GREÑA ID registrado" maxlength="33" autocapitalize="none" spellcheck="false" required><label for="fishAdminKey">API Fish Audio de esa persona</label><input id="fishAdminKey" type="password" placeholder="Pegar API privada" autocomplete="new-password" spellcheck="false" minlength="20" maxlength="512" required><button id="fishAdminSave" type="submit">Guardar API cifrada</button><button id="fishAdminRemove" type="button" class="danger">Quitar API</button></div>
 </form>
 <div id="fishAdminStatus" class="message" role="status" aria-live="polite"></div>
 <small>Requiere el secreto FISH_CREDENTIALS_KEY de Cloudflare configurado por el propietario. Nunca escribas claves en el chat ni en el repositorio. Cada usuario FREE o PRO también puede guardar su propia API en Configuración.</small>
