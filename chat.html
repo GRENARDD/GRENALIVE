@@ -3932,7 +3932,6 @@ async function speakFishMessage(message, spokenText){
 
   activeFishVoiceSlot = Number(fishVoice.slot) || 0;
 
-  const requestedRate = Math.max(0.5,Math.min(2,Number($('voiceRate').value)||1));
   const volume = Math.max(0,Math.min(1,Number($('voiceVolume').value)));
   const runId = ++voiceRunId;
   let settled = false;
@@ -5401,11 +5400,7 @@ function installSettingsListeners(){
     'voiceLanguageFilter',
     'voiceRate',
     'voiceVolume',
-    'fishNaturalStyle',
-    'fishExpressiveness',
-    'fishNaturalSpeed',
-    'fishNaturalPauses',
-    'fishNaturalEmotions',
+    'fishEngine',
     'fishModelId1',
     'fishModelId2',
     'fishModelId3',
@@ -5653,7 +5648,6 @@ syncSavedConnections();
 installSettingsListeners();
 
 updateRangeLabels();
-updateFishNaturalLabels();
 
 updateVoiceStatus();
 
