@@ -14,7 +14,7 @@ pkg['build']['asar']=False
 # El paquete Electron debe incluir las rutas importadas por server.mjs en ejecución.
 files=pkg['build'].get('files')
 if isinstance(files,list):
-    for required in ['grena-licensing.mjs','license.html','license-admin.html']:
+    for required in ['grena-licensing.mjs','license.html','license-admin.html','grena-public-config.json']:
         if required not in files:
             files.append(required)
 pkg_file.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
