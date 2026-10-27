@@ -7,7 +7,7 @@
 <p><strong>Solo tú decides cuándo avisar.</strong> Guardar un borrador NO envía ninguna notificación. Los usuarios únicamente verán una actualización cuando pulses «Publicar oficialmente» y el instalador esté verificado en GitHub Releases.</p>
 <p class="help" id="publishedUpdate">Consultando versión pública…</p>
 <form id="updateDraftForm" autocomplete="off">
- <div class="line"><label for="releaseVersion">Nueva versión</label><input id="releaseVersion" required pattern="[0-9]+\\.[0-9]+\\.[0-9]+" placeholder="5.1.0" maxlength="18" style="max-width:150px"><label for="releaseNotes">Qué cambió</label><input id="releaseNotes" maxlength="1200" placeholder="Arreglos, mejoras y funciones nuevas" style="max-width:440px"></div>
+ <div class="line"><label for="releaseVersion">Nueva versión</label><input id="releaseVersion" required pattern="[0-9]{1,3}[.][0-9]{1,3}[.][0-9]{1,4}" placeholder="5.1.0" maxlength="18" style="max-width:150px"><label for="releaseNotes">Qué cambió</label><input id="releaseNotes" maxlength="1200" placeholder="Arreglos, mejoras y funciones nuevas" style="max-width:440px"></div>
  <div class="line" style="margin-top:14px"><button type="submit" id="saveDraft" class="secondary">Guardar borrador privado</button><button type="button" id="publishRelease" style="background:#6e52d4">🚀 Publicar oficialmente para todos</button></div>
 </form>
 <p class="help" id="draftUpdate">Borrador: ninguno</p>
