@@ -1,6 +1,9 @@
 // GREÑA Live PRO — Cloudflare Worker + D1.
 // Only account identity, status and licensing metadata are stored here.
 const DAY=86400000, ONLINE=135000, SESSION_AGE=90*DAY, MAX_DAYS=3650;
+// Cloudflare production Workerd rejects PBKDF2 iterations >100,000.
+// Stronger passwords and migration to a dedicated identity service remain advisable.
+export const PBKDF2_ITERATIONS=100000;
 const encoder=new TextEncoder();
 const now=()=>Date.now();
 const hex=a=>[...new Uint8Array(a)].map(b=>b.toString(16).padStart(2,'0')).join('');
@@ -10,7 +13,7 @@ const sha=async x=>hex(await crypto.subtle.digest('SHA-256',encoder.encode(Strin
 const same=(a,b)=>{const x=encoder.encode(String(a)),y=encoder.encode(String(b));let mismatch=x.length^y.length;for(let i=0;i<Math.max(x.length,y.length);i++)mismatch|=(x[i]||0)^(y[i]||0);return mismatch===0};
 async function passHash(password,salt){
  const key=await crypto.subtle.importKey('raw',encoder.encode(password),'PBKDF2',false,['deriveBits']);
- return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:encoder.encode(salt),iterations:240000,hash:'SHA-256'},key,256));
+ return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:encoder.encode(salt),iterations:PBKDF2_ITERATIONS,hash:'SHA-256'},key,256));
 }
 const cleanUser=x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,32);
 const cleanEmail=x=>String(x||'').trim().toLowerCase().slice(0,254);
@@ -93,7 +96,7 @@ async function communitySnapshot(env){
 async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
- if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1',revision:'2026-10-27-sync-fix'});
+ if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1',revision:'2026-10-27-cloudflare-kdf'});
  // Check the actual database and required columns, not just whether the Worker boots.
  // No private data or SQL errors are exposed through this unauthenticated endpoint.
  if(path==='/ready'&&req.method==='GET'){

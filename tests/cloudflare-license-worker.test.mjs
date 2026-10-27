@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {webcrypto} from 'node:crypto';
-import worker from '../cloudflare/licenses/src/worker.mjs';
+import worker,{PBKDF2_ITERATIONS} from '../cloudflare/licenses/src/worker.mjs';
 
 if(!globalThis.crypto)globalThis.crypto=webcrypto;
 const DAY=24*60*60*1000,ADMIN='grena-admin-testing-key-that-is-long-enough-123456789';
@@ -32,6 +32,9 @@ async function request(env,path,body=null,{admin='',token='',method}={}){
  const result=await worker.fetch(new Request('https://license.test'+path,{method:method||(body?'POST':'GET'),headers,body:body?JSON.stringify(body):undefined}),env);
  return {status:result.status,data:await result.json()};
 }
+test('Workerd producción: el costo PBKDF2 no supera el límite de 100.000 iteraciones',()=>{
+ assert.equal(PBKDF2_ITERATIONS,100000);
+});
 test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',async()=>{
  const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
  try{
