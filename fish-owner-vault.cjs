@@ -13,15 +13,14 @@ $result=@()
 foreach($item in @($request.keys)){
  if([string]::IsNullOrWhiteSpace([string]$item)){ $result+= ''; continue }
  if($request.operation -eq 'protect'){
-   $raw=[Text.Encoding]::UTF8.GetBytes([string]$item)
-   $bytes=[System.Security.Cryptography.ProtectedData]::Protect($raw,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)
-   [Array]::Clear($raw,0,$raw.Length)
-   $result+=[Convert]::ToBase64String($bytes)
+   # ConvertFrom-SecureString uses Windows CurrentUser DPAPI unless -Key is passed.
+   $secure=ConvertTo-SecureString -String ([string]$item) -AsPlainText -Force
+   $result+=(ConvertFrom-SecureString -SecureString $secure)
  }elseif($request.operation -eq 'unprotect'){
-   $bytes=[Convert]::FromBase64String([string]$item)
-   $raw=[System.Security.Cryptography.ProtectedData]::Unprotect($bytes,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)
-   $result+=[Text.Encoding]::UTF8.GetString($raw)
-   [Array]::Clear($raw,0,$raw.Length)
+   $secure=ConvertTo-SecureString -String ([string]$item)
+   $ptr=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+   try{ $result+=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
+   finally{ [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
  }else{throw 'Invalid operation'}
 }
 @{keys=@($result)} | ConvertTo-Json -Compress -Depth 4
