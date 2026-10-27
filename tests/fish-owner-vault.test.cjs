@@ -1,14 +1,14 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {readFile,readFileSync,mkdtemp,rm}=require('node:fs/promises');
+const {readFile,mkdtemp,rm}=require('node:fs/promises');
 const {join}=require('node:path');
 const {tmpdir}=require('node:os');
 const {readOwnerFishKeys,storeOwnerFishKey,VAULT_FILE}=require('../fish-owner-vault.cjs');
 const {recoverOldKey}=require('../desktop-build/migrate_owner_fish.cjs');
 
 test('Fish owner: source does not distribute an embedded Fish API credential',async()=>{
- const source=await readFile(new URL('../chat-server.mjs','file://'+__filename.replace(/\\/g,'/')),'utf8').catch(async()=>readFile(join(__dirname,'..','chat-server.mjs'),'utf8'));
+ const source=await readFile(join(__dirname,'..','chat-server.mjs'),'utf8');
  assert.doesNotMatch(source,/FISH_AUDIO_API_KEY_1\s*=\s*process\.env\.[^\n]*Buffer\.from/i);
  assert.doesNotMatch(source,/sk-fish-[A-Za-z0-9_-]{20,}/);
 });
