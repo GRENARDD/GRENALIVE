@@ -2,7 +2,7 @@
 
 // Fish Audio S2.1 natural delivery: only operates on the TTS copy of a comment.
 // Never rewrite the original chat message or infer the user's language.
-const STYLES = new Set(['off','natural','expressive','calm']);
+const STYLES = new Set(['off','studio','natural','expressive','calm']);
 const clamp = (value,min,max,fallback) => {
   const n=Number(value);
   return Number.isFinite(n) ? Math.min(max,Math.max(min,n)) : fallback;
@@ -13,6 +13,8 @@ function normalizeFishNaturalOptions(input){
   const style=STYLES.has(value.style)?value.style:'off'; // old clients retain their original TTS
   return {
     style,
+    // The paid S2.1-Pro option is explicit to avoid charging users unexpectedly.
+    model:value.model==='pro'?'pro':'free',
     expressiveness:clamp(value.expressiveness,0,100,75),
     speed:clamp(value.speed,0.5,2,1),
     naturalPauses:value.naturalPauses===true,
@@ -24,7 +26,28 @@ function prepareFishNaturalRequest(originalText,options){
   const opts=normalizeFishNaturalOptions(options);
   const original=String(originalText||'').trim();
   if(opts.style==='off'){
-    return {text:original,params:{},enabled:false};
+    return {text:original,params:{},enabled:false,model:opts.model};
+  }
+  if(opts.style==='studio'){
+    // Match Fish Audio's published inference defaults. Do not inject emotion tags,
+    // force custom sampling, disable text normalization, or retime the waveform.
+    // Only neutralize viewer-supplied [instruction] tags; normal chat is unchanged.
+    const safeText=original.replace(/\[([^\]\r\n]{1,80})\]/g,'($1)');
+    return {
+      text:safeText,
+      model:opts.model,
+      enabled:true,
+      params:{
+        temperature:0.7,
+        top_p:0.7,
+        normalize:true,
+        latency:'normal',
+        prosody:{speed:1},
+        sample_rate:44100,
+        mp3_bitrate:192,
+        condition_on_previous_chunks:true
+      }
+    };
   }
   // Treat chat text as plain speech, not executable inline Fish control tags.
   // We add ONLY our own curated tags; the viewer cannot set a speaking instruction.
@@ -55,11 +78,12 @@ function prepareFishNaturalRequest(originalText,options){
   return {
     text:(tag+content).slice(0,650),
     enabled:true,
+    model:opts.model,
     params:{
       temperature:temp,
       top_p:topP,
       prosody:{speed:opts.speed},
-      normalize:false
+      normalize:true
     }
   };
 }
