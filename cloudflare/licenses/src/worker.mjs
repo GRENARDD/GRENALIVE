@@ -17,6 +17,37 @@ async function passHash(password,salt){
  const key=await crypto.subtle.importKey('raw',encoder.encode(password),'PBKDF2',false,['deriveBits']);
  return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:encoder.encode(salt),iterations:PBKDF2_ITERATIONS,hash:'SHA-256'},key,256));
 }
+
+/* Fish Audio credentials are account-scoped and AES-GCM encrypted in D1.
+   FISH_CREDENTIALS_KEY is a 32-byte base64 secret set in Cloudflare, never in source. */
+async function fishTable(env){
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS fish_credentials (user_id TEXT PRIMARY KEY, cipher_text TEXT NOT NULL, nonce TEXT NOT NULL, updated_at INTEGER NOT NULL)').run();
+}
+const fishB64=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes)));
+const fishUnb64=value=>Uint8Array.from(atob(String(value)),char=>char.charCodeAt(0));
+async function fishCipherKey(env){
+ const material=String(env.FISH_CREDENTIALS_KEY||'').trim();
+ let bytes;try{bytes=fishUnb64(material.replace(/-/g,'+').replace(/_/g,'/'))}catch{}
+ if(bytes?.length!==32)throw {status:503,message:'Configura el secreto FISH_CREDENTIALS_KEY en Cloudflare antes de asignar APIs Fish Audio.'};
+ return crypto.subtle.importKey('raw',bytes,{name:'AES-GCM'},false,['encrypt','decrypt']);
+}
+async function fishStore(env,userId,apiKey){
+ const key=await fishCipherKey(env),nonce=crypto.getRandomValues(new Uint8Array(12));
+ const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv:nonce,additionalData:encoder.encode(userId)},key,encoder.encode(apiKey));
+ await fishTable(env);
+ await env.DB.prepare('INSERT INTO fish_credentials(user_id,cipher_text,nonce,updated_at) VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET cipher_text=excluded.cipher_text,nonce=excluded.nonce,updated_at=excluded.updated_at')
+  .bind(userId,fishB64(encrypted),fishB64(nonce),now()).run();
+}
+async function fishRead(env,userId){
+ await fishTable(env);
+ const saved=await env.DB.prepare('SELECT cipher_text,nonce FROM fish_credentials WHERE user_id=?').bind(userId).first();
+ if(!saved)return null;
+ const key=await fishCipherKey(env);
+ const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:fishUnb64(saved.nonce),additionalData:encoder.encode(userId)},key,fishUnb64(saved.cipher_text));
+ return new TextDecoder().decode(plain);
+}
+function validFishApi(value){return typeof value==='string'&&value.length>=20&&value.length<=512&&/^[\x21-\x7e]+$/.test(value)}
+
 const cleanUser=x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,32);
 const cleanEmail=x=>String(x||'').trim().toLowerCase().slice(0,254);
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','strict-transport-security':'max-age=31536000'}});
@@ -152,15 +183,56 @@ async function handle(req,env){
    return json({...result,permanentAccess:true,message:'Cuenta propietaria vinculada correctamente. Acceso ilimitado habilitado.'});
  }
  const updatePublic=await publicUpdates(req,env);if(updatePublic)return updatePublic;
+ // Only the authenticated identity can read its own Fish API. The admin may set,
+ // rotate or remove a key, but never retrieve it in plaintext.
+ if(path==='/api/license/fish-credentials'||path==='/api/license/fish-credentials/consume'){
+   const u=await sessionUser(env,req);if(!u)return fail('Inicia sesión en GREÑA ID.',401);
+   if(req.method==='GET'){
+     await fishTable(env);
+     const record=await env.DB.prepare('SELECT updated_at FROM fish_credentials WHERE user_id=?').bind(u.id).first();
+     if(path.endsWith('/consume'))return json({ok:true,configured:!!record,apiKey:record?await fishRead(env,u.id):null});
+     return json({ok:true,configured:!!record,updatedAt:record?.updated_at||null});
+   }
+   if(path.endsWith('/consume'))return fail('Método no permitido.',405);
+   if(req.method==='DELETE'){
+     await fishTable(env);await env.DB.prepare('DELETE FROM fish_credentials WHERE user_id=?').bind(u.id).run();
+     return json({ok:true,configured:false});
+   }
+   if(req.method==='POST'){
+     const input=await body(req),apiKey=String(input.apiKey||'').trim();
+     if(!validFishApi(apiKey))return fail('Introduce una API Fish Audio válida (20-512 caracteres, sin espacios).');
+     await fishStore(env,u.id,apiKey);
+     return json({ok:true,configured:true});
+   }
+   return fail('Método no permitido.',405);
+ }
+
  if(path.startsWith('/api/license-admin/')){
    if(await limiter(env,req,'admin',90))return fail('Demasiadas solicitudes.',429);
    const denied=await adminCheck(env,req);if(denied)return denied;
    const updateAdmin=await adminUpdates(req,env,body);if(updateAdmin)return updateAdmin;
+   if(path==='/api/license-admin/fish-credentials'&&req.method==='POST'){
+     const input=await body(req),raw=String(input.username||'').trim().replace(/^@/,'').toLowerCase();
+     const username=cleanUser(raw);
+     if(!username||raw!==username)return fail('Escribe un GREÑA ID válido.');
+     const target=await env.DB.prepare('SELECT * FROM users WHERE username=?').bind(username).first();
+     if(!target)return fail('El GREÑA ID debe estar registrado y sincronizado.',404);
+     if((await ownerInfo(env,target)).isOwner)return fail('La API del propietario se configura por separado y no se modifica aquí.',409);
+     if(input.action==='remove'){
+       await fishTable(env);await env.DB.prepare('DELETE FROM fish_credentials WHERE user_id=?').bind(target.id).run();
+       return json({ok:true,username,configured:false});
+     }
+     if(input.action!=='set'||!validFishApi(input.apiKey))return fail('Introduce una API Fish Audio válida (20-512 caracteres, sin espacios).');
+     await fishStore(env,target.id,input.apiKey);
+     return json({ok:true,username,configured:true});
+   }
    if(path==='/api/license-admin/users'&&req.method==='GET'){
      const users=(await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[];
      const codes=(await env.DB.prepare('SELECT id,suffix,days,created_at,redeemed_at FROM license_codes ORDER BY created_at DESC LIMIT 5000').all()).results||[];
      const ownerRow=await env.DB.prepare('SELECT user_id FROM license_owners LIMIT 1').first();
-     return json({ok:true,users:users.map(u=>({...publicUser(u),isOwner:u.id===ownerRow?.user_id,permanentAccess:u.id===ownerRow?.user_id})),total:users.length,online:users.filter(u=>u.last_seen_at&&now()-u.last_seen_at<ONLINE).length,
+     await fishTable(env);
+     const fishConfigured=new Set(((await env.DB.prepare('SELECT user_id FROM fish_credentials').all()).results||[]).map(x=>x.user_id));
+     return json({ok:true,users:users.map(u=>({...publicUser(u),isOwner:u.id===ownerRow?.user_id,permanentAccess:u.id===ownerRow?.user_id,fishConfigured:fishConfigured.has(u.id)})),total:users.length,online:users.filter(u=>u.last_seen_at&&now()-u.last_seen_at<ONLINE).length,
        codes:codes.map(c=>({id:c.id,suffix:c.suffix,days:c.days,createdAt:c.created_at,redeemedAt:c.redeemed_at}))});
    }
    if(req.method!=='POST')return fail('Método no permitido.',405);
