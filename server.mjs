@@ -15,6 +15,8 @@ import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
 import {STARVIOS_SUPPORT_CATALOG,normalizeStarviosEvent} from './starvios-events.mjs';
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 import { makeLicensing } from './grena-licensing.mjs';
+import ownerFishVault from './fish-owner-vault.cjs';
+const {readOwnerFishKeys,storeOwnerFishKey}=ownerFishVault;
 
 // GREÑA 3.1.7: evita los fallbacks premium de EulerStream para resolver Room ID / estado LIVE.
 // La conexión de lectura usa primero las rutas públicas/directas de TikTok.
@@ -192,6 +194,9 @@ const LEGACY_ALERTS_FILE=join(DATA_DIR,'grena-alert-designs.json');
 const LEGACY_SOCIAL_FILE=join(DATA_DIR,'grena-social-gadget.json');
 const LEGACY_AUTO_FILE=join(DATA_DIR,'grena-auto-connect.json');
 await mkdir(PROFILES_DIR,{recursive:true}).catch(()=>{});
+let ownerFishKeys=[];
+try{ownerFishKeys=await readOwnerFishKeys(DATA_DIR)}catch{console.warn('[GREÑA Fish] No se pudo abrir la bóveda local protegida. Tu configuración sigue intacta.')}
+
 async function safeWriteJson(file,data){
   const text=JSON.stringify(data,null,2);
   JSON.parse(text);
@@ -2063,6 +2068,21 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    return json(res,200,{ok:true,registered:true,connected:true});
  }
  if(await licensing.handle(req,res,pathname))return;
+ // Owner-only local DPAPI vault; never returns stored key bytes to the browser.
+ if(pathname==='/api/owner/fish-keys'&&(req.method==='GET'||req.method==='POST')){
+   const me=sessionUser(req);
+   if(CLOUD_MODE||!me||!await licensing.isOwner(me.id))return json(res,403,{ok:false,error:'Solo el propietario GREÑA ID puede configurar sus APIs.'});
+   if(req.method==='GET')return json(res,200,{ok:true,configured:[!!ownerFishKeys[0],!!ownerFishKeys[1]],windows:process.platform==='win32'});
+   if(process.platform!=='win32')return json(res,503,{ok:false,error:'La bóveda privada del propietario solo está disponible en GREÑA Desktop para Windows.'});
+   const raw=await readBody(req,4096);let data;
+   try{data=JSON.parse(raw||'{}')}catch{return json(res,400,{ok:false,error:'Datos inválidos.'})}
+   const slot=Number(data.index),key=String(data.apiKey||'').trim();
+   if(!Number.isInteger(slot)||slot<1||slot>2||key.length<20||key.length>512||!/^\S+$/.test(key))
+     return json(res,400,{ok:false,error:'Selecciona el espacio 1 o 2 e introduce una API Fish Audio válida.'});
+   await storeOwnerFishKey(DATA_DIR,slot,key);
+   ownerFishKeys=await readOwnerFishKeys(DATA_DIR);
+   return json(res,200,{ok:true,configured:[!!ownerFishKeys[0],!!ownerFishKeys[1]]});
+ }
  if(pathname==='/api/internal/chat-license-status'&&req.method==='GET'){
    if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Forbidden'});
    const profile=String(url.searchParams.get('profileId')||'');
@@ -2085,7 +2105,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    const wanted=String(url.searchParams.get('profileId')||'');
    if(!activeUserId||!wanted||wanted!==activeUserId)return json(res,409,{ok:false,error:'Perfil de voz no coincide con la sesión GREÑA.'});
    const fish=await licensing.getFishCredential(activeUserId);
-   return json(res,200,{ok:true,apiKey:fish.apiKey||null,permanentAccess:fish.permanentAccess===true,unavailable:fish.unavailable===true});
+   return json(res,200,{ok:true,apiKey:fish.apiKey||null,permanentAccess:fish.permanentAccess===true,unavailable:fish.unavailable===true,ownerKeys:fish.permanentAccess===true?ownerFishKeys:[]});
  }
 
  // La página de administración está protegida por servidor, no solo oculta en el menú.
