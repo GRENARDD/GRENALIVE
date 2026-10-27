@@ -67,7 +67,7 @@ test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',a
    assert.equal((await DB.prepare('SELECT COUNT(*) AS n FROM user_sessions WHERE token_hash=?').bind(tk).first()).n,0);
    const other=await request(env,'/api/license/heartbeat',{deviceId:'ANOTHER1234567890123456789012345'},{token:tk});
    assert.equal(other.status,200);assert.equal(other.data.license,null);
-   assert.equal((await request(env,'/api/license-admin/revoke',{userId:user.id},{admin:ADMIN})).data.user.license.active,false);
+   assert.equal((await request(env,'/api/license-admin/revoke',{userId:user.id},{token:tk})).data.user.license.active,false);
  }finally{close()}
 });
 test('Cloudflare D1: valida límites de duración y protege las credenciales de administrador',async()=>{
@@ -79,10 +79,10 @@ test('Cloudflare D1: valida límites de duración y protege las credenciales de 
    assert.equal(denied.status,401);
    assert.equal((await request(env,'/api/license/owner/claim',{}, {token:tk,admin:ADMIN})).status,200);
    assert.equal((await request(env,'/api/license-admin/create',{count:1,days:60},{admin:'wrong'})).status,401);
-   assert.equal((await request(env,'/api/license-admin/create',{count:1,days:0},{admin:ADMIN})).status,400);
-   assert.equal((await request(env,'/api/license-admin/create',{count:1,days:3651},{admin:ADMIN})).status,400);
-   assert.equal((await request(env,'/api/license-admin/create',{count:26,days:30},{admin:ADMIN})).status,400);
-   assert.equal((await request(env,'/api/license-admin/create',{count:1,days:3650},{admin:ADMIN})).status,201);
+   assert.equal((await request(env,'/api/license-admin/create',{count:1,days:0},{token:tk})).status,400);
+   assert.equal((await request(env,'/api/license-admin/create',{count:1,days:3651},{token:tk})).status,400);
+   assert.equal((await request(env,'/api/license-admin/create',{count:26,days:30},{token:tk})).status,400);
+   assert.equal((await request(env,'/api/license-admin/create',{count:1,days:3650},{token:tk})).status,201);
    const list=await request(env,'/api/license-admin/users',null,{token:tk});
    assert.equal(list.data.codes.length,1);
    assert.ok(!('hash' in list.data.codes[0]));
