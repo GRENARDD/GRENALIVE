@@ -1,13 +1,13 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA Cam Room</title><link rel="stylesheet" href="/grena-tokens.css">
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#05070f"><title>GREÑA Cam Room</title><link rel="stylesheet" href="/grena-tokens.css">
 <link rel="stylesheet" href="/cam-room.css"><link rel="stylesheet" href="/ui-v2.css"><link rel="stylesheet" href="/aurora-ui.css">
 <link rel="stylesheet" href="/grena-gamer.css">
 </head><body class="grena-cam-room">
 <div class="cam-shell">
  <header class="cam-page-head"><div><h1>GREÑA Cam Room</h1><p>Crea una sala, invita personas desde cualquier red o país y convierte cada webcam en una fuente individual para OBS.</p></div><div class="cam-status" id="serviceStatus">● Motor local listo · pendiente enlace externo</div></header>
  <div id="noRoom" class="cam-card">
-  <div class="cam-hero"><div><div class="mini">NUEVA SALA</div><h2 style="margin:5px 0 7px">Crea tu grupo de cámaras</h2><div class="mini">GREÑA prepara automáticamente un enlace HTTPS externo. Cada cámara queda protegida por el PIN que el dueño elija.</div></div><div class="room-create-actions"><input class="field pin-field" id="hostPinCreate" type="password" inputmode="numeric" maxlength="8" placeholder="PIN cámara · 4-8 números"><button class="btn green" id="createRoom">＋ Crear sala</button></div></div>
+  <div class="cam-hero"><div><div class="mini">NUEVA SALA</div><h2 style="margin:5px 0 7px">Crea tu grupo de cámaras</h2><div class="mini">GREÑA prepara automáticamente un enlace HTTPS externo. Cada cámara queda protegida por el PIN que el dueño elija.</div></div><div class="room-create-actions"><input class="field pin-field" id="hostPinCreate" aria-label="PIN de tus cámaras, de 4 a 8 números" autocomplete="off" type="password" inputmode="numeric" maxlength="8" placeholder="PIN cámara · 4-8 números"><button class="btn green" id="createRoom">＋ Crear sala</button></div></div>
   <div class="cam-body">
-   <div class="secure-ok" id="createStatus">Cam Room verificará un enlace HTTPS externo cuando crees tu sala. Los invitados de otras redes solo podrán entrar si esa conexión está realmente activa.</div>
+   <div class="secure-ok" id="createStatus" role="status" aria-live="polite">Cam Room verificará un enlace HTTPS externo cuando crees tu sala. Los invitados de otras redes solo podrán entrar si esa conexión está realmente activa.</div>
    <div class="cam-launch-grid">
     <article class="cam-launch-card"><span>01</span><div><b>Crea la sala</b><small>Elige el PIN principal y GREÑA prepara el acceso seguro automáticamente.</small></div></article>
     <article class="cam-launch-card"><span>02</span><div><b>Invita a tu gente</b><small>Comparte un enlace HTTPS. Pueden entrar desde móvil, PC y otra red.</small></div></article>
@@ -30,8 +30,8 @@
    <div class="cam-body"><div id="participants" class="participant-grid"></div><div id="emptyParticipants" class="empty"><b>Esperando invitados</b>Comparte el enlace de invitación y sus cámaras aparecerán aquí aunque estén en otra red o país.</div></div>
   </section>
   <aside class="cam-side" style="margin-top:18px"><div class="side-body" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-   <div class="tool"><label>Enlace de invitación</label><div class="copy-row"><input class="field" id="inviteUrl" readonly><button class="btn" id="copyInvite2">Copiar</button></div><div class="hint">No requiere registro. El token del enlace autoriza únicamente la entrada a esta sala.</div></div>
-   <div class="tool"><label>Conexión externa</label><div id="externalStatus" class="secure-ok">Comprobando enlace HTTPS…</div><div class="hint">GREÑA publica únicamente el gateway de Cam Room. El Centro de Control permanece local en tu computadora.</div></div>
+   <div class="tool"><label for="inviteUrl">Enlace de invitación</label><div class="copy-row"><input class="field" id="inviteUrl" readonly><button class="btn" id="copyInvite2">Copiar</button></div><div class="hint">No requiere registro. El token del enlace autoriza únicamente la entrada a esta sala.</div></div>
+   <div class="tool"><label>Conexión externa</label><div id="externalStatus" class="secure-ok" role="status" aria-live="polite">Comprobando enlace HTTPS…</div><div class="hint">GREÑA publica únicamente el gateway de Cam Room. El Centro de Control permanece local en tu computadora.</div></div>
    <div class="tool"><label>PIN de cámaras</label><div class="hint">Cada persona crea su propio PIN. Para ver una cámara ajena o copiar su enlace OBS tendrás que introducir correctamente el PIN de esa persona.</div></div><div class="tool"><label>Cómo usar una cámara en OBS</label><div class="hint">Después de desbloquear una cámara con su PIN, <b>Copiar OBS</b> va sin audio y <b>OBS + audio</b> incluye el micrófono si esa persona lo activó.</div></div>
   </div></aside>
  </div>
