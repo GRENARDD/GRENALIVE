@@ -1,0 +1,22 @@
+name: GREÑA · Comprobar canal oficial de actualizaciones
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/grena-check-live-updates.yml
+permissions:
+  contents: read
+jobs:
+  verify-feed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comprobar estado de publicación en Cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 2 --max-time 15 'https://grena-live-licenses.omelicolon18.workers.dev/health' > health.json
+          cat health.json
+          curl -fsS --retry 2 --max-time 15 'https://grena-live-licenses.omelicolon18.workers.dev/api/updates/latest' > latest.json
+          cat latest.json
+          node -e "const fs=require('fs');const x=JSON.parse(fs.readFileSync('latest.json'));if(x.ok!==true)process.exit(1);console.log('PUBLICADA_EN_APP='+String(x.published===true));console.log('VERSION='+String(x.release?.version||'ninguna'))"
