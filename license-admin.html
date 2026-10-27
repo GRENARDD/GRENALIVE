@@ -23,6 +23,14 @@
 <div id="grantResult" class="message" role="status" aria-live="polite"></div>
 <p class="help">Si acaba de recibir una licencia, el primer inicio de sesión o latido desde GREÑA vincula la licencia a su equipo. Los días se cuentan automáticamente por fecha de vencimiento, aunque el programa esté cerrado.</p>
 </section>
+<section class="panel" id="ownerFishPanel" style="border-color:#586d86">
+<h2>Mis dos APIs de Fish Audio · bóveda privada</h2>
+<p>Estas son tus cuentas Fish Audio originales. Se guardan cifradas mediante Windows DPAPI en este mismo equipo, fuera del instalador; no las compartes con Yaqui ni con otros usuarios. Si ya migraste tus claves, solo verás si cada una está guardada.</p>
+<div class="line"><label for="ownerFish1">API 1</label><input id="ownerFish1" type="password" spellcheck="false" autocomplete="new-password" maxlength="512" placeholder="Cambiar o registrar API 1"><button type="button" data-owner-fish="1">Guardar API 1</button></div>
+<div class="line" style="margin-top:12px"><label for="ownerFish2">API 2</label><input id="ownerFish2" type="password" spellcheck="false" autocomplete="new-password" maxlength="512" placeholder="Cambiar o registrar API 2"><button type="button" data-owner-fish="2">Guardar API 2</button></div>
+<div class="message" id="ownerFishStatus" role="status" aria-live="polite">Consultando bóveda…</div>
+<small>No borres las APIs ni actualices la instalación anterior hasta confirmar que las dos aparezcan guardadas. Puedes migrarlas desde el programa anterior con el asistente de migración sin copiarlas al chat.</small>
+</section>
 <section class="panel" id="fishAdminPanel" style="border-color:#357f88">
 <h2>Fish Audio · API individual por GREÑA ID</h2>
 <p>Asigna la API de Fish Audio de Yaqui u otro usuario desde aquí. La clave se cifra en Cloudflare D1, pertenece solo a su cuenta y no modifica tus dos APIs actuales. Nadie puede ver la clave guardada; solo reemplazarla o quitarla.</p>
@@ -89,6 +97,27 @@ $('publishRelease').onclick=async()=>{
 };
 loadUpdates();
 $('close').onclick=$('backToApp').onclick=()=>location.assign('/mode.html');
+async function ownerFishRequest(method='GET',body){
+ const response=await fetch('/api/owner/fish-keys',{method,headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});
+ const data=await response.json().catch(()=>({}));
+ if(!response.ok||!data.ok)throw Error(data.error||'Bóveda Fish Audio no disponible.');
+ return data;
+}
+async function ownerFishRefresh(){
+ try{
+   const r=await ownerFishRequest();
+   $('ownerFishStatus').textContent='API 1: '+(r.configured?.[0]?'✓ Protegida':'Sin configurar')+' · API 2: '+(r.configured?.[1]?'✓ Protegida':'Sin configurar');
+ }catch(e){$('ownerFishStatus').textContent=e.message}
+}
+document.querySelectorAll('[data-owner-fish]').forEach(button=>button.addEventListener('click',async()=>{
+ const index=Number(button.dataset.ownerFish),input=$('ownerFish'+index),apiKey=input.value.trim();
+ if(apiKey.length<20||apiKey.length>512){$('ownerFishStatus').textContent='Introduce una API válida (20-512 caracteres).';return}
+ button.disabled=true;$('ownerFishStatus').textContent='Protegiendo API '+index+' en Windows…';
+ try{await ownerFishRequest('POST',{index,apiKey});$('ownerFishStatus').textContent='✓ API '+index+' cifrada en tu bóveda Windows.';await ownerFishRefresh()}
+ catch(e){$('ownerFishStatus').textContent=e.message}
+ finally{input.value='';button.disabled=false}
+}));
+ownerFishRefresh();
 $('fishAdminForm').onsubmit=async e=>{
  e.preventDefault();
  const username=$('fishAdminUser').value.trim().replace(/^@/,'').toLowerCase(),apiKey=$('fishAdminKey').value.trim();
