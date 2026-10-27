@@ -13,7 +13,7 @@ const normalizeEmail=v=>String(v||'').trim().toLowerCase().slice(0,254);
 const pwHash=(password,salt)=>new Promise((resolve,reject)=>scrypt(String(password),String(salt),64,(err,result)=>err?reject(err):resolve(result.toString('hex'))));
 const same=(a,b)=>{const x=Buffer.from(String(a)),y=Buffer.from(String(b));return x.length>0&&x.length===y.length&&timingSafeEqual(x,y)};
 const reply=(res,status,data)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(data))};
-const publicLicense=l=>!l?null:{activatedAt:l.activatedAt,expiresAt:l.expiresAt,revokedAt:l.revokedAt||null,expired:Date.now()>=l.expiresAt,active:!l.revokedAt&&Date.now()<l.expiresAt};
+const publicLicense=l=>!l?null:{activatedAt:l.activatedAt,expiresAt:l.expiresAt,revokedAt:l.revokedAt||null,expired:Date.now()>=l.expiresAt,active:!l.revokedAt&&Date.now()<l.expiresAt,kind:l.kind==='trial'?'trial':'license'};
 const limitMap=new Map();
 function limited(req,bucket,max=15){
  const ip=String(req.socket?.remoteAddress||'unknown'),key=bucket+':'+ip,now=Date.now();
@@ -207,7 +207,8 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
          const salt=randomBytes(16).toString('hex'),hash=await pwHash(password,salt),t=token();
          return await locked(async()=>{
            if(registry.users.some(u=>u.username===username||u.email===email))return reply(res,409,{ok:false,error:'Usuario o correo duplicado.'}),true;
-           const u={id:token(),username,email,displayName,salt,passwordHash:hash,registeredAt:Date.now(),lastSeenAt:Date.now(),sessions:[{hash:sha(t),expiresAt:Date.now()+90*24*60*60*1000}],license:{activatedAt:Date.now(),expiresAt:Date.now()+3*DAY,deviceId:String(b.deviceId||'').slice(0,80),revokedAt:null,codeId:null,kind:'trial'},disabled:false};
+           const now=Date.now(),deviceId=/^[A-Za-z0-9_-]{25,80}$/.test(String(b.deviceId||''))?String(b.deviceId):'';
+           const u={id:token(),username,email,displayName,salt,passwordHash:hash,registeredAt:now,lastSeenAt:now,sessions:[{hash:sha(t),expiresAt:now+90*DAY}],license:{activatedAt:now,expiresAt:now+3*DAY,deviceId,revokedAt:null,codeId:null,kind:'trial'},disabled:false};
            registry.users.push(u);await save();reply(res,201,{...status(u),token:t});return true;
          });
        }
@@ -239,11 +240,11 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
          return await locked(async()=>{
            const c=registry.codes.find(c=>c.hash===sha(raw));
            if(!c||c.redeemedAt)return reply(res,409,{ok:false,error:'Código inválido o ya utilizado.'}),true;
-           if(u.license&&!u.license.revokedAt&&Date.now()<u.license.expiresAt&&u.license.deviceId!==deviceId)
+           if(u.license&&!u.license.revokedAt&&Date.now()<u.license.expiresAt&&u.license.deviceId&&u.license.deviceId!==deviceId)
              return reply(res,403,{ok:false,error:'La licencia actual está vinculada a otra computadora.'}),true;
            c.redeemedAt=Date.now();c.usedBy=u.id;
-           const now=Date.now(),start=Math.max(now,!u.license?.revokedAt?Number(u.license?.expiresAt||0):0);
-           u.license={activatedAt:now,expiresAt:start+(Number(c.days)||30)*DAY,deviceId,revokedAt:null,codeId:c.id};
+           const now=Date.now(),start=Math.max(now,!u.license?.revokedAt&&u.license?.kind!=='trial'?Number(u.license?.expiresAt||0):0);
+           u.license={activatedAt:now,expiresAt:start+(Number(c.days)||30)*DAY,deviceId,revokedAt:null,codeId:c.id,kind:'license'};
            u.lastSeenAt=now;await save();reply(res,200,status(u));return true;
          });
        }
