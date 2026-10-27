@@ -1,10 +1,10 @@
 // GREÑA Live PRO · Registro central y licencias temporales.
-// En Railway guarda únicamente identidad, estado y licencias; nunca perfiles de streaming.
+// En Cloudflare D1 se guardan identidad, estado y licencias; nunca perfiles de streaming.
 import {randomBytes,createHash,scrypt,timingSafeEqual} from 'node:crypto';
 import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
 import {dirname,join} from 'node:path';
 
-const MONTH=30*24*60*60*1000;
+const DAY=24*60*60*1000;
 const ONLINE_MS=135000;
 const sha=value=>createHash('sha256').update(String(value)).digest('hex');
 const token=()=>randomBytes(32).toString('base64url');
@@ -37,7 +37,7 @@ async function parseBody(req,readBody){
  try{const body=JSON.parse(raw||'{}');if(!body||typeof body!=='object'||Array.isArray(body))throw Error();return body}catch{throw Object.assign(Error('JSON no válido.'),{status:400})}
 }
 export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBody,remoteUrl}){
- const cloudFile=join(dataDir,'grena-license-registry.json');
+ const cloudFile=join(dataDir,'grena-license-registry.json'); // Legacy host implementation; el cliente local usa Cloudflare Worker.
  let registry=cloud?await readJson(cloudFile,{version:1,users:[],codes:[]}):null;
  if(cloud){
    if(!Array.isArray(registry.users))registry.users=[];
@@ -127,25 +127,27 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    const remote=pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/');
    if(!remote)return false;
    try{
-     // Endpoints del registro: solo Railway; nunca se activan en las PCs de los clientes.
+     // Endpoints heredados de hosting Node; la distribución usa Cloudflare Worker/D1.
      if(cloud){
        if(pathname.startsWith('/api/license-admin/')){
          const configured=String(process.env.GRENA_LICENSE_ADMIN_KEY||'');
-         if(configured.length<32)return reply(res,503,{ok:false,error:'Configura GRENA_LICENSE_ADMIN_KEY en Railway.'}),true;
+         if(configured.length<32)return reply(res,503,{ok:false,error:'Configura la clave de administrador del servicio de licencias.'}),true;
          if(limited(req,'admin',80))return reply(res,429,{ok:false,error:'Demasiadas solicitudes.'}),true;
          if(!same(req.headers['x-grena-admin-key']||'',configured))return reply(res,401,{ok:false,error:'Clave de administrador incorrecta.'}),true;
          if(pathname==='/api/license-admin/users'&&req.method==='GET')
-           return reply(res,200,{ok:true,users:registry.users.map(cloudUser),total:registry.users.length,online:registry.users.filter(u=>u.lastSeenAt&&Date.now()-u.lastSeenAt<ONLINE_MS).length,codes:registry.codes.map(c=>({id:c.id,suffix:c.suffix,redeemedAt:c.redeemedAt||null,createdAt:c.createdAt}))}),true;
+           return reply(res,200,{ok:true,users:registry.users.map(cloudUser),total:registry.users.length,online:registry.users.filter(u=>u.lastSeenAt&&Date.now()-u.lastSeenAt<ONLINE_MS).length,codes:registry.codes.map(c=>({id:c.id,suffix:c.suffix,days:Number(c.days)||30,redeemedAt:c.redeemedAt||null,createdAt:c.createdAt}))}),true;
          if(pathname==='/api/license-admin/create'&&req.method==='POST'){
-           const b=await parseBody(req,readBody),count=Math.min(25,Math.max(1,Number(b.count)||1));
+           const b=await parseBody(req,readBody),count=Number(b.count),days=Number(b.days);
+           if(!Number.isInteger(count)||count<1||count>25)return reply(res,400,{ok:false,error:'Selecciona de 1 a 25 códigos.'}),true;
+           if(!Number.isInteger(days)||days<1||days>3650)return reply(res,400,{ok:false,error:'Duración inválida (1 a 3650 días).'}),true;
            return await locked(async()=>{
              const created=[];
              for(let i=0;i<count;i++){
                const plain='GRENA-'+randomBytes(5).toString('hex').toUpperCase()+'-'+randomBytes(5).toString('hex').toUpperCase();
-               registry.codes.push({id:token(),hash:sha(plain),suffix:plain.slice(-5),createdAt:Date.now(),redeemedAt:null,usedBy:null});
+               registry.codes.push({id:token(),hash:sha(plain),suffix:plain.slice(-5),days,createdAt:Date.now(),redeemedAt:null,usedBy:null});
                created.push(plain);
              }
-             await save();reply(res,201,{ok:true,codes:created,days:30});return true;
+             await save();reply(res,201,{ok:true,codes:created,days});return true;
            });
          }
          if(pathname==='/api/license-admin/revoke'&&req.method==='POST'){
@@ -214,7 +216,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
              return reply(res,403,{ok:false,error:'La licencia actual está vinculada a otra computadora.'}),true;
            c.redeemedAt=Date.now();c.usedBy=u.id;
            const now=Date.now(),start=Math.max(now,!u.license?.revokedAt?Number(u.license?.expiresAt||0):0);
-           u.license={activatedAt:now,expiresAt:start+MONTH,deviceId,revokedAt:null,codeId:c.id};
+           u.license={activatedAt:now,expiresAt:start+(Number(c.days)||30)*DAY,deviceId,revokedAt:null,codeId:c.id};
            u.lastSeenAt=now;await save();reply(res,200,status(u));return true;
          });
        }
@@ -222,6 +224,18 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      }
      // Endpoints locales: requieren la sesión de GREÑA ID comprobada por server.mjs.
      const u=activeUser(req);if(!u)return reply(res,401,{ok:false,error:'Inicia sesión en tu GREÑA ID.'}),true;
+     if(pathname.startsWith('/api/license-admin/')){
+       if(!remoteUrl||!/^https:\/\//.test(remoteUrl))return reply(res,503,{ok:false,error:'Configura la dirección HTTPS de licencias Cloudflare.'}),true;
+       const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),6500);
+       try{
+         const key=String(req.headers['x-grena-admin-key']||'');
+         if(key.length<32||key.length>512)return reply(res,401,{ok:false,error:'Clave de administrador incorrecta.'}),true;
+         const payload=req.method==='POST'?await parseBody(req,readBody):undefined;
+         const response=await fetch(remoteUrl+pathname,{method:req.method,headers:{'x-grena-admin-key':key,...(payload?{'content-type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,signal:ac.signal});
+         const result=await response.json().catch(()=>({ok:false,error:'Respuesta no válida del servicio.'}));
+         return reply(res,response.status,result),true;
+       }finally{clearTimeout(timer)}
+     }
      if(pathname==='/api/license/status'&&req.method==='GET'){
        const c=await getCached(u.id);
        return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),syncError:c?.syncError||'',lastValidatedAt:c?.lastValidatedAt||null}),true;
