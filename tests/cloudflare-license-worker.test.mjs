@@ -128,3 +128,46 @@ test('Cloudflare health and D1 readiness report actual table connectivity',async
    assert.equal(health.status,200);
  }finally{close()}
 });
+
+test('Administrador GREÑA asigna 30 días por nombre sin código, vincula primer dispositivo y renueva 60 días',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
+ try{
+   const owner=(await request(env,'/api/license/identity/register',{username:'grena_rd',email:'owner@grena.test',password:'owner-password-123'})).data;
+   const user=(await request(env,'/api/license/identity/register',{username:'sofia_live',email:'sofia@grena.test',password:'creator-password-123'})).data;
+   const device='DEVICE123456789012345678901234567890';
+   const other='ANOTHER123456789012345678901234567890';
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {admin:ADMIN,token:owner.token})).status,200);
+   assert.equal((await request(env,'/api/license-admin/grant',{username:'sofia_live',days:30},{token:user.token})).status,403);
+   assert.equal((await request(env,'/api/license-admin/grant',{username:'missing_creator',days:30},{token:owner.token})).status,404);
+   assert.equal((await request(env,'/api/license-admin/grant',{username:'sofia_live',days:0},{token:owner.token})).status,400);
+   const first=await request(env,'/api/license-admin/grant',{username:'@sofia_live',days:30},{token:owner.token});
+   assert.equal(first.status,200);
+   assert.equal(first.data.days,30);
+   assert.equal(first.data.renewed,false);
+   assert.equal(first.data.user.license.active,true);
+   assert.equal(first.data.user.deviceBound,false);
+   assert.equal(first.data.expiresAt-first.data.user.license.activatedAt,30*DAY);
+   // An authenticated heartbeat claims the license for this device without a code.
+   const bound=await request(env,'/api/license/heartbeat',{deviceId:device},{token:user.token});
+   assert.equal(bound.status,200);
+   assert.equal(bound.data.license.active,true);
+   const listing=await request(env,'/api/license-admin/users',null,{token:owner.token});
+   assert.equal(listing.data.users.find(x=>x.username==='sofia_live').deviceBound,true);
+   const otherDevice=await request(env,'/api/license/heartbeat',{deviceId:other},{token:user.token});
+   assert.equal(otherDevice.status,200);
+   assert.equal(otherDevice.data.license,null);
+   const renewal=await request(env,'/api/license-admin/grant',{username:'sofia_live',days:60},{token:owner.token});
+   assert.equal(renewal.status,200);
+   assert.equal(renewal.data.renewed,true);
+   assert.equal(renewal.data.expiresAt-first.data.expiresAt,60*DAY);
+   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:user.token})).data.license,null);
+   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:device},{token:user.token})).data.license.active,true);
+   assert.equal((await DB.prepare('SELECT COUNT(*) AS n FROM license_grants').first()).n,2);
+   assert.equal((await request(env,'/api/license-admin/revoke',{userId:user.user.id},{token:owner.token})).status,200);
+   const afterRevocation=await request(env,'/api/license-admin/grant',{username:'sofia_live',days:15},{token:owner.token});
+   assert.equal(afterRevocation.status,200);
+   assert.equal(afterRevocation.data.renewed,false);
+   assert.equal(afterRevocation.data.user.deviceBound,false);
+   assert.equal(afterRevocation.data.expiresAt-afterRevocation.data.user.license.activatedAt,15*DAY);
+ }finally{close()}
+});

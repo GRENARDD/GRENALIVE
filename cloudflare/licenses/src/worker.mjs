@@ -29,7 +29,7 @@ const publicUser=u=>({
  id:u.id,username:u.username,displayName:u.display_name,email:u.email,
  registeredAt:u.registered_at,lastSeenAt:u.last_seen_at||null,
  online:!!u.last_seen_at&&now()-u.last_seen_at<ONLINE,disabled:!!u.disabled,
- license:cleanLicense(u)
+ deviceBound:!!u.license_device_id,license:cleanLicense(u)
 });
 const status=(u,deviceId)=>({ok:true,registered:!!u,user:publicUser(u),license:cleanLicense(u,deviceId)});
 const deviceValid=d=>/^[A-Za-z0-9_-]{25,80}$/.test(String(d||''));
@@ -57,6 +57,17 @@ async function sessionUser(env,req){
  if(!match)return null;
  return env.DB.prepare('SELECT u.* FROM user_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at > ? AND u.disabled=0')
    .bind(await sha(match[1]),now()).first();
+}
+// Directly granted days attach to the first authenticated device that reconnects.
+// Only an active unbound license is eligible; a later device cannot steal it.
+async function bindPendingDevice(env,u,deviceId){
+ if(!deviceValid(deviceId)||!u?.license_expires_at||u.license_expires_at<=now()||u.license_revoked_at)return u;
+ if(!u.license_device_id){
+   await env.DB.prepare('UPDATE users SET license_device_id=? WHERE id=? AND license_device_id IS NULL AND license_expires_at>? AND license_revoked_at IS NULL')
+     .bind(deviceId,u.id,now()).run();
+   return await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first();
+ }
+ return u;
 }
 async function issueSession(env,u){
  const key=random(32);
@@ -96,7 +107,7 @@ async function communitySnapshot(env){
 async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
- if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1',revision:'2026-10-27-cloudflare-kdf'});
+ if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1',revision:'2026-10-27-admin-direct-grants'});
  // Check the actual database and required columns, not just whether the Worker boots.
  // No private data or SQL errors are exposed through this unauthenticated endpoint.
  if(path==='/ready'&&req.method==='GET'){
@@ -147,6 +158,32 @@ async function handle(req,env){
    }
    if(req.method!=='POST')return fail('Método no permitido.',405);
    const b=await body(req);
+   if(path==='/api/license-admin/grant'){
+     // Start now. When still active, add the new days to the existing expiration.
+     const raw=String(b.username||'').trim().replace(/^@/,'').toLowerCase();
+     const username=cleanUser(raw),days=Number(b.days);
+     if(!username||username!==raw||username.length<3)return fail('Escribe un usuario GREÑA ID válido.');
+     if(!Number.isInteger(days)||days<1||days>MAX_DAYS)return fail('La duración debe ser de 1 a 3650 días.');
+     const target=await env.DB.prepare('SELECT * FROM users WHERE username=?').bind(username).first();
+     if(!target)return fail('Este GREÑA ID todavía no está en Cloudflare. El usuario debe iniciar sesión y sincronizar primero.',404);
+     if(target.disabled)return fail('La cuenta está suspendida. Reactívala antes de asignar días.',409);
+     const time=now(),continuing=target.license_expires_at>time&&!target.license_revoked_at;
+     // An audit log is retained centrally. IF NOT EXISTS protects existing D1 data.
+     await env.DB.prepare('CREATE TABLE IF NOT EXISTS license_grants (id TEXT PRIMARY KEY, target_user_id TEXT NOT NULL, admin_user_id TEXT NOT NULL, days INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)').run();
+     const owner=await sessionUser(env,req);
+     const update=env.DB.prepare(`UPDATE users SET
+       license_expires_at=MAX(CASE WHEN license_revoked_at IS NULL THEN COALESCE(license_expires_at,0) ELSE 0 END, ?) + ?,
+       license_activated_at=CASE WHEN license_revoked_at IS NULL AND license_expires_at>? THEN COALESCE(license_activated_at,?) ELSE ? END,
+       license_device_id=CASE WHEN license_revoked_at IS NULL AND license_expires_at>? THEN license_device_id ELSE NULL END,
+       license_revoked_at=NULL, license_code_id=NULL
+       WHERE id=? AND disabled=0`).bind(time,days*DAY,time,time,time,time,target.id);
+     const audit=env.DB.prepare('INSERT INTO license_grants(id,target_user_id,admin_user_id,days,created_at,expires_at) SELECT ?,?,?,?, ?,license_expires_at FROM users WHERE id=?')
+       .bind(crypto.randomUUID(),target.id,owner.id,days,time,target.id);
+     const changes=await env.DB.batch([update,audit]);
+     if(Number(changes[0]?.meta?.changes||0)!==1)return fail('No se pudo actualizar la licencia.',409);
+     const fresh=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(target.id).first();
+     return json({ok:true,username:fresh.username,days,renewed:continuing,expiresAt:fresh.license_expires_at,user:publicUser(fresh)});
+   }
    if(path==='/api/license-admin/create'){
      const count=Number(b.count),days=Number(b.days);
      if(!Number.isInteger(count)||count<1||count>25)return fail('Selecciona de 1 a 25 códigos.');
@@ -196,7 +233,8 @@ async function handle(req,env){
    if(!same(derived,u.password_hash))return fail('Credenciales centrales incorrectas.',401);
    if(u.disabled)return fail('Cuenta suspendida.',403);
    const fresh=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first();
-   return json({...status(fresh,String(b.deviceId||'')),token:await issueSession(env,u)});
+   const ready=await bindPendingDevice(env,fresh,String(b.deviceId||''));
+   return json({...status(ready,String(b.deviceId||'')),token:await issueSession(env,u)});
  }
  const u=await sessionUser(env,req);
  if(!u)return fail('La sesión central venció o está suspendida.',401);
@@ -220,7 +258,8 @@ async function handle(req,env){
    const b=await body(req),deviceId=String(b.deviceId||'');
    if(!deviceValid(deviceId))return fail('Identificador de dispositivo inválido.');
    await env.DB.prepare('UPDATE users SET last_seen_at=? WHERE id=?').bind(now(),u.id).run();
-   return json(status({...u,last_seen_at:now()},deviceId));
+   const ready=await bindPendingDevice(env,{...u,last_seen_at:now()},deviceId);
+   return json(status(ready,deviceId));
  }
  if(path==='/api/license/redeem'){
    if(await limiter(env,req,'redeem',12))return fail('Demasiados intentos de activación.',429);
