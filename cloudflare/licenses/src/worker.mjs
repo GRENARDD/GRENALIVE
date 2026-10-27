@@ -93,7 +93,7 @@ async function communitySnapshot(env){
 async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
- if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1'});
+ if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1',revision:'2026-10-27-sync-fix'});
  // Check the actual database and required columns, not just whether the Worker boots.
  // No private data or SQL errors are exposed through this unauthenticated endpoint.
  if(path==='/ready'&&req.method==='GET'){
