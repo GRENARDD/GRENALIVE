@@ -1,0 +1,247 @@
+/* ==========================================================================
+   GREÑA LIVE PRO · GAMER PREMIUM LAYER
+   Se carga DESPUÉS de aurora-ui.css. No reemplaza nada: solo refina encima.
+   Para quitarlo basta con borrar la línea <link> que lo carga.
+   ========================================================================== */
+
+:root{
+  /* Paleta gamer: violeta eléctrico + cian + verde de estado */
+  --gx-bg:#05070f;
+  --gx-violet:#8b5cf6;
+  --gx-violet-hot:#a855ff;
+  --gx-cyan:#22e4f2;
+  --gx-green:#3dffa0;
+  --gx-pink:#ff3c81;
+  --gx-gold:#ffc857;
+  --gx-edge:rgba(139,92,246,.34);
+  --gx-edge-soft:rgba(151,166,211,.13);
+  --gx-glow-v:0 0 0 1px rgba(139,92,246,.35),0 0 22px rgba(139,92,246,.28);
+  --gx-glow-c:0 0 0 1px rgba(34,228,242,.35),0 0 20px rgba(34,228,242,.22);
+  /* Bahnschrift viene con Windows 10/11 y tiene look técnico/gamer; sin internet. */
+  --gx-display:"Bahnschrift","Rajdhani","Segoe UI Variable Display","Segoe UI",Inter,system-ui,sans-serif;
+  --gx-body:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  --gx-ease:cubic-bezier(.2,.8,.2,1);
+}
+
+/* ---------- 1. TIPOGRAFÍA (arregla los títulos que salían en serifa) ---------- */
+body.grena-control,body.grena-chat,body.grena-alerts,body.grena-widgets,
+body.grena-cam-room,body.grena-catalog,body.grena-preview,body.grena-login{
+  font-family:var(--gx-body)!important;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+body.grena-control h1,body.grena-control h2,body.grena-control h3,
+body.grena-alerts h1,body.grena-alerts h2,body.grena-alerts h3,
+body.grena-widgets h1,body.grena-widgets h2,body.grena-widgets h3,
+body.grena-cam-room h1,body.grena-cam-room h2,body.grena-cam-room h3,
+body.grena-catalog h1,body.grena-catalog h2,body.grena-catalog h3,
+body.grena-login h1,body.grena-login h2,
+.brand-block strong,.sidebar .brand strong,.sidebar strong{
+  font-family:var(--gx-display)!important;
+  font-weight:700!important;
+  letter-spacing:.02em!important;
+}
+.brand-block strong{
+  font-size:17px!important;letter-spacing:.09em!important;text-transform:uppercase;
+  background:linear-gradient(90deg,#fff 0%,#d9c8ff 55%,#8ff3fb 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.eyebrow,.soundboard-meta b{
+  font-family:var(--gx-display)!important;letter-spacing:.2em!important;
+}
+.eyebrow{color:var(--gx-cyan)!important;opacity:.85}
+/* Números de estadísticas: alineados y con presencia */
+#totalViewers,.viewer-card b,.stat b{
+  font-family:var(--gx-display)!important;font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;
+}
+#totalViewers{
+  font-size:34px!important;
+  text-shadow:0 0 22px rgba(139,92,246,.65),0 0 2px rgba(255,255,255,.6);
+}
+
+/* ---------- 2. BARRA SUPERIOR (sin solapamientos) ---------- */
+.grena-control .topbar{
+  grid-template-columns:auto minmax(0,1fr) auto!important;
+  gap:14px!important;position:relative;
+  background:linear-gradient(180deg,rgba(14,18,36,.96),rgba(7,10,20,.9))!important;
+  backdrop-filter:blur(18px) saturate(1.2);
+  border-bottom:1px solid transparent!important;
+}
+/* línea de neón inferior */
+.grena-control .topbar::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0%,var(--gx-violet) 22%,var(--gx-cyan) 50%,var(--gx-violet) 78%,transparent 100%);
+  opacity:.75;filter:drop-shadow(0 0 6px rgba(139,92,246,.9));
+}
+.grena-control .brand-block{min-width:0!important}
+.grena-control .brand-block>div{min-width:0}
+.grena-control .brand-block span{white-space:nowrap}
+.grena-control .primary-nav{min-width:0!important;overflow-x:auto;scrollbar-width:none;justify-self:center!important}
+.grena-control .primary-nav::-webkit-scrollbar{display:none}
+.grena-control .primary-nav .top-link{
+  padding:0 11px!important;white-space:nowrap;font-family:var(--gx-display)!important;
+  letter-spacing:.04em;transition:all .2s var(--gx-ease)!important;
+}
+.grena-control .primary-nav .top-link:hover{
+  box-shadow:0 0 0 1px rgba(34,228,242,.25),0 6px 18px rgba(34,228,242,.1);
+}
+.grena-control .primary-nav .nav-home.active{
+  box-shadow:var(--gx-glow-v)!important;
+}
+.grena-control .top-status{gap:6px!important}
+.grena-control .top-status .top-link,
+.grena-control .health-pill,.grena-control .profile-pill,.grena-control .app-exit-btn{
+  white-space:nowrap;font-size:12px!important;
+}
+.grena-control .health-pill{max-width:210px;overflow:hidden;text-overflow:ellipsis}
+/* En pantallas medianas: iconos compactos para que todo quepa */
+@media (max-width:1760px){
+  .grena-control .top-status>a.top-link{padding:0 10px!important;font-size:11.5px!important}
+  .grena-control .profile-copy small{display:none}
+}
+@media (max-width:1720px){
+  .grena-control .primary-nav .top-link span{display:none}
+  .grena-control .primary-nav .top-link{padding:0 13px!important}
+}
+@media (max-width:1380px){
+  .grena-control .health-pill span{display:none}
+}
+
+/* Punto de estado "en vivo" con pulso */
+.health-pill i,#systemDot{position:relative}
+.health-pill i.on::after,#systemDot.on::after{
+  content:"";position:absolute;inset:-5px;border-radius:50%;
+  border:1.5px solid rgba(61,255,160,.7);animation:gxPulse 1.8s ease-out infinite;
+}
+@keyframes gxPulse{0%{transform:scale(.5);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+
+/* ---------- 3. PANELES: marco con esquinas "HUD" ---------- */
+.grena-control .panel-shell,
+.grena-alerts .panel,.grena-widgets .widget-module,.grena-cam-room .cam-card,
+.grena-catalog .catalog-head{
+  position:relative;
+  border-color:var(--gx-edge-soft)!important;
+  box-shadow:0 18px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05)!important;
+  transition:border-color .25s var(--gx-ease),box-shadow .25s var(--gx-ease);
+}
+.grena-control .panel-shell::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:2;
+  /* cuatro esquinas en L, color violeta */
+  background:
+    linear-gradient(var(--gx-violet-hot),var(--gx-violet-hot)) top left/16px 2px no-repeat,
+    linear-gradient(var(--gx-violet-hot),var(--gx-violet-hot)) top left/2px 16px no-repeat,
+    linear-gradient(var(--gx-cyan),var(--gx-cyan)) bottom right/16px 2px no-repeat,
+    linear-gradient(var(--gx-cyan),var(--gx-cyan)) bottom right/2px 16px no-repeat;
+  opacity:.55;transition:opacity .3s var(--gx-ease);
+  -webkit-mask:linear-gradient(#000,#000);
+}
+.grena-control .panel-shell:hover::after{opacity:1}
+.grena-control .panel-shell:hover{
+  border-color:var(--gx-edge)!important;
+  box-shadow:0 18px 60px rgba(0,0,0,.5),0 0 36px rgba(139,92,246,.1),inset 0 1px 0 rgba(255,255,255,.06)!important;
+}
+.grena-control .panel-head{
+  background:linear-gradient(90deg,rgba(139,92,246,.09),transparent 60%)!important;
+}
+.grena-control .panel-head h1,.grena-control .panel-head h2{
+  font-size:22px!important;text-transform:uppercase;letter-spacing:.06em!important;
+}
+
+/* ---------- 4. TARJETAS DE ESPECTADORES ---------- */
+.grena-control .viewer-card{
+  position:relative;overflow:hidden;
+  transition:transform .22s var(--gx-ease),border-color .22s,box-shadow .22s!important;
+}
+.grena-control .viewer-card::before{
+  content:"";position:absolute;inset:0 0 auto 0;height:2px;opacity:.9;
+  background:linear-gradient(90deg,transparent,currentColor,transparent);
+}
+.grena-control .viewer-card.tiktok{color:var(--p-tiktok,#25f4ee)}
+.grena-control .viewer-card.twitch{color:var(--p-twitch,#9146ff)}
+.grena-control .viewer-card.kick{color:var(--p-kick,#53fc18)}
+.grena-control .viewer-card.youtube{color:var(--p-youtube,#ff3030)}
+.grena-control .viewer-card.starvios{color:var(--p-starvios,#ff6ab9)}
+.grena-control .viewer-card>div b{color:#fff}
+.grena-control .viewer-card:hover{
+  transform:translateY(-2px);
+  box-shadow:0 10px 28px rgba(0,0,0,.45),0 0 22px color-mix(in srgb,currentColor 22%,transparent)!important;
+  border-color:color-mix(in srgb,currentColor 45%,transparent)!important;
+}
+
+/* ---------- 5. FILAS DE PLATAFORMA ---------- */
+.grena-control .platform-row{
+  position:relative;
+  transition:transform .2s var(--gx-ease),border-color .2s,background .2s,box-shadow .2s!important;
+}
+.grena-control .platform-row::before{
+  content:"";position:absolute;left:0;top:18%;bottom:18%;width:3px;border-radius:0 3px 3px 0;
+  background:linear-gradient(180deg,var(--gx-violet),var(--gx-cyan));
+  opacity:0;transition:opacity .2s;
+}
+.grena-control .platform-row:hover{
+  transform:translateX(2px);
+  border-color:rgba(139,92,246,.38)!important;
+  box-shadow:0 8px 24px rgba(0,0,0,.35),0 0 18px rgba(139,92,246,.1);
+}
+.grena-control .platform-row:hover::before{opacity:1}
+.grena-control .state-chip{
+  letter-spacing:.02em;font-weight:700;
+}
+
+/* ---------- 6. BOTONES ---------- */
+.grena-control button:not(.sound-pad):not(.sound-slot-settings):not(.app-exit-btn),
+.grena-alerts button,.grena-widgets button,.grena-cam-room button,.grena-catalog button{
+  transition:transform .15s var(--gx-ease),box-shadow .2s,border-color .2s,background .2s!important;
+}
+.grena-control button:not(.sound-pad):not(.sound-slot-settings):hover,
+.grena-alerts button:hover,.grena-widgets button:hover,.grena-cam-room button:hover{
+  border-color:rgba(139,92,246,.55)!important;
+  box-shadow:0 0 0 1px rgba(139,92,246,.25),0 6px 20px rgba(139,92,246,.22);
+}
+.grena-control button:active,.grena-alerts button:active,
+.grena-widgets button:active,.grena-cam-room button:active{transform:translateY(1px) scale(.985)}
+/* Botón principal: degradado con brillo que barre */
+.grena-control button.primary,.grena-alerts button.primary,.grena-widgets button.primary,
+.grena-login button[type="submit"],.grena-login .primary{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#9b5cff 0%,#6a4cff 50%,#22c8ee 100%)!important;
+  border:1px solid rgba(255,255,255,.22)!important;color:#fff!important;
+  font-family:var(--gx-display)!important;letter-spacing:.1em;text-transform:uppercase;
+  box-shadow:0 10px 30px rgba(105,70,255,.4),inset 0 1px 0 rgba(255,255,255,.3)!important;
+}
+.grena-control button.primary::after,.grena-alerts button.primary::after,
+.grena-login button[type="submit"]::after{
+  content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;pointer-events:none;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);
+  transform:skewX(-20deg);transition:left .6s var(--gx-ease);
+}
+.grena-control button.primary:hover::after,.grena-alerts button.primary:hover::after,
+.grena-login button[type="submit"]:hover::after{left:130%}
+/* Salir: rojo con glow al pasar */
+.grena-control .app-exit-btn:hover{box-shadow:0 0 0 1px rgba(255,60,129,.4),0 0 22px rgba(255,60,129,.3)!important}
+
+/* ---------- 7. AUDIOS RÁPIDOS: pads estilo consola ---------- */
+.grena-control .soundboard-strip{
+  background:linear-gradient(180deg,rgba(10,14,28,.85),rgba(6,9,18,.95))!important;
+  border-top:1px solid var(--gx-edge-soft)!important;
+}
+.grena-control .sound-pad{
+  height:56px!important;
+  background:linear-gradient(180deg,#1a2033 0%,#0f1424 100%)!important;
+  border:1px solid rgba(255,255,255,.09)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07),inset 0 -3px 0 rgba(0,0,0,.35),0 4px 12px rgba(0,0,0,.35)!important;
+  transition:transform .12s var(--gx-ease),box-shadow .2s,border-color .2s!important;
+}
+.grena-control .sound-pad:not(.empty){
+  border-color:rgba(34,228,242,.4)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.1),inset 0 -3px 0 rgba(0,0,0,.35),0 0 18px rgba(34,228,242,.14)!important;
+}
+.grena-control .sound-pad:hover{
+  transform:translateY(-2px);
+  border-color:rgba(168,85,255,.6)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 -3px 0 rgba(0,0,0,.35),0 8px 22px rgba(139,92,246,.3)!important;
+}
+.grena-control .sound-pad:active{transform:translateY(1px)!important;box-shadow:inset 0 2px 8px rgba(0,0,0,.6)!important}
+.grena-control .sound-pad b{font-family:var(--gx-display)!important;letter-spacing:.05em}
+
