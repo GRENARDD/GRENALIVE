@@ -50,25 +50,27 @@ test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',a
    assert.equal(ownerStatus.data.isOwner,true);
    const noLicense=await request(env,'/api/license/heartbeat',{deviceId},{token:tk});
    assert.equal(noLicense.data.license,null);
+   const customer=await request(env,'/api/license/identity/register',{username:'viewer',email:'viewer@example.org',password:'buyer-test-password',deviceId});
+   const ct=customer.data.token;
    let lastExpiry=0;
    for(const days of [30,60,90,17]){
      const r=await request(env,'/api/license-admin/create',{count:1,days},{token:tk});
      assert.equal(r.status,201);assert.equal(r.data.days,days);assert.equal(r.data.codes.length,1);
      const code=r.data.codes[0];
-     const activation=await request(env,'/api/license/redeem',{code,deviceId},{token:tk});
+     const activation=await request(env,'/api/license/redeem',{code,deviceId},{token:ct});
      assert.equal(activation.status,200);assert.equal(activation.data.license.active,true);
      if(lastExpiry)assert.equal(activation.data.license.expiresAt-lastExpiry,days*DAY);
      else assert.equal(activation.data.license.expiresAt-activation.data.license.activatedAt,days*DAY);
      lastExpiry=activation.data.license.expiresAt;
-     assert.equal((await request(env,'/api/license/redeem',{code,deviceId},{token:tk})).status,409);
+     assert.equal((await request(env,'/api/license/redeem',{code,deviceId},{token:ct})).status,409);
    }
    const list=await request(env,'/api/license-admin/users',null,{token:tk});
-   assert.equal(list.status,200);assert.equal(list.data.total,1);assert.equal(list.data.online,1);
+   assert.equal(list.status,200);assert.equal(list.data.total,2);assert.equal(list.data.online,2);
    assert.deepEqual(list.data.codes.map(x=>x.days).sort((a,b)=>a-b),[17,30,60,90]);
-   const dbUser=DB.prepare('SELECT * FROM users WHERE username=?').bind('sofia');const user=await dbUser.first();
+   const dbUser=DB.prepare('SELECT * FROM users WHERE username=?').bind('viewer');const user=await dbUser.first();
    assert.ok(user.password_hash&&!user.password_hash.includes('clave-fuerte'));
    assert.equal((await DB.prepare('SELECT COUNT(*) AS n FROM user_sessions WHERE token_hash=?').bind(tk).first()).n,0);
-   const other=await request(env,'/api/license/heartbeat',{deviceId:'ANOTHER1234567890123456789012345'},{token:tk});
+   const other=await request(env,'/api/license/heartbeat',{deviceId:'ANOTHER1234567890123456789012345'},{token:ct});
    assert.equal(other.status,200);assert.equal(other.data.license,null);
    assert.equal((await request(env,'/api/license-admin/revoke',{userId:user.id},{token:tk})).data.user.license.active,false);
  }finally{close()}
@@ -169,5 +171,33 @@ test('Administrador GREÑA asigna 30 días por nombre sin código, vincula prime
    assert.equal(afterRevocation.data.renewed,false);
    assert.equal(afterRevocation.data.user.deviceBound,false);
    assert.equal(afterRevocation.data.expiresAt-afterRevocation.data.user.license.activatedAt,15*DAY);
+ }finally{close()}
+});
+
+test('Propietario autenticado conserva privilegio sin vencimiento',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
+ try{
+   const owner=await request(env,'/api/license/identity/register',{username:'grena_rd',email:'owner@grena.test',password:'safe-owner-test-password'});
+   const token=owner.data.token;
+   assert.equal(owner.data.permanentAccess,false);
+   const claimed=await request(env,'/api/license/owner/claim',{}, {token,admin:ADMIN});
+   assert.equal(claimed.status,200);
+   assert.equal(claimed.data.permanentAccess,true);
+   const login=await request(env,'/api/license/identity/login',{username:'grena_rd',password:'safe-owner-test-password'});
+   assert.equal(login.status,200);
+   assert.equal(login.data.permanentAccess,true);
+   assert.equal(login.data.license,null);
+   const id='DEVICE123456789012345678901234567890';
+   const beat=await request(env,'/api/license/heartbeat',{deviceId:id},{token:login.data.token});
+   assert.equal(beat.data.permanentAccess,true);
+   const list=await request(env,'/api/license-admin/users',null,{token:login.data.token});
+   const record=list.data.users.find(u=>u.username==='grena_rd');
+   assert.equal(record.permanentAccess,true);
+   assert.equal(record.isOwner,true);
+   for(const [path,payload] of [
+      ['/api/license-admin/grant',{username:'grena_rd',days:30}],
+      ['/api/license-admin/revoke',{userId:record.id}],
+      ['/api/license-admin/suspend',{userId:record.id,disabled:true}]
+   ])assert.equal((await request(env,path,payload,{token:login.data.token})).status,409,path);
  }finally{close()}
 });

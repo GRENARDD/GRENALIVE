@@ -31,7 +31,8 @@ const publicUser=u=>({
  online:!!u.last_seen_at&&now()-u.last_seen_at<ONLINE,disabled:!!u.disabled,
  deviceBound:!!u.license_device_id,license:cleanLicense(u)
 });
-const status=(u,deviceId)=>({ok:true,registered:!!u,user:publicUser(u),license:cleanLicense(u,deviceId)});
+// Owner access comes from the authenticated, one-time D1 ownership claim.
+const status=(u,deviceId,permanentAccess=false)=>({ok:true,registered:!!u,user:publicUser(u),license:cleanLicense(u,deviceId),permanentAccess:permanentAccess===true});
 const deviceValid=d=>/^[A-Za-z0-9_-]{25,80}$/.test(String(d||''));
 async function body(req){
  if(req.headers.get('content-type')?.split(';')[0].trim().toLowerCase()!=='application/json')throw {status:415,message:'Content-Type debe ser application/json'};
@@ -107,7 +108,7 @@ async function communitySnapshot(env){
 async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
- if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1',revision:'2026-10-27-admin-direct-grants'});
+ if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1',revision:'2026-10-27-permanent-owner-access'});
  // Check the actual database and required columns, not just whether the Worker boots.
  // No private data or SQL errors are exposed through this unauthenticated endpoint.
  if(path==='/ready'&&req.method==='GET'){
@@ -131,7 +132,8 @@ async function handle(req,env){
  if(path==='/api/license/owner/status'&&req.method==='GET'){
    const u=await sessionUser(env,req);
    if(!u)return fail('Sesión GREÑA ID central requerida.',401);
-   return json(await ownerInfo(env,u));
+   const owner=await ownerInfo(env,u);
+   return json({...owner,permanentAccess:owner.isOwner});
  }
  if(path==='/api/license/owner/claim'&&req.method==='POST'){
    if(await limiter(env,req,'claim-owner',6))return fail('Demasiados intentos.',429);
@@ -145,7 +147,7 @@ async function handle(req,env){
    if(!state.configured)await env.DB.prepare('INSERT INTO license_owners(user_id,created_at) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM license_owners)').bind(u.id,now()).run();
    const result=await ownerInfo(env,u);
    if(!result.isOwner)return fail('Otro propietario se vinculó primero.',409);
-   return json({...result,message:'Cuenta propietaria vinculada correctamente.'});
+   return json({...result,permanentAccess:true,message:'Cuenta propietaria vinculada correctamente. Acceso ilimitado habilitado.'});
  }
  if(path.startsWith('/api/license-admin/')){
    if(await limiter(env,req,'admin',90))return fail('Demasiadas solicitudes.',429);
@@ -153,7 +155,8 @@ async function handle(req,env){
    if(path==='/api/license-admin/users'&&req.method==='GET'){
      const users=(await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[];
      const codes=(await env.DB.prepare('SELECT id,suffix,days,created_at,redeemed_at FROM license_codes ORDER BY created_at DESC LIMIT 5000').all()).results||[];
-     return json({ok:true,users:users.map(publicUser),total:users.length,online:users.filter(u=>u.last_seen_at&&now()-u.last_seen_at<ONLINE).length,
+     const ownerRow=await env.DB.prepare('SELECT user_id FROM license_owners LIMIT 1').first();
+     return json({ok:true,users:users.map(u=>({...publicUser(u),isOwner:u.id===ownerRow?.user_id,permanentAccess:u.id===ownerRow?.user_id})),total:users.length,online:users.filter(u=>u.last_seen_at&&now()-u.last_seen_at<ONLINE).length,
        codes:codes.map(c=>({id:c.id,suffix:c.suffix,days:c.days,createdAt:c.created_at,redeemedAt:c.redeemed_at}))});
    }
    if(req.method!=='POST')return fail('Método no permitido.',405);
@@ -167,6 +170,7 @@ async function handle(req,env){
      const target=await env.DB.prepare('SELECT * FROM users WHERE username=?').bind(username).first();
      if(!target)return fail('Este GREÑA ID todavía no está en Cloudflare. El usuario debe iniciar sesión y sincronizar primero.',404);
      if(target.disabled)return fail('La cuenta está suspendida. Reactívala antes de asignar días.',409);
+     if((await ownerInfo(env,target)).isOwner)return fail('La cuenta propietaria ya tiene acceso permanente: no necesita días ni renovaciones.',409);
      const time=now(),continuing=target.license_expires_at>time&&!target.license_revoked_at;
      // An audit log is retained centrally. IF NOT EXISTS protects existing D1 data.
      await env.DB.prepare('CREATE TABLE IF NOT EXISTS license_grants (id TEXT PRIMARY KEY, target_user_id TEXT NOT NULL, admin_user_id TEXT NOT NULL, days INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)').run();
@@ -201,6 +205,7 @@ async function handle(req,env){
    if(path==='/api/license-admin/revoke'||path==='/api/license-admin/suspend'){
      const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(String(b.userId||'')).first();
      if(!u)return fail('Usuario no encontrado.',404);
+     if((await ownerInfo(env,u)).isOwner)return fail('No se puede revocar ni suspender la cuenta propietaria.',409);
      if(path.endsWith('/revoke'))await env.DB.prepare('UPDATE users SET license_revoked_at=? WHERE id=? AND license_expires_at IS NOT NULL').bind(now(),u.id).run();
      else await env.DB.prepare('UPDATE users SET disabled=? WHERE id=?').bind(b.disabled===true?1:0,u.id).run();
      const fresh=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first();
@@ -234,7 +239,8 @@ async function handle(req,env){
    if(u.disabled)return fail('Cuenta suspendida.',403);
    const fresh=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first();
    const ready=await bindPendingDevice(env,fresh,String(b.deviceId||''));
-   return json({...status(ready,String(b.deviceId||'')),token:await issueSession(env,u)});
+   const owner=await ownerInfo(env,ready);
+   return json({...status(ready,String(b.deviceId||''),owner.isOwner),token:await issueSession(env,u)});
  }
  const u=await sessionUser(env,req);
  if(!u)return fail('La sesión central venció o está suspendida.',401);
@@ -259,12 +265,14 @@ async function handle(req,env){
    if(!deviceValid(deviceId))return fail('Identificador de dispositivo inválido.');
    await env.DB.prepare('UPDATE users SET last_seen_at=? WHERE id=?').bind(now(),u.id).run();
    const ready=await bindPendingDevice(env,{...u,last_seen_at:now()},deviceId);
-   return json(status(ready,deviceId));
+   const owner=await ownerInfo(env,ready);
+   return json(status(ready,deviceId,owner.isOwner));
  }
  if(path==='/api/license/redeem'){
    if(await limiter(env,req,'redeem',12))return fail('Demasiados intentos de activación.',429);
    const b=await body(req),code=String(b.code||'').trim().toUpperCase(),deviceId=String(b.deviceId||'');
    if(!/^GRENA-[A-F0-9]{10}-[A-F0-9]{10}$/.test(code)||!deviceValid(deviceId))return fail('Código o dispositivo inválido.');
+   if((await ownerInfo(env,u)).isOwner)return fail('Tu cuenta es propietaria y tiene acceso permanente. No necesitas activar un código.',409);
    if(u.license_expires_at>now()&&!u.license_revoked_at&&u.license_device_id!==deviceId)
      return fail('Tu licencia está vinculada a otra computadora.',403);
    const codeHash=await sha(code);
