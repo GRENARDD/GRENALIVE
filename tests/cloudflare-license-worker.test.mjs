@@ -225,7 +225,7 @@ test('Actualizaciones: nadie recibe aviso hasta que el propietario publica ofici
    const missing=await request(env,'/api/license-admin/updates/publish',{}, {token:owner.token});
    assert.equal(missing.status,409);
    assert.equal((await request(env,'/api/updates/latest')).data.published,false);
-   const yaml='version: 5.1.0\\nfiles:\\n  - url: GRENA-LIVE-Setup-5.1.0.exe\\n    sha512: '+('A'.repeat(87)+'=')+'\\n    size: 10000002\\npath: GRENA-LIVE-Setup-5.1.0.exe\\nsha512: '+('A'.repeat(87)+'=')+'\\n';
+   const yaml='version: 5.1.0\nfiles:\n  - url: GRENA-LIVE-Setup-5.1.0.exe\n    sha512: '+('A'.repeat(87)+'=')+'\n    size: 10000002\npath: GRENA-LIVE-Setup-5.1.0.exe\nsha512: '+('A'.repeat(87)+'=')+'\n';
    globalThis.fetch=async (url)=>{
      if(String(url).startsWith('https://api.github.com'))return new Response(JSON.stringify({
        tag_name:'v5.1.0',draft:false,prerelease:false,assets:[
@@ -243,10 +243,10 @@ test('Actualizaciones: nadie recibe aviso hasta que el propietario publica ofici
    assert.equal(publicState.data.release.version,'5.1.0');
    const feed=await requestRaw('/api/updates/latest.yml');
    assert.equal(feed.status,200);
-   assert.match(await feed.text(),/download\\/GRENA-LIVE-Setup-5\\.1\\.0\\.exe/);
+   assert.match(await feed.text(),/download\/GRENA-LIVE-Setup-5\.1\.0\.exe/);
    const redirect=await requestRaw('/api/updates/download/GRENA-LIVE-Setup-5.1.0.exe');
    assert.equal(redirect.status,302);
-   assert.match(redirect.headers.get('location'),/releases\\/download\\/v5\\.1\\.0/);
+   assert.match(redirect.headers.get('location'),/releases\/download\/v5\.1\.0/);
    assert.equal((await request(env,'/api/license-admin/updates/stage',{version:'5.0.9',notes:'Antigua'},{token:owner.token})).status,409);
    assert.equal((await request(env,'/api/license-admin/updates/stage',{version:'5.2.0',notes:'Borrador siguiente'},{token:owner.token})).status,200);
    assert.equal((await request(env,'/api/updates/latest')).data.release.version,'5.1.0');
