@@ -17,7 +17,7 @@ test('Kick: parche Desktop preserva OAuth broker y admite credenciales propias l
   const content=fs.readFileSync(output,'utf8');
   assert.match(content,/localKickReady=platform==='kick'/);
   assert.match(content,/AUTH_SERVICE_URL&&!localKickReady/);
-  assert.match(content,/kick\.clientSecret\)oauthConfig\.kick/);
+  assert.match(content,/kick\?\.clientSecret\)oauthConfig\.kick/);
   assert.match(content,/s\.verifier\?\{code_verifier:s\.verifier\}/);
   assert.match(content,/Kick no entrego un codigo/);
   assert.match(content,/no significa que Kick este caido/);
