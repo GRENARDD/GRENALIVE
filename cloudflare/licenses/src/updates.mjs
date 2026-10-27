@@ -23,7 +23,7 @@ async function releaseFiles(version){
  const names=[...yaml.matchAll(/^\s*- url:\s*([^\r\n]+)\s*$/gm)];
  const name=names.length===1?names[0][1].trim().replace(/^["']|["']$/g,''):'';
  const checksum=/^\s*sha512:\s*[A-Za-z0-9+/=]{70,}\s*$/m.test(yaml);
- if(yaml.length>65536||value!==version||!checksum||!/^[-a-zA-Z0-9_(). +%]+\.exe$/i.test(name))
+ if(yaml.length>65536||value!==version||!checksum||!/^[\p{L}\p{N}_(). +%\-]+\.exe$/iu.test(name))
    return {error:'El manifiesto de actualización es inválido o no coincide con esta versión.',status:409};
  if(!release.assets.some(a=>a.name===name&&a.size>1000000))
    return {error:'El instalador indicado en latest.yml no existe en GitHub Releases.',status:409};
