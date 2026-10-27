@@ -52,7 +52,7 @@ const cleanUser=x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9_.-]/g,''
 const cleanEmail=x=>String(x||'').trim().toLowerCase().slice(0,254);
 const githubActionsTestUser=u=>{
  const id=[u?.username,u?.display_name,u?.email].map(x=>String(x||'')).join(' ').toLowerCase();
- return /github[ ._-]*actions?\b|prueba[ ._-]*github\b|github[ ._-]*test\b/.test(id);
+ return /github[ ._-]*(?:actions?|test)(?:$|[ ._-])|prueba[ ._-]*github(?:$|[ ._-])/.test(id);
 };
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','strict-transport-security':'max-age=31536000'}});
 const fail=(error,status=400)=>json({ok:false,error},status);
