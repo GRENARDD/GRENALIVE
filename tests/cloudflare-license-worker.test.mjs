@@ -171,3 +171,31 @@ test('Administrador GREÑA asigna 30 días por nombre sin código, vincula prime
    assert.equal(afterRevocation.data.expiresAt-afterRevocation.data.user.license.activatedAt,15*DAY);
  }finally{close()}
 });
+
+test('Propietario autenticado conserva privilegio sin vencimiento',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
+ try{
+   const owner=await request(env,'/api/license/identity/register',{username:'grena_rd',email:'owner@grena.test',password:'safe-owner-test-password'});
+   const token=owner.data.token;
+   assert.equal(owner.data.permanentAccess,false);
+   const claimed=await request(env,'/api/license/owner/claim',{}, {token,admin:ADMIN});
+   assert.equal(claimed.status,200);
+   assert.equal(claimed.data.permanentAccess,true);
+   const login=await request(env,'/api/license/identity/login',{username:'grena_rd',password:'safe-owner-test-password'});
+   assert.equal(login.status,200);
+   assert.equal(login.data.permanentAccess,true);
+   assert.equal(login.data.license,null);
+   const id='DEVICE123456789012345678901234567890';
+   const beat=await request(env,'/api/license/heartbeat',{deviceId:id},{token:login.data.token});
+   assert.equal(beat.data.permanentAccess,true);
+   const list=await request(env,'/api/license-admin/users',null,{token:login.data.token});
+   const record=list.data.users.find(u=>u.username==='grena_rd');
+   assert.equal(record.permanentAccess,true);
+   assert.equal(record.isOwner,true);
+   for(const [path,payload] of [
+      ['/api/license-admin/grant',{username:'grena_rd',days:30}],
+      ['/api/license-admin/revoke',{userId:record.id}],
+      ['/api/license-admin/suspend',{userId:record.id,disabled:true}]
+   ])assert.equal((await request(env,path,payload,{token:login.data.token})).status,409,path);
+ }finally{close()}
+});
