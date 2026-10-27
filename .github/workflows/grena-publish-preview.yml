@@ -1,0 +1,71 @@
+name: GREÑA · Publicar instalador de PRUEBA v5.1.1 (sin actualización automática)
+on:
+  push:
+    branches:
+      - preview/fish-license-v5.1.1-20261027
+    paths:
+      - .github/workflows/grena-publish-preview.yml
+permissions:
+  contents: write
+  actions: read
+jobs:
+  preview:
+    name: Publicar prerelease de prueba (instalador validado)
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TESTED_SHA: 1f3f86397caf44c90bde03bcb0c14628fb4d5771
+      TESTED_RUN: "40576646451"
+      PREVIEW_TAG: preview-v5.1.1-20261027
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirmar que la compilación fue aprobada
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq '.conclusion')"
+          tested="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq '.head_sha')"
+          test "$state" = success || { echo 'El instalador no ha superado las pruebas.'; exit 1; }
+          test "$tested" = "$TESTED_SHA" || { echo 'El artefacto no corresponde al código verificado.'; exit 1; }
+      - name: Obtener exclusivamente el instalador verificado
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p preview-dist
+          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v5.1.1 --dir preview-dist
+          find preview-dist -maxdepth 2 -type f -print
+          installer="$(find preview-dist -type f -iname '*.exe' -size +60000k | head -n 1)"
+          test -n "$installer" || { echo 'No aparece el instalador EXE en el artefacto aprobado.'; exit 1; }
+          sha256sum "$installer" | tee preview-dist/SHA256SUMS.txt
+          printf '%s\n' "$installer" > preview-installer-path.txt
+      - name: Publicar prerelease para descargar y probar, sin activación automática
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$PREVIEW_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'La versión preliminar ya existe; no se duplica ni se reemplaza.'
+            exit 0
+          fi
+          installer="$(cat preview-installer-path.txt)"
+          cat > preview-notes.md <<'EOF'
+          # GREÑA Live Desktop v5.1.1 — VERSIÓN DE PRUEBA
+
+          Este instalador proviene de la compilación Windows comprobada del PR #55.
+          Se publica como **prerelease manual**, sin activar ninguna actualización automática
+          en Cloudflare D1 ni distribuirla a los usuarios actuales.
+
+          **IMPORTANTE:** no la instales encima de la aplicación con la que transmites
+          hasta respaldar `%APPDATA%\GREÑA LIVE PRO` y verificar que tus dos API Fish
+          Audio están protegidas. La API de `yaqui_gr` todavía requiere configuración
+          privada en Cloudflare; este instalador no contiene sus credenciales.
+          En nuevas instalaciones, cada usuario FREE/PRO debe introducir su propia API.
+
+          Esta compilación de prueba NO confirma que la migración haya ocurrido
+          en el Windows del propietario ni que Fish Audio funcione con todas las
+          cuentas reales. El instalador puede no estar firmado y Windows puede
+          mostrar una advertencia de reputación. No desactives la protección del sistema.
+
+          Código probado: 1f3f86397caf44c90bde03bcb0c14628fb4d5771
+          Ejecución de GitHub Actions: 40576646451 (aprobada).
+          EOF
+          gh release create "$PREVIEW_TAG" "$installer" preview-dist/SHA256SUMS.txt             --repo "$GITHUB_REPOSITORY"             --target "$TESTED_SHA"             --title "GREÑA Live Desktop v5.1.1 — Prueba manual"             --notes-file preview-notes.md             --prerelease
