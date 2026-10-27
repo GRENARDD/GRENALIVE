@@ -2,6 +2,7 @@ import {publicUpdates,adminUpdates} from './updates.mjs';
 // GREÑA Live PRO — Cloudflare Worker + D1.
 // Only account identity, status and licensing metadata are stored here.
 const DAY=86400000, ONLINE=135000, SESSION_AGE=90*DAY, MAX_DAYS=3650;
+const TRIAL_DAYS=3, TRIAL_TAG='TRIAL'; // Non-destructive marker stored in the existing license_code_id column.
 // Cloudflare production Workerd rejects PBKDF2 iterations >100,000.
 // Stronger passwords and migration to a dedicated identity service remain advisable.
 export const PBKDF2_ITERATIONS=100000;
@@ -24,7 +25,7 @@ const cleanLicense=(u,deviceId)=>{
  if(!u?.license_expires_at)return null;
  if(deviceId&&u.license_device_id!==deviceId)return null;
  const revokedAt=u.license_revoked_at||null,expiresAt=u.license_expires_at;
- return {activatedAt:u.license_activated_at,expiresAt,revokedAt,active:!revokedAt&&expiresAt>now(),expired:expiresAt<=now()};
+ return {activatedAt:u.license_activated_at,expiresAt,revokedAt,active:!revokedAt&&expiresAt>now(),expired:expiresAt<=now(),kind:u.license_code_id===TRIAL_TAG?'trial':'license'};
 };
 const publicUser=u=>({
  id:u.id,username:u.username,displayName:u.display_name,email:u.email,
@@ -33,7 +34,7 @@ const publicUser=u=>({
  deviceBound:!!u.license_device_id,license:cleanLicense(u)
 });
 // Owner access comes from the authenticated, one-time D1 ownership claim.
-const status=(u,deviceId,permanentAccess=false)=>({ok:true,registered:!!u,user:publicUser(u),license:cleanLicense(u,deviceId),permanentAccess:permanentAccess===true});
+const status=(u,deviceId,permanentAccess=false)=>({ok:true,registered:!!u,user:publicUser(u),license:permanentAccess?null:cleanLicense(u,deviceId),permanentAccess:permanentAccess===true});
 const deviceValid=d=>/^[A-Za-z0-9_-]{25,80}$/.test(String(d||''));
 async function body(req){
  if(req.headers.get('content-type')?.split(';')[0].trim().toLowerCase()!=='application/json')throw {status:415,message:'Content-Type debe ser application/json'};
@@ -174,13 +175,13 @@ async function handle(req,env){
      if(!target)return fail('Este GREÑA ID todavía no está en Cloudflare. El usuario debe iniciar sesión y sincronizar primero.',404);
      if(target.disabled)return fail('La cuenta está suspendida. Reactívala antes de asignar días.',409);
      if((await ownerInfo(env,target)).isOwner)return fail('La cuenta propietaria ya tiene acceso permanente: no necesita días ni renovaciones.',409);
-     const time=now(),continuing=target.license_expires_at>time&&!target.license_revoked_at;
+     const time=now(),continuing=target.license_expires_at>time&&!target.license_revoked_at&&target.license_code_id!==TRIAL_TAG;
      // An audit log is retained centrally. IF NOT EXISTS protects existing D1 data.
      await env.DB.prepare('CREATE TABLE IF NOT EXISTS license_grants (id TEXT PRIMARY KEY, target_user_id TEXT NOT NULL, admin_user_id TEXT NOT NULL, days INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)').run();
      const owner=await sessionUser(env,req);
      const update=env.DB.prepare(`UPDATE users SET
-       license_expires_at=MAX(CASE WHEN license_revoked_at IS NULL THEN COALESCE(license_expires_at,0) ELSE 0 END, ?) + ?,
-       license_activated_at=CASE WHEN license_revoked_at IS NULL AND license_expires_at>? THEN COALESCE(license_activated_at,?) ELSE ? END,
+       license_expires_at=MAX(CASE WHEN license_revoked_at IS NULL AND COALESCE(license_code_id,'') != 'TRIAL' THEN COALESCE(license_expires_at,0) ELSE 0 END, ?) + ?,
+       license_activated_at=CASE WHEN license_revoked_at IS NULL AND COALESCE(license_code_id,'') != 'TRIAL' AND license_expires_at>? THEN COALESCE(license_activated_at,?) ELSE ? END,
        license_device_id=CASE WHEN license_revoked_at IS NULL AND license_expires_at>? THEN license_device_id ELSE NULL END,
        license_revoked_at=NULL, license_code_id=NULL
        WHERE id=? AND disabled=0`).bind(time,days*DAY,time,time,time,time,target.id);
@@ -225,8 +226,11 @@ async function handle(req,env){
    if((await env.DB.prepare('SELECT id FROM users WHERE username=? OR email=?').bind(username,email).first()))
      return fail('Usuario o correo ya registrado en GREÑA central.',409);
    const salt=random(16),hash=await passHash(password,salt),id=crypto.randomUUID(),time=now();
-   try{await env.DB.prepare('INSERT INTO users(id,username,display_name,email,salt,password_hash,registered_at,last_seen_at) VALUES(?,?,?,?,?,?,?,?)')
-     .bind(id,username,display||username,email,salt,hash,time,time).run()}
+   // Only newly created accounts receive a trial; existing rows are never changed.
+   // Accept an empty device during initial sync; the first valid heartbeat binds it once.
+   const initialDevice=deviceValid(b.deviceId)?String(b.deviceId):null;
+   try{await env.DB.prepare('INSERT INTO users(id,username,display_name,email,salt,password_hash,registered_at,last_seen_at,license_activated_at,license_expires_at,license_device_id,license_code_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
+     .bind(id,username,display||username,email,salt,hash,time,time,time,time+TRIAL_DAYS*DAY,initialDevice,TRIAL_TAG).run()}
    catch{return fail('Usuario o correo ya registrado.',409)}
    const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
    return json({...status(u,String(b.deviceId||'')),token:await issueSession(env,u)},201);
@@ -281,7 +285,7 @@ async function handle(req,env){
    const codeHash=await sha(code);
    const item=await env.DB.prepare('SELECT * FROM license_codes WHERE code_hash=?').bind(codeHash).first();
    if(!item||item.redeemed_at)return fail('Código inválido o utilizado.',409);
-   const time=now(),expiresAt=Math.max(time,(!u.license_revoked_at&&u.license_expires_at)||0)+item.days*DAY;
+   const time=now(),expiresAt=Math.max(time,(!u.license_revoked_at&&u.license_code_id!==TRIAL_TAG&&u.license_expires_at)||0)+item.days*DAY;
    // Conditional update ensures that even concurrent requests cannot reuse a code.
    const claimed=await env.DB.prepare('UPDATE license_codes SET redeemed_at=?, used_by=? WHERE id=? AND redeemed_at IS NULL')
      .bind(time,u.id,item.id).run();
