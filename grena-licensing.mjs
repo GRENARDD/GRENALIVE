@@ -238,11 +238,11 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      }
      if(pathname==='/api/license/status'&&req.method==='GET'){
        const c=await getCached(u.id);
-       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),syncError:c?.syncError||'',lastValidatedAt:c?.lastValidatedAt||null}),true;
+       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.',lastValidatedAt:c?.lastValidatedAt||null}),true;
      }
      if(pathname==='/api/license/refresh'&&req.method==='POST'){
        await heartbeat(u.id);const c=await getCached(u.id);
-       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),syncError:c?.syncError||''}),true;
+       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.'}),true;
      }
      if(pathname==='/api/license/redeem'&&req.method==='POST'){
        const c=await getCached(u.id);
