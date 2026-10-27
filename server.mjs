@@ -2023,7 +2023,7 @@ function bridgeMessageDuplicate(id){id=String(id||'').trim();if(!id)return false
 // Check the active profile even for OBS sources (they use tokens, not account cookies).
 async function licenseGate(req,res,pathname){
  if(CLOUD_MODE||process.env.GRENA_LICENSE_REQUIRE!=='1'||!activeUserId)return false;
- if(pathname==='/health'||pathname==='/favicon.ico'||pathname==='/license.html'||pathname==='/login.html'||pathname==='/api/overlay-version'||pathname.startsWith('/api/account/')||pathname.startsWith('/api/app/')||pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/'))return false;
+ if(pathname==='/health'||pathname==='/favicon.ico'||pathname==='/license.html'||pathname==='/login.html'||pathname==='/api/overlay-version'||pathname==='/api/internal/chat-license-status'||pathname.startsWith('/api/account/')||pathname.startsWith('/api/app/')||pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/'))return false;
  if(await licensing.canUse(activeUserId))return false;
  if(req.method==='GET'||req.method==='HEAD'){
    if(pathname==='/'||pathname.endsWith('.html')||pathname==='/chat'){res.writeHead(302,{location:'/license.html','cache-control':'no-store'});res.end();return true}
@@ -2063,6 +2063,13 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    return json(res,200,{ok:true,registered:true,connected:true});
  }
  if(await licensing.handle(req,res,pathname))return;
+ if(pathname==='/api/internal/chat-license-status'&&req.method==='GET'){
+   if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Forbidden'});
+   const profile=String(url.searchParams.get('profileId')||'');
+   if(!profile||!activeUserId||profile!==activeUserId)return json(res,200,{ok:true,allowed:false});
+   const allowed=CLOUD_MODE||process.env.GRENA_LICENSE_REQUIRE!=='1'||await licensing.canUse(profile);
+   return json(res,200,{ok:true,allowed});
+ }
  if(pathname==='/api/internal/chat-ws-authorize'&&req.method==='POST'){
    if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Forbidden'});
    let body;try{body=JSON.parse(await readBody(req,4096))}catch{return json(res,400,{ok:false,error:'Invalid access request'})}
@@ -2692,7 +2699,9 @@ chatProxyWss.on('connection',(client)=>{
 server.on('upgrade',async(req,socket,head)=>{
   let pathname='/';try{pathname=new URL(req.url||'/','http://127.0.0.1').pathname}catch{return socket.destroy()}
   if(!panelHostOk(req)||!localOriginOk(req.headers.origin,req))return socket.destroy();
-  if(!CLOUD_MODE&&process.env.GRENA_LICENSE_REQUIRE==='1'&&activeUserId&&!await licensing.canUse(activeUserId))return socket.destroy();
+  if(!CLOUD_MODE&&process.env.GRENA_LICENSE_REQUIRE==='1'&&activeUserId){
+    try{if(!await licensing.canUse(activeUserId))return socket.destroy()}catch{return socket.destroy()}
+  }
    if(CLOUD_MODE&&!sessionUser(req)&&!obsAuthorized(req))return socket.destroy();
   if(pathname==='/chat-ws')return chatProxyWss.handleUpgrade(req,socket,head,ws=>chatProxyWss.emit('connection',ws,req));
   if(pathname!=='/')return socket.destroy();
