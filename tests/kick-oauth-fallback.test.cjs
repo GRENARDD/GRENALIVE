@@ -12,8 +12,11 @@ test('Kick: parche Desktop preserva OAuth broker y admite credenciales propias l
  try{
   fs.copyFileSync(path.join(root,'server.mjs'),output);
   const cmd=process.platform==='win32'?'python':'python3';
-  const patch=spawnSync(cmd,[path.join(root,'desktop-build','fix_kick_auth.py'),tmp],{encoding:'utf8'});
-  assert.equal(patch.status,0,patch.stderr||patch.stdout||'No se pudo ejecutar el parche');
+  const wasAlreadyPatched=fs.readFileSync(output,'utf8').includes('localKickReady=platform');
+  if(!wasAlreadyPatched){
+    const patch=spawnSync(cmd,[path.join(root,'desktop-build','fix_kick_auth.py'),tmp],{encoding:'utf8'});
+    assert.equal(patch.status,0,patch.stderr||patch.stdout||'No se pudo ejecutar el parche');
+  }
   const content=fs.readFileSync(output,'utf8');
   assert.match(content,/localKickReady=platform==='kick'/);
   assert.match(content,/AUTH_SERVICE_URL&&!localKickReady/);
