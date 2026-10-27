@@ -43,7 +43,10 @@ async function limiter(env,req,kind,max){
  // D1-backed fixed-minute limit also works across all Worker instances.
  const ip=req.headers.get('CF-Connecting-IP')||'unknown';
  const key=await sha(kind+':'+ip),window=Math.floor(now()/60000);
- const q=await env.DB.prepare('INSERT INTO rate_limits(key, minute, hits) VALUES (?, ?, 1) ON CONFLICT(key) DO UPDATE SET hits = CASE WHEN minute = excluded.minute THEN hits + 1 ELSE 1 END, minute = excluded.minute RETURNING hits').bind(key,window).first();
+ // Use run() for the mutation: D1's first() is intended for a SELECT.
+ // A separate SELECT also makes SQLite/D1 implementations behave identically.
+ await env.DB.prepare('INSERT INTO rate_limits(key, minute, hits) VALUES (?, ?, 1) ON CONFLICT(key) DO UPDATE SET hits = CASE WHEN minute = excluded.minute THEN hits + 1 ELSE 1 END, minute = excluded.minute').bind(key,window).run();
+ const q=await env.DB.prepare('SELECT hits FROM rate_limits WHERE key=? AND minute=?').bind(key,window).first();
  return Number(q?.hits||0)>max;
 }
 async function sessionUser(env,req){
@@ -91,6 +94,21 @@ async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
  if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1'});
+ // Check the actual database and required columns, not just whether the Worker boots.
+ // No private data or SQL errors are exposed through this unauthenticated endpoint.
+ if(path==='/ready'&&req.method==='GET'){
+   const checks=[
+     ['users','SELECT id,username,display_name,email,salt,password_hash,registered_at,last_seen_at,disabled,license_expires_at FROM users LIMIT 1'],
+     ['sessions','SELECT token_hash,user_id,expires_at FROM user_sessions LIMIT 1'],
+     ['codes','SELECT id,code_hash,suffix,days,created_at,redeemed_at,used_by FROM license_codes LIMIT 1'],
+     ['limits','SELECT key,minute,hits FROM rate_limits LIMIT 1']
+   ];
+   const failed=[];
+   for(const [name,sql] of checks){
+     try{await env.DB.prepare(sql).first()}catch(error){console.error('Licenses readiness D1:',name,error?.message||error);failed.push(name)}
+   }
+   return json({ok:failed.length===0,service:'GREÑA Licencias Cloudflare D1',databaseReady:failed.length===0,failedChecks:failed},failed.length?503:200);
+ }
  if(path==='/api/license/community'&&req.method==='GET'){
    const u=await sessionUser(env,req);
    if(!u)return fail('Cuenta GREÑA ID requerida.',401);
@@ -225,8 +243,13 @@ async function handle(req,env){
 export default {
  async fetch(req,env){
    try{return await handle(req,env)}catch(e){
-     console.error('GREÑA license worker request failed',e?.name||'error');
-     return fail((e&&typeof e.status==='number')?e.message:'Error del servicio central de licencias.',
+     // Private Cloudflare logs preserve the internal database error for diagnosis.
+     // Never log request bodies, passwords, API keys or session tokens.
+     console.error('GREÑA license worker request failed',e?.name||'error',String(e?.message||'unexpected error').slice(0,500));
+     const dbError=/D1_ERROR|no such table|no such column|SQLITE_ERROR/i.test(String(e?.message||''));
+     return fail((e&&typeof e.status==='number')?e.message:
+       dbError?'La base de datos de licencias necesita revisar sus tablas en Cloudflare D1. Abre /ready para ver cuál falta.':
+       'Error del servicio central de licencias. Revisa los registros del Worker en Cloudflare.',
        (e&&e.status>=400&&e.status<600)?e.status:503);
    }
  }

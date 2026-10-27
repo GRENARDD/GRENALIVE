@@ -2029,6 +2029,21 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     return proxyChatHttp(req,res,url);
   }
  if(!panelGuard(req,res,pathname))return;
+ // Re-sync an existing GREÑA ID without destroying the desktop session. Verify
+ // the account password locally before sending it to the central identity service.
+ if(pathname==='/api/license/identity/sync'&&req.method==='POST'&&!CLOUD_MODE){
+   const u=sessionUser(req);
+   if(!u)return json(res,401,{ok:false,error:'Debes iniciar sesión en tu GREÑA ID.'});
+   const rate=authThrottle();if(rate)return tooMany(res,rate);
+   let input;try{input=JSON.parse(await readBody(req,4096))}catch{return json(res,400,{ok:false,error:'Solicitud no válida.'})}
+   const password=String(input?.password||'');
+   if(!password||password.length>256)return json(res,400,{ok:false,error:'Introduce tu contraseña GREÑA ID.'});
+   if(!await verifyPasswordAsync(password,u))return json(res,401,{ok:false,error:'Contraseña GREÑA ID incorrecta.'});
+   await licensing.onLocalAuth(u,password);
+   const c=await licensing.getCached(u.id);
+   if(!c?.token||!c.connected)return json(res,503,{ok:false,registered:!!c?.token,error:c?.syncError||'No se pudo sincronizar Cloudflare.'});
+   return json(res,200,{ok:true,registered:true,connected:true});
+ }
  if(await licensing.handle(req,res,pathname))return;
  if(!CLOUD_MODE&&process.env.GRENA_LICENSE_REQUIRE==='1'&&sessionUser(req)){
    const u=sessionUser(req),allowed=await licensing.canUse(u.id);

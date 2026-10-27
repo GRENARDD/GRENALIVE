@@ -3,7 +3,18 @@
 <div class="eyebrow">GREÑA LIVE PRO</div><h1>Tu licencia GREÑA PRO</h1><p>Cada licencia se activa una sola vez y queda vinculada a tu cuenta GREÑA ID y a esta computadora. La duración que eligió el administrador comienza al activar el código por primera vez.</p>
 <div class="status"><strong id="state">Consultando tu licencia…</strong><small id="detail">Verificando el registro central.</small></div>
 <form id="redeem"><label for="code">Código de activación</label><input id="code" name="code" autocomplete="off" placeholder="GRENA-XXXXXXXXXX-XXXXXXXXXX" maxlength="32" required><div class="actions"><button id="activate" type="submit">Activar licencia</button><button id="refresh" class="secondary" type="button">Actualizar estado</button></div></form>
-<div class="msg" id="message" role="status"></div><div class="actions"><a href="/mode.html" class="btn secondary">Volver a GREÑA</a><button id="logout" class="secondary" type="button">Cerrar sesión</button></div>
+<div class="msg" id="message" role="status"></div>
+<section id="sync-box" hidden style="margin-top:16px;border:1px solid #495475;border-radius:14px;padding:17px">
+  <h2 style="font-size:18px;margin:0 0 7px">Reconectar mi GREÑA ID</h2>
+  <p style="margin:5px 0">Si Cloudflare no reconoce tu cuenta, puedes volver a sincronizarla sin cerrar sesión. Usa tu contraseña habitual de GREÑA ID, no la clave ADMIN_KEY.</p>
+  <form id="sync-form">
+    <label for="syncPass">Tu contraseña GREÑA ID</label>
+    <input id="syncPass" type="password" autocomplete="current-password" required placeholder="Contraseña de GREÑA ID">
+    <div class="actions"><button id="syncBtn" type="submit">Sincronizar con Cloudflare</button></div>
+  </form>
+  <div class="msg" id="sync-msg" role="status"></div>
+</section>
+<div class="actions"><a href="/mode.html" class="btn secondary">Volver a GREÑA</a><button id="logout" class="secondary" type="button">Cerrar sesión</button></div>
 <section id="owner-setup" hidden style="margin-top:25px;padding:18px;border:1px solid #514086;border-radius:14px">
   <div class="eyebrow">Vinculación privada · una sola vez</div>
   <h2 style="margin:10px 0">Activar tu cuenta propietaria</h2>
@@ -24,10 +35,23 @@ function paint(d){
  el('state').textContent=!registered?'GREÑA ID aún no sincronizado':valid?'Licencia PRO activa':l?.revokedAt?'Licencia revocada':l?'Licencia vencida':'Esperando activación';
  el('detail').textContent=valid?'Válida hasta el '+date(l.expiresAt)+(d.connected?' · Conectado':' · Sin conexión'):registered?'Introduce un código nuevo de 30 días.':'Inicia sesión de nuevo para vincular esta cuenta al registro central.';
  if(d.syncError&&!d.connected)message('Servidor central: '+d.syncError);
+ el('sync-box').hidden=registered&&d.connected!==false;
+ if(el('owner-claim'))el('owner-claim').disabled=!registered;
  if(!valid&&!registered)el('activate').disabled=true;else el('activate').disabled=false;
 }
 async function refresh(){try{const d=await api('/api/license/refresh',{});paint(d);return d}catch(e){message(e.message)}}
 el('redeem').onsubmit=async e=>{e.preventDefault();el('activate').disabled=true;try{const d=await api('/api/license/redeem',{code:el('code').value.trim().toUpperCase()});message('¡Activación completada! Tu licencia vence el '+date(d.license.expiresAt),true);el('code').value='';paint({registered:true,connected:true,license:d.license})}catch(e){message(e.message)}finally{el('activate').disabled=false}};
+el('sync-form').onsubmit=async e=>{
+ e.preventDefault();
+ const pass=el('syncPass').value;
+ el('syncBtn').disabled=true;el('sync-msg').textContent='Sincronizando con Cloudflare…';
+ try{
+   await api('/api/license/identity/sync',{password:pass});
+   el('syncPass').value='';el('sync-msg').textContent='Cuenta GREÑA ID sincronizada.';
+   await refresh();
+ }catch(err){el('sync-msg').textContent=err.message||'No se pudo sincronizar la cuenta.'}
+ finally{el('syncBtn').disabled=false}
+};
 el('refresh').onclick=refresh;
 el('logout').onclick=async()=>{await fetch('/api/account/logout',{method:'POST'}).catch(()=>{});location.replace('/login.html')};
 api('/api/license/status').then(paint).catch(e=>message(e.message));
