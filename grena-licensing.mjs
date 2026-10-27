@@ -150,6 +150,19 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    if(cloud)return true;
    return localAllowed(await getCached(userId));
  }
+ async function getFishCredential(userId){
+   if(cloud||!remoteUrl||!userId)return {configured:false,apiKey:null,permanentAccess:false};
+   const local=await getCached(userId);
+   const owner=local?.permanentAccess===true&&!!local?.token;
+   if(!local?.token)return {configured:false,apiKey:null,permanentAccess:owner};
+   try{
+     const result=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,local.token);
+     return {configured:result.configured===true,apiKey:typeof result.apiKey==='string'?result.apiKey:null,permanentAccess:owner};
+   }catch(error){
+     // The owner's existing Fish setup keeps working offline; no user key leaks into disk or logs.
+     return {configured:false,apiKey:null,permanentAccess:owner,unavailable:true};
+   }
+ }
  async function handle(req,res,pathname){
    const remote=pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/');
    if(!remote)return false;
@@ -286,6 +299,14 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
        const result=await fetchCentral(pathname,req.method,payload,c.token);
        return reply(res,200,result),true;
      }
+     if(pathname==='/api/license/fish-credentials'&&['GET','POST','DELETE'].includes(req.method)){
+       const c=await getCached(u.id);
+       if(!c?.token)return reply(res,401,{ok:false,error:'Sincroniza tu GREÑA ID antes de configurar Fish Audio.'}),true;
+       const payload=req.method==='POST'?await parseBody(req,readBody):undefined;
+       const result=await fetchCentral(pathname,req.method,payload,c.token);
+       // Never include an API key in a status response.
+       return reply(res,200,{ok:true,configured:result.configured===true,updatedAt:result.updatedAt||null}),true;
+     }
      if(pathname==='/api/license/status'&&req.method==='GET'){
        const c=await getCached(u.id);
        return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),permanentAccess:c?.permanentAccess===true,syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.',lastValidatedAt:c?.lastValidatedAt||null}),true;
@@ -309,5 +330,5 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      return true;
    }
  }
- return {handle,onLocalAuth,heartbeat,canUse,getCached,ownerStatus,isOwner};
+ return {handle,onLocalAuth,heartbeat,canUse,getCached,getFishCredential,ownerStatus,isOwner};
 }
