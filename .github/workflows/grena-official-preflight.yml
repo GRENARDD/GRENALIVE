@@ -1,0 +1,36 @@
+name: GREÑA · Validación previa del canal oficial
+on:
+  push:
+    branches:
+      - preview/fish-license-v5.1.1-20261027
+    paths:
+      - .github/workflows/grena-official-preflight.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Comprobar secretos de Cloudflare sin mostrarlos
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "FALTA: CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "FALTA: CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+          echo "OK: credenciales de despliegue disponibles"
+      - name: Comprobar base D1 y secreto de Fish Audio (solo nombres)
+        working-directory: cloudflare/licenses
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 d1 execute DB --remote --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('update_publications','fish_credentials');"
+          list="$(npx --yes wrangler@4 secret list)"
+          if echo "$list" | grep -q 'FISH_CREDENTIALS_KEY'; then
+            echo "OK: FISH_CREDENTIALS_KEY está definido"
+          else
+            echo "AVISO: todavía falta el secreto FISH_CREDENTIALS_KEY; usuarios FREE/PRO no podrán registrar sus APIs"
+          fi
