@@ -68,7 +68,7 @@ test('Nuevas cuentas: prueba única de 3 días en D1, vinculada al dispositivo y
    const grant=await request(env,'/api/license-admin/grant',{username:'trial_client',days:30},{token:owner.data.token});
    assert.equal(grant.status,200);
    assert.equal(grant.data.renewed,false,'Los 30 días comprados reemplazan y no extienden la prueba');
-   const paid=await request(env,'/api/license/heartbeat',{deviceId},{token:reg.data.token});
+   const paid=await request(env,'/api/license/heartbeat',{deviceId:device},{token:reg.data.token});
    assert.equal(paid.data.license.kind,'license');
    assert.equal(paid.data.license.expiresAt-paid.data.license.activatedAt,30*DAY);
    assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:reg.data.token})).data.license,null);
