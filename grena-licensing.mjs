@@ -110,6 +110,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    const c=await getCached(userId);if(!c?.token)return {isOwner:false,configured:false,registered:false};
    try{
      const result=await fetchCentral('/api/license/owner/status','GET',undefined,c.token);
+     await updateCached(userId,{permanentAccess:result.isOwner===true});
      return {...result,registered:true};
    }catch{return {isOwner:false,configured:false,registered:!!c.token}}
  }
@@ -123,7 +124,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
        if(e.status!==404)throw e;
        result=await callCloud('/api/license/identity/register',{username:user.username,email:user.email,displayName:user.displayName,password,deviceId:installId});
      }
-     await updateCached(user.id,{connected:true,token:result.token,license:result.license||null,lastValidatedAt:Date.now(),syncError:''});
+     await updateCached(user.id,{connected:true,token:result.token,license:result.license||null,permanentAccess:result.permanentAccess===true,lastValidatedAt:Date.now(),syncError:''});
    }catch(e){
      await updateCached(user.id,{connected:false,syncError:String(e.message||e).slice(0,180)}).catch(()=>{});
      console.warn('[GREÑA licencias] Identidad pendiente de sincronizar:',e?.message||e);
@@ -134,10 +135,13 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    const local=await getCached(userId);if(!local?.token)return;
    try{
      const r=await callCloud('/api/license/heartbeat',{deviceId:installId},local.token);
-     await updateCached(userId,{connected:true,license:r.license,lastValidatedAt:Date.now(),syncError:''});
+     await updateCached(userId,{connected:true,license:r.license,permanentAccess:r.permanentAccess===true,lastValidatedAt:Date.now(),syncError:''});
    }catch(e){await updateCached(userId,{connected:false,syncError:String(e.message||e).slice(0,180)}).catch(()=>{})}
  }
  function localAllowed(local){
+   // Verified D1 ownership has no expiry and requires no timed license or code.
+   // After successful validation, the owner keeps access if Cloudflare is offline.
+   if(local?.permanentAccess===true&&local?.token)return true;
    // Hasta 24 horas sin conexión para una licencia YA VALIDADA y aún vigente.
    if(!local?.license||local.license.revokedAt||Date.now()>=Number(local.license.expiresAt||0))return false;
    return Date.now()-Number(local.lastValidatedAt||0)<24*60*60*1000;
@@ -270,6 +274,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
        const body=await parseBody(req,readBody),key=String(body.adminKey||'');
        if(key.length<32||key.length>512)return reply(res,400,{ok:false,error:'Introduce la clave ADMIN_KEY de Cloudflare.'}),true;
        const result=await fetchCentral('/api/license/owner/claim','POST',{},c.token,key);
+       if(result.isOwner===true)await updateCached(u.id,{permanentAccess:true});
        return reply(res,200,result),true;
      }
      if(pathname.startsWith('/api/license-admin/')){
@@ -282,11 +287,11 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      }
      if(pathname==='/api/license/status'&&req.method==='GET'){
        const c=await getCached(u.id);
-       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.',lastValidatedAt:c?.lastValidatedAt||null}),true;
+       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),permanentAccess:c?.permanentAccess===true,syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.',lastValidatedAt:c?.lastValidatedAt||null}),true;
      }
      if(pathname==='/api/license/refresh'&&req.method==='POST'){
        await heartbeat(u.id);const c=await getCached(u.id);
-       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.'}),true;
+       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),permanentAccess:c?.permanentAccess===true,syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.'}),true;
      }
      if(pathname==='/api/license/redeem'&&req.method==='POST'){
        const c=await getCached(u.id);
