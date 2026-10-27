@@ -147,7 +147,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    return Date.now()-Number(local.lastValidatedAt||0)<24*60*60*1000;
  }
  async function canUse(userId){
-   if(cloud||process.env.GRENA_LICENSE_REQUIRE!=='1')return true;
+   if(cloud)return true;
    return localAllowed(await getCached(userId));
  }
  async function handle(req,res,pathname){
@@ -207,7 +207,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
          const salt=randomBytes(16).toString('hex'),hash=await pwHash(password,salt),t=token();
          return await locked(async()=>{
            if(registry.users.some(u=>u.username===username||u.email===email))return reply(res,409,{ok:false,error:'Usuario o correo duplicado.'}),true;
-           const u={id:token(),username,email,displayName,salt,passwordHash:hash,registeredAt:Date.now(),lastSeenAt:Date.now(),sessions:[{hash:sha(t),expiresAt:Date.now()+90*24*60*60*1000}],license:null,disabled:false};
+           const u={id:token(),username,email,displayName,salt,passwordHash:hash,registeredAt:Date.now(),lastSeenAt:Date.now(),sessions:[{hash:sha(t),expiresAt:Date.now()+90*24*60*60*1000}],license:{activatedAt:Date.now(),expiresAt:Date.now()+3*DAY,deviceId:String(b.deviceId||'').slice(0,80),revokedAt:null,codeId:null,kind:'trial'},disabled:false};
            registry.users.push(u);await save();reply(res,201,{...status(u),token:t});return true;
          });
        }
