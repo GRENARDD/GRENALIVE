@@ -37,7 +37,7 @@ async function request(path,body){
 function td(row,value){const cell=document.createElement('td');cell.textContent=String(value);row.appendChild(cell);return cell}
 function isGithubActionsTestUser(u){
  const label=[u.username,u.displayName,u.email].map(v=>String(v||'')).join(' ').toLowerCase();
- return /github[ ._-]*actions?\b|prueba[ ._-]*github\b|github[ ._-]*test\b/.test(label);
+ return /github[ ._-]*(?:actions?|test)(?:$|[ ._-])|prueba[ ._-]*github(?:$|[ ._-])/.test(label);
 }
 function draw(){
  const f=$('filter').value.toLowerCase(),tbody=$('users');tbody.replaceChildren();
