@@ -15,7 +15,7 @@ function mockD1(){
      let values=[];
      const bound={
        bind(...args){values=args;return this},
-       async first(){return sqlite.prepare(sql).get(...values)||null},
+       async first(){if(!/^\s*(SELECT|PRAGMA)/i.test(sql))throw Error('D1: first() requires a read query');return sqlite.prepare(sql).get(...values)||null},
        async all(){return {results:sqlite.prepare(sql).all(...values)}},
        async run(){return {meta:{changes:sqlite.prepare(sql).run(...values).changes}}}
      };
@@ -107,5 +107,21 @@ test('Cloudflare D1: propietario es único y comunidad opt-in privada',async()=>
    assert.equal(after.data.users[0].name,'admin');
    assert.equal((await request(env,'/api/license/presence',{share:false},{token:first.token})).status,200);
    assert.equal((await request(env,'/api/license/community',null,{token:second.token})).data.liveCount,0);
+ }finally{close()}
+});
+
+test('Cloudflare health and D1 readiness report actual table connectivity',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
+ try{
+   const online=await request(env,'/ready',null,{method:'GET'});
+   assert.equal(online.status,200);
+   assert.equal(online.data.databaseReady,true);
+   assert.deepEqual(online.data.failedChecks,[]);
+   const noSchema={DB:{prepare(sql){if(sql.includes('rate_limits'))throw Error('no such table: rate_limits');return DB.prepare(sql)}},ADMIN_KEY:ADMIN};
+   const failed=await request(noSchema,'/ready',null,{method:'GET'});
+   assert.equal(failed.status,503);
+   assert.deepEqual(failed.data.failedChecks,['limits']);
+   const health=await request(noSchema,'/health',null,{method:'GET'});
+   assert.equal(health.status,200);
  }finally{close()}
 });
