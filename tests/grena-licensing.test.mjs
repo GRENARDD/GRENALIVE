@@ -24,7 +24,8 @@ test('código único, 30 días desde activación, registro y un solo uso',async(
    let reg=await call('/api/license/identity/register',{username:'sofia',displayName:'Sofia Live',email:'sofia@example.net',password:'una-clave-segura',deviceId:'DEVICE123456789012345678901234567890'});
    assert.equal(reg.status,201);
    assert.equal(reg.body.user.username,'sofia');
-   assert.equal(reg.body.license,null);
+   assert.equal(reg.body.license.kind,'trial');
+   assert.equal(reg.body.license.expiresAt-reg.body.license.activatedAt,3*24*60*60*1000);
    const t=reg.body.token;
    const unauth=await call('/api/license-admin/users',null);
    assert.equal(unauth.status,401);
