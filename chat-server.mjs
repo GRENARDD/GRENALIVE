@@ -2439,7 +2439,7 @@ const server =
 
           const text=String(incoming.text||'').trim();
           // New clients send per-profile speech options. Old clients are left unchanged.
-          const naturalSpeech=prepareFishNaturalRequest(text,incoming.natural);
+          const naturalSpeech=prepareFishNaturalRequest(text,{model:incoming.model});
           const referenceId=String(incoming.reference_id||'').trim();
           if(!text || text.length>600){
             response.writeHead(400,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -2493,7 +2493,7 @@ const server =
                     'model':naturalSpeech.model==='pro'?'s2.1-pro':'s2.1-pro-free',
                     'Accept':'audio/mpeg,application/octet-stream'
                   },
-                  body:JSON.stringify({text:naturalSpeech.text,reference_id:referenceId,format:'mp3',...naturalSpeech.params}),
+                  body:JSON.stringify({text:naturalSpeech.text,reference_id:referenceId,format:'mp3'}),
                   signal:upstreamController.signal
                 });
 
