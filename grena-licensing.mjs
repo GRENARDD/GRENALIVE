@@ -247,6 +247,19 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      }
      // Endpoints locales: requieren la sesión de GREÑA ID comprobada por server.mjs.
      const u=activeUser(req);if(!u)return reply(res,401,{ok:false,error:'Inicia sesión en tu GREÑA ID.'}),true;
+     if(pathname==='/api/license/community'&&req.method==='GET'){
+       const c=await getCached(u.id);
+       if(!c?.token)return reply(res,409,{ok:false,error:'Tu cuenta no está sincronizada con Cloudflare.'}),true;
+       const result=await fetchCentral('/api/license/community','GET',undefined,c.token);
+       return reply(res,200,result),true;
+     }
+     if(pathname==='/api/license/presence'&&req.method==='POST'){
+       const c=await getCached(u.id);
+       if(!c?.token)return reply(res,409,{ok:false,error:'Tu cuenta no está sincronizada con Cloudflare.'}),true;
+       const body=await parseBody(req,readBody);
+       const result=await fetchCentral('/api/license/presence','POST',body,c.token);
+       return reply(res,200,result),true;
+     }
      if(pathname==='/api/license/owner/status'&&req.method==='GET'){
        const result=await ownerStatus(u.id);
        return reply(res,200,{ok:true,isOwner:result.isOwner===true,configured:result.configured===true,registered:result.registered!==false}),true;
