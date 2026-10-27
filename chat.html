@@ -3718,12 +3718,12 @@ function queueVoice(m){
    * preparada para la voz.
    */
 
-  let text =
-    stripStickerAndInternalCodes(
-      cleanTextForVoice(
-        m.text || ''
-      )
-    );
+  // Fish receives the same comment that viewers typed, not a rewritten copy.
+  // Legacy cleanTextForVoice() remains exclusively for Windows/browser voices.
+  // Priority, spam, language, opt-in username and character limits still apply.
+  let text=isFishVoiceSelected()
+    ? String(m.text||'').trim()
+    : stripStickerAndInternalCodes(cleanTextForVoice(m.text||''));
 
   if(!text){
 
