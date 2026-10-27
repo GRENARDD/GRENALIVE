@@ -8,12 +8,12 @@ pkg=json.loads(pkgpath.read_text(encoding='utf-8'))
 if pkg.get('version')!='5.0.9':
     raise RuntimeError('Se esperaba GREÑA Desktop v5.0.9 antes de añadir autoactualizaciones')
 tag=os.getenv('GITHUB_REF_NAME','') if os.getenv('GITHUB_REF_TYPE')=='tag' else ''
-if tag and not re.fullmatch(r'v[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,4}',tag):
+if tag and not re.fullmatch(r'v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,4}',tag):
     raise RuntimeError('Tag de actualización inválido')
 pkg['version']=tag[1:] if tag else '5.1.0'
 pkg.setdefault('dependencies',{})['electron-updater']='^6.6.2'
 pkg['build']['publish']={'provider':'github','owner':'GRENARDD','repo':'GRENALIVE','releaseType':'release'}
-pkgpath.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\\n',encoding='utf-8')
+pkgpath.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 main=root/'desktop'/'main.cjs'
 s=main.read_text(encoding='utf-8')
 if 'GRENA_NATIVE_OFFICIAL_UPDATES_V1' in s:
@@ -36,7 +36,7 @@ s+=r"""
  let lastOffered='',downloading=false,checking=false;
  const logError=e=>{try{logStartup('AUTOACTUALIZADOR',String(e?.message||e))}catch{}};
  const isNewVersion=(candidate,current)=>{
-   if(!/^\\d+\\.\\d+\\.\\d+$/.test(candidate)||!/^\\d+\\.\\d+\\.\\d+$/.test(current))return false;
+   if(!/^\d+\.\d+\.\d+$/.test(candidate)||!/^\d+\.\d+\.\d+$/.test(current))return false;
    const a=candidate.split('.').map(Number),b=current.split('.').map(Number);
    for(let i=0;i<3;i++){if(a[i]!==b[i])return a[i]>b[i]}
    return false;
