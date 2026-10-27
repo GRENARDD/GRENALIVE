@@ -35,6 +35,7 @@ s+=r"""
  autoUpdater.setFeedURL({provider:'generic',url:updateFeed});
  let lastOffered='',downloading=false,checking=false;
  const logError=e=>{try{logStartup('AUTOACTUALIZADOR',String(e?.message||e))}catch{}};
+ const showUpdateDialog=opts=>mainWindow&&!mainWindow.isDestroyed()?dialog.showMessageBox(mainWindow,opts):dialog.showMessageBox(opts);
  const isNewVersion=(candidate,current)=>{
    if(!/^\d+\.\d+\.\d+$/.test(candidate)||!/^\d+\.\d+\.\d+$/.test(current))return false;
    const a=candidate.split('.').map(Number),b=current.split('.').map(Number);
@@ -45,7 +46,7 @@ s+=r"""
  autoUpdater.on('update-available',info=>{
    if(info.version===lastOffered)return;
    lastOffered=info.version;
-   dialog.showMessageBox(mainWindow&&!mainWindow.isDestroyed()?mainWindow:undefined,{
+   showUpdateDialog({
      type:'info',title:'GREÑA Live PRO · Actualización oficial',
      message:'Nueva versión oficial: GREÑA Live PRO v'+info.version,
      detail:'Publicada por el propietario. ¿Quieres descargarla ahora? No cerraremos tu directo automáticamente.',
@@ -62,7 +63,7 @@ s+=r"""
  autoUpdater.on('update-downloaded',info=>{
    downloading=false;
    if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1);
-   dialog.showMessageBox(mainWindow&&!mainWindow.isDestroyed()?mainWindow:undefined,{
+   showUpdateDialog({
      type:'question',title:'GREÑA Live PRO · Lista para instalar',
      message:'GREÑA Live PRO v'+info.version+' está descargada y verificada.',
      detail:'La instalación cerrará GREÑA. Si estás transmitiendo, pulsa Más tarde y termina tu directo.',
