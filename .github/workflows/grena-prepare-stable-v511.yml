@@ -1,0 +1,73 @@
+name: GREÑA · Preparar versión estable para aprobación del propietario
+on:
+  push:
+    branches:
+      - preview/fish-license-v5.1.1-20261027
+    paths:
+      - .github/workflows/grena-prepare-stable-v511.yml
+permissions:
+  contents: write
+  actions: read
+jobs:
+  official:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      INSTALL_RUN: "40576646451"
+      TESTED_SHA: "1f3f86397caf44c90bde03bcb0c14628fb4d5771"
+      VERSION: "5.1.1"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Verificar compilación exacta aprobada
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$INSTALL_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$INSTALL_RUN" --jq .head_sha)" = "$TESTED_SHA"
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "La versión v$VERSION ya existe, no se reemplaza."
+            exit 1
+          fi
+      - name: Preparar instalador aprobado con manifiesto electron-updater
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p official
+          gh run download "$INSTALL_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v5.1.1 --dir official
+          exe="$(find official -type f -name '*.exe' -size +60000k | head -1)"
+          test -n "$exe" || { echo "Falta instalador Windows verificado"; exit 1; }
+          file="$(basename "$exe")"
+          size="$(stat -c '%s' "$exe")"
+          hash="$(openssl dgst -sha512 -binary "$exe" | base64 -w0)"
+          test "${#hash}" -ge 70 || exit 1
+          date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          cat > official/latest.yml <<EOF
+          version: $VERSION
+          files:
+            - url: $file
+              sha512: $hash
+              size: $size
+          path: $file
+          sha512: $hash
+          releaseDate: '$date'
+          EOF
+          printf 'Nombre de instalador: %s\n' "$file"
+          printf 'Tamaño: %s\n' "$size"
+          printf 'Archivo verificado: %s\n' "$TESTED_SHA"
+          cat > official/README.txt <<'EOF'
+          GREÑA Live v5.1.1. Publicación preparada para aprobación del propietario.
+          Este instalador contiene los cambios del PR #55.
+          IMPORTANTE: la actualización dentro del programa NO se habilita por subir
+          esta versión a GitHub: requiere aprobación del propietario en Cloudflare D1.
+          No sustituir el programa anterior sin respaldar su configuración y proteger
+          primero las dos APIs de Fish Audio del dueño.
+          API yaqui_gr: NO está configurada en Cloudflare por este instalador.
+          EOF
+      - name: Publicar versión estable SIN abrir todavía el canal de actualizaciones
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "v$VERSION" official/*.exe official/latest.yml official/README.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" \
+            --title "GREÑA Live Desktop v$VERSION" \
+            --notes "Instalador Windows v$VERSION verificado en GitHub Actions $INSTALL_RUN. La instalación en la aplicación está controlada por el propietario mediante Cloudflare D1 y NO se activa automáticamente solo con este lanzamiento. ANTES de instalar: haz copia de seguridad y verifica tus dos APIs Fish Audio; la API de yaqui_gr aún requiere configurarse en Cloudflare."
