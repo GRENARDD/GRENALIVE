@@ -14,12 +14,12 @@ foreach($item in @($request.keys)){
  if([string]::IsNullOrWhiteSpace([string]$item)){ $result+= ''; continue }
  if($request.operation -eq 'protect'){
    $raw=[Text.Encoding]::UTF8.GetBytes([string]$item)
-   $bytes=[Security.Cryptography.ProtectedData]::Protect($raw,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
+   $bytes=[System.Security.Cryptography.ProtectedData]::Protect($raw,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)
    [Array]::Clear($raw,0,$raw.Length)
    $result+=[Convert]::ToBase64String($bytes)
  }elseif($request.operation -eq 'unprotect'){
    $bytes=[Convert]::FromBase64String([string]$item)
-   $raw=[Security.Cryptography.ProtectedData]::Unprotect($bytes,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser)
+   $raw=[System.Security.Cryptography.ProtectedData]::Unprotect($bytes,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)
    $result+=[Text.Encoding]::UTF8.GetString($raw)
    [Array]::Clear($raw,0,$raw.Length)
  }else{throw 'Invalid operation'}
