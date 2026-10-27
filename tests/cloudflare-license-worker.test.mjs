@@ -40,11 +40,16 @@ test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',a
    assert.equal(reg.status,201);assert.ok(reg.data.token);
    const tk=reg.data.token;
    assert.equal((await request(env,'/api/license-admin/users')).status,401);
+   const owner=await request(env,'/api/license/owner/claim',{}, {token:tk,admin:ADMIN});
+   assert.equal(owner.status,200);
+   assert.equal(owner.data.isOwner,true);
+   const ownerStatus=await request(env,'/api/license/owner/status',null,{token:tk});
+   assert.equal(ownerStatus.data.isOwner,true);
    const noLicense=await request(env,'/api/license/heartbeat',{deviceId},{token:tk});
    assert.equal(noLicense.data.license,null);
    let lastExpiry=0;
    for(const days of [30,60,90,17]){
-     const r=await request(env,'/api/license-admin/create',{count:1,days},{admin:ADMIN});
+     const r=await request(env,'/api/license-admin/create',{count:1,days},{token:tk});
      assert.equal(r.status,201);assert.equal(r.data.days,days);assert.equal(r.data.codes.length,1);
      const code=r.data.codes[0];
      const activation=await request(env,'/api/license/redeem',{code,deviceId},{token:tk});
@@ -54,7 +59,7 @@ test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',a
      lastExpiry=activation.data.license.expiresAt;
      assert.equal((await request(env,'/api/license/redeem',{code,deviceId},{token:tk})).status,409);
    }
-   const list=await request(env,'/api/license-admin/users',null,{admin:ADMIN});
+   const list=await request(env,'/api/license-admin/users',null,{token:tk});
    assert.equal(list.status,200);assert.equal(list.data.total,1);assert.equal(list.data.online,1);
    assert.deepEqual(list.data.codes.map(x=>x.days).sort((a,b)=>a-b),[17,30,60,90]);
    const dbUser=DB.prepare('SELECT * FROM users WHERE username=?').bind('sofia');const user=await dbUser.first();
@@ -68,13 +73,39 @@ test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',a
 test('Cloudflare D1: valida límites de duración y protege las credenciales de administrador',async()=>{
  const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
  try{
+   const reg=await request(env,'/api/license/identity/register',{username:'owner',email:'owner@example.org',password:'strong-pass-123'});
+   const tk=reg.data.token;
+   const denied=await request(env,'/api/license/owner/claim',{}, {token:tk,admin:'wrong'});
+   assert.equal(denied.status,401);
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {token:tk,admin:ADMIN})).status,200);
    assert.equal((await request(env,'/api/license-admin/create',{count:1,days:60},{admin:'wrong'})).status,401);
    assert.equal((await request(env,'/api/license-admin/create',{count:1,days:0},{admin:ADMIN})).status,400);
    assert.equal((await request(env,'/api/license-admin/create',{count:1,days:3651},{admin:ADMIN})).status,400);
    assert.equal((await request(env,'/api/license-admin/create',{count:26,days:30},{admin:ADMIN})).status,400);
    assert.equal((await request(env,'/api/license-admin/create',{count:1,days:3650},{admin:ADMIN})).status,201);
-   const list=await request(env,'/api/license-admin/users',null,{admin:ADMIN});
+   const list=await request(env,'/api/license-admin/users',null,{token:tk});
    assert.equal(list.data.codes.length,1);
    assert.ok(!('hash' in list.data.codes[0]));
+ }finally{close()}
+});
+
+test('Cloudflare D1: propietario es único y comunidad opt-in privada',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
+ try{
+   const first=(await request(env,'/api/license/identity/register',{username:'admin',email:'admin@testing.net',password:'strong-pass-123'})).data;
+   const second=(await request(env,'/api/license/identity/register',{username:'viewer',email:'viewer@testing.net',password:'strong-pass-123'})).data;
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {token:first.token,admin:ADMIN})).status,200);
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {token:second.token,admin:ADMIN})).status,409);
+   assert.equal((await request(env,'/api/license-admin/users',null,{token:second.token})).status,403);
+   assert.equal((await request(env,'/api/license-admin/users',null,{token:first.token})).status,200);
+   const initial=await request(env,'/api/license/community',null,{token:second.token});
+   assert.equal(initial.data.liveCount,0);
+   const firstShare=await request(env,'/api/license/presence',{share:true,live:true,platforms:['twitch','kick'],viewers:120,avatar:''},{token:first.token});
+   assert.equal(firstShare.status,200);
+   const after=await request(env,'/api/license/community',null,{token:second.token});
+   assert.equal(after.status,200);assert.equal(after.data.liveCount,1);assert.equal(after.data.totalViewers,120);
+   assert.equal(after.data.users[0].name,'admin');
+   assert.equal((await request(env,'/api/license/presence',{share:false},{token:first.token})).status,200);
+   assert.equal((await request(env,'/api/license/community',null,{token:second.token})).data.liveCount,0);
  }finally{close()}
 });
