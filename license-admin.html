@@ -2,6 +2,18 @@
 *{box-sizing:border-box}body{margin:0;background:#0b0f19;color:#eef2ff;font:14px system-ui,'Segoe UI',sans-serif;padding:24px}main{max-width:1100px;margin:auto}h1{margin:8px 0 6px;font-size:30px}h2{font-size:18px}p,small{color:#a5b2cb;line-height:1.5}.eyebrow{font-size:12px;letter-spacing:2px;color:#b69cff;font-weight:900}.panel{margin-top:18px;background:#151c2b;border:1px solid #303a51;border-radius:18px;padding:20px}.line{display:flex;gap:10px;align-items:center;flex-wrap:wrap}select{background:#090f1a;color:white;border:1px solid #4b5471;border-radius:10px;padding:12px;min-width:185px}input{background:#090f1a;color:white;border:1px solid #4b5471;border-radius:10px;padding:12px;min-width:215px;flex:1;max-width:500px}button{border:0;border-radius:9px;padding:11px 14px;background:#7855d4;color:white;font-weight:800;cursor:pointer}button.secondary{background:#343d53}button.danger{background:#783c4b}button:disabled{opacity:.5}.stats{display:flex;gap:12px;flex-wrap:wrap}.stat{flex:1;min-width:120px;background:#0c1422;padding:15px;border-radius:12px}.stat b{display:block;font-size:26px}.stat small{font-size:12px}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;min-width:780px}th,td{text-align:left;padding:11px 9px;border-bottom:1px solid #30394c}th{color:#a8b8d7;font-size:12px}td button{font-size:11px;padding:7px 9px;margin:2px}.good{color:#80e6b4}.bad{color:#ffacb5}.message{min-height:20px;color:#f6b8c4;margin-top:12px;white-space:pre-wrap}.hidden{display:none!important}pre{white-space:pre-wrap;word-break:break-word;background:#0b1420;border:1px solid #30415a;border-radius:10px;padding:15px}.muted{opacity:.7}.line label{font-weight:700}.panel.grant{border-color:#5d54a4;background:linear-gradient(135deg,#1c1d3a,#151c2b)}.grant .line{margin-top:14px}.grant input{max-width:270px}.return{display:inline-flex;align-items:center;gap:7px;background:#25354b}.message.good{color:#80e6b4}.help{color:#c8d2eb}.expiry{white-space:nowrap}.quick{background:#424063}.owner{color:#efca7c;font-weight:800}.owner-mark{display:inline-block;margin-top:6px;background:#463a22;border:1px solid #806534;color:#ffdc95;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:800}</style></head><body><main><div class="eyebrow">GREÑA LIVE PRO · ÁREA PRIVADA</div><div class="line" style="justify-content:space-between"><h1>Administración de usuarios</h1><button id="backToApp" class="return" type="button">← Volver a GREÑA Live PRO</button></div><p>Consulta los registros, quién está conectado y las licencias con duración personalizada. La conexión solo se considera activa si envió un latido reciente.</p>
 <div id="dashboard">
 <section class="panel"><div class="stats"><div class="stat"><b id="registered">0</b><small>Registrados</small></div><div class="stat"><b id="online">0</b><small>En línea</small></div><div class="stat"><b id="active">0</b><small>Licencias activas</small></div><div class="stat"><b id="unused">0</b><small>Códigos sin usar</small></div></div><div class="line" style="margin-top:14px"><button id="reload" class="secondary">Actualizar</button><button id="close" class="return">← Volver a la app</button></div></section>
+<section class="panel" id="releasePanel" style="border-color:#4d467a">
+<h2>Actualizaciones oficiales de GREÑA Live PRO</h2>
+<p><strong>Solo tú decides cuándo avisar.</strong> Guardar un borrador NO envía ninguna notificación. Los usuarios únicamente verán una actualización cuando pulses «Publicar oficialmente» y el instalador esté verificado en GitHub Releases.</p>
+<p class="help" id="publishedUpdate">Consultando versión pública…</p>
+<form id="updateDraftForm" autocomplete="off">
+ <div class="line"><label for="releaseVersion">Nueva versión</label><input id="releaseVersion" required pattern="[0-9]+\\.[0-9]+\\.[0-9]+" placeholder="5.1.0" maxlength="18" style="max-width:150px"><label for="releaseNotes">Qué cambió</label><input id="releaseNotes" maxlength="1200" placeholder="Arreglos, mejoras y funciones nuevas" style="max-width:440px"></div>
+ <div class="line" style="margin-top:14px"><button type="submit" id="saveDraft" class="secondary">Guardar borrador privado</button><button type="button" id="publishRelease" style="background:#6e52d4">🚀 Publicar oficialmente para todos</button></div>
+</form>
+<p class="help" id="draftUpdate">Borrador: ninguno</p>
+<div class="message" id="releaseMessage" role="status" aria-live="polite"></div>
+<small>Seguridad: la publicación solo se permite cuando GitHub Releases contiene una versión estable con <code>latest.yml</code> y su instalador Windows. Preparar una compilación nunca activa notificaciones por sí solo.</small>
+</section>
 <section class="panel grant" id="directGrant">
 <h2>Activar o renovar por usuario · sin códigos</h2>
 <p>Escribe el GREÑA ID de la persona, elige los días y GREÑA los activa directamente. Si ya tiene una licencia vigente, se <strong>suman</strong> al tiempo que le queda; si no, el plazo comienza ahora. El usuario debe haberse registrado en Cloudflare.</p>
@@ -42,6 +54,30 @@ async function reload(){
  try{const d=await request('users');all=d.users||[];$('registered').textContent=d.total;$('online').textContent=d.online;$('active').textContent=all.filter(u=>u.permanentAccess||u.license?.active).length;$('unused').textContent=(d.codes||[]).filter(c=>!c.redeemedAt).length;$('last').textContent='Actualizado '+date(Date.now());$('error').textContent='';draw()}catch(e){$('error').textContent=e.message}
 }
 
+async function loadUpdates(){
+ try{const d=await request('updates');$('publishedUpdate').textContent=d.published
+ ?'✅ Publicada oficialmente: v'+d.published.version+' · '+date(d.published.publishedAt)
+ :'Ninguna actualización publicada todavía. No se enviarán avisos.';
+ $('draftUpdate').textContent=d.draft?'Borrador privado: v'+d.draft.version+' · Solo tú lo ves.':'Borrador: ninguno';
+ if(d.draft){$('releaseVersion').value=d.draft.version;$('releaseNotes').value=d.draft.notes||''}
+ $('publishRelease').disabled=!d.draft;
+ }catch(e){$('releaseMessage').textContent=e.message}
+}
+$('updateDraftForm').onsubmit=async e=>{
+ e.preventDefault();$('saveDraft').disabled=true;$('releaseMessage').textContent='Guardando borrador…';
+ try{const d=await request('updates/stage',{version:$('releaseVersion').value.trim(),notes:$('releaseNotes').value.trim()});
+ $('releaseMessage').textContent='✓ '+d.message;await loadUpdates()
+ }catch(e){$('releaseMessage').textContent=e.message}
+ finally{$('saveDraft').disabled=false}
+};
+$('publishRelease').onclick=async()=>{
+ if(!confirm('¿PUBLICAR OFICIALMENTE esta versión? Después de confirmar, TODOS los GREÑA Live PRO actualizados podrán ver el aviso.'))return;
+ $('publishRelease').disabled=true;$('releaseMessage').textContent='Comprobando el instalador y publicando…';
+ try{const d=await request('updates/publish',{});$('releaseMessage').textContent='✓ '+d.message;await loadUpdates()}
+ catch(e){$('releaseMessage').textContent=e.message}
+ finally{$('publishRelease').disabled=false}
+};
+loadUpdates();
 $('close').onclick=$('backToApp').onclick=()=>location.assign('/mode.html');
 $('grantDays').onchange=()=>{const custom=$('grantDays').value==='custom';$('grantCustomLabel').classList.toggle('hidden',!custom);$('grantCustomDays').classList.toggle('hidden',!custom)};
 $('grantForm').onsubmit=async e=>{
