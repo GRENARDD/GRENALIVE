@@ -14,6 +14,7 @@ import { chromium } from 'playwright-core';
 import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
 import {STARVIOS_SUPPORT_CATALOG,normalizeStarviosEvent} from './starvios-events.mjs';
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
+import { makeLicensing } from './grena-licensing.mjs';
 
 // GREÑA 3.1.7: evita los fallbacks premium de EulerStream para resolver Room ID / estado LIVE.
 // La conexión de lectura usa primero las rutas públicas/directas de TikTok.
@@ -1744,6 +1745,9 @@ async function activateProfile(userId,{restart=true}={}){
 async function deactivateProfile(){disconnectPrivateSockets();await stopProfileRuntime();await loadProfileState('');await loadFollowerGoalsForProfile();await notifyChatProfile('');broadcast({type:'profile-changed',profile:null});broadcast({type:'counter-settings',settings:publicCounterSettings()});broadcast({type:'social-settings',settings:socialSettings})}
 async function persistUsers(){await safeWriteJson(USERS_FILE,usersStore)}
 function accountPayload(user){return {ok:true,authenticated:!!user,user:accountUser(user),activeUserId:user?activeUserId:null,active:!!user&&user.id===activeUserId,needsRecoveryEmail:!!user&&!user.email,mailConfigured:mailConfigured()}}
+// El registro central de licencias no toca las credenciales de streaming ni los perfiles locales.
+const licensing=await makeLicensing({cloud:CLOUD_MODE,dataDir:DATA_DIR,profileFile,activeUser:sessionUser,readBody,remoteUrl:!CLOUD_MODE?String(process.env.GRENA_LICENSE_URL||'https://grenalive-production.up.railway.app').replace(/\/+$/,''):''});
+if(!CLOUD_MODE){const licenseBeat=setInterval(()=>{if(activeUserId)licensing.heartbeat(activeUserId).catch(e=>console.warn('[GREÑA licencia]',e?.message||e))},60000);licenseBeat.unref?.()}
 
 
 // ===== GREÑA CAM ROOM · SALAS DE CÁMARA PARA OBS =====
@@ -1975,6 +1979,8 @@ function panelGuard(req,res,pathname){
   }
   if(!pathname.startsWith('/api/'))return true;                // páginas y estáticos: ya los gestiona el router
   if(pathname.startsWith('/api/internal/'))return true;        // llevan su propio token de puente
+  // Registro y panel admin poseen su propia autenticación en grena-licensing.mjs.
+  if(CLOUD_MODE&&(pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/')))return true;
   if(method==='GET'&&PUBLIC_GET.has(pathname)&&(!CLOUD_MODE||PUBLIC_GET_CLOUD.has(pathname)))return true;
   if(method==='POST'&&PUBLIC_POST.has(pathname)&&(!CLOUD_MODE||pathname!=='/api/viewers/test'))return true;
   if(internalBridgeAllowed(req))return true;                    // chat-server -> server con token por arranque
@@ -2023,6 +2029,15 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     return proxyChatHttp(req,res,url);
   }
  if(!panelGuard(req,res,pathname))return;
+ if(await licensing.handle(req,res,pathname))return;
+ if(!CLOUD_MODE&&process.env.GRENA_LICENSE_REQUIRE==='1'&&sessionUser(req)){
+   const u=sessionUser(req),allowed=await licensing.canUse(u.id);
+   if(!allowed){
+     const guardedPages=new Set(['/','/index.html','/mode.html','/mobile.html','/alerts.html','/widgets.html','/custom-alerts.html','/afterglow-studio.html','/cam-room.html','/gift-catalog.html']);
+     if(guardedPages.has(pathname)){res.writeHead(302,{location:'/license.html','cache-control':'no-store'});return res.end()}
+     if(pathname.startsWith('/api/')&&!pathname.startsWith('/api/account/')&&!pathname.startsWith('/api/app/')&&pathname!=='/api/overlay-version')return json(res,402,{ok:false,error:'Necesitas una licencia GREÑA Live PRO activa.'});
+   }
+ }
  if(pathname==='/favicon.ico'&&(req.method==='GET'||req.method==='HEAD')){res.writeHead(302,{location:'/favicon.svg','cache-control':'public, max-age=3600'});return res.end()}
  if(CHAT_HTTP_ROUTES.has(pathname))return proxyChatHttp(req,res,url,false);
  if(pathname==='/health')return json(res,200,{ok:true,app:'GREÑA LIVE PRO'});
@@ -2118,7 +2133,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    if(usersStore.users.some(u=>normalizeEmail(u.email)===email))return json(res,409,{ok:false,error:'Ese correo ya está vinculado a otra cuenta GREÑA.'});
    const first=usersStore.users.length===0,salt=randomBytes(16).toString('hex');
    const user={id:createHash('sha256').update(username+Date.now()+randomBytes(8).toString('hex')).digest('hex').slice(0,20),username,displayName:displayName||username,email,salt,passwordHash:hashPassword(password,salt),createdAt:Date.now()};
-   usersStore.users.push(user);await persistUsers();if(first&&!CLOUD_MODE)await migrateLegacyIntoProfile(user.id);sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user);return json(res,201,accountPayload(user));
+   usersStore.users.push(user);await persistUsers();if(first&&!CLOUD_MODE)await migrateLegacyIntoProfile(user.id);sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user);await licensing.onLocalAuth(user,password);return json(res,201,accountPayload(user));
   });
  }
  if(pathname==='/api/account/login'&&req.method==='POST'){
@@ -2129,7 +2144,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    const passOk=user?await verifyPasswordAsync(password,user):(await scryptAsync(password,DUMMY_SALT).catch(()=>0),false);
    if(!user||!passOk){loginFailed(username);return json(res,401,{ok:false,error:'Usuario o contraseña incorrectos.'})}
    loginRate.delete(username);
-   await withAccountTransition(async()=>{sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user)});return json(res,200,accountPayload(user));
+   await withAccountTransition(async()=>{sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user)});await licensing.onLocalAuth(user,password);return json(res,200,accountPayload(user));
  }
  if(pathname==='/api/account/logout'&&req.method==='POST'){await withAccountTransition(async()=>{const u=sessionUser(req);await destroySession(req,res);if(u?.id&&u.id===activeUserId)await deactivateProfile()});return json(res,200,{ok:true});}
  if(pathname==='/api/account/recovery-email'&&req.method==='POST'){
@@ -2571,7 +2586,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
- const interactive=new Set(['/','/index.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html']);
+ const interactive=new Set(['/','/index.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/license.html']);
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);if(!su){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
