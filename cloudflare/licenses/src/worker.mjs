@@ -75,10 +75,27 @@ async function adminCheck(env,req){
  if(!state.isOwner)return fail('Esta cuenta no está autorizada para administrar licencias.',403);
  return null;
 }
+async function communityTable(env){
+ // Non-destructive lazy migration: no manual D1 changes required for existing users.
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS community_presence (user_id TEXT PRIMARY KEY, viewers INTEGER NOT NULL DEFAULT 0, platforms TEXT NOT NULL DEFAULT \'[]\', avatar TEXT NOT NULL DEFAULT \'\', live INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL)').run();
+}
+async function communitySnapshot(env){
+ await communityTable(env);
+ const since=now()-90000,onlineSince=now()-ONLINE;
+ const live=(await env.DB.prepare('SELECT p.user_id,p.viewers,p.platforms,p.avatar,u.display_name,u.username FROM community_presence p JOIN users u ON u.id=p.user_id WHERE p.live=1 AND p.updated_at>? AND u.disabled=0 ORDER BY p.viewers DESC LIMIT 100').bind(since).all()).results||[];
+ const usersOnline=await env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE last_seen_at>? AND disabled=0').bind(onlineSince).first();
+ const users=live.map(row=>({name:row.display_name||row.username,viewers:row.viewers,avatar:row.avatar||'',platforms:JSON.parse(row.platforms||'[]')}));
+ return {ok:true,usersOnline:Number(usersOnline?.n||0),liveCount:users.length,totalViewers:users.reduce((sum,x)=>sum+x.viewers,0),users};
+}
 async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
  if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1'});
+ if(path==='/api/license/community'&&req.method==='GET'){
+   const u=await sessionUser(env,req);
+   if(!u)return fail('Cuenta GREÑA ID requerida.',401);
+   return json(await communitySnapshot(env));
+ }
  if(path==='/api/license/owner/status'&&req.method==='GET'){
    const u=await sessionUser(env,req);
    if(!u)return fail('Sesión GREÑA ID central requerida.',401);
@@ -162,6 +179,22 @@ async function handle(req,env){
  }
  const u=await sessionUser(env,req);
  if(!u)return fail('La sesión central venció o está suspendida.',401);
+ if(path==='/api/license/presence'){
+   const b=await body(req);
+   await communityTable(env);
+   if(b.share!==true){
+     await env.DB.prepare('DELETE FROM community_presence WHERE user_id=?').bind(u.id).run();
+     return json({ok:true,share:false});
+   }
+   const platforms=Array.isArray(b.platforms)?[...new Set(b.platforms.map(String).filter(p=>['tiktok','twitch','kick','youtube','starvios'].includes(p)))].slice(0,5):[];
+   const viewers=Number(b.viewers);
+   const count=Number.isFinite(viewers)?Math.max(0,Math.min(10000000,Math.floor(viewers))):0;
+   const live=b.live===true&&platforms.length>0;
+   const avatar=typeof b.avatar==='string'&&b.avatar.length<20000&&/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(b.avatar)?b.avatar:'';
+   await env.DB.prepare('INSERT INTO community_presence(user_id,viewers,platforms,avatar,live,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET viewers=excluded.viewers,platforms=excluded.platforms,avatar=excluded.avatar,live=excluded.live,updated_at=excluded.updated_at')
+     .bind(u.id,count,JSON.stringify(platforms),avatar,live?1:0,now()).run();
+   return json({ok:true,share:true,live});
+ }
  if(path==='/api/license/heartbeat'){
    const b=await body(req),deviceId=String(b.deviceId||'');
    if(!deviceValid(deviceId))return fail('Identificador de dispositivo inválido.');
