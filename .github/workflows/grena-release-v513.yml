@@ -4,7 +4,7 @@ on:
     branches:
       - main
     paths:
-      - .github/workflows/grena-release-v512.yml
+      - .github/workflows/grena-release-v513.yml
 permissions:
   contents: write
   actions: read
