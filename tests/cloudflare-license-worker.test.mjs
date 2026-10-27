@@ -201,3 +201,55 @@ test('Propietario autenticado conserva privilegio sin vencimiento',async()=>{
    ])assert.equal((await request(env,path,payload,{token:login.data.token})).status,409,path);
  }finally{close()}
 });
+
+test('Actualizaciones: nadie recibe aviso hasta que el propietario publica oficialmente',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
+ const originalFetch=globalThis.fetch;
+ try{
+   const owner=(await request(env,'/api/license/identity/register',{username:'grena_rd',email:'updates-owner@grena.test',password:'safe-owner-password'})).data;
+   const normal=(await request(env,'/api/license/identity/register',{username:'user_updates',email:'updates-client@grena.test',password:'safe-client-password'})).data;
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {token:owner.token,admin:ADMIN})).status,200);
+   const initial=await request(env,'/api/updates/latest');
+   assert.equal(initial.data.published,false);
+   assert.equal(initial.data.release,null);
+   const noAccess=await request(env,'/api/license-admin/updates/stage',{version:'5.1.0',notes:'Prueba'},{token:normal.token});
+   assert.equal(noAccess.status,403);
+   const draft=await request(env,'/api/license-admin/updates/stage',{version:'5.1.0',notes:'Arreglos del chat'},{token:owner.token});
+   assert.equal(draft.status,200);
+   assert.equal(draft.data.published,false);
+   assert.equal((await request(env,'/api/updates/latest')).data.published,false);
+   assert.equal((await request(env,'/api/updates/latest.yml')).status,404);
+   const privateState=await request(env,'/api/license-admin/updates',null,{token:owner.token});
+   assert.equal(privateState.data.draft.version,'5.1.0');
+   assert.equal(privateState.data.published,null);
+   const missing=await request(env,'/api/license-admin/updates/publish',{}, {token:owner.token});
+   assert.equal(missing.status,409);
+   assert.equal((await request(env,'/api/updates/latest')).data.published,false);
+   const yaml='version: 5.1.0\\nfiles:\\n  - url: GRENA-LIVE-Setup-5.1.0.exe\\n    sha512: '+('A'.repeat(87)+'=')+'\\n    size: 10000002\\npath: GRENA-LIVE-Setup-5.1.0.exe\\nsha512: '+('A'.repeat(87)+'=')+'\\n';
+   globalThis.fetch=async (url)=>{
+     if(String(url).startsWith('https://api.github.com'))return new Response(JSON.stringify({
+       tag_name:'v5.1.0',draft:false,prerelease:false,assets:[
+         {name:'latest.yml',size:yaml.length,browser_download_url:'https://github.com/updates/latest.yml'},
+         {name:'GRENA-LIVE-Setup-5.1.0.exe',size:10000002}
+       ]}),{status:200});
+     if(String(url)==='https://github.com/updates/latest.yml')return new Response(yaml,{status:200});
+     throw Error('unexpected URL: '+url);
+   };
+   const published=await request(env,'/api/license-admin/updates/publish',{}, {token:owner.token});
+   assert.equal(published.status,200);
+   assert.equal(published.data.release.version,'5.1.0');
+   const publicState=await request(env,'/api/updates/latest');
+   assert.equal(publicState.data.published,true);
+   assert.equal(publicState.data.release.version,'5.1.0');
+   const feed=await requestRaw('/api/updates/latest.yml');
+   assert.equal(feed.status,200);
+   assert.match(await feed.text(),/download\\/GRENA-LIVE-Setup-5\\.1\\.0\\.exe/);
+   const redirect=await requestRaw('/api/updates/download/GRENA-LIVE-Setup-5.1.0.exe');
+   assert.equal(redirect.status,302);
+   assert.match(redirect.headers.get('location'),/releases\\/download\\/v5\\.1\\.0/);
+   assert.equal((await request(env,'/api/license-admin/updates/stage',{version:'5.0.9',notes:'Antigua'},{token:owner.token})).status,409);
+   assert.equal((await request(env,'/api/license-admin/updates/stage',{version:'5.2.0',notes:'Borrador siguiente'},{token:owner.token})).status,200);
+   assert.equal((await request(env,'/api/updates/latest')).data.release.version,'5.1.0');
+   function requestRaw(path){return worker.fetch(new Request('https://license.test'+path),env)}
+ }finally{globalThis.fetch=originalFetch;close()}
+});
