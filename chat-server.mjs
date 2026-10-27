@@ -72,8 +72,9 @@ process.on('unhandledRejection',e=>logChatFault('unhandledRejection',e));
 process.on('uncaughtException',e=>logChatFault('uncaughtException',e));
 const BRIDGE_TOKEN=process.env.GRENA_BRIDGE_TOKEN||randomBytes(24).toString('hex');
 if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no definido: arranca con INICIAR_GRENA.vbs (launcher) o con server.mjs para que el puente con el servidor principal funcione.');
-const FISH_AUDIO_API_KEY_1 = process.env.GRENA_FISH_API_KEY || Buffer.from('c2stZmlzaC1PTGJKdExlRzkxeEFXWlFleFlta05UandvSnNlTE9WTUx3OTk2Vnl5Ym9F','base64').toString('utf8');
-const FISH_AUDIO_API_KEY_2 = String(process.env.GRENA_FISH_API_KEY_2 || '').trim();
+// No API Fish Audio se distribuye en el código o el instalador.
+// Solo el backend principal, tras validar GREÑA ID, entrega la API al motor local.
+
 // Model is chosen per request using a server-side allowlist. Free remains the default.
 
 // GREÑA Dual Fish Pool:
@@ -84,10 +85,18 @@ const FISH_AUDIO_API_KEY_2 = String(process.env.GRENA_FISH_API_KEY_2 || '').trim
 const FISH_PER_ACCOUNT_MAX_CONCURRENT = 5;
 const FISH_WAIT_MAX_MS = 9000;
 const FISH_FAILOVER_WAIT_MS = 3500;
-const fishAccounts = [
-  {id:'fish-1',key:String(FISH_AUDIO_API_KEY_1||'').trim(),active:0,cooldownUntil:0},
-  {id:'fish-2',key:FISH_AUDIO_API_KEY_2,active:0,cooldownUntil:0}
-].filter(account=>account.key);
+const fishAccounts = []; // Owner keys are supplied only from the authenticated local backend.
+function reconcileOwnerFishAccounts(keys){
+ const next=[];
+ for(let i=0;i<Math.min(2,keys?.length||0);i++){
+   const key=keys[i];
+   if(typeof key!=='string'||key.length<20)continue;
+   const id='fish-'+(i+1);
+   next.push(fishAccounts.find(x=>x.id===id&&x.key===key)||{id,key,active:0,cooldownUntil:0});
+ }
+ fishAccounts.splice(0,fishAccounts.length,...next);
+ return fishAccounts;
+}
 
 let fishProfileAccount=null;
 async function fishPoolForProfile(profileId){
@@ -105,7 +114,7 @@ async function fishPoolForProfile(profileId){
      return {accounts:[fishProfileAccount]};
    }
    // The owner's legacy Fish pool is preserved in full; no other GREÑA ID shares it.
-   if(result.permanentAccess===true)return {accounts:fishAccounts};
+   if(result.permanentAccess===true)return {accounts:reconcileOwnerFishAccounts(result.ownerKeys)};
    return {accounts:[],error:result.unavailable?'No se pudo consultar la API de Fish Audio. Revisa Cloudflare.':'Configura tu propia API Fish Audio en Configuración para activar el chat de voz.'};
  }catch{return {accounts:[],error:'No se pudo verificar la API Fish Audio de esta cuenta.'}}
 }
