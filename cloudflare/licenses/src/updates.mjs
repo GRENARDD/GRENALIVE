@@ -21,7 +21,8 @@ async function releaseFiles(version){
  const yaml=await result.text();
  const value=/^version:\s*([^\s]+)\s*$/m.exec(yaml)?.[1];
  const names=[...yaml.matchAll(/^\s*- url:\s*([^\r\n]+)\s*$/gm)];
- const name=names.length===1?names[0][1].trim().replace(/^["']|["']$/g,''):'';
+ const rawName=names.length===1?names[0][1].trim().replace(/^["']|["']$/g,''):'';
+ let name='';try{name=decodeURIComponent(rawName)}catch{return {error:'El nombre del instalador en latest.yml es inválido.',status:409}}
  const checksum=/^\s*sha512:\s*[A-Za-z0-9+/=]{70,}\s*$/m.test(yaml);
  if(yaml.length>65536||value!==version||!checksum||!/^[\p{L}\p{N}_(). +%\-]+\.exe$/iu.test(name))
    return {error:'El manifiesto de actualización es inválido o no coincide con esta versión.',status:409};
@@ -39,7 +40,7 @@ export async function publicUpdates(req,env){
  if(path==='/api/updates/latest.yml'){
    const row=await current(env);
    if(!row?.manifest_yaml||!row.published_version)return bad('No hay actualizaciones aprobadas.',404);
-   const yaml=row.manifest_yaml.replace(/(^\s*- url:\s*)([^\r\n]+)/gm,(_line,prefix,name)=>prefix+'download/'+encodeURIComponent(name.trim().replace(/^["']|["']$/g,'')));
+   const yaml=row.manifest_yaml.replace(/(^\s*- url:\s*)([^\r\n]+)/gm,(_line,prefix,name)=>prefix+'download/'+encodeURIComponent(decodeURIComponent(name.trim().replace(/^["']|["']$/g,''))));
    return new Response(yaml,{headers:{'content-type':'text/yaml; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
  }
  if(path.startsWith('/api/updates/download/')){
