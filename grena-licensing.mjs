@@ -91,6 +91,29 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      return result;
    }finally{clearTimeout(timer)}
  }
+ async function fetchCentral(path,method='GET',payload,cloudToken='',ownerKey=''){
+   if(!remoteUrl||!/^https:\/\//.test(remoteUrl))throw Object.assign(Error('Falta configurar Cloudflare.'),{status:503});
+   const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),6500);
+   try{
+     const response=await fetch(remoteUrl+path,{method,headers:{
+       ...(cloudToken?{authorization:'Bearer '+cloudToken}:{}),
+       ...(ownerKey?{'x-grena-admin-key':ownerKey}:{}),
+       ...(payload!==undefined?{'content-type':'application/json'}:{})
+     },body:payload!==undefined?JSON.stringify(payload):undefined,signal:ac.signal});
+     const result=await response.json().catch(()=>({}));
+     if(!response.ok||!result.ok)throw Object.assign(Error(result.error||'Error en servidor Cloudflare.'),{status:response.status});
+     return result;
+   }finally{clearTimeout(timer)}
+ }
+ async function ownerStatus(userId){
+   if(cloud||!remoteUrl)return {isOwner:false,configured:false,registered:false};
+   const c=await getCached(userId);if(!c?.token)return {isOwner:false,configured:false,registered:false};
+   try{
+     const result=await fetchCentral('/api/license/owner/status','GET',undefined,c.token);
+     return {...result,registered:true};
+   }catch{return {isOwner:false,configured:false,registered:!!c.token}}
+ }
+ async function isOwner(userId){return (await ownerStatus(userId)).isOwner===true}
  async function onLocalAuth(user,password){
    if(cloud||!user||!remoteUrl)return;
    try{
@@ -224,17 +247,25 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      }
      // Endpoints locales: requieren la sesión de GREÑA ID comprobada por server.mjs.
      const u=activeUser(req);if(!u)return reply(res,401,{ok:false,error:'Inicia sesión en tu GREÑA ID.'}),true;
+     if(pathname==='/api/license/owner/status'&&req.method==='GET'){
+       const result=await ownerStatus(u.id);
+       return reply(res,200,{ok:true,isOwner:result.isOwner===true,configured:result.configured===true,registered:result.registered!==false}),true;
+     }
+     if(pathname==='/api/license/owner/claim'&&req.method==='POST'){
+       const c=await getCached(u.id);
+       if(!c?.token)return reply(res,409,{ok:false,error:'Cierra sesión y entra nuevamente para registrar tu GREÑA ID en Cloudflare.'}),true;
+       const body=await parseBody(req,readBody),key=String(body.adminKey||'');
+       if(key.length<32||key.length>512)return reply(res,400,{ok:false,error:'Introduce la clave ADMIN_KEY de Cloudflare.'}),true;
+       const result=await fetchCentral('/api/license/owner/claim','POST',{},c.token,key);
+       return reply(res,200,result),true;
+     }
      if(pathname.startsWith('/api/license-admin/')){
-       if(!remoteUrl||!/^https:\/\//.test(remoteUrl))return reply(res,503,{ok:false,error:'Configura la dirección HTTPS de licencias Cloudflare.'}),true;
-       const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),6500);
-       try{
-         const key=String(req.headers['x-grena-admin-key']||'');
-         if(key.length<32||key.length>512)return reply(res,401,{ok:false,error:'Clave de administrador incorrecta.'}),true;
-         const payload=req.method==='POST'?await parseBody(req,readBody):undefined;
-         const response=await fetch(remoteUrl+pathname,{method:req.method,headers:{'x-grena-admin-key':key,...(payload?{'content-type':'application/json'}:{})},body:payload?JSON.stringify(payload):undefined,signal:ac.signal});
-         const result=await response.json().catch(()=>({ok:false,error:'Respuesta no válida del servicio.'}));
-         return reply(res,response.status,result),true;
-       }finally{clearTimeout(timer)}
+       // A link hidden in HTML is never sufficient: validate ownership on Cloudflare too.
+       const c=await getCached(u.id);
+       if(!c?.token)return reply(res,401,{ok:false,error:'Tu GREÑA ID no está sincronizado.'}),true;
+       const payload=req.method==='POST'?await parseBody(req,readBody):undefined;
+       const result=await fetchCentral(pathname,req.method,payload,c.token);
+       return reply(res,200,result),true;
      }
      if(pathname==='/api/license/status'&&req.method==='GET'){
        const c=await getCached(u.id);
@@ -259,5 +290,5 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      return true;
    }
  }
- return {handle,onLocalAuth,heartbeat,canUse,getCached};
+ return {handle,onLocalAuth,heartbeat,canUse,getCached,ownerStatus,isOwner};
 }
