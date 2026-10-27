@@ -1,0 +1,72 @@
+name: GREÑA · Reparar latest.yml v5.1.3
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/repair-v513-update-manifest.yml
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: v5.1.3
+      INSTALLER: GRENA.LIVE.Setup.5.1.3.exe
+    steps:
+      - uses: actions/checkout@v4
+      - name: Descargar assets existentes sin reconstruir EXE
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p downloaded
+          gh release download "$VERSION" --repo "$GITHUB_REPOSITORY" --pattern '*.exe' --pattern 'latest.yml' --dir downloaded
+          test -s "downloaded/$INSTALLER"
+          test -s downloaded/latest.yml
+      - name: Verificar SHA512, tamaño y corregir solamente el nombre del instalador
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import {createHash} from 'node:crypto';
+          const dir='downloaded';
+          const binaryName=process.env.INSTALLER;
+          const binary=fs.readFileSync(path.join(dir,binaryName));
+          const manifestPath=path.join(dir,'latest.yml');
+          let yaml=fs.readFileSync(manifestPath,'utf8');
+          const version=/^version:\s*(\S+)\s*$/m.exec(yaml)?.[1];
+          const expectedSha=/^sha512:\s*(\S+)\s*$/m.exec(yaml)?.[1];
+          const expectedSize=Number(/^\s*size:\s*(\d+)\s*$/m.exec(yaml)?.[1]||0);
+          const actualSha=createHash('sha512').update(binary).digest('base64');
+          if(version!=='5.1.3'||expectedSha!==actualSha||expectedSize!==binary.length){
+            throw Error('El instalador real no coincide con el hash/tamaño de latest.yml; no modificar.');
+          }
+          const urlLines=[...yaml.matchAll(/^\s*- url:.*$/gm)];
+          const pathLines=[...yaml.matchAll(/^path:.*$/gm)];
+          if(urlLines.length!==1||pathLines.length!==1)throw Error('Formato de latest.yml inesperado');
+          yaml=yaml.replace(/^([ \t]*- url:).*$/m,(_,k)=>k+' '+binaryName);
+          yaml=yaml.replace(/^(path:).*$/m,(_,k)=>k+' '+binaryName);
+          fs.writeFileSync(manifestPath,yaml);
+          console.log(JSON.stringify({version,installer:binaryName,sha512Verified:true,size:binary.length,manifestMatches:true}));
+          NODE
+      - name: Actualizar únicamente latest.yml de la release v5.1.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$VERSION" downloaded/latest.yml --repo "$GITHUB_REPOSITORY" --clobber
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$VERSION" --jq '.assets | map({name,size})'
+      - name: Verificar que GitHub devuelve el manifiesto corregido
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --retry 4 -fLsS "https://github.com/$GITHUB_REPOSITORY/releases/download/$VERSION/latest.yml" > verified.yml
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const yaml=fs.readFileSync('verified.yml','utf8');
+          const match=/^\s*- url:\s*(.+)$/m.exec(yaml)?.[1]?.trim();
+          const expected=process.env.INSTALLER;
+          if(match!==expected)throw Error('GitHub aún entrega un manifiesto incorrecto');
+          console.log('VERIFICADO: latest.yml apunta a '+expected);
+          NODE
