@@ -62,7 +62,7 @@ test('Nuevas cuentas: prueba única de 3 días en D1, vinculada al dispositivo y
    assert.equal(legacy.license_code_id,null);
    const owner=await request(env,'/api/license/identity/register',{username:'owner_trial',email:'owner-trial@example.org',password:'owner-trial-password'});
    assert.equal((await request(env,'/api/license/owner/claim',{}, {token:owner.data.token,admin:ADMIN})).status,200);
-   const ownerBeat=await request(env,'/api/license/heartbeat',{deviceId},{token:owner.data.token});
+   const ownerBeat=await request(env,'/api/license/heartbeat',{deviceId:device},{token:owner.data.token});
    assert.equal(ownerBeat.data.permanentAccess,true);
    assert.equal(ownerBeat.data.license,null,'La cuenta propietaria conserva acceso ilimitado');
    const grant=await request(env,'/api/license-admin/grant',{username:'trial_client',days:30},{token:owner.data.token});
@@ -74,7 +74,7 @@ test('Nuevas cuentas: prueba única de 3 días en D1, vinculada al dispositivo y
    assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:reg.data.token})).data.license,null);
    const unbound=await request(env,'/api/license/identity/register',{username:'trial_unbound',email:'unbound@example.org',password:'unbound-password-123'});
    assert.equal(unbound.data.license.kind,'trial');
-   const firstBeat=await request(env,'/api/license/heartbeat',{deviceId},{token:unbound.data.token});
+   const firstBeat=await request(env,'/api/license/heartbeat',{deviceId:device},{token:unbound.data.token});
    assert.equal(firstBeat.data.license.active,true);
    assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:unbound.data.token})).data.license,null);
  }finally{close()}
