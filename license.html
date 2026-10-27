@@ -4,6 +4,15 @@
 <div class="status"><strong id="state">Consultando tu licencia…</strong><small id="detail">Verificando el registro central.</small></div>
 <form id="redeem"><label for="code">Código de activación</label><input id="code" name="code" autocomplete="off" placeholder="GRENA-XXXXXXXXXX-XXXXXXXXXX" maxlength="32" required><div class="actions"><button id="activate" type="submit">Activar licencia</button><button id="refresh" class="secondary" type="button">Actualizar estado</button></div></form>
 <div class="msg" id="message" role="status"></div><div class="actions"><a href="/mode.html" class="btn secondary">Volver a GREÑA</a><button id="logout" class="secondary" type="button">Cerrar sesión</button></div>
+<section id="owner-setup" hidden style="margin-top:25px;padding:18px;border:1px solid #514086;border-radius:14px">
+  <div class="eyebrow">Vinculación privada · una sola vez</div>
+  <h2 style="margin:10px 0">Activar tu cuenta propietaria</h2>
+  <p>Usa la clave ADMIN_KEY que configuraste en Cloudflare. Después podrás entrar a Administración con tu GREÑA ID, sin volver a escribirla.</p>
+  <label for="ownerKey">Clave privada de Cloudflare</label>
+  <input id="ownerKey" type="password" autocomplete="off" placeholder="ADMIN_KEY" spellcheck="false">
+  <div class="actions"><button type="button" id="owner-claim">Vincular mi GREÑA ID</button></div>
+  <div class="msg" id="owner-msg" role="status"></div>
+</section>
 <p class="notes">Conservas tus alertas, chat, voces y configuraciones al renovar. Si aún no apareces registrado, cierra la sesión y entra de nuevo con tu GREÑA ID. Se requiere internet para activar o renovar.</p>
 </section></main><script>
 const el=id=>document.getElementById(id);
@@ -22,4 +31,17 @@ el('redeem').onsubmit=async e=>{e.preventDefault();el('activate').disabled=true;
 el('refresh').onclick=refresh;
 el('logout').onclick=async()=>{await fetch('/api/account/logout',{method:'POST'}).catch(()=>{});location.replace('/login.html')};
 api('/api/license/status').then(paint).catch(e=>message(e.message));
+if(location.hash==='#propietario'){
+  el('owner-setup').hidden=false;
+  el('owner-claim').onclick=async()=>{
+    const key=el('ownerKey').value;el('owner-claim').disabled=true;
+    try{
+      const r=await api('/api/license/owner/claim',{adminKey:key});
+      el('ownerKey').value='';el('owner-msg').textContent=r.message||'Tu cuenta quedó vinculada.';
+      location.hash='';
+      setTimeout(()=>location.assign('/mode.html'),1100);
+    }catch(e){el('owner-msg').textContent=e.message}
+    finally{el('owner-claim').disabled=false}
+  };
+}
 </script></body></html>

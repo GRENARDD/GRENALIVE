@@ -57,15 +57,64 @@ async function issueSession(env,u){
  await env.DB.prepare('INSERT INTO user_sessions(token_hash,user_id,expires_at) VALUES (?,?,?)').bind(await sha(key),u.id,now()+SESSION_AGE).run();
  return key;
 }
+async function ensureOwners(env){
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS license_owners (user_id TEXT PRIMARY KEY, created_at INTEGER NOT NULL)').run();
+}
+async function ownerInfo(env,u){
+ if(!u)return {ok:true,isOwner:false,configured:false};
+ await ensureOwners(env);
+ const owners=(await env.DB.prepare('SELECT user_id FROM license_owners LIMIT 1').first());
+ return {ok:true,isOwner:owners?.user_id===u.id,configured:!!owners};
+}
 async function adminCheck(env,req){
- if(!env.ADMIN_KEY||String(env.ADMIN_KEY).length<32)return fail('Configura ADMIN_KEY como secreto de Cloudflare.',503);
- if(!same(req.headers.get('x-grena-admin-key')||'',env.ADMIN_KEY))return fail('Clave de administrador incorrecta.',401);
+ // Owner is authenticated with GREÑA ID; the private ADMIN_KEY is required only
+ // once to claim the first owner, never stored on the customer PC or in GitHub.
+ const u=await sessionUser(env,req);
+ if(!u)return fail('Inicia sesión con tu GREÑA ID.',401);
+ const state=await ownerInfo(env,u);
+ if(!state.isOwner)return fail('Esta cuenta no está autorizada para administrar licencias.',403);
  return null;
+}
+async function communityTable(env){
+ // Non-destructive lazy migration: no manual D1 changes required for existing users.
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS community_presence (user_id TEXT PRIMARY KEY, viewers INTEGER NOT NULL DEFAULT 0, platforms TEXT NOT NULL DEFAULT \'[]\', avatar TEXT NOT NULL DEFAULT \'\', live INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL)').run();
+}
+async function communitySnapshot(env){
+ await communityTable(env);
+ const since=now()-90000,onlineSince=now()-ONLINE;
+ const live=(await env.DB.prepare('SELECT p.user_id,p.viewers,p.platforms,p.avatar,u.display_name,u.username FROM community_presence p JOIN users u ON u.id=p.user_id WHERE p.live=1 AND p.updated_at>? AND u.disabled=0 ORDER BY p.viewers DESC LIMIT 100').bind(since).all()).results||[];
+ const usersOnline=await env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE last_seen_at>? AND disabled=0').bind(onlineSince).first();
+ const users=live.map(row=>({name:row.display_name||row.username,viewers:row.viewers,avatar:row.avatar||'',platforms:JSON.parse(row.platforms||'[]')}));
+ return {ok:true,usersOnline:Number(usersOnline?.n||0),liveCount:users.length,totalViewers:users.reduce((sum,x)=>sum+x.viewers,0),users};
 }
 async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
  if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1'});
+ if(path==='/api/license/community'&&req.method==='GET'){
+   const u=await sessionUser(env,req);
+   if(!u)return fail('Cuenta GREÑA ID requerida.',401);
+   return json(await communitySnapshot(env));
+ }
+ if(path==='/api/license/owner/status'&&req.method==='GET'){
+   const u=await sessionUser(env,req);
+   if(!u)return fail('Sesión GREÑA ID central requerida.',401);
+   return json(await ownerInfo(env,u));
+ }
+ if(path==='/api/license/owner/claim'&&req.method==='POST'){
+   if(await limiter(env,req,'claim-owner',6))return fail('Demasiados intentos.',429);
+   const u=await sessionUser(env,req);
+   if(!u)return fail('Inicia sesión en GREÑA ID.',401);
+   if(String(env.ADMIN_KEY||'').length<32)return fail('Falta configurar ADMIN_KEY como secreto.',503);
+   if(!same(req.headers.get('x-grena-admin-key')||'',env.ADMIN_KEY))return fail('Clave de propietario incorrecta.',401);
+   await ensureOwners(env);
+   const state=await ownerInfo(env,u);
+   if(state.configured&&!state.isOwner)return fail('Ya existe una cuenta propietaria. No se puede reclamar otra.',409);
+   if(!state.configured)await env.DB.prepare('INSERT INTO license_owners(user_id,created_at) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM license_owners)').bind(u.id,now()).run();
+   const result=await ownerInfo(env,u);
+   if(!result.isOwner)return fail('Otro propietario se vinculó primero.',409);
+   return json({...result,message:'Cuenta propietaria vinculada correctamente.'});
+ }
  if(path.startsWith('/api/license-admin/')){
    if(await limiter(env,req,'admin',90))return fail('Demasiadas solicitudes.',429);
    const denied=await adminCheck(env,req);if(denied)return denied;
@@ -130,6 +179,22 @@ async function handle(req,env){
  }
  const u=await sessionUser(env,req);
  if(!u)return fail('La sesión central venció o está suspendida.',401);
+ if(path==='/api/license/presence'){
+   const b=await body(req);
+   await communityTable(env);
+   if(b.share!==true){
+     await env.DB.prepare('DELETE FROM community_presence WHERE user_id=?').bind(u.id).run();
+     return json({ok:true,share:false});
+   }
+   const platforms=Array.isArray(b.platforms)?[...new Set(b.platforms.map(String).filter(p=>['tiktok','twitch','kick','youtube','starvios'].includes(p)))].slice(0,5):[];
+   const viewers=Number(b.viewers);
+   const count=Number.isFinite(viewers)?Math.max(0,Math.min(10000000,Math.floor(viewers))):0;
+   const live=b.live===true&&platforms.length>0;
+   const avatar=typeof b.avatar==='string'&&b.avatar.length<20000&&/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(b.avatar)?b.avatar:'';
+   await env.DB.prepare('INSERT INTO community_presence(user_id,viewers,platforms,avatar,live,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET viewers=excluded.viewers,platforms=excluded.platforms,avatar=excluded.avatar,live=excluded.live,updated_at=excluded.updated_at')
+     .bind(u.id,count,JSON.stringify(platforms),avatar,live?1:0,now()).run();
+   return json({ok:true,share:true,live});
+ }
  if(path==='/api/license/heartbeat'){
    const b=await body(req),deviceId=String(b.deviceId||'');
    if(!deviceValid(deviceId))return fail('Identificador de dispositivo inválido.');

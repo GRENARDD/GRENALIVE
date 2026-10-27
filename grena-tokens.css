@@ -1,0 +1,107 @@
+/* ==========================================================================
+   GREÑA LIVE PRO · TOKENS
+   Única fuente de verdad para colores, tipografía, formas y movimiento.
+   Cárgalo PRIMERO en todas las páginas (antes de aurora-ui.css y grena-gamer.css):
+     <link rel="stylesheet" href="/grena-tokens.css">
+   Para cambiar el look de toda la app, edita solo este archivo.
+   ========================================================================== */
+
+:root{
+  /* ---------- MARCA ---------- */
+  --g-violet:#8b5cf6;
+  --g-violet-hot:#a855ff;
+  --g-indigo:#6a4cff;
+  --g-cyan:#22e4f2;
+  --g-pink:#ff3c81;
+  --g-green:#3dffa0;
+  --g-gold:#ffc857;
+
+  /* ---------- PLATAFORMAS ---------- */
+  --p-tiktok:#25f4ee;
+  --p-twitch:#9146ff;
+  --p-kick:#53fc18;
+  --p-youtube:#ff3030;
+  --p-starvios:#ff6ab9;
+
+  /* ---------- SUPERFICIES ---------- */
+  --g-bg:#05070f;
+  --g-bg-login:#07090e;
+  --g-surface:#0a0f1c;
+  --g-surface-2:#10162a;
+  --g-surface-3:#171b27;
+  --g-line:rgba(151,166,211,.13);
+  --g-line-strong:rgba(139,92,246,.34);
+
+  /* ---------- TEXTO ---------- */
+  --g-text:#f5f7fb;
+  --g-text-soft:#b9c0d0;
+  --g-text-dim:#8f9ab5;
+  --g-text-faint:#7d869b;
+
+  /* ---------- ESTADOS ---------- */
+  --g-ok:#8fe7bd;
+  --g-ok-bg:rgba(70,218,156,.08);
+  --g-ok-line:rgba(70,218,156,.17);
+  --g-err:#ff9ab0;
+  --g-err-bg:rgba(255,68,103,.08);
+  --g-err-line:rgba(255,68,103,.17);
+  --g-info:#9da8ca;
+  --g-info-bg:rgba(80,113,255,.07);
+  --g-info-line:rgba(115,136,255,.14);
+
+  /* ---------- DEGRADADOS ---------- */
+  --g-grad-primary:linear-gradient(135deg,var(--g-violet-hot) 0%,var(--g-indigo) 55%,var(--g-cyan) 100%);
+  --g-grad-text:linear-gradient(90deg,#fff 0%,#d9c8ff 55%,#8ff3fb 100%);
+
+  /* ---------- GLOW ---------- */
+  --g-glow-violet:0 0 0 1px rgba(139,92,246,.35),0 0 22px rgba(139,92,246,.28);
+  --g-glow-cyan:0 0 0 1px rgba(34,228,242,.35),0 0 20px rgba(34,228,242,.22);
+  --g-shadow-panel:0 18px 60px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05);
+
+  /* ---------- TIPOGRAFÍA ---------- */
+  --g-font-display:"Bahnschrift","Rajdhani","Segoe UI Variable Display","Segoe UI",Inter,system-ui,sans-serif;
+  --g-font-body:Inter,"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  --g-text-xs:11px;
+  --g-text-sm:12px;
+  --g-text-md:13px;
+  --g-text-lg:16px;
+
+  /* ---------- FORMA ---------- */
+  --g-radius-sm:9px;
+  --g-radius-md:14px;
+  --g-radius-lg:20px;
+  --g-radius-pill:99px;
+
+  /* ---------- MOVIMIENTO ---------- */
+  --g-ease:cubic-bezier(.2,.8,.2,1);
+  --g-dur-fast:.15s;
+  --g-dur:.2s;
+  --g-dur-slow:.3s;
+}
+
+/* Control de rendimiento para OBS y videojuegos */
+:root[data-perf="low"] *,
+:root[data-perf="low"] *::before,
+:root[data-perf="low"] *::after{
+  animation:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+
+/* Compatibilidad con grena-gamer.css */
+:root{
+  --gx-bg:var(--g-bg);
+  --gx-violet:var(--g-violet);
+  --gx-violet-hot:var(--g-violet-hot);
+  --gx-cyan:var(--g-cyan);
+  --gx-green:var(--g-green);
+  --gx-pink:var(--g-pink);
+  --gx-gold:var(--g-gold);
+  --gx-edge:var(--g-line-strong);
+  --gx-edge-soft:var(--g-line);
+  --gx-glow-v:var(--g-glow-violet);
+  --gx-glow-c:var(--g-glow-cyan);
+  --gx-display:var(--g-font-display);
+  --gx-body:var(--g-font-body);
+  --gx-ease:var(--g-ease);
+}
