@@ -60,10 +60,15 @@ async function vaultRead(dataDir){
  if(keys.some(k=>k!==''&&!validFishKey(k)))throw Error('La bóveda contiene una clave Fish Audio no válida.');
  return keys;
 }
+// Shared, stable array so a verified owner's automatic migration becomes available
+// immediately to the running GREÑA server, without reopening it or rerunning CMD.
+const activeOwnerFishKeys=[];
 async function readOwnerFishKeys(dataDir){
  const local=process.platform==='win32'?await vaultRead(dataDir):[];
  const env=[String(process.env.GRENA_FISH_API_KEY||'').trim(),String(process.env.GRENA_FISH_API_KEY_2||'').trim()];
- return [0,1].map(i=>env[i]||local[i]||''); // Keep slots stable even if only API 2 is configured.
+ const next=[0,1].map(i=>env[i]||local[i]||'');
+ activeOwnerFishKeys.splice(0,activeOwnerFishKeys.length,...next);
+ return activeOwnerFishKeys;
 }
 async function storeOwnerFishKey(dataDir,index,apiKey){
  if(process.platform!=='win32')throw Error('Este almacenamiento seguro solo está disponible en GREÑA Desktop para Windows.');
