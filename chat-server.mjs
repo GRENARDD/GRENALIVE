@@ -88,16 +88,38 @@ const fishAccounts = [
   {id:'fish-1',key:String(FISH_AUDIO_API_KEY_1||'').trim(),active:0,cooldownUntil:0},
   {id:'fish-2',key:FISH_AUDIO_API_KEY_2,active:0,cooldownUntil:0}
 ].filter(account=>account.key);
+
+let fishProfileAccount=null;
+async function fishPoolForProfile(profileId){
+ const requested=String(profileId||'');
+ if(!requested)return {accounts:[],error:'Inicia sesión en tu GREÑA ID para usar Fish Audio.'};
+ try{
+   const url=MAIN_ORIGIN+'/api/internal/fish-credential?profileId='+encodeURIComponent(requested);
+   const r=await fetch(url,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(4500),cache:'no-store'});
+   const result=await r.json().catch(()=>({}));
+   if(!r.ok||!result.ok)return {accounts:[],error:'No se pudo verificar la API de tu GREÑA ID.'};
+   if(requested!==activeProfileId)return {accounts:[],error:'El perfil cambió. Inténtalo otra vez.'};
+   if(typeof result.apiKey==='string'&&result.apiKey.length>=20){
+     if(!fishProfileAccount||fishProfileAccount.id!=='account:'+requested||fishProfileAccount.key!==result.apiKey)
+       fishProfileAccount={id:'account:'+requested,key:result.apiKey,active:0,cooldownUntil:0};
+     return {accounts:[fishProfileAccount]};
+   }
+   // The owner's legacy Fish pool is preserved in full; no other GREÑA ID shares it.
+   if(result.permanentAccess===true)return {accounts:fishAccounts};
+   return {accounts:[],error:result.unavailable?'No se pudo consultar la API de Fish Audio. Revisa Cloudflare.':'Configura tu propia API Fish Audio en Configuración para activar el chat de voz.'};
+ }catch{return {accounts:[],error:'No se pudo verificar la API Fish Audio de esta cuenta.'}}
+}
+
 let fishRoundRobin = 0;
 const fishWaiters = [];
 
-function takeFishAccount(excludedIds=new Set()){
-  const total=fishAccounts.length;
+function takeFishAccount(excludedIds=new Set(),pool=fishAccounts){
+  const total=pool.length;
   if(!total)return null;
   const now=Date.now();
   for(let step=0;step<total;step++){
     const index=(fishRoundRobin+step)%total;
-    const account=fishAccounts[index];
+    const account=pool[index];
     if(excludedIds.has(account.id))continue;
     if(account.cooldownUntil>now)continue;
     if(account.active>=FISH_PER_ACCOUNT_MAX_CONCURRENT)continue;
@@ -110,18 +132,18 @@ function takeFishAccount(excludedIds=new Set()){
 function pumpFishWaiters(){
   for(let i=0;i<fishWaiters.length;){
     const waiter=fishWaiters[i];
-    const account=takeFishAccount(waiter.excludedIds);
+    const account=takeFishAccount(waiter.excludedIds,waiter.pool);
     if(!account){i++;continue;}
     fishWaiters.splice(i,1);
     clearTimeout(waiter.timer);
     waiter.resolve(account);
   }
 }
-function acquireFishAccount(excludedIds=new Set(),waitMs=FISH_WAIT_MAX_MS){
-  const account=takeFishAccount(excludedIds);
+function acquireFishAccount(excludedIds=new Set(),waitMs=FISH_WAIT_MAX_MS,pool=fishAccounts){
+  const account=takeFishAccount(excludedIds,pool);
   if(account)return Promise.resolve(account);
   return new Promise(resolve=>{
-    const waiter={resolve,excludedIds:new Set(excludedIds),timer:null};
+    const waiter={resolve,excludedIds:new Set(excludedIds),pool,timer:null};
     waiter.timer=setTimeout(()=>{
       const i=fishWaiters.indexOf(waiter);
       if(i>=0)fishWaiters.splice(i,1);
@@ -195,6 +217,7 @@ const multichatDefaults = {iconSize:24,readability:'both',shadowStrength:70,dire
 let multichatSettings = sanitizeMultichatSettings(await readJson(MULTICHAT_SETTINGS_FILE,{}),multichatDefaults);
 async function loadChatProfile(userId=''){
   activeProfileId=String(userId||'');
+  fishProfileAccount=null; // Never carry API key material across GREÑA ID switches.
   if(activeProfileId)await mkdir(join(PROFILES_DIR,activeProfileId),{recursive:true}).catch(()=>{});
   CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
   MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
@@ -2428,6 +2451,11 @@ const server =
         // Fish Audio TTS se ejecuta en Node para que las credenciales nunca se envíen
         // al navegador. El frontend solo proporciona texto + ID del modelo de voz.
         if (url.pathname === '/api/fish-tts' && request.method === 'POST') {
+          if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){
+            response.writeHead(403,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+            response.end(JSON.stringify({ok:false,error:'La síntesis de voz solo está disponible desde GREÑA Live autenticado.'}));
+            return;
+          }
           let body='';
           body=await readBody(request,64*1024);
           let incoming={};
@@ -2451,13 +2479,14 @@ const server =
             response.end(JSON.stringify({ok:false,error:'El ID del modelo Fish Audio no es válido.'}));
             return;
           }
-          if(!fishAccounts.length){
+          const fishContext=await fishPoolForProfile(activeProfileId);
+          if(!fishContext.accounts.length){
             response.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-            response.end(JSON.stringify({ok:false,error:'Fish Audio no está configurado en esta instalación.'}));
+            response.end(JSON.stringify({ok:false,error:fishContext.error||'Configura tu API Fish Audio en GREÑA ID para usar el chat de voz.'}));
             return;
           }
 
-          let fishAccount=await acquireFishAccount();
+          let fishAccount=await acquireFishAccount(new Set(),FISH_WAIT_MAX_MS,fishContext.accounts);
           if(!fishAccount){
             response.writeHead(429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-grena-fish-dropped':'stale'});
             response.end(JSON.stringify({ok:false,error:'Mensaje de voz descartado por saturación para mantener el LIVE en tiempo real.'}));
@@ -2480,7 +2509,7 @@ const server =
           const attempted=new Set();
           let lastFailure=null;
           try{
-            while(fishAccount && attempted.size<fishAccounts.length){
+            while(fishAccount && attempted.size<fishContext.accounts.length){
               attempted.add(fishAccount.id);
               upstreamController=new AbortController();
               const timer=setTimeout(()=>upstreamController.abort(),42000);
@@ -2508,7 +2537,7 @@ const server =
                         'content-length':audio.length,
                         'cache-control':'no-store, max-age=0',
                         'x-content-type-options':'nosniff',
-                        'x-grena-fish-pool':String(fishAccounts.length)
+                        'x-grena-fish-pool':String(fishContext.accounts.length)
                       });
                       response.end(audio);
                     }
@@ -2547,8 +2576,8 @@ const server =
               }
 
               if(clientClosed || response.destroyed)return;
-              if(attempted.size>=fishAccounts.length)break;
-              fishAccount=await acquireFishAccount(attempted,FISH_FAILOVER_WAIT_MS);
+              if(attempted.size>=fishContext.accounts.length)break;
+              fishAccount=await acquireFishAccount(attempted,FISH_FAILOVER_WAIT_MS,fishContext.accounts);
               heldAccount=fishAccount;
             }
 
