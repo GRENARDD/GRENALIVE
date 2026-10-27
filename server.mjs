@@ -15,6 +15,8 @@ import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
 import {STARVIOS_SUPPORT_CATALOG,normalizeStarviosEvent} from './starvios-events.mjs';
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 import { makeLicensing } from './grena-licensing.mjs';
+import ownerFishVault from './fish-owner-vault.cjs';
+const {readOwnerFishKeys,storeOwnerFishKey}=ownerFishVault;
 
 // GREÑA 3.1.7: evita los fallbacks premium de EulerStream para resolver Room ID / estado LIVE.
 // La conexión de lectura usa primero las rutas públicas/directas de TikTok.
@@ -192,6 +194,9 @@ const LEGACY_ALERTS_FILE=join(DATA_DIR,'grena-alert-designs.json');
 const LEGACY_SOCIAL_FILE=join(DATA_DIR,'grena-social-gadget.json');
 const LEGACY_AUTO_FILE=join(DATA_DIR,'grena-auto-connect.json');
 await mkdir(PROFILES_DIR,{recursive:true}).catch(()=>{});
+let ownerFishKeys=[];
+try{ownerFishKeys=await readOwnerFishKeys(DATA_DIR)}catch{console.warn('[GREÑA Fish] No se pudo abrir la bóveda local protegida. Tu configuración sigue intacta.')}
+
 async function safeWriteJson(file,data){
   const text=JSON.stringify(data,null,2);
   JSON.parse(text);
@@ -1994,6 +1999,7 @@ function proxyChatHttp(req,res,url,stripChat=true){
   const pathname=stripChat?(url.pathname==='/chat'?'/':url.pathname.slice('/chat'.length)||'/'):url.pathname;
   const internalOrigin=`http://127.0.0.1:${PORT}`;
   const headers={...req.headers,host:'127.0.0.1:8788',origin:internalOrigin};
+  if(pathname==='/api/fish-tts')headers['x-grena-internal']=BRIDGE_TOKEN;
   delete headers['x-forwarded-host'];delete headers['x-forwarded-proto'];delete headers['x-forwarded-for'];
   const upstream=http.request({hostname:'127.0.0.1',port:8788,path:pathname+url.search,method:req.method,headers},u=>{
     const out={...u.headers};delete out['access-control-allow-origin'];delete out['access-control-allow-credentials'];
@@ -2017,7 +2023,24 @@ const CHAT_HTTP_ROUTES=new Set([
 const bridgeMessageSeen=new Map();
 function bridgeMessageDuplicate(id){id=String(id||'').trim();if(!id)return false;const now=Date.now(),prev=bridgeMessageSeen.get(id)||0;if(prev&&now-prev<2*60*1000)return true;bridgeMessageSeen.set(id,now);for(const [k,t] of bridgeMessageSeen)if(now-t>2*60*1000)bridgeMessageSeen.delete(k);return false}
 
+
+// The license gate is inactive until GRENA_LICENSE_REQUIRE=1 is enabled explicitly.
+// Check the active profile even for OBS sources (they use tokens, not account cookies).
+async function licenseGate(req,res,pathname){
+ if(CLOUD_MODE||process.env.GRENA_LICENSE_REQUIRE!=='1'||!activeUserId)return false;
+ if(pathname==='/health'||pathname==='/favicon.ico'||pathname==='/license.html'||pathname==='/login.html'||pathname==='/api/overlay-version'||pathname==='/api/internal/chat-license-status'||pathname.startsWith('/api/account/')||pathname.startsWith('/api/app/')||pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/'))return false;
+ if(await licensing.canUse(activeUserId))return false;
+ if(req.method==='GET'||req.method==='HEAD'){
+   if(pathname==='/'||pathname.endsWith('.html')||pathname==='/chat'){res.writeHead(302,{location:'/license.html','cache-control':'no-store'});res.end();return true}
+ }
+ if(pathname.startsWith('/api/')||pathname.startsWith('/chat/')||pathname==='/chat'){
+   json(res,402,{ok:false,error:'Tu período de prueba o licencia venció. Renueva desde GREÑA ID.'});return true;
+ }
+ return false;
+}
+
 const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!safeReqPath(req.url))throw 0;url=new URL(req.url,'http://127.0.0.1');pathname=url.pathname}catch{res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});return res.end('Solicitud no válida')}try{
+ if(await licenseGate(req,res,pathname))return;
  if(pathname==='/chat'||pathname.startsWith('/chat/')){
     const chatOverlay=pathname==='/chat/multichat-overlay.html';
     const chatApi=pathname==='/chat/api/multichat-settings'||pathname==='/chat/api/multichat-history';
@@ -2045,14 +2068,46 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    return json(res,200,{ok:true,registered:true,connected:true});
  }
  if(await licensing.handle(req,res,pathname))return;
- if(!CLOUD_MODE&&process.env.GRENA_LICENSE_REQUIRE==='1'&&sessionUser(req)){
-   const u=sessionUser(req),allowed=await licensing.canUse(u.id);
-   if(!allowed){
-     const guardedPages=new Set(['/','/index.html','/mode.html','/mobile.html','/alerts.html','/widgets.html','/custom-alerts.html','/afterglow-studio.html','/cam-room.html','/gift-catalog.html']);
-     if(guardedPages.has(pathname)){res.writeHead(302,{location:'/license.html','cache-control':'no-store'});return res.end()}
-     if(pathname.startsWith('/api/')&&!pathname.startsWith('/api/account/')&&!pathname.startsWith('/api/app/')&&!pathname.startsWith('/api/license/')&&!pathname.startsWith('/api/license-admin/')&&pathname!=='/api/overlay-version')return json(res,402,{ok:false,error:'Necesitas una licencia GREÑA Live PRO activa.'});
-   }
+ // Owner-only local DPAPI vault; never returns stored key bytes to the browser.
+ if(pathname==='/api/owner/fish-keys'&&(req.method==='GET'||req.method==='POST')){
+   const me=sessionUser(req);
+   if(CLOUD_MODE||!me||!await licensing.isOwner(me.id))return json(res,403,{ok:false,error:'Solo el propietario GREÑA ID puede configurar sus APIs.'});
+   if(req.method==='GET')return json(res,200,{ok:true,configured:[!!ownerFishKeys[0],!!ownerFishKeys[1]],windows:process.platform==='win32'});
+   if(process.platform!=='win32')return json(res,503,{ok:false,error:'La bóveda privada del propietario solo está disponible en GREÑA Desktop para Windows.'});
+   const raw=await readBody(req,4096);let data;
+   try{data=JSON.parse(raw||'{}')}catch{return json(res,400,{ok:false,error:'Datos inválidos.'})}
+   const slot=Number(data.index),key=String(data.apiKey||'').trim();
+   if(!Number.isInteger(slot)||slot<1||slot>2||key.length<20||key.length>512||!/^\S+$/.test(key))
+     return json(res,400,{ok:false,error:'Selecciona el espacio 1 o 2 e introduce una API Fish Audio válida.'});
+   await storeOwnerFishKey(DATA_DIR,slot,key);
+   ownerFishKeys=await readOwnerFishKeys(DATA_DIR);
+   return json(res,200,{ok:true,configured:[!!ownerFishKeys[0],!!ownerFishKeys[1]]});
  }
+ if(pathname==='/api/internal/chat-license-status'&&req.method==='GET'){
+   if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Forbidden'});
+   const profile=String(url.searchParams.get('profileId')||'');
+   if(!profile||!activeUserId||profile!==activeUserId)return json(res,200,{ok:true,allowed:false});
+   const allowed=CLOUD_MODE||process.env.GRENA_LICENSE_REQUIRE!=='1'||await licensing.canUse(profile);
+   return json(res,200,{ok:true,allowed});
+ }
+ if(pathname==='/api/internal/chat-ws-authorize'&&req.method==='POST'){
+   if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Forbidden'});
+   let body;try{body=JSON.parse(await readBody(req,4096))}catch{return json(res,400,{ok:false,error:'Invalid access request'})}
+   const cookie=typeof body.cookie==='string'?body.cookie.slice(0,2800):'';
+   const obs=typeof body.obs==='string'?body.obs.slice(0,180):'';
+   const probe={headers:{cookie},url:'/chat-ws?obs='+encodeURIComponent(obs)};
+   const authenticated=!!sessionUser(probe)||obsAuthorized(probe);
+   const allowed=authenticated&&(CLOUD_MODE||process.env.GRENA_LICENSE_REQUIRE!=='1'||(!!activeUserId&&await licensing.canUse(activeUserId)));
+   return json(res,200,{ok:true,allowed});
+ }
+ if(pathname==='/api/internal/fish-credential'&&req.method==='GET'){
+   if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Acceso interno no autorizado.'});
+   const wanted=String(url.searchParams.get('profileId')||'');
+   if(!activeUserId||!wanted||wanted!==activeUserId)return json(res,409,{ok:false,error:'Perfil de voz no coincide con la sesión GREÑA.'});
+   const fish=await licensing.getFishCredential(activeUserId);
+   return json(res,200,{ok:true,apiKey:fish.apiKey||null,permanentAccess:fish.permanentAccess===true,unavailable:fish.unavailable===true,ownerKeys:fish.permanentAccess===true?ownerFishKeys:[]});
+ }
+
  // La página de administración está protegida por servidor, no solo oculta en el menú.
  if(pathname==='/license-admin.html'&&(req.method==='GET'||req.method==='HEAD')){
    const u=sessionUser(req);
@@ -2653,7 +2708,7 @@ const wss=new WebSocketServer({noServer:true,maxPayload:256*1024});wss.on('conne
 const chatProxyWss=new WebSocketServer({noServer:true,maxPayload:256*1024});
 chatProxyWss.on('connection',(client)=>{
    chatProxyClients.add(client);
-  const upstream=new WebSocket('ws://127.0.0.1:8788/ws',{headers:{Origin:`http://127.0.0.1:${PORT}`,Host:'127.0.0.1:8788'}});
+  const upstream=new WebSocket('ws://127.0.0.1:8788/ws',{headers:{Origin:`http://127.0.0.1:${PORT}`,Host:'127.0.0.1:8788','x-grena-internal':BRIDGE_TOKEN}});
   const pending=[];
   client.on('message',(data,isBinary)=>{if(upstream.readyState===WebSocket.OPEN)upstream.send(data,{binary:isBinary});else if(upstream.readyState===WebSocket.CONNECTING&&pending.length<100)pending.push([data,isBinary])});
   upstream.on('open',()=>{for(const [data,isBinary] of pending.splice(0))if(upstream.readyState===WebSocket.OPEN)upstream.send(data,{binary:isBinary})});
@@ -2661,14 +2716,28 @@ chatProxyWss.on('connection',(client)=>{
   const closeBoth=()=>{try{if(client.readyState===WebSocket.OPEN||client.readyState===WebSocket.CONNECTING)client.close()}catch{};try{if(upstream.readyState===WebSocket.OPEN||upstream.readyState===WebSocket.CONNECTING)upstream.close()}catch{}};
   client.on('close',()=>{chatProxyClients.delete(client);closeBoth()});client.on('error',()=>{chatProxyClients.delete(client);closeBoth()});upstream.on('close',closeBoth);upstream.on('error',closeBoth);
 });
-server.on('upgrade',(req,socket,head)=>{
+server.on('upgrade',async(req,socket,head)=>{
   let pathname='/';try{pathname=new URL(req.url||'/','http://127.0.0.1').pathname}catch{return socket.destroy()}
   if(!panelHostOk(req)||!localOriginOk(req.headers.origin,req))return socket.destroy();
+  if(!CLOUD_MODE&&process.env.GRENA_LICENSE_REQUIRE==='1'&&activeUserId){
+    try{if(!await licensing.canUse(activeUserId))return socket.destroy()}catch{return socket.destroy()}
+  }
    if(CLOUD_MODE&&!sessionUser(req)&&!obsAuthorized(req))return socket.destroy();
   if(pathname==='/chat-ws')return chatProxyWss.handleUpgrade(req,socket,head,ws=>chatProxyWss.emit('connection',ws,req));
   if(pathname!=='/')return socket.destroy();
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
+// Close already-open sockets once a paid/trial license expires; do not wait for reconnect.
+const liveLicenseTimer=setInterval(async()=>{
+ if(CLOUD_MODE||process.env.GRENA_LICENSE_REQUIRE!=='1'||!activeUserId)return;
+ try{
+   if(await licensing.canUse(activeUserId))return;
+   for(const peer of [...clients,...chatProxyClients]){
+     try{if(peer.readyState===WebSocket.OPEN)peer.close(4003,'GREÑA license expired')}catch{}
+   }
+ }catch{}
+},15000);
+liveLicenseTimer.unref?.();
 let autoTikTokBusy=false;
 let nextTikTokBridgeEnsureAt=0;
 async function ensureTikTokLiveAuto(){

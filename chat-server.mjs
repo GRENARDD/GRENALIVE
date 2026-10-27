@@ -72,8 +72,9 @@ process.on('unhandledRejection',e=>logChatFault('unhandledRejection',e));
 process.on('uncaughtException',e=>logChatFault('uncaughtException',e));
 const BRIDGE_TOKEN=process.env.GRENA_BRIDGE_TOKEN||randomBytes(24).toString('hex');
 if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no definido: arranca con INICIAR_GRENA.vbs (launcher) o con server.mjs para que el puente con el servidor principal funcione.');
-const FISH_AUDIO_API_KEY_1 = process.env.GRENA_FISH_API_KEY || Buffer.from('c2stZmlzaC1PTGJKdExlRzkxeEFXWlFleFlta05UandvSnNlTE9WTUx3OTk2Vnl5Ym9F','base64').toString('utf8');
-const FISH_AUDIO_API_KEY_2 = String(process.env.GRENA_FISH_API_KEY_2 || '').trim();
+// No API Fish Audio se distribuye en el código o el instalador.
+// Solo el backend principal, tras validar GREÑA ID, entrega la API al motor local.
+
 // Model is chosen per request using a server-side allowlist. Free remains the default.
 
 // GREÑA Dual Fish Pool:
@@ -84,20 +85,50 @@ const FISH_AUDIO_API_KEY_2 = String(process.env.GRENA_FISH_API_KEY_2 || '').trim
 const FISH_PER_ACCOUNT_MAX_CONCURRENT = 5;
 const FISH_WAIT_MAX_MS = 9000;
 const FISH_FAILOVER_WAIT_MS = 3500;
-const fishAccounts = [
-  {id:'fish-1',key:String(FISH_AUDIO_API_KEY_1||'').trim(),active:0,cooldownUntil:0},
-  {id:'fish-2',key:FISH_AUDIO_API_KEY_2,active:0,cooldownUntil:0}
-].filter(account=>account.key);
+const fishAccounts = []; // Owner keys are supplied only from the authenticated local backend.
+function reconcileOwnerFishAccounts(keys){
+ const next=[];
+ for(let i=0;i<Math.min(2,keys?.length||0);i++){
+   const key=keys[i];
+   if(typeof key!=='string'||key.length<20)continue;
+   const id='fish-'+(i+1);
+   next.push(fishAccounts.find(x=>x.id===id&&x.key===key)||{id,key,active:0,cooldownUntil:0});
+ }
+ fishAccounts.splice(0,fishAccounts.length,...next);
+ return fishAccounts;
+}
+
+let fishProfileAccount=null;
+async function fishPoolForProfile(profileId){
+ const requested=String(profileId||'');
+ if(!requested)return {accounts:[],error:'Inicia sesión en tu GREÑA ID para usar Fish Audio.'};
+ try{
+   const url=MAIN_ORIGIN+'/api/internal/fish-credential?profileId='+encodeURIComponent(requested);
+   const r=await fetch(url,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(4500),cache:'no-store'});
+   const result=await r.json().catch(()=>({}));
+   if(!r.ok||!result.ok)return {accounts:[],error:'No se pudo verificar la API de tu GREÑA ID.'};
+   if(requested!==activeProfileId)return {accounts:[],error:'El perfil cambió. Inténtalo otra vez.'};
+   if(typeof result.apiKey==='string'&&result.apiKey.length>=20){
+     if(!fishProfileAccount||fishProfileAccount.id!=='account:'+requested||fishProfileAccount.key!==result.apiKey)
+       fishProfileAccount={id:'account:'+requested,key:result.apiKey,active:0,cooldownUntil:0};
+     return {accounts:[fishProfileAccount]};
+   }
+   // The owner's legacy Fish pool is preserved in full; no other GREÑA ID shares it.
+   if(result.permanentAccess===true)return {accounts:reconcileOwnerFishAccounts(result.ownerKeys)};
+   return {accounts:[],error:result.unavailable?'No se pudo consultar la API de Fish Audio. Revisa Cloudflare.':'Configura tu propia API Fish Audio en Configuración para activar el chat de voz.'};
+ }catch{return {accounts:[],error:'No se pudo verificar la API Fish Audio de esta cuenta.'}}
+}
+
 let fishRoundRobin = 0;
 const fishWaiters = [];
 
-function takeFishAccount(excludedIds=new Set()){
-  const total=fishAccounts.length;
+function takeFishAccount(excludedIds=new Set(),pool=fishAccounts){
+  const total=pool.length;
   if(!total)return null;
   const now=Date.now();
   for(let step=0;step<total;step++){
     const index=(fishRoundRobin+step)%total;
-    const account=fishAccounts[index];
+    const account=pool[index];
     if(excludedIds.has(account.id))continue;
     if(account.cooldownUntil>now)continue;
     if(account.active>=FISH_PER_ACCOUNT_MAX_CONCURRENT)continue;
@@ -110,18 +141,18 @@ function takeFishAccount(excludedIds=new Set()){
 function pumpFishWaiters(){
   for(let i=0;i<fishWaiters.length;){
     const waiter=fishWaiters[i];
-    const account=takeFishAccount(waiter.excludedIds);
+    const account=takeFishAccount(waiter.excludedIds,waiter.pool);
     if(!account){i++;continue;}
     fishWaiters.splice(i,1);
     clearTimeout(waiter.timer);
     waiter.resolve(account);
   }
 }
-function acquireFishAccount(excludedIds=new Set(),waitMs=FISH_WAIT_MAX_MS){
-  const account=takeFishAccount(excludedIds);
+function acquireFishAccount(excludedIds=new Set(),waitMs=FISH_WAIT_MAX_MS,pool=fishAccounts){
+  const account=takeFishAccount(excludedIds,pool);
   if(account)return Promise.resolve(account);
   return new Promise(resolve=>{
-    const waiter={resolve,excludedIds:new Set(excludedIds),timer:null};
+    const waiter={resolve,excludedIds:new Set(excludedIds),pool,timer:null};
     waiter.timer=setTimeout(()=>{
       const i=fishWaiters.indexOf(waiter);
       if(i>=0)fishWaiters.splice(i,1);
@@ -195,6 +226,7 @@ const multichatDefaults = {iconSize:24,readability:'both',shadowStrength:70,dire
 let multichatSettings = sanitizeMultichatSettings(await readJson(MULTICHAT_SETTINGS_FILE,{}),multichatDefaults);
 async function loadChatProfile(userId=''){
   activeProfileId=String(userId||'');
+  fishProfileAccount=null; // Never carry API key material across GREÑA ID switches.
   if(activeProfileId)await mkdir(join(PROFILES_DIR,activeProfileId),{recursive:true}).catch(()=>{});
   CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
   MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
@@ -2428,6 +2460,11 @@ const server =
         // Fish Audio TTS se ejecuta en Node para que las credenciales nunca se envíen
         // al navegador. El frontend solo proporciona texto + ID del modelo de voz.
         if (url.pathname === '/api/fish-tts' && request.method === 'POST') {
+          if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){
+            response.writeHead(403,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+            response.end(JSON.stringify({ok:false,error:'La síntesis de voz solo está disponible desde GREÑA Live autenticado.'}));
+            return;
+          }
           let body='';
           body=await readBody(request,64*1024);
           let incoming={};
@@ -2451,13 +2488,14 @@ const server =
             response.end(JSON.stringify({ok:false,error:'El ID del modelo Fish Audio no es válido.'}));
             return;
           }
-          if(!fishAccounts.length){
+          const fishContext=await fishPoolForProfile(activeProfileId);
+          if(!fishContext.accounts.length){
             response.writeHead(503,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-            response.end(JSON.stringify({ok:false,error:'Fish Audio no está configurado en esta instalación.'}));
+            response.end(JSON.stringify({ok:false,error:fishContext.error||'Configura tu API Fish Audio en GREÑA ID para usar el chat de voz.'}));
             return;
           }
 
-          let fishAccount=await acquireFishAccount();
+          let fishAccount=await acquireFishAccount(new Set(),FISH_WAIT_MAX_MS,fishContext.accounts);
           if(!fishAccount){
             response.writeHead(429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-grena-fish-dropped':'stale'});
             response.end(JSON.stringify({ok:false,error:'Mensaje de voz descartado por saturación para mantener el LIVE en tiempo real.'}));
@@ -2480,7 +2518,7 @@ const server =
           const attempted=new Set();
           let lastFailure=null;
           try{
-            while(fishAccount && attempted.size<fishAccounts.length){
+            while(fishAccount && attempted.size<fishContext.accounts.length){
               attempted.add(fishAccount.id);
               upstreamController=new AbortController();
               const timer=setTimeout(()=>upstreamController.abort(),42000);
@@ -2508,7 +2546,7 @@ const server =
                         'content-length':audio.length,
                         'cache-control':'no-store, max-age=0',
                         'x-content-type-options':'nosniff',
-                        'x-grena-fish-pool':String(fishAccounts.length)
+                        'x-grena-fish-pool':String(fishContext.accounts.length)
                       });
                       response.end(audio);
                     }
@@ -2547,8 +2585,8 @@ const server =
               }
 
               if(clientClosed || response.destroyed)return;
-              if(attempted.size>=fishAccounts.length)break;
-              fishAccount=await acquireFishAccount(attempted,FISH_FAILOVER_WAIT_MS);
+              if(attempted.size>=fishContext.accounts.length)break;
+              fishAccount=await acquireFishAccount(attempted,FISH_FAILOVER_WAIT_MS,fishContext.accounts);
               heldAccount=fishAccount;
             }
 
@@ -2897,7 +2935,20 @@ const wss =
 
     maxPayload: 256*1024,
 
-    verifyClient: ({origin,req}) => originAllowed(origin) && hostAllowed(req.headers.host)
+    verifyClient: ({origin,req},accept) => {
+      if(!originAllowed(origin)||!hostAllowed(req.headers.host))return accept(false,403,'Origen no autorizado');
+      if(process.env.GRENA_LICENSE_REQUIRE!=='1'||String(req.headers['x-grena-internal']||'')===BRIDGE_TOKEN)return accept(true);
+      // Existing direct OBS sources at port 8788 remain supported, but only with
+      // valid GREÑA cookies or the private OBS token and an active license.
+      let obs='';try{obs=new URL(req.url,'http://localhost:8788').searchParams.get('obs')||''}catch{}
+      const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),4000);
+      fetch(MAIN_ORIGIN+'/api/internal/chat-ws-authorize',{
+        method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},
+        body:JSON.stringify({cookie:String(req.headers.cookie||'').slice(0,2800),obs}),signal:ac.signal
+      }).then(async response=>response.ok?(await response.json()).allowed===true:false).catch(()=>false)
+        .then(allowed=>accept(allowed,allowed?undefined:403,allowed?undefined:'GREÑA ID o licencia requerida'))
+        .finally(()=>clearTimeout(timer));
+    }
   });
 
 wss.on(
@@ -3073,6 +3124,20 @@ function bridgeHeartbeat(){
   if(connectionPrefs.starviosEnabled&&starviosReader.running)bridgeStatus('starvios',!!starviosReader.connected,starviosReader.connected?'Starvios · chat conectado':'Starvios · esperando LIVE',starviosReader.channel,{heartbeat:true});
   flushBridgeQueue().catch(()=>{});
 }
+// Stop even an already connected direct 8788 chat when the account's license expires.
+const chatLicenseTimer=setInterval(async()=>{
+  if(process.env.GRENA_LICENSE_REQUIRE!=='1'||!activeProfileId||!clients.size)return;
+  let allowed=false;
+  try{
+    const url=MAIN_ORIGIN+'/api/internal/chat-license-status?profileId='+encodeURIComponent(activeProfileId);
+    const r=await fetch(url,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(3500),cache:'no-store'});
+    const state=await r.json().catch(()=>({}));
+    allowed=r.ok&&state.ok===true&&state.allowed===true;
+  }catch{}
+  if(!allowed)for(const ws of clients)try{if(ws.readyState===WebSocket.OPEN)ws.close(4003,'GREÑA license expired')}catch{}
+},15000);
+chatLicenseTimer.unref?.();
+
 const bridgeHeartbeatTimer=setInterval(bridgeHeartbeat,3000);bridgeHeartbeatTimer.unref?.();setTimeout(bridgeHeartbeat,350);
 
 let autoTikTokBusy=false,autoKickBusy=false;

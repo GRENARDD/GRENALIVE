@@ -2,6 +2,8 @@ $ErrorActionPreference='Stop'
 $exe=Join-Path (Get-Location) 'dist\win-unpacked\GREÑA LIVE.exe'
 $backend=Join-Path (Get-Location) 'dist\win-unpacked\resources\app\server.mjs'
 $modules=Join-Path (Get-Location) 'dist\win-unpacked\resources\app\node_modules'
+$fishVaultModule=Join-Path (Get-Location) 'dist\win-unpacked\resources\app\fish-owner-vault.cjs'
+if (!(Test-Path $fishVaultModule)) { throw 'El instalador no incluyó el módulo de bóveda privada Fish Audio.' }
 if (!(Test-Path $exe)) { throw "No existe el ejecutable $exe" }
 if (!(Test-Path $backend)) { throw "El motor Node no se empaquetó como archivo real: $backend" }
 if (!(Test-Path $modules)) { throw "Faltan las dependencias node_modules" }

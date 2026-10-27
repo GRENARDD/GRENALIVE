@@ -35,6 +35,89 @@ async function request(env,path,body=null,{admin='',token='',method}={}){
 test('Workerd producción: el costo PBKDF2 no supera el límite de 100.000 iteraciones',()=>{
  assert.equal(PBKDF2_ITERATIONS,100000);
 });
+test('Fish Audio: el propietario asigna API cifrada a Yaqui y cada GREÑA ID ve solamente la suya',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN,FISH_CREDENTIALS_KEY:Buffer.alloc(32,7).toString('base64')};
+ const secretYaqui='sk-fish-yaqui-test-not-real-0987654321',secretOther='sk-fish-other-test-not-real-1234567890';
+ try{
+   const owner=(await request(env,'/api/license/identity/register',{username:'grena_rd',email:'grena@example.test',password:'safe-owner-password'})).data;
+   const yaqui=(await request(env,'/api/license/identity/register',{username:'yaqui_gr',email:'yaqui@example.test',password:'safe-yaqui-password'})).data;
+   const other=(await request(env,'/api/license/identity/register',{username:'sofia',email:'sofia2@example.test',password:'safe-sofia-password'})).data;
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {token:owner.token,admin:ADMIN})).status,200);
+   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'set',apiKey:secretYaqui},{token:other.token})).status,403);
+   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'grena_rd',action:'set',apiKey:secretYaqui},{token:owner.token})).status,409,'No alterar la API del dueño');
+   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'missing',action:'set',apiKey:secretYaqui},{token:owner.token})).status,404);
+   const result=await request(env,'/api/license-admin/fish-credentials',{username:'@yaqui_gr',action:'set',apiKey:secretYaqui},{token:owner.token});
+   assert.equal(result.status,200);
+   assert.equal(result.data.configured,true);
+   assert.ok(!JSON.stringify(result.data).includes(secretYaqui),'La respuesta de Administración nunca devuelve la API');
+   const record=await DB.prepare('SELECT cipher_text,nonce FROM fish_credentials WHERE user_id=?').bind(yaqui.user.id).first();
+   assert.ok(record?.cipher_text && record?.nonce);
+   assert.ok(!record.cipher_text.includes(secretYaqui),'D1 almacena texto cifrado');
+   const listing=await request(env,'/api/license-admin/users',null,{token:owner.token});
+   assert.equal(listing.data.users.find(x=>x.username==='yaqui_gr').fishConfigured,true);
+   const yaquiStatus=await request(env,'/api/license/fish-credentials',null,{token:yaqui.token});
+   assert.equal(yaquiStatus.data.configured,true);
+   assert.ok(!JSON.stringify(yaquiStatus.data).includes(secretYaqui));
+   const consumed=await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token});
+   assert.equal(consumed.data.apiKey,secretYaqui);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,null);
+   const different=await request(env,'/api/license/fish-credentials',{apiKey:secretOther},{token:other.token});
+   assert.equal(different.status,200);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,secretOther);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token})).data.apiKey,secretYaqui);
+   const removed=await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'remove'},{token:owner.token});
+   assert.equal(removed.status,200);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token})).data.apiKey,null);
+   const noSecretEnv={DB,ADMIN_KEY:ADMIN};
+   assert.equal((await request(noSecretEnv,'/api/license/fish-credentials',{apiKey:secretYaqui},{token:yaqui.token})).status,503,'No almacenar sin secreto');
+ }finally{close()}
+});
+
+test('Nuevas cuentas: prueba única de 3 días en D1, vinculada al dispositivo y sin alterar usuarios existentes',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
+ try{
+   const device='DEVICE123456789012345678901234567890';
+   const other='ANOTHER123456789012345678901234567890';
+   await DB.prepare('INSERT INTO users(id,username,display_name,email,salt,password_hash,registered_at) VALUES(?,?,?,?,?,?,?)')
+     .bind('existing-legacy-id','legacy','Antiguo','legacy@example.org','legacy-salt','legacy-hash',Date.now()-7*DAY).run();
+   const reg=await request(env,'/api/license/identity/register',{username:'trial_client',email:'trial@example.org',password:'trial-password-2026',deviceId:device});
+   assert.equal(reg.status,201);
+   assert.equal(reg.data.permanentAccess,false);
+   assert.equal(reg.data.license.kind,'trial');
+   assert.equal(reg.data.license.active,true);
+   assert.equal(reg.data.license.expiresAt-reg.data.license.activatedAt,3*DAY);
+   const originalExpiry=reg.data.license.expiresAt;
+   const wrongDevice=await request(env,'/api/license/heartbeat',{deviceId:other},{token:reg.data.token});
+   assert.equal(wrongDevice.status,200);
+   assert.equal(wrongDevice.data.license,null);
+   const correct=await request(env,'/api/license/heartbeat',{deviceId:device},{token:reg.data.token});
+   assert.equal(correct.data.license.expiresAt,originalExpiry);
+   const login=await request(env,'/api/license/identity/login',{username:'trial_client',password:'trial-password-2026',deviceId:device});
+   assert.equal(login.status,200);
+   assert.equal(login.data.license.expiresAt,originalExpiry,'No se reinicia la prueba al iniciar sesión');
+   const legacy=await DB.prepare('SELECT license_expires_at,license_code_id FROM users WHERE username=?').bind('legacy').first();
+   assert.equal(legacy.license_expires_at,null,'No regalar días ni alterar licencias históricas');
+   assert.equal(legacy.license_code_id,null);
+   const owner=await request(env,'/api/license/identity/register',{username:'owner_trial',email:'owner-trial@example.org',password:'owner-trial-password'});
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {token:owner.data.token,admin:ADMIN})).status,200);
+   const ownerBeat=await request(env,'/api/license/heartbeat',{deviceId:device},{token:owner.data.token});
+   assert.equal(ownerBeat.data.permanentAccess,true);
+   assert.equal(ownerBeat.data.license,null,'La cuenta propietaria conserva acceso ilimitado');
+   const grant=await request(env,'/api/license-admin/grant',{username:'trial_client',days:30},{token:owner.data.token});
+   assert.equal(grant.status,200);
+   assert.equal(grant.data.renewed,false,'Los 30 días comprados reemplazan y no extienden la prueba');
+   const paid=await request(env,'/api/license/heartbeat',{deviceId:device},{token:reg.data.token});
+   assert.equal(paid.data.license.kind,'license');
+   assert.equal(paid.data.license.expiresAt-paid.data.license.activatedAt,30*DAY);
+   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:reg.data.token})).data.license,null);
+   const unbound=await request(env,'/api/license/identity/register',{username:'trial_unbound',email:'unbound@example.org',password:'unbound-password-123'});
+   assert.equal(unbound.data.license.kind,'trial');
+   const firstBeat=await request(env,'/api/license/heartbeat',{deviceId:device},{token:unbound.data.token});
+   assert.equal(firstBeat.data.license.active,true);
+   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:unbound.data.token})).data.license,null);
+ }finally{close()}
+});
+
 test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',async()=>{
  const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
  try{

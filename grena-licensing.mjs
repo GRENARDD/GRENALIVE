@@ -13,7 +13,7 @@ const normalizeEmail=v=>String(v||'').trim().toLowerCase().slice(0,254);
 const pwHash=(password,salt)=>new Promise((resolve,reject)=>scrypt(String(password),String(salt),64,(err,result)=>err?reject(err):resolve(result.toString('hex'))));
 const same=(a,b)=>{const x=Buffer.from(String(a)),y=Buffer.from(String(b));return x.length>0&&x.length===y.length&&timingSafeEqual(x,y)};
 const reply=(res,status,data)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(data))};
-const publicLicense=l=>!l?null:{activatedAt:l.activatedAt,expiresAt:l.expiresAt,revokedAt:l.revokedAt||null,expired:Date.now()>=l.expiresAt,active:!l.revokedAt&&Date.now()<l.expiresAt};
+const publicLicense=l=>!l?null:{activatedAt:l.activatedAt,expiresAt:l.expiresAt,revokedAt:l.revokedAt||null,expired:Date.now()>=l.expiresAt,active:!l.revokedAt&&Date.now()<l.expiresAt,kind:l.kind==='trial'?'trial':'license'};
 const limitMap=new Map();
 function limited(req,bucket,max=15){
  const ip=String(req.socket?.remoteAddress||'unknown'),key=bucket+':'+ip,now=Date.now();
@@ -147,8 +147,21 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    return Date.now()-Number(local.lastValidatedAt||0)<24*60*60*1000;
  }
  async function canUse(userId){
-   if(cloud||process.env.GRENA_LICENSE_REQUIRE!=='1')return true;
+   if(cloud)return true;
    return localAllowed(await getCached(userId));
+ }
+ async function getFishCredential(userId){
+   if(cloud||!remoteUrl||!userId)return {configured:false,apiKey:null,permanentAccess:false};
+   const local=await getCached(userId);
+   const owner=local?.permanentAccess===true&&!!local?.token;
+   if(!local?.token)return {configured:false,apiKey:null,permanentAccess:owner};
+   try{
+     const result=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,local.token);
+     return {configured:result.configured===true,apiKey:typeof result.apiKey==='string'?result.apiKey:null,permanentAccess:owner};
+   }catch(error){
+     // The owner's existing Fish setup keeps working offline; no user key leaks into disk or logs.
+     return {configured:false,apiKey:null,permanentAccess:owner,unavailable:true};
+   }
  }
  async function handle(req,res,pathname){
    const remote=pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/');
@@ -207,7 +220,8 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
          const salt=randomBytes(16).toString('hex'),hash=await pwHash(password,salt),t=token();
          return await locked(async()=>{
            if(registry.users.some(u=>u.username===username||u.email===email))return reply(res,409,{ok:false,error:'Usuario o correo duplicado.'}),true;
-           const u={id:token(),username,email,displayName,salt,passwordHash:hash,registeredAt:Date.now(),lastSeenAt:Date.now(),sessions:[{hash:sha(t),expiresAt:Date.now()+90*24*60*60*1000}],license:null,disabled:false};
+           const now=Date.now(),deviceId=/^[A-Za-z0-9_-]{25,80}$/.test(String(b.deviceId||''))?String(b.deviceId):'';
+           const u={id:token(),username,email,displayName,salt,passwordHash:hash,registeredAt:now,lastSeenAt:now,sessions:[{hash:sha(t),expiresAt:now+90*DAY}],license:{activatedAt:now,expiresAt:now+3*DAY,deviceId,revokedAt:null,codeId:null,kind:'trial'},disabled:false};
            registry.users.push(u);await save();reply(res,201,{...status(u),token:t});return true;
          });
        }
@@ -239,11 +253,11 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
          return await locked(async()=>{
            const c=registry.codes.find(c=>c.hash===sha(raw));
            if(!c||c.redeemedAt)return reply(res,409,{ok:false,error:'Código inválido o ya utilizado.'}),true;
-           if(u.license&&!u.license.revokedAt&&Date.now()<u.license.expiresAt&&u.license.deviceId!==deviceId)
+           if(u.license&&!u.license.revokedAt&&Date.now()<u.license.expiresAt&&u.license.deviceId&&u.license.deviceId!==deviceId)
              return reply(res,403,{ok:false,error:'La licencia actual está vinculada a otra computadora.'}),true;
            c.redeemedAt=Date.now();c.usedBy=u.id;
-           const now=Date.now(),start=Math.max(now,!u.license?.revokedAt?Number(u.license?.expiresAt||0):0);
-           u.license={activatedAt:now,expiresAt:start+(Number(c.days)||30)*DAY,deviceId,revokedAt:null,codeId:c.id};
+           const now=Date.now(),start=Math.max(now,!u.license?.revokedAt&&u.license?.kind!=='trial'?Number(u.license?.expiresAt||0):0);
+           u.license={activatedAt:now,expiresAt:start+(Number(c.days)||30)*DAY,deviceId,revokedAt:null,codeId:c.id,kind:'license'};
            u.lastSeenAt=now;await save();reply(res,200,status(u));return true;
          });
        }
@@ -285,6 +299,14 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
        const result=await fetchCentral(pathname,req.method,payload,c.token);
        return reply(res,200,result),true;
      }
+     if(pathname==='/api/license/fish-credentials'&&['GET','POST','DELETE'].includes(req.method)){
+       const c=await getCached(u.id);
+       if(!c?.token)return reply(res,401,{ok:false,error:'Sincroniza tu GREÑA ID antes de configurar Fish Audio.'}),true;
+       const payload=req.method==='POST'?await parseBody(req,readBody):undefined;
+       const result=await fetchCentral(pathname,req.method,payload,c.token);
+       // Never include an API key in a status response.
+       return reply(res,200,{ok:true,configured:result.configured===true,updatedAt:result.updatedAt||null}),true;
+     }
      if(pathname==='/api/license/status'&&req.method==='GET'){
        const c=await getCached(u.id);
        return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),permanentAccess:c?.permanentAccess===true,syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.',lastValidatedAt:c?.lastValidatedAt||null}),true;
@@ -308,5 +330,5 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      return true;
    }
  }
- return {handle,onLocalAuth,heartbeat,canUse,getCached,ownerStatus,isOwner};
+ return {handle,onLocalAuth,heartbeat,canUse,getCached,getFishCredential,ownerStatus,isOwner};
 }

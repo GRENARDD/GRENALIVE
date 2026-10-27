@@ -2,6 +2,7 @@ import {publicUpdates,adminUpdates} from './updates.mjs';
 // GREÑA Live PRO — Cloudflare Worker + D1.
 // Only account identity, status and licensing metadata are stored here.
 const DAY=86400000, ONLINE=135000, SESSION_AGE=90*DAY, MAX_DAYS=3650;
+const TRIAL_DAYS=3, TRIAL_TAG='TRIAL'; // Non-destructive marker stored in the existing license_code_id column.
 // Cloudflare production Workerd rejects PBKDF2 iterations >100,000.
 // Stronger passwords and migration to a dedicated identity service remain advisable.
 export const PBKDF2_ITERATIONS=100000;
@@ -16,6 +17,37 @@ async function passHash(password,salt){
  const key=await crypto.subtle.importKey('raw',encoder.encode(password),'PBKDF2',false,['deriveBits']);
  return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:encoder.encode(salt),iterations:PBKDF2_ITERATIONS,hash:'SHA-256'},key,256));
 }
+
+/* Fish Audio credentials are account-scoped and AES-GCM encrypted in D1.
+   FISH_CREDENTIALS_KEY is a 32-byte base64 secret set in Cloudflare, never in source. */
+async function fishTable(env){
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS fish_credentials (user_id TEXT PRIMARY KEY, cipher_text TEXT NOT NULL, nonce TEXT NOT NULL, updated_at INTEGER NOT NULL)').run();
+}
+const fishB64=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes)));
+const fishUnb64=value=>Uint8Array.from(atob(String(value)),char=>char.charCodeAt(0));
+async function fishCipherKey(env){
+ const material=String(env.FISH_CREDENTIALS_KEY||'').trim();
+ let bytes;try{bytes=fishUnb64(material.replace(/-/g,'+').replace(/_/g,'/'))}catch{}
+ if(bytes?.length!==32)throw {status:503,message:'Configura el secreto FISH_CREDENTIALS_KEY en Cloudflare antes de asignar APIs Fish Audio.'};
+ return crypto.subtle.importKey('raw',bytes,{name:'AES-GCM'},false,['encrypt','decrypt']);
+}
+async function fishStore(env,userId,apiKey){
+ const key=await fishCipherKey(env),nonce=crypto.getRandomValues(new Uint8Array(12));
+ const encrypted=await crypto.subtle.encrypt({name:'AES-GCM',iv:nonce,additionalData:encoder.encode(userId)},key,encoder.encode(apiKey));
+ await fishTable(env);
+ await env.DB.prepare('INSERT INTO fish_credentials(user_id,cipher_text,nonce,updated_at) VALUES(?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET cipher_text=excluded.cipher_text,nonce=excluded.nonce,updated_at=excluded.updated_at')
+  .bind(userId,fishB64(encrypted),fishB64(nonce),now()).run();
+}
+async function fishRead(env,userId){
+ await fishTable(env);
+ const saved=await env.DB.prepare('SELECT cipher_text,nonce FROM fish_credentials WHERE user_id=?').bind(userId).first();
+ if(!saved)return null;
+ const key=await fishCipherKey(env);
+ const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:fishUnb64(saved.nonce),additionalData:encoder.encode(userId)},key,fishUnb64(saved.cipher_text));
+ return new TextDecoder().decode(plain);
+}
+function validFishApi(value){return typeof value==='string'&&value.length>=20&&value.length<=512&&/^[\x21-\x7e]+$/.test(value)}
+
 const cleanUser=x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,32);
 const cleanEmail=x=>String(x||'').trim().toLowerCase().slice(0,254);
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','strict-transport-security':'max-age=31536000'}});
@@ -24,7 +56,7 @@ const cleanLicense=(u,deviceId)=>{
  if(!u?.license_expires_at)return null;
  if(deviceId&&u.license_device_id!==deviceId)return null;
  const revokedAt=u.license_revoked_at||null,expiresAt=u.license_expires_at;
- return {activatedAt:u.license_activated_at,expiresAt,revokedAt,active:!revokedAt&&expiresAt>now(),expired:expiresAt<=now()};
+ return {activatedAt:u.license_activated_at,expiresAt,revokedAt,active:!revokedAt&&expiresAt>now(),expired:expiresAt<=now(),kind:u.license_code_id===TRIAL_TAG?'trial':'license'};
 };
 const publicUser=u=>({
  id:u.id,username:u.username,displayName:u.display_name,email:u.email,
@@ -33,7 +65,7 @@ const publicUser=u=>({
  deviceBound:!!u.license_device_id,license:cleanLicense(u)
 });
 // Owner access comes from the authenticated, one-time D1 ownership claim.
-const status=(u,deviceId,permanentAccess=false)=>({ok:true,registered:!!u,user:publicUser(u),license:cleanLicense(u,deviceId),permanentAccess:permanentAccess===true});
+const status=(u,deviceId,permanentAccess=false)=>({ok:true,registered:!!u,user:publicUser(u),license:permanentAccess?null:cleanLicense(u,deviceId),permanentAccess:permanentAccess===true});
 const deviceValid=d=>/^[A-Za-z0-9_-]{25,80}$/.test(String(d||''));
 async function body(req){
  if(req.headers.get('content-type')?.split(';')[0].trim().toLowerCase()!=='application/json')throw {status:415,message:'Content-Type debe ser application/json'};
@@ -151,15 +183,56 @@ async function handle(req,env){
    return json({...result,permanentAccess:true,message:'Cuenta propietaria vinculada correctamente. Acceso ilimitado habilitado.'});
  }
  const updatePublic=await publicUpdates(req,env);if(updatePublic)return updatePublic;
+ // Only the authenticated identity can read its own Fish API. The admin may set,
+ // rotate or remove a key, but never retrieve it in plaintext.
+ if(path==='/api/license/fish-credentials'||path==='/api/license/fish-credentials/consume'){
+   const u=await sessionUser(env,req);if(!u)return fail('Inicia sesión en GREÑA ID.',401);
+   if(req.method==='GET'){
+     await fishTable(env);
+     const record=await env.DB.prepare('SELECT updated_at FROM fish_credentials WHERE user_id=?').bind(u.id).first();
+     if(path.endsWith('/consume'))return json({ok:true,configured:!!record,apiKey:record?await fishRead(env,u.id):null});
+     return json({ok:true,configured:!!record,updatedAt:record?.updated_at||null});
+   }
+   if(path.endsWith('/consume'))return fail('Método no permitido.',405);
+   if(req.method==='DELETE'){
+     await fishTable(env);await env.DB.prepare('DELETE FROM fish_credentials WHERE user_id=?').bind(u.id).run();
+     return json({ok:true,configured:false});
+   }
+   if(req.method==='POST'){
+     const input=await body(req),apiKey=String(input.apiKey||'').trim();
+     if(!validFishApi(apiKey))return fail('Introduce una API Fish Audio válida (20-512 caracteres, sin espacios).');
+     await fishStore(env,u.id,apiKey);
+     return json({ok:true,configured:true});
+   }
+   return fail('Método no permitido.',405);
+ }
+
  if(path.startsWith('/api/license-admin/')){
    if(await limiter(env,req,'admin',90))return fail('Demasiadas solicitudes.',429);
    const denied=await adminCheck(env,req);if(denied)return denied;
    const updateAdmin=await adminUpdates(req,env,body);if(updateAdmin)return updateAdmin;
+   if(path==='/api/license-admin/fish-credentials'&&req.method==='POST'){
+     const input=await body(req),raw=String(input.username||'').trim().replace(/^@/,'').toLowerCase();
+     const username=cleanUser(raw);
+     if(!username||raw!==username)return fail('Escribe un GREÑA ID válido.');
+     const target=await env.DB.prepare('SELECT * FROM users WHERE username=?').bind(username).first();
+     if(!target)return fail('El GREÑA ID debe estar registrado y sincronizado.',404);
+     if((await ownerInfo(env,target)).isOwner)return fail('La API del propietario se configura por separado y no se modifica aquí.',409);
+     if(input.action==='remove'){
+       await fishTable(env);await env.DB.prepare('DELETE FROM fish_credentials WHERE user_id=?').bind(target.id).run();
+       return json({ok:true,username,configured:false});
+     }
+     if(input.action!=='set'||!validFishApi(input.apiKey))return fail('Introduce una API Fish Audio válida (20-512 caracteres, sin espacios).');
+     await fishStore(env,target.id,input.apiKey);
+     return json({ok:true,username,configured:true});
+   }
    if(path==='/api/license-admin/users'&&req.method==='GET'){
      const users=(await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[];
      const codes=(await env.DB.prepare('SELECT id,suffix,days,created_at,redeemed_at FROM license_codes ORDER BY created_at DESC LIMIT 5000').all()).results||[];
      const ownerRow=await env.DB.prepare('SELECT user_id FROM license_owners LIMIT 1').first();
-     return json({ok:true,users:users.map(u=>({...publicUser(u),isOwner:u.id===ownerRow?.user_id,permanentAccess:u.id===ownerRow?.user_id})),total:users.length,online:users.filter(u=>u.last_seen_at&&now()-u.last_seen_at<ONLINE).length,
+     await fishTable(env);
+     const fishConfigured=new Set(((await env.DB.prepare('SELECT user_id FROM fish_credentials').all()).results||[]).map(x=>x.user_id));
+     return json({ok:true,users:users.map(u=>({...publicUser(u),isOwner:u.id===ownerRow?.user_id,permanentAccess:u.id===ownerRow?.user_id,fishConfigured:fishConfigured.has(u.id)})),total:users.length,online:users.filter(u=>u.last_seen_at&&now()-u.last_seen_at<ONLINE).length,
        codes:codes.map(c=>({id:c.id,suffix:c.suffix,days:c.days,createdAt:c.created_at,redeemedAt:c.redeemed_at}))});
    }
    if(req.method!=='POST')return fail('Método no permitido.',405);
@@ -174,13 +247,13 @@ async function handle(req,env){
      if(!target)return fail('Este GREÑA ID todavía no está en Cloudflare. El usuario debe iniciar sesión y sincronizar primero.',404);
      if(target.disabled)return fail('La cuenta está suspendida. Reactívala antes de asignar días.',409);
      if((await ownerInfo(env,target)).isOwner)return fail('La cuenta propietaria ya tiene acceso permanente: no necesita días ni renovaciones.',409);
-     const time=now(),continuing=target.license_expires_at>time&&!target.license_revoked_at;
+     const time=now(),continuing=target.license_expires_at>time&&!target.license_revoked_at&&target.license_code_id!==TRIAL_TAG;
      // An audit log is retained centrally. IF NOT EXISTS protects existing D1 data.
      await env.DB.prepare('CREATE TABLE IF NOT EXISTS license_grants (id TEXT PRIMARY KEY, target_user_id TEXT NOT NULL, admin_user_id TEXT NOT NULL, days INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)').run();
      const owner=await sessionUser(env,req);
      const update=env.DB.prepare(`UPDATE users SET
-       license_expires_at=MAX(CASE WHEN license_revoked_at IS NULL THEN COALESCE(license_expires_at,0) ELSE 0 END, ?) + ?,
-       license_activated_at=CASE WHEN license_revoked_at IS NULL AND license_expires_at>? THEN COALESCE(license_activated_at,?) ELSE ? END,
+       license_expires_at=MAX(CASE WHEN license_revoked_at IS NULL AND COALESCE(license_code_id,'') != 'TRIAL' THEN COALESCE(license_expires_at,0) ELSE 0 END, ?) + ?,
+       license_activated_at=CASE WHEN license_revoked_at IS NULL AND COALESCE(license_code_id,'') != 'TRIAL' AND license_expires_at>? THEN COALESCE(license_activated_at,?) ELSE ? END,
        license_device_id=CASE WHEN license_revoked_at IS NULL AND license_expires_at>? THEN license_device_id ELSE NULL END,
        license_revoked_at=NULL, license_code_id=NULL
        WHERE id=? AND disabled=0`).bind(time,days*DAY,time,time,time,time,target.id);
@@ -225,8 +298,11 @@ async function handle(req,env){
    if((await env.DB.prepare('SELECT id FROM users WHERE username=? OR email=?').bind(username,email).first()))
      return fail('Usuario o correo ya registrado en GREÑA central.',409);
    const salt=random(16),hash=await passHash(password,salt),id=crypto.randomUUID(),time=now();
-   try{await env.DB.prepare('INSERT INTO users(id,username,display_name,email,salt,password_hash,registered_at,last_seen_at) VALUES(?,?,?,?,?,?,?,?)')
-     .bind(id,username,display||username,email,salt,hash,time,time).run()}
+   // Only newly created accounts receive a trial; existing rows are never changed.
+   // Accept an empty device during initial sync; the first valid heartbeat binds it once.
+   const initialDevice=deviceValid(b.deviceId)?String(b.deviceId):null;
+   try{await env.DB.prepare('INSERT INTO users(id,username,display_name,email,salt,password_hash,registered_at,last_seen_at,license_activated_at,license_expires_at,license_device_id,license_code_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
+     .bind(id,username,display||username,email,salt,hash,time,time,time,time+TRIAL_DAYS*DAY,initialDevice,TRIAL_TAG).run()}
    catch{return fail('Usuario o correo ya registrado.',409)}
    const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(id).first();
    return json({...status(u,String(b.deviceId||'')),token:await issueSession(env,u)},201);
@@ -281,7 +357,7 @@ async function handle(req,env){
    const codeHash=await sha(code);
    const item=await env.DB.prepare('SELECT * FROM license_codes WHERE code_hash=?').bind(codeHash).first();
    if(!item||item.redeemed_at)return fail('Código inválido o utilizado.',409);
-   const time=now(),expiresAt=Math.max(time,(!u.license_revoked_at&&u.license_expires_at)||0)+item.days*DAY;
+   const time=now(),expiresAt=Math.max(time,(!u.license_revoked_at&&u.license_code_id!==TRIAL_TAG&&u.license_expires_at)||0)+item.days*DAY;
    // Conditional update ensures that even concurrent requests cannot reuse a code.
    const claimed=await env.DB.prepare('UPDATE license_codes SET redeemed_at=?, used_by=? WHERE id=? AND redeemed_at IS NULL')
      .bind(time,u.id,item.id).run();
