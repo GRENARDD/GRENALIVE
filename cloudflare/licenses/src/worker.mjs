@@ -215,21 +215,6 @@ async function handle(req,env){
    if(await limiter(env,req,'admin',90))return fail('Demasiadas solicitudes.',429);
    const denied=await adminCheck(env,req);if(denied)return denied;
    const updateAdmin=await adminUpdates(req,env,body);if(updateAdmin)return updateAdmin;
-   if(path==='/api/license-admin/fish-credentials'&&req.method==='POST'){
-     const input=await body(req),raw=String(input.username||'').trim().replace(/^@/,'').toLowerCase();
-     const username=cleanUser(raw);
-     if(!username||raw!==username)return fail('Escribe un GREÑA ID válido.');
-     const target=await env.DB.prepare('SELECT * FROM users WHERE username=?').bind(username).first();
-     if(!target)return fail('El GREÑA ID debe estar registrado y sincronizado.',404);
-     if((await ownerInfo(env,target)).isOwner)return fail('La API del propietario se configura por separado y no se modifica aquí.',409);
-     if(input.action==='remove'){
-       await fishTable(env);await env.DB.prepare('DELETE FROM fish_credentials WHERE user_id=?').bind(target.id).run();
-       return json({ok:true,username,configured:false});
-     }
-     if(input.action!=='set'||!validFishApi(input.apiKey))return fail('Introduce una API Fish Audio válida (20-512 caracteres, sin espacios).');
-     await fishStore(env,target.id,input.apiKey);
-     return json({ok:true,username,configured:true});
-   }
    if(path==='/api/license-admin/users'&&req.method==='GET'){
      const users=((await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[]).filter(u=>!githubActionsTestUser(u));
      const codes=(await env.DB.prepare('SELECT id,suffix,days,created_at,redeemed_at FROM license_codes ORDER BY created_at DESC LIMIT 5000').all()).results||[];
