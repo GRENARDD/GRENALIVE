@@ -39,7 +39,7 @@ async function crypt(operation,keys){
   child.on('close',code=>{
    clearTimeout(timer);
    if(finished)return;finished=true;
-   if(code!==0)return reject(Error('No se pudo abrir la bóveda protegida de Windows.'));
+   if(code!==0)return reject(Error('No se pudo abrir la bóveda protegida de Windows.'+(process.env.CI==='true'?' Diagnóstico CI: '+String(error).slice(0,800).replace(/sk-fish-[A-Za-z0-9_-]+/gi,'[redacted]'):'')));
    try{
     const parsed=JSON.parse(output);
     if(!Array.isArray(parsed.keys)||parsed.keys.length!==keys.length)throw Error('bad response');
