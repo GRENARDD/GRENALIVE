@@ -2926,7 +2926,20 @@ const wss =
 
     maxPayload: 256*1024,
 
-    verifyClient: ({origin,req}) => originAllowed(origin) && hostAllowed(req.headers.host)
+    verifyClient: ({origin,req},accept) => {
+      if(!originAllowed(origin)||!hostAllowed(req.headers.host))return accept(false,403,'Origen no autorizado');
+      if(process.env.GRENA_LICENSE_REQUIRE!=='1'||String(req.headers['x-grena-internal']||'')===BRIDGE_TOKEN)return accept(true);
+      // Existing direct OBS sources at port 8788 remain supported, but only with
+      // valid GREÑA cookies or the private OBS token and an active license.
+      let obs='';try{obs=new URL(req.url,'http://localhost:8788').searchParams.get('obs')||''}catch{}
+      const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),4000);
+      fetch(MAIN_ORIGIN+'/api/internal/chat-ws-authorize',{
+        method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},
+        body:JSON.stringify({cookie:String(req.headers.cookie||'').slice(0,2800),obs}),signal:ac.signal
+      }).then(async response=>response.ok?(await response.json()).allowed===true:false).catch(()=>false)
+        .then(allowed=>accept(allowed,allowed?undefined:403,allowed?undefined:'GREÑA ID o licencia requerida'))
+        .finally(()=>clearTimeout(timer));
+    }
   });
 
 wss.on(
