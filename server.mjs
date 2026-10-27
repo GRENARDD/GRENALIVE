@@ -2063,6 +2063,16 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    return json(res,200,{ok:true,registered:true,connected:true});
  }
  if(await licensing.handle(req,res,pathname))return;
+ if(pathname==='/api/internal/chat-ws-authorize'&&req.method==='POST'){
+   if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Forbidden'});
+   let body;try{body=JSON.parse(await readBody(req,4096))}catch{return json(res,400,{ok:false,error:'Invalid access request'})}
+   const cookie=typeof body.cookie==='string'?body.cookie.slice(0,2800):'';
+   const obs=typeof body.obs==='string'?body.obs.slice(0,180):'';
+   const probe={headers:{cookie},url:'/chat-ws?obs='+encodeURIComponent(obs)};
+   const authenticated=!!sessionUser(probe)||obsAuthorized(probe);
+   const allowed=authenticated&&(CLOUD_MODE||process.env.GRENA_LICENSE_REQUIRE!=='1'||(!!activeUserId&&await licensing.canUse(activeUserId)));
+   return json(res,200,{ok:true,allowed});
+ }
  if(pathname==='/api/internal/fish-credential'&&req.method==='GET'){
    if(!internalBridgeAllowed(req))return json(res,403,{ok:false,error:'Acceso interno no autorizado.'});
    const wanted=String(url.searchParams.get('profileId')||'');
@@ -2688,6 +2698,17 @@ server.on('upgrade',async(req,socket,head)=>{
   if(pathname!=='/')return socket.destroy();
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
+// Close already-open sockets once a paid/trial license expires; do not wait for reconnect.
+const liveLicenseTimer=setInterval(async()=>{
+ if(CLOUD_MODE||process.env.GRENA_LICENSE_REQUIRE!=='1'||!activeUserId)return;
+ try{
+   if(await licensing.canUse(activeUserId))return;
+   for(const peer of [...clients,...chatProxyClients]){
+     try{if(peer.readyState===WebSocket.OPEN)peer.close(4003,'GREÑA license expired')}catch{}
+   }
+ }catch{}
+},15000);
+liveLicenseTimer.unref?.();
 let autoTikTokBusy=false;
 let nextTikTokBridgeEnsureAt=0;
 async function ensureTikTokLiveAuto(){
