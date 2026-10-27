@@ -57,15 +57,47 @@ async function issueSession(env,u){
  await env.DB.prepare('INSERT INTO user_sessions(token_hash,user_id,expires_at) VALUES (?,?,?)').bind(await sha(key),u.id,now()+SESSION_AGE).run();
  return key;
 }
+async function ensureOwners(env){
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS license_owners (user_id TEXT PRIMARY KEY, created_at INTEGER NOT NULL)').run();
+}
+async function ownerInfo(env,u){
+ if(!u)return {ok:true,isOwner:false,configured:false};
+ await ensureOwners(env);
+ const owners=(await env.DB.prepare('SELECT user_id FROM license_owners LIMIT 1').first());
+ return {ok:true,isOwner:owners?.user_id===u.id,configured:!!owners};
+}
 async function adminCheck(env,req){
- if(!env.ADMIN_KEY||String(env.ADMIN_KEY).length<32)return fail('Configura ADMIN_KEY como secreto de Cloudflare.',503);
- if(!same(req.headers.get('x-grena-admin-key')||'',env.ADMIN_KEY))return fail('Clave de administrador incorrecta.',401);
+ // Owner is authenticated with GREÑA ID; the private ADMIN_KEY is required only
+ // once to claim the first owner, never stored on the customer PC or in GitHub.
+ const u=await sessionUser(env,req);
+ if(!u)return fail('Inicia sesión con tu GREÑA ID.',401);
+ const state=await ownerInfo(env,u);
+ if(!state.isOwner)return fail('Esta cuenta no está autorizada para administrar licencias.',403);
  return null;
 }
 async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
  if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1'});
+ if(path==='/api/license/owner/status'&&req.method==='GET'){
+   const u=await sessionUser(env,req);
+   if(!u)return fail('Sesión GREÑA ID central requerida.',401);
+   return json(await ownerInfo(env,u));
+ }
+ if(path==='/api/license/owner/claim'&&req.method==='POST'){
+   if(await limiter(env,req,'claim-owner',6))return fail('Demasiados intentos.',429);
+   const u=await sessionUser(env,req);
+   if(!u)return fail('Inicia sesión en GREÑA ID.',401);
+   if(String(env.ADMIN_KEY||'').length<32)return fail('Falta configurar ADMIN_KEY como secreto.',503);
+   if(!same(req.headers.get('x-grena-admin-key')||'',env.ADMIN_KEY))return fail('Clave de propietario incorrecta.',401);
+   await ensureOwners(env);
+   const state=await ownerInfo(env,u);
+   if(state.configured&&!state.isOwner)return fail('Ya existe una cuenta propietaria. No se puede reclamar otra.',409);
+   if(!state.configured)await env.DB.prepare('INSERT INTO license_owners(user_id,created_at) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM license_owners)').bind(u.id,now()).run();
+   const result=await ownerInfo(env,u);
+   if(!result.isOwner)return fail('Otro propietario se vinculó primero.',409);
+   return json({...result,message:'Cuenta propietaria vinculada correctamente.'});
+ }
  if(path.startsWith('/api/license-admin/')){
    if(await limiter(env,req,'admin',90))return fail('Demasiadas solicitudes.',429);
    const denied=await adminCheck(env,req);if(denied)return denied;
