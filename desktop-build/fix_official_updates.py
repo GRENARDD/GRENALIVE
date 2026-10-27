@@ -87,7 +87,7 @@ s+=r"""
  };
  app.whenReady().then(()=>{
    setTimeout(()=>checkOfficial(),12000);
-   const timer=setInterval(checkOfficial,15*60*1000);
+   const timer=setInterval(checkOfficial,2*60*1000);
    timer.unref?.();
  });
 }
