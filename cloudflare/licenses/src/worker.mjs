@@ -50,6 +50,10 @@ function validFishApi(value){return typeof value==='string'&&value.length>=20&&v
 
 const cleanUser=x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,32);
 const cleanEmail=x=>String(x||'').trim().toLowerCase().slice(0,254);
+const githubActionsTestUser=u=>{
+ const id=[u?.username,u?.display_name,u?.email].map(x=>String(x||'')).join(' ').toLowerCase();
+ return /github[ ._-]*actions?\b|prueba[ ._-]*github\b|github[ ._-]*test\b/.test(id);
+};
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','strict-transport-security':'max-age=31536000'}});
 const fail=(error,status=400)=>json({ok:false,error},status);
 const cleanLicense=(u,deviceId)=>{
@@ -227,7 +231,7 @@ async function handle(req,env){
      return json({ok:true,username,configured:true});
    }
    if(path==='/api/license-admin/users'&&req.method==='GET'){
-     const users=(await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[];
+     const users=((await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[]).filter(u=>!githubActionsTestUser(u));
      const codes=(await env.DB.prepare('SELECT id,suffix,days,created_at,redeemed_at FROM license_codes ORDER BY created_at DESC LIMIT 5000').all()).results||[];
      const ownerRow=await env.DB.prepare('SELECT user_id FROM license_owners LIMIT 1').first();
      await fishTable(env);
