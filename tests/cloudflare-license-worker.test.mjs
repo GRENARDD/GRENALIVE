@@ -35,6 +35,44 @@ async function request(env,path,body=null,{admin='',token='',method}={}){
 test('Workerd producción: el costo PBKDF2 no supera el límite de 100.000 iteraciones',()=>{
  assert.equal(PBKDF2_ITERATIONS,100000);
 });
+test('Fish Audio: el propietario asigna API cifrada a Yaqui y cada GREÑA ID ve solamente la suya',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN,FISH_CREDENTIALS_KEY:Buffer.alloc(32,7).toString('base64')};
+ const secretYaqui='sk-fish-yaqui-test-not-real-0987654321',secretOther='sk-fish-other-test-not-real-1234567890';
+ try{
+   const owner=(await request(env,'/api/license/identity/register',{username:'grena_rd',email:'grena@example.test',password:'safe-owner-password'})).data;
+   const yaqui=(await request(env,'/api/license/identity/register',{username:'yaqui_gr',email:'yaqui@example.test',password:'safe-yaqui-password'})).data;
+   const other=(await request(env,'/api/license/identity/register',{username:'sofia',email:'sofia2@example.test',password:'safe-sofia-password'})).data;
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {token:owner.token,admin:ADMIN})).status,200);
+   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'set',apiKey:secretYaqui},{token:other.token})).status,403);
+   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'grena_rd',action:'set',apiKey:secretYaqui},{token:owner.token})).status,409,'No alterar la API del dueño');
+   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'missing',action:'set',apiKey:secretYaqui},{token:owner.token})).status,404);
+   const result=await request(env,'/api/license-admin/fish-credentials',{username:'@yaqui_gr',action:'set',apiKey:secretYaqui},{token:owner.token});
+   assert.equal(result.status,200);
+   assert.equal(result.data.configured,true);
+   assert.ok(!JSON.stringify(result.data).includes(secretYaqui),'La respuesta de Administración nunca devuelve la API');
+   const record=await DB.prepare('SELECT cipher_text,nonce FROM fish_credentials WHERE user_id=?').bind(yaqui.user.id).first();
+   assert.ok(record?.cipher_text && record?.nonce);
+   assert.ok(!record.cipher_text.includes(secretYaqui),'D1 almacena texto cifrado');
+   const listing=await request(env,'/api/license-admin/users',null,{token:owner.token});
+   assert.equal(listing.data.users.find(x=>x.username==='yaqui_gr').fishConfigured,true);
+   const yaquiStatus=await request(env,'/api/license/fish-credentials',null,{token:yaqui.token});
+   assert.equal(yaquiStatus.data.configured,true);
+   assert.ok(!JSON.stringify(yaquiStatus.data).includes(secretYaqui));
+   const consumed=await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token});
+   assert.equal(consumed.data.apiKey,secretYaqui);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,null);
+   const different=await request(env,'/api/license/fish-credentials',{apiKey:secretOther},{token:other.token});
+   assert.equal(different.status,200);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,secretOther);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token})).data.apiKey,secretYaqui);
+   const removed=await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'remove'},{token:owner.token});
+   assert.equal(removed.status,200);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token})).data.apiKey,null);
+   const noSecretEnv={DB,ADMIN_KEY:ADMIN};
+   assert.equal((await request(noSecretEnv,'/api/license/fish-credentials',{apiKey:secretYaqui},{token:yaqui.token})).status,503,'No almacenar sin secreto');
+ }finally{close()}
+});
+
 test('Nuevas cuentas: prueba única de 3 días en D1, vinculada al dispositivo y sin alterar usuarios existentes',async()=>{
  const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
  try{
