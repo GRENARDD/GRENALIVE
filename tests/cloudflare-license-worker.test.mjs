@@ -50,6 +50,8 @@ test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',a
    assert.equal(ownerStatus.data.isOwner,true);
    const noLicense=await request(env,'/api/license/heartbeat',{deviceId},{token:tk});
    assert.equal(noLicense.data.license,null);
+   const customer=await request(env,'/api/license/identity/register',{username:'viewer',email:'viewer@example.org',password:'buyer-test-password',deviceId});
+   const ct=customer.data.token;
    let lastExpiry=0;
    for(const days of [30,60,90,17]){
      const r=await request(env,'/api/license-admin/create',{count:1,days},{token:tk});
