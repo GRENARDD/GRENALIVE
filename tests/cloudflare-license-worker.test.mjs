@@ -35,7 +35,7 @@ async function request(env,path,body=null,{admin='',token='',method}={}){
 test('Workerd producción: el costo PBKDF2 no supera el límite de 100.000 iteraciones',()=>{
  assert.equal(PBKDF2_ITERATIONS,100000);
 });
-test('Fish Audio: el propietario asigna API cifrada a Yaqui y cada GREÑA ID ve solamente la suya',async()=>{
+test('Fish Audio: cada GREÑA ID vincula, cambia y quita únicamente su propia API cifrada',async()=>{
  const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN,FISH_CREDENTIALS_KEY:Buffer.alloc(32,7).toString('base64')};
  const secretYaqui='sk-fish-yaqui-test-not-real-0987654321',secretOther='sk-fish-other-test-not-real-1234567890';
  try{
@@ -43,33 +43,48 @@ test('Fish Audio: el propietario asigna API cifrada a Yaqui y cada GREÑA ID ve 
    const yaqui=(await request(env,'/api/license/identity/register',{username:'yaqui_gr',email:'yaqui@example.test',password:'safe-yaqui-password'})).data;
    const other=(await request(env,'/api/license/identity/register',{username:'sofia',email:'sofia2@example.test',password:'safe-sofia-password'})).data;
    assert.equal((await request(env,'/api/license/owner/claim',{}, {token:owner.token,admin:ADMIN})).status,200);
-   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'set',apiKey:secretYaqui},{token:other.token})).status,403);
-   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'grena_rd',action:'set',apiKey:secretYaqui},{token:owner.token})).status,409,'No alterar la API del dueño');
-   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'missing',action:'set',apiKey:secretYaqui},{token:owner.token})).status,404);
-   const result=await request(env,'/api/license-admin/fish-credentials',{username:'@yaqui_gr',action:'set',apiKey:secretYaqui},{token:owner.token});
-   assert.equal(result.status,200);
-   assert.equal(result.data.configured,true);
-   assert.ok(!JSON.stringify(result.data).includes(secretYaqui),'La respuesta de Administración nunca devuelve la API');
+   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'set',apiKey:secretYaqui},{token:owner.token})).status,404,'Se retiró la asignación de APIs desde Administración');
+   const saved=await request(env,'/api/license/fish-credentials',{apiKey:secretYaqui},{token:yaqui.token});
+   assert.equal(saved.status,200);
+   assert.equal(saved.data.configured,true);
+   assert.ok(!JSON.stringify(saved.data).includes(secretYaqui));
    const record=await DB.prepare('SELECT cipher_text,nonce FROM fish_credentials WHERE user_id=?').bind(yaqui.user.id).first();
    assert.ok(record?.cipher_text && record?.nonce);
-   assert.ok(!record.cipher_text.includes(secretYaqui),'D1 almacena texto cifrado');
+   assert.ok(!record.cipher_text.includes(secretYaqui),'No se guarda API de texto plano');
    const listing=await request(env,'/api/license-admin/users',null,{token:owner.token});
    assert.equal(listing.data.users.find(x=>x.username==='yaqui_gr').fishConfigured,true);
-   const yaquiStatus=await request(env,'/api/license/fish-credentials',null,{token:yaqui.token});
-   assert.equal(yaquiStatus.data.configured,true);
-   assert.ok(!JSON.stringify(yaquiStatus.data).includes(secretYaqui));
-   const consumed=await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token});
-   assert.equal(consumed.data.apiKey,secretYaqui);
-   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,null);
-   const different=await request(env,'/api/license/fish-credentials',{apiKey:secretOther},{token:other.token});
-   assert.equal(different.status,200);
-   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,secretOther);
+   assert.equal((await request(env,'/api/license/fish-credentials',null,{token:yaqui.token})).data.configured,true);
    assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token})).data.apiKey,secretYaqui);
-   const removed=await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'remove'},{token:owner.token});
-   assert.equal(removed.status,200);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,null);
+   assert.equal((await request(env,'/api/license/fish-credentials',{apiKey:secretOther},{token:other.token})).status,200);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,secretOther);
+   const changed=await request(env,'/api/license/fish-credentials',{apiKey:secretOther},{token:yaqui.token});
+   assert.equal(changed.status,200);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token})).data.apiKey,secretOther);
+   assert.equal((await request(env,'/api/license/fish-credentials',null,{token:yaqui.token,method:'DELETE'})).status,200);
    assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token})).data.apiKey,null);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,secretOther);
    const noSecretEnv={DB,ADMIN_KEY:ADMIN};
-   assert.equal((await request(noSecretEnv,'/api/license/fish-credentials',{apiKey:secretYaqui},{token:yaqui.token})).status,503,'No almacenar sin secreto');
+   assert.equal((await request(noSecretEnv,'/api/license/fish-credentials',{apiKey:secretYaqui},{token:yaqui.token})).status,503);
+ }finally{close()}
+});
+
+test('GitHub Actions: cuentas de prueba no aparecen en usuarios ni alteran las licencias visibles',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
+ try{
+   const owner=(await request(env,'/api/license/identity/register',{username:'grena_rd',email:'owner@grena.test',password:'safe-owner-password'})).data;
+   const yaqui=await request(env,'/api/license/identity/register',{username:'yaqui_gr',email:'yaqui@grena.test',password:'safe-yaqui-password'});
+   const bot=await request(env,'/api/license/identity/register',{username:'qa_runner',displayName:'Prueba GitHub Actions',email:'runner@grena.test',password:'strong-runner-password'});
+   const bot2=await request(env,'/api/license/identity/register',{username:'github_actions_ci',displayName:'Robot',email:'ci@grena.test',password:'strong-actions-password'});
+   assert.equal(yaqui.status,201);
+   assert.equal(bot.status,201);
+   assert.equal(bot2.status,201);
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {token:owner.token,admin:ADMIN})).status,200);
+   const listing=await request(env,'/api/license-admin/users',null,{token:owner.token});
+   assert.equal(listing.status,200);
+   assert.deepEqual(listing.data.users.map(x=>x.username).sort(),['grena_rd','yaqui_gr']);
+   assert.equal(listing.data.total,2);
+   assert.equal((await DB.prepare('SELECT COUNT(*) AS total FROM users').first()).total,4,'No se borran cuentas de la base D1');
  }finally{close()}
 });
 

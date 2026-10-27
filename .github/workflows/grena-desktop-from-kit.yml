@@ -212,6 +212,6 @@ jobs:
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: GRENA-LIVE-Installer-Windows-v5.1.1
+          name: GRENA-LIVE-Installer-Windows-v5.1.2
           path: dist/*.exe
           if-no-files-found: error

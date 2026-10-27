@@ -19,47 +19,104 @@
   const pill=document.getElementById('profilePill');
   const settings=document.createElement('dialog');
   settings.className='gx-profile-settings';
-  settings.innerHTML=`<section style="background:#121827;color:white;padding:24px;border-radius:16px;width:min(90vw,440px)">
+  settings.innerHTML=`<section style="background:#121827;color:white;padding:24px;border-radius:16px;width:min(90vw,460px)">
     <h2 style="margin-top:0">Configuración</h2>
-    <h3>Fish Audio · Tu propia API</h3>
-    <p>Disponible en FREE y PRO. Tu API queda cifrada y vinculada exclusivamente a tu GREÑA ID. Los créditos se descuentan de tu propia cuenta Fish Audio.</p>
-    <p data-fish-status role="status">Consultando estado…</p>
-    <form data-fish-form autocomplete="off"><label for="gx-fish-key">API privada Fish Audio</label>
-      <input id="gx-fish-key" type="password" autocomplete="new-password" spellcheck="false" minlength="20" maxlength="512" placeholder="Pega tu clave Fish Audio" required style="width:100%;padding:12px;margin:8px 0 12px;border-radius:8px;color:white;background:#080d16;border:1px solid #526080">
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="submit">Guardar API</button><button data-s="fish-clear" type="button">Quitar mi API</button></div>
-    </form>
-    <p style="font-size:12px;color:#a7b5c7">Ninguna API se muestra de nuevo al guardarse. El propietario puede asignarla desde Administración.</p>
+    <h3>Fish Audio</h3>
+    <p>Vincula tu API de Fish Audio a tu GREÑA ID. Disponible para FREE y PRO. Cada cuenta utiliza sus propios créditos.</p>
+    <p data-sync-status role="status" style="font-size:12px;color:#b7c7e5"></p>
+    <p data-owner-info hidden>Cuenta propietaria: tus dos APIs originales se conservan sin cambios y no se comparten con otros usuarios.</p>
+    <div data-fish-panel>
+      <p data-fish-status role="status" aria-live="polite">Consultando tu API…</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <button data-s="fish-manage" type="button">Vincular API</button>
+        <button data-s="fish-clear" type="button" hidden>Quitar API</button>
+      </div>
+      <form data-fish-form hidden autocomplete="off">
+        <label for="gx-fish-key">Tu API privada de Fish Audio</label>
+        <input id="gx-fish-key" type="password" autocomplete="new-password" spellcheck="false" minlength="20" maxlength="512" placeholder="Pega aquí tu API" required style="width:100%;padding:12px;margin:8px 0 12px;border-radius:8px;color:white;background:#080d16;border:1px solid #526080">
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="submit">Guardar API</button><button data-s="fish-cancel" type="button">Cancelar</button></div>
+      </form>
+      <p style="font-size:12px;color:#a7b5c7">Por seguridad, tu API nunca se muestra después de guardarla.</p>
+    </div>
     <button data-s="close" type="button" style="margin-top:12px">Cerrar</button>
   </section>`;
   document.body.append(settings);
-  const fishStatus=settings.querySelector('[data-fish-status]'),fishForm=settings.querySelector('[data-fish-form]');
+  const fishStatus=settings.querySelector('[data-fish-status]');
+  const fishForm=settings.querySelector('[data-fish-form]');
+  const fishPanel=settings.querySelector('[data-fish-panel]');
+  const fishManage=settings.querySelector('[data-s="fish-manage"]');
+  const fishClear=settings.querySelector('[data-s="fish-clear"]');
+  const syncStatus=settings.querySelector('[data-sync-status]');
+  const ownerInfo=settings.querySelector('[data-owner-info]');
+  let fishConfigured=false;
   const fishRequest=async(method,body)=>{
     const response=await fetch('/api/license/fish-credentials',{method,headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});
     const data=await response.json().catch(()=>({}));
     if(!response.ok||!data.ok)throw Error(data.error||'No se pudo conectar con GREÑA.');
     return data;
   };
+  function fishDraw(){
+    fishManage.textContent=fishConfigured?'Cambiar API':'Vincular API';
+    fishClear.hidden=!fishConfigured;
+    fishForm.hidden=true;
+    fishForm.querySelector('input').value='';
+  }
   async function fishRefresh(){
+    fishForm.hidden=true;
     try{
-      const access=await fetch('/api/license/status',{cache:'no-store'}).then(r=>r.json());
-      if(access.permanentAccess===true){fishForm.hidden=true;fishStatus.textContent='Propietario: se conserva tu configuración original de Fish Audio sin alteraciones.';return}
+      const response=await fetch('/api/license/status',{cache:'no-store'});
+      const access=await response.json();
+      if(!response.ok||!access.ok)throw Error(access.error||'No se pudo verificar tu GREÑA ID.');
+      if(!access.registered||!access.connected){
+        syncStatus.textContent='Tu GREÑA ID aún no está sincronizado con Cloudflare. Inicia sesión nuevamente en GREÑA Live con internet. '+(access.syncError||'');
+      }else{
+        syncStatus.textContent='GREÑA ID sincronizado con Cloudflare.';
+      }
+      const owner=access.permanentAccess===true;
+      ownerInfo.hidden=!owner;
+      fishPanel.hidden=owner;
+      if(owner)return; // Keep both original owner Fish APIs intact.
       const r=await fishRequest('GET');
-      fishStatus.textContent=r.configured?'✓ API configurada para esta cuenta. Puedes reemplazarla.':'Sin API propia configurada.';
-    }catch(e){fishStatus.textContent=e.message||'No se pudo consultar Fish Audio.'}
+      fishConfigured=r.configured===true;
+      fishStatus.textContent=fishConfigured?'✓ API vinculada correctamente a tu GREÑA ID.':'No tienes ninguna API vinculada.';
+      fishDraw();
+    }catch(error){
+      syncStatus.textContent=error.message||'Sin conexión con el servicio de cuentas.';
+      fishStatus.textContent='No fue posible consultar tu API. No se modificó ninguna configuración.';
+      fishForm.hidden=true;
+    }
   }
   fishForm.addEventListener('submit',async e=>{
-    e.preventDefault();const input=settings.querySelector('#gx-fish-key'),apiKey=input.value.trim();
-    if(apiKey.length<20)return;
+    e.preventDefault();
+    const input=fishForm.querySelector('#gx-fish-key'),apiKey=input.value.trim();
+    if(apiKey.length<20||apiKey.length>512){fishStatus.textContent='Introduce una API válida de Fish Audio.';return}
     const submit=fishForm.querySelector('[type="submit"]');submit.disabled=true;
-    try{await fishRequest('POST',{apiKey});fishStatus.textContent='✓ API privada guardada y cifrada para tu cuenta.'}
-    catch(error){fishStatus.textContent=error.message||'No se pudo guardar.'}
+    try{
+      await fishRequest('POST',{apiKey});
+      fishConfigured=true;
+      fishStatus.textContent='✓ API vinculada y cifrada para tu GREÑA ID.';
+      fishDraw();
+    }catch(error){fishStatus.textContent=error.message||'No se pudo guardar la API.'}
     finally{input.value='';submit.disabled=false}
   });
   settings.addEventListener('click',async e=>{
     const b=e.target.closest('[data-s]');if(!b)return;
     if(b.dataset.s==='close')settings.close();
-    if(b.dataset.s==='fish-clear'&&confirm('¿Quitar tu API Fish Audio?')){
-      b.disabled=true;try{await fishRequest('DELETE');fishStatus.textContent='API quitada.'}catch(err){fishStatus.textContent=err.message}finally{b.disabled=false}
+    if(b.dataset.s==='fish-manage'){
+      fishForm.hidden=false;fishForm.querySelector('input').focus();
+    }
+    if(b.dataset.s==='fish-cancel'){
+      fishForm.querySelector('input').value='';fishForm.hidden=true;
+    }
+    if(b.dataset.s==='fish-clear'&&fishConfigured&&confirm('¿Quitar tu API de Fish Audio de esta cuenta GREÑA ID?')){
+      b.disabled=true;
+      try{
+        await fishRequest('DELETE');
+        fishConfigured=false;
+        fishStatus.textContent='API desvinculada. Puedes vincular otra cuando quieras.';
+        fishDraw();
+      }catch(err){fishStatus.textContent=err.message||'No se pudo quitar la API.'}
+      finally{b.disabled=false}
     }
   });
   if(pill){pill.style.cursor='pointer';pill.addEventListener('click',e=>{if(e.target.closest('#logoutBtn')||e.target===av)return;e.stopPropagation();toggle()})}

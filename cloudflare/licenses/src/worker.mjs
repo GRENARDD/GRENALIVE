@@ -50,6 +50,10 @@ function validFishApi(value){return typeof value==='string'&&value.length>=20&&v
 
 const cleanUser=x=>String(x||'').trim().toLowerCase().replace(/[^a-z0-9_.-]/g,'').slice(0,32);
 const cleanEmail=x=>String(x||'').trim().toLowerCase().slice(0,254);
+const githubActionsTestUser=u=>{
+ const id=[u?.username,u?.display_name,u?.email].map(x=>String(x||'')).join(' ').toLowerCase();
+ return /github[ ._-]*(?:actions?|test)(?:$|[ ._-])|prueba[ ._-]*github(?:$|[ ._-])/.test(id);
+};
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','strict-transport-security':'max-age=31536000'}});
 const fail=(error,status=400)=>json({ok:false,error},status);
 const cleanLicense=(u,deviceId)=>{
@@ -211,23 +215,8 @@ async function handle(req,env){
    if(await limiter(env,req,'admin',90))return fail('Demasiadas solicitudes.',429);
    const denied=await adminCheck(env,req);if(denied)return denied;
    const updateAdmin=await adminUpdates(req,env,body);if(updateAdmin)return updateAdmin;
-   if(path==='/api/license-admin/fish-credentials'&&req.method==='POST'){
-     const input=await body(req),raw=String(input.username||'').trim().replace(/^@/,'').toLowerCase();
-     const username=cleanUser(raw);
-     if(!username||raw!==username)return fail('Escribe un GREÑA ID válido.');
-     const target=await env.DB.prepare('SELECT * FROM users WHERE username=?').bind(username).first();
-     if(!target)return fail('El GREÑA ID debe estar registrado y sincronizado.',404);
-     if((await ownerInfo(env,target)).isOwner)return fail('La API del propietario se configura por separado y no se modifica aquí.',409);
-     if(input.action==='remove'){
-       await fishTable(env);await env.DB.prepare('DELETE FROM fish_credentials WHERE user_id=?').bind(target.id).run();
-       return json({ok:true,username,configured:false});
-     }
-     if(input.action!=='set'||!validFishApi(input.apiKey))return fail('Introduce una API Fish Audio válida (20-512 caracteres, sin espacios).');
-     await fishStore(env,target.id,input.apiKey);
-     return json({ok:true,username,configured:true});
-   }
    if(path==='/api/license-admin/users'&&req.method==='GET'){
-     const users=(await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[];
+     const users=((await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[]).filter(u=>!githubActionsTestUser(u));
      const codes=(await env.DB.prepare('SELECT id,suffix,days,created_at,redeemed_at FROM license_codes ORDER BY created_at DESC LIMIT 5000').all()).results||[];
      const ownerRow=await env.DB.prepare('SELECT user_id FROM license_owners LIMIT 1').first();
      await fishTable(env);
