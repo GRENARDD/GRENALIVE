@@ -12,11 +12,21 @@
 
   const input=Object.assign(document.createElement('input'),{type:'file',accept:'image/*',hidden:true});
   const menu=document.createElement('div'); menu.className='gx-avatar-menu'; menu.hidden=true; menu.setAttribute('role','menu');
-  menu.innerHTML='<button type="button" role="menuitem" data-a="pick">📷 Cambiar foto</button><button type="button" role="menuitem" data-a="clear">🗑 Quitar foto</button>';
+  menu.innerHTML='<button type="button" role="menuitem" data-a="pick">📷 Cambiar foto</button><button type="button" role="menuitem" data-a="clear">🗑 Quitar foto</button><button type="button" role="menuitem" data-a="settings">⚙ Configuración</button><button type="button" role="menuitem" data-a="logout">↪ Cerrar sesión</button>';
   document.body.append(input,menu);
+  const logout=document.getElementById('logoutBtn');
+  if(logout) logout.style.display='none';
+  const pill=document.getElementById('profilePill');
+  const settings=document.createElement('dialog');
+  settings.className='gx-profile-settings';
+  settings.innerHTML='<section style="background:#121827;color:white;padding:24px;border-radius:16px;min-width:min(90vw,360px)"><h2>Configuración</h2><button type="button" data-s="fish">API Fish Audio</button><p data-api-note hidden>La vinculación y administración de API se habilitará al integrar el servicio seguro por cuenta.</p><div style="margin-top:18px"><button type="button" data-s="close">Cerrar</button></div></section>';
+  document.body.append(settings);
+  settings.addEventListener('click',e=>{const b=e.target.closest('[data-s]');if(!b)return;if(b.dataset.s==='close')settings.close();if(b.dataset.s==='fish')settings.querySelector('[data-api-note]').hidden=false});
+  if(pill){pill.style.cursor='pointer';pill.addEventListener('click',e=>{if(e.target.closest('#logoutBtn')||e.target===av)return;e.stopPropagation();toggle()})}
+
   av.tabIndex=0; av.setAttribute('role','button'); av.title='Clic para cambiar tu foto de perfil'; av.setAttribute('aria-haspopup','menu'); av.setAttribute('aria-expanded','false');
   const note=msg=>{const t=document.createElement('div');t.className='gx-toast';t.setAttribute('role','status');t.textContent=msg;document.body.append(t);setTimeout(()=>t.remove(),3200)};
-  const toggle=()=>{const r=av.getBoundingClientRect();
+  const toggle=()=>{const r=(pill||av).getBoundingClientRect();
     menu.style.top=r.bottom+10+'px'; menu.style.left=Math.max(8,Math.min(r.left,innerWidth-190))+'px'; menu.hidden=!menu.hidden; av.setAttribute('aria-expanded',String(!menu.hidden))};
   av.addEventListener('click',e=>{e.stopPropagation();toggle()});
   av.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle()}});
@@ -25,6 +35,8 @@
   menu.addEventListener('click',e=>{
     const a=e.target.closest('button')?.dataset.a; if(!a) return; menu.hidden=true;
     if(a==='pick') input.click();
+    if(a==='settings') settings.showModal();
+    if(a==='logout') logout?.click();
     if(a==='clear'){try{localStorage.removeItem(key)}catch{} apply()}
   });
   input.addEventListener('change',()=>{
