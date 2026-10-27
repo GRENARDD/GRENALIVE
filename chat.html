@@ -2163,10 +2163,18 @@ function pumpFishPrefetch(){
 }
 
 function updateFishControls(){
+  const fish = isFishVoiceSelected();
   const field = $('fishModelField');
-  if(field) field.style.display = isFishVoiceSelected() ? '' : 'none';
-  const natural = $('fishNaturalPanel');
-  if(natural) natural.style.display = isFishVoiceSelected() ? '' : 'none';
+  if(field) field.style.display = fish ? '' : 'none';
+  const engine = $('fishNaturalPanel');
+  if(engine) engine.style.display = fish ? '' : 'none';
+  const systemSpeed = $('voiceRate');
+  if(systemSpeed){
+    systemSpeed.disabled = fish;
+    systemSpeed.title = fish
+      ? 'Fish Audio se reproduce a su velocidad original de 1.0x. El control de velocidad es solo para voces de Windows/navegador.'
+      : 'Velocidad de las voces del sistema';
+  }
 }
 
 function getSelectedVoicePreset(){
