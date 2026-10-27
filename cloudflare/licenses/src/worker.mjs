@@ -1,3 +1,4 @@
+import {publicUpdates,adminUpdates} from './updates.mjs';
 // GREÑA Live PRO — Cloudflare Worker + D1.
 // Only account identity, status and licensing metadata are stored here.
 const DAY=86400000, ONLINE=135000, SESSION_AGE=90*DAY, MAX_DAYS=3650;
@@ -108,7 +109,7 @@ async function communitySnapshot(env){
 async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
- if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1',revision:'2026-10-27-permanent-owner-access'});
+ if(path==='/health'&&req.method==='GET')return json({ok:true,service:'GREÑA Licencias Cloudflare D1',revision:'2026-10-27-owner-controlled-updates'});
  // Check the actual database and required columns, not just whether the Worker boots.
  // No private data or SQL errors are exposed through this unauthenticated endpoint.
  if(path==='/ready'&&req.method==='GET'){
@@ -149,9 +150,11 @@ async function handle(req,env){
    if(!result.isOwner)return fail('Otro propietario se vinculó primero.',409);
    return json({...result,permanentAccess:true,message:'Cuenta propietaria vinculada correctamente. Acceso ilimitado habilitado.'});
  }
+ const updatePublic=await publicUpdates(req,env);if(updatePublic)return updatePublic;
  if(path.startsWith('/api/license-admin/')){
    if(await limiter(env,req,'admin',90))return fail('Demasiadas solicitudes.',429);
    const denied=await adminCheck(env,req);if(denied)return denied;
+   const updateAdmin=await adminUpdates(req,env,body);if(updateAdmin)return updateAdmin;
    if(path==='/api/license-admin/users'&&req.method==='GET'){
      const users=(await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[];
      const codes=(await env.DB.prepare('SELECT id,suffix,days,created_at,redeemed_at FROM license_codes ORDER BY created_at DESC LIMIT 5000').all()).results||[];
