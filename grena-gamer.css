@@ -245,3 +245,169 @@ body.grena-login h1,body.grena-login h2,
 .grena-control .sound-pad:active{transform:translateY(1px)!important;box-shadow:inset 0 2px 8px rgba(0,0,0,.6)!important}
 .grena-control .sound-pad b{font-family:var(--gx-display)!important;letter-spacing:.05em}
 
+/* ---------- 8. CAMPOS, FOCO Y DETALLES ---------- */
+input,select,textarea{transition:border-color .2s,box-shadow .2s}
+input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:none!important;
+  border-color:rgba(34,228,242,.7)!important;
+  box-shadow:0 0 0 3px rgba(34,228,242,.14),0 0 18px rgba(34,228,242,.18)!important;
+}
+a:focus-visible,button:focus-visible{outline:2px solid var(--gx-cyan)!important;outline-offset:2px}
+::selection{background:rgba(168,85,255,.55);color:#fff}
+
+/* Scrollbars con degradado */
+body *::-webkit-scrollbar{width:9px;height:9px}
+body *::-webkit-scrollbar-track{background:transparent}
+body *::-webkit-scrollbar-thumb{
+  background:linear-gradient(180deg,#7c4dff,#2bc4e8)!important;
+  border-radius:9px;border:2px solid transparent;background-clip:padding-box;
+}
+
+/* Fondo: viñeta + rejilla un poco más viva */
+body.grena-control::before,body.grena-alerts::before,body.grena-widgets::before,
+body.grena-cam-room::before,body.grena-catalog::before{
+  opacity:.3!important;
+  -webkit-mask:radial-gradient(ellipse at 50% 30%,#000 25%,transparent 78%);
+  mask:radial-gradient(ellipse at 50% 30%,#000 25%,transparent 78%);
+}
+
+/* ---------- 9. LOGIN ---------- */
+.grena-login .card,.grena-login .shell,.grena-login main>div{
+  box-shadow:0 30px 90px rgba(0,0,0,.6),0 0 0 1px rgba(139,92,246,.22),0 0 60px rgba(139,92,246,.12)!important;
+}
+.grena-login h1{
+  font-size:clamp(34px,4.4vw,52px)!important;line-height:1.02!important;text-transform:uppercase;
+  background:linear-gradient(180deg,#fff 30%,#b9a4ff);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+
+/* ---------- 10. ACCESIBILIDAD ---------- */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+
+/* ---------- 11. REMATES (marca lateral, perfil, títulos de Alertas) ---------- */
+.brand b,.sidebar .brand b,.profile-copy b,.topbar h1,.style-hub-header h2,.welcome h2,
+.afterglow-primary h2,.obs-guide h2{
+  font-family:var(--gx-display)!important;
+}
+.brand b{
+  letter-spacing:.09em!important;text-transform:uppercase;font-weight:700!important;
+  background:linear-gradient(90deg,#fff 0%,#d9c8ff 55%,#8ff3fb 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.profile-copy b{font-size:12px!important;letter-spacing:.03em}
+.topbar h1,.style-hub-header h2{letter-spacing:.03em!important;font-weight:700!important}
+.style-hub-header h2,.welcome h2{text-transform:uppercase}
+.brand b{font-size:14px!important;letter-spacing:.05em!important;white-space:nowrap}
+.brand-mark,.mark{font-family:var(--gx-display)!important;font-weight:800!important}
+body.grena-alerts .topbar h1,body.grena-widgets .topbar h1,body.grena-catalog h1{
+  font-family:var(--gx-display)!important;text-transform:uppercase;letter-spacing:.05em!important;font-size:22px!important;
+}
+
+/* ==================== 12. NIVEL 2 · CAMBIO FUERTE ==================== */
+/* Fondo aurora animado (solo transform/opacity: barato para la GPU) */
+body.grena-control::after{
+  content:"";position:fixed;inset:-20%;z-index:-2;pointer-events:none;
+  background:
+    radial-gradient(38% 34% at 18% 22%,rgba(139,92,246,.30),transparent 70%),
+    radial-gradient(34% 30% at 82% 16%,rgba(34,228,242,.20),transparent 70%),
+    radial-gradient(40% 36% at 70% 88%,rgba(255,60,129,.16),transparent 70%);
+  animation:gxAurora 26s ease-in-out infinite alternate;
+}
+@keyframes gxAurora{0%{transform:translate3d(-2%,-1%,0) scale(1)}100%{transform:translate3d(3%,2%,0) scale(1.12)}}
+
+/* Paneles más profundos, tipo cristal oscuro */
+.grena-control .panel-shell{
+  background:linear-gradient(155deg,rgba(24,18,52,.80),rgba(6,10,22,.88))!important;
+  border-radius:20px!important;
+}
+.grena-control .chat-zone{box-shadow:0 24px 80px rgba(0,0,0,.55),0 0 60px rgba(139,92,246,.14)!important}
+
+/* Cabecera: título con degradado y marcador EN VIVO */
+.grena-control .main-title-row h1{
+  background:linear-gradient(90deg,#fff,#c9b6ff 50%,#7ff0fb);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;font-size:26px!important;
+}
+.grena-control .viewer-total-copy small{display:flex;align-items:center;gap:6px;color:#ff6b9a!important;font-weight:800}
+.grena-control .viewer-total-copy small::before{
+  content:"";width:7px;height:7px;border-radius:50%;background:#ff3c81;
+  box-shadow:0 0 10px #ff3c81;animation:gxBlink 1.4s ease-in-out infinite;
+}
+@keyframes gxBlink{50%{opacity:.25}}
+.grena-control #totalViewers{font-size:42px!important}
+
+/* Logo con anillo de energía */
+.grena-control .brand-mark{position:relative;box-shadow:0 0 0 1px rgba(255,255,255,.25),0 0 26px rgba(139,92,246,.65)!important}
+.grena-control .brand-mark::before{
+  content:"";position:absolute;inset:-3px;border-radius:inherit;z-index:-1;
+  background:conic-gradient(from 0deg,#a855ff,#22e4f2,#ff3c81,#a855ff);filter:blur(6px);opacity:.7;
+  animation:gxSpin 6s linear infinite;
+}
+@keyframes gxSpin{to{transform:rotate(360deg)}}
+
+/* ---------- FOTO DE PERFIL ---------- */
+.grena-control .profile-avatar{
+  position:relative;cursor:pointer;width:34px!important;height:34px!important;border-radius:50%!important;
+  background-size:cover!important;background-position:center!important;
+  box-shadow:0 0 0 2px #0b0f1e,0 0 0 4px rgba(168,85,255,.8),0 0 18px rgba(168,85,255,.55)!important;
+  transition:transform .2s var(--gx-ease),box-shadow .2s;
+}
+.grena-control .profile-avatar:hover{transform:scale(1.08);box-shadow:0 0 0 2px #0b0f1e,0 0 0 4px var(--gx-cyan),0 0 22px rgba(34,228,242,.6)!important}
+.grena-control .profile-avatar.has-photo{color:transparent!important}
+.grena-control .profile-avatar::after{
+  content:"📷";position:absolute;inset:0;display:grid;place-items:center;font-size:13px;border-radius:50%;
+  background:rgba(5,7,15,.62);opacity:0;transition:opacity .2s;color:#fff;-webkit-text-fill-color:#fff;
+}
+.grena-control .profile-avatar:hover::after{opacity:1}
+.gx-avatar-menu{
+  position:fixed;z-index:9999;width:180px;padding:6px;border-radius:14px;
+  background:linear-gradient(155deg,#171332,#0a0e1c);border:1px solid rgba(168,85,255,.4);
+  box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 30px rgba(139,92,246,.25);
+}
+.gx-avatar-menu[hidden]{display:none}
+.gx-avatar-menu button{
+  display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-radius:9px;cursor:pointer;
+  background:transparent;color:#e6e8f0;font:600 13px var(--gx-body);
+}
+.gx-avatar-menu button:hover{background:rgba(139,92,246,.22)}
+
+/* Rendimiento: el feed de actividad no se repinta si está fuera de vista */
+.grena-control .activity-feed,.grena-control .platform-stack{content-visibility:auto;contain-intrinsic-size:auto 400px}
+
+/* ---------- 13. COMUNIDAD · CANALES EN VIVO ---------- */
+.community-panel{padding-bottom:12px}
+.community-panel .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.gx-switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font:700 11.5px var(--gx-body);color:#aab3cc}
+.gx-switch input{position:absolute;opacity:0;pointer-events:none}
+.gx-switch i{width:34px;height:19px;border-radius:99px;background:#1b2238;border:1px solid rgba(255,255,255,.12);position:relative;transition:.2s}
+.gx-switch i::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#7b86a6;transition:.2s}
+.gx-switch input:checked+i{background:linear-gradient(90deg,#7c4dff,#22c8ee);border-color:transparent;box-shadow:0 0 14px rgba(124,77,255,.5)}
+.gx-switch input:checked+i::after{left:18px;background:#fff}
+.gx-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 14px 10px}
+.gx-stat{padding:9px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.07);background:rgba(10,15,28,.7)}
+.gx-stat b{display:block;font:800 20px var(--gx-display);color:#fff}.gx-stat small{color:#8f9ab5;font-size:10.5px}
+.gx-live-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 14px}
+.gx-live-card{display:flex;align-items:center;gap:10px;padding:7px;border-radius:12px;border:1px solid rgba(255,255,255,.07);background:rgba(10,15,28,.72);transition:.2s var(--gx-ease)}
+.gx-live-card:hover{transform:translateY(-2px);border-color:rgba(255,60,129,.5);box-shadow:0 8px 22px rgba(255,60,129,.14)}
+.gx-live-av{flex:none;width:42px;height:42px;border-radius:10px;background:linear-gradient(135deg,#a14eff,#3ca3ff) center/cover;display:grid;place-items:center;font:800 16px var(--gx-display);color:#fff;box-shadow:0 0 0 2px rgba(255,60,129,.55)}
+.gx-live-txt{min-width:0;flex:1}.gx-live-txt b{display:block;font-size:13px;color:#f1f3ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gx-live-meta{display:flex;align-items:center;gap:7px;font-size:11.5px;margin-top:2px}
+.gx-live-tag{color:#ff3c81;font-weight:800;letter-spacing:.06em}.gx-live-v{color:#aab3cc}
+.gx-dots{margin-left:auto;display:flex;gap:3px}.gx-dots i{width:7px;height:7px;border-radius:50%;box-shadow:0 0 6px currentColor}
+.gx-empty{grid-column:1/-1;padding:14px;text-align:center;color:#8f9ab5;font-size:12.5px}
+.gx-more{display:block;margin:10px auto 0;padding:8px 22px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#dfe3f3;font-weight:700;cursor:pointer}
+.gx-more[hidden]{display:none}
+.grena-control .ops-zone{grid-auto-rows:max-content!important}
+.grena-control .ops-zone>.community-panel{min-height:max-content!important;height:auto!important;overflow:visible!important;align-self:start}
+.grena-control .community-panel .panel-head{height:auto!important;min-height:0!important;flex-wrap:wrap;row-gap:8px;padding-bottom:10px!important}
+.community-panel .gx-stats{margin-top:4px}
+
+/* ---------- 14. AVISOS (toast) ligeros usados por grena-avatar.js ---------- */
+.gx-toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:10000;
+  max-width:min(92vw,420px);padding:11px 16px;border-radius:12px;
+  background:linear-gradient(155deg,#171332,#0a0e1c);color:#f1f3ff;font:600 13px var(--gx-body);
+  border:1px solid rgba(255,60,129,.45);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 24px rgba(255,60,129,.18);
+}
+.gx-avatar-menu button:focus-visible{outline:2px solid var(--gx-cyan);outline-offset:-2px}
