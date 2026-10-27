@@ -138,6 +138,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_bubble.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/fix_official_updates.py .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check desktop/main.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check desktop-bubble-preload.cjs
