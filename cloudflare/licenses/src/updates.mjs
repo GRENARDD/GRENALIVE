@@ -1,7 +1,7 @@
 // GREÑA LIVE PRO: owner-controlled release channel.
 // Drafting never changes the public feed. Only an explicit owner publish does.
 const storeSql = "CREATE TABLE IF NOT EXISTS update_publications (channel TEXT PRIMARY KEY, draft_version TEXT, draft_notes TEXT, published_version TEXT, published_notes TEXT, published_at INTEGER, installer_name TEXT, manifest_yaml TEXT)";
-const tagValid = version => /^\\d{1,3}\\.\\d{1,3}\\.\\d{1,4}$/.test(version);
+const tagValid = version => /^\d{1,3}\.\d{1,3}\.\d{1,4}$/.test(version);
 const newer = (a,b) => {const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++){if(x[i]!==y[i])return x[i]>y[i]}return false};
 async function current(env){await env.DB.prepare(storeSql).run();return await env.DB.prepare("SELECT * FROM update_publications WHERE channel='stable'").first()}
 function published(row){return row?.published_version?{version:row.published_version,notes:row.published_notes||'',publishedAt:row.published_at}:null}
@@ -19,11 +19,11 @@ async function releaseFiles(version){
  const result=await fetch(info.browser_download_url,{signal:AbortSignal.timeout(10000)});
  if(!result.ok)return {error:'No se pudo verificar latest.yml de GitHub.',status:503};
  const yaml=await result.text();
- const value=/^version:\\s*([^\\s]+)\\s*$/m.exec(yaml)?.[1];
- const names=[...yaml.matchAll(/^\\s*- url:\\s*([^\\r\\n]+)\\s*$/gm)];
+ const value=/^version:\s*([^\s]+)\s*$/m.exec(yaml)?.[1];
+ const names=[...yaml.matchAll(/^\s*- url:\s*([^\r\n]+)\s*$/gm)];
  const name=names.length===1?names[0][1].trim().replace(/^["']|["']$/g,''):'';
- const checksum=/^\\s*sha512:\\s*[A-Za-z0-9+/=]{70,}\\s*$/m.test(yaml);
- if(yaml.length>65536||value!==version||!checksum||!/^[-a-zA-Z0-9_(). +%]+\\.exe$/i.test(name))
+ const checksum=/^\s*sha512:\s*[A-Za-z0-9+/=]{70,}\s*$/m.test(yaml);
+ if(yaml.length>65536||value!==version||!checksum||!/^[-a-zA-Z0-9_(). +%]+\.exe$/i.test(name))
    return {error:'El manifiesto de actualización es inválido o no coincide con esta versión.',status:409};
  if(!release.assets.some(a=>a.name===name&&a.size>1000000))
    return {error:'El instalador indicado en latest.yml no existe en GitHub Releases.',status:409};
@@ -39,7 +39,7 @@ export async function publicUpdates(req,env){
  if(path==='/api/updates/latest.yml'){
    const row=await current(env);
    if(!row?.manifest_yaml||!row.published_version)return bad('No hay actualizaciones aprobadas.',404);
-   const yaml=row.manifest_yaml.replace(/(^\\s*- url:\\s*)([^\\r\\n]+)/gm,(_line,prefix,name)=>prefix+'download/'+encodeURIComponent(name.trim().replace(/^["']|["']$/g,'')));
+   const yaml=row.manifest_yaml.replace(/(^\s*- url:\s*)([^\r\n]+)/gm,(_line,prefix,name)=>prefix+'download/'+encodeURIComponent(name.trim().replace(/^["']|["']$/g,'')));
    return new Response(yaml,{headers:{'content-type':'text/yaml; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
  }
  if(path.startsWith('/api/updates/download/')){
