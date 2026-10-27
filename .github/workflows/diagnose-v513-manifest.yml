@@ -1,0 +1,40 @@
+name: GREÑA · Diagnosticar publicación v5.1.3
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/diagnose-v513-manifest.yml
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comparar latest.yml con los assets oficiales
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api 'repos/GRENARDD/GRENALIVE/releases/tags/v5.1.3' > release.json
+          curl --retry 3 -fLsS 'https://github.com/GRENARDD/GRENALIVE/releases/download/v5.1.3/latest.yml' > latest.yml
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const release=JSON.parse(fs.readFileSync('release.json','utf8'));
+          const yaml=fs.readFileSync('latest.yml','utf8');
+          const version=/^version:\s*([^\s]+)\s*$/m.exec(yaml)?.[1];
+          const names=[...yaml.matchAll(/^\s*- url:\s*([^\r\n]+)\s*$/gm)];
+          const raw=names.length===1?names[0][1].trim().replace(/^["']|["']$/g,''):'';
+          const name=decodeURIComponent(raw);
+          const assets=release.assets.map(a=>({name:a.name,size:a.size}));
+          console.log(JSON.stringify({version,urlLineCount:names.length,raw,name,assetNames:assets,
+            nameLength:name.length,match:assets.some(a=>a.name===name&&a.size>1000000),
+            yamlLength:yaml.length,manifestJSON:JSON.stringify(yaml)},null,2));
+          if(!assets.some(a=>a.name===name&&a.size>1000000))process.exitCode=1;
+          NODE
+      - name: Verificar estado público del canal en Cloudflare
+        shell: bash
+        if: always()
+        run: |
+          curl -fsS --max-time 20 'https://grena-live-licenses.omelicolon18.workers.dev/api/updates/latest' || true
