@@ -7,13 +7,19 @@
 La versión anterior tenía una API incrustada en el código, que no es un lugar seguro. Esta versión elimina ese respaldo de `chat-server.mjs`. Para evitar perder el acceso, **crear primero la bóveda de Windows**, antes de reemplazar la instalación antigua.
 
 1. Hacer copia de seguridad de `%APPDATA%\GREÑA LIVE PRO` y conservar temporalmente la instalación anterior.
-2. Si se dispone del archivo **antiguo** `chat-server.mjs`, ejecutar **en el mismo usuario Windows que abre GREÑA**:
+2. Antes de reemplazar la instalación anterior, ejecutar **en el mismo usuario Windows que abre GREÑA** desde el proyecto actualizado:
+
+   ```powershell
+   node desktop-build/migrate_owner_fish.cjs
+   ```
+
+   La herramienta busca el `chat-server.mjs` de instalaciones anteriores en carpetas habituales. Si no lo encuentra, se puede indicar una ruta explícita:
 
    ```powershell
    node desktop-build/migrate_owner_fish.cjs "C:\ruta-al-programa-anterior\chat-server.mjs"
    ```
 
-   La migración **no imprime la API**, no la sube a GitHub ni pisa una bóveda anterior. Guarda la clave legada protegida con Windows DPAPI CurrentUser. La segunda API solo se migra automáticamente si existía como variable de entorno `GRENA_FISH_API_KEY_2`.
+   La migración **no imprime la API**, no la sube a GitHub ni pisa una bóveda anterior. Primero respeta la variable de entorno `GRENA_FISH_API_KEY` si existía; de lo contrario recupera la credencial del archivo anterior. La segunda API solo se migra automáticamente si existe como variable `GRENA_FISH_API_KEY_2`. Si falta, el proceso advierte expresamente y **no debe publicarse la actualización** hasta guardarla en Administración.
 
 3. Si no se dispone del antiguo archivo (por ejemplo, solo queda un EXE empaquetado), **no es posible reconstruir de forma fiable la clave desde la nueva versión**. Antes de publicar, introducir cada clave en **Administración → Mis dos APIs Fish Audio**; nunca compartirlas por chats, capturas o repositorios.
 4. Comprobar que ambos espacios aparecen como «Protegida» y probar la voz de ambas cuentas en el Windows del propietario **antes de publicar o actualizar**.
