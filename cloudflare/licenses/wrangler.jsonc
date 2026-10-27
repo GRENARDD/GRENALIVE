@@ -2,5 +2,13 @@
   "name": "grena-live-licenses",
   "main": "src/worker.mjs",
   "compatibility_date": "2026-10-01",
-  "workers_dev": true
+  "workers_dev": true,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "grena-live-licenses",
+      "database_id": "082e33a7-4f67-4a69-880d-c8065c6a3796",
+      "migrations_dir": "migrations"
+    }
+  ]
 }
