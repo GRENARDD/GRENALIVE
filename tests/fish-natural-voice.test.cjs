@@ -3,41 +3,28 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {normalizeFishNaturalOptions,prepareFishNaturalRequest}=require('../fish-natural-voice.cjs');
 
-test('old clients preserve the old request',()=>{
-  const result=prepareFishNaturalRequest('Hola, mundo!',undefined);
-  assert.equal(result.text,'Hola, mundo!');
+test('FREE is the default official Fish model and leaves plain text untouched',()=>{
+  const input='¡Hola gente! ¿Cómo están?';
+  const result=prepareFishNaturalRequest(input);
+  assert.deepEqual(result,{text:input,params:{},model:'free'});
+});
+test('PRO is selected explicitly, and FREE cannot silently become paid',()=>{
+  assert.deepEqual(normalizeFishNaturalOptions({model:'pro'}),{model:'pro'});
+  for(const model of ['invalid','s2.1-pro','paid',null,0,{},[]])
+    assert.deepEqual(normalizeFishNaturalOptions({model}),{model:'free'});
+  const result=prepareFishNaturalRequest('Buenos días.',{model:'pro'});
+  assert.equal(result.model,'pro');
   assert.deepEqual(result.params,{});
-  assert.equal(result.enabled,false);
 });
-test('Natural Spanish preserves meaning and adds sentence ending only for TTS',()=>{
-  const text='  Hola   gente  ';
-  const result=prepareFishNaturalRequest(text,{style:'natural',expressiveness:75,speed:0.95,naturalPauses:true});
-  assert.equal(result.text,'Hola gente.');
-  assert.equal(text,'  Hola   gente  ');
-  assert.equal(result.params.prosody.speed,0.95);
-  assert.equal(result.params.temperature,0.77);
-});
-test('English and Spanish short chat stay neutral and audible',()=>{
-  for(const line of ['Hola','Hello','Gracias','GG']){
-    const result=prepareFishNaturalRequest(line,{style:'natural',automaticEmotion:true,expressiveness:85});
-    assert.equal(result.text,line);
-    assert.ok(!result.text.startsWith('['));
+test('No emotion tags, extra punctuation, changes to capitalization or synthesizer controls',()=>{
+  const message='¡VAMOOOS!!!...  ¿Qué pasó?  [emote] 123';
+  for(const mode of ['free','pro']){
+    const result=prepareFishNaturalRequest(message,{model:mode,style:'expressive',expressiveness:100,speed:1.5,naturalPauses:true,automaticEmotion:true,temperature:0.4});
+    assert.equal(result.text,message);
+    assert.deepEqual(result.params,{});
+    assert.equal(result.model,mode);
   }
 });
-test('Emotions only in stronger obvious context, can be disabled',()=>{
-  const options={style:'expressive',automaticEmotion:true,expressiveness:80};
-  assert.match(prepareFishNaturalRequest('¡Increíble, ganamos!',options).text,/^\[excited\]/);
-  assert.doesNotMatch(prepareFishNaturalRequest('¡Increíble, ganamos!',{...options,automaticEmotion:false}).text,/^\[/);
-  assert.match(prepareFishNaturalRequest('Lo siento, eso es triste.',options).text,/^\[sad\]/);
-});
-test('User-supplied tags cannot control Fish speech',()=>{
-  const out=prepareFishNaturalRequest('[angry] Hola [whisper] cómo estás',{style:'natural',naturalPauses:true});
-  assert.equal(out.text,'(angry) Hola (whisper) cómo estás.');
-});
-test('Options clamp on the server and never allow arbitrary styles',()=>{
-  const a=normalizeFishNaturalOptions({style:'[evil]',speed:999,expressiveness:-12,naturalPauses:'yes'});
-  assert.equal(a.style,'off');
-  assert.equal(a.speed,2);
-  assert.equal(a.expressiveness,0);
-  assert.equal(a.naturalPauses,false);
+test('Only trim transport whitespace, never alter the actual comment',()=>{
+  assert.equal(prepareFishNaturalRequest('   Hola, Sofía.   ',{model:'free'}).text,'Hola, Sofía.');
 });
