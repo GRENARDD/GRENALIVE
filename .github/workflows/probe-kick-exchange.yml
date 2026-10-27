@@ -1,0 +1,20 @@
+name: GREÑA · Diagnóstico Kick OAuth sin credenciales
+on:
+  push:
+    branches:
+      - fix/kick-oauth-exchange-20261027
+    paths:
+      - '.github/workflows/probe-kick-exchange.yml'
+      - 'desktop-build/probe-kick-exchange.mjs'
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Check Kick broker authorization and invalid-code exchange
+        run: node desktop-build/probe-kick-exchange.mjs
