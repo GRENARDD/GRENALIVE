@@ -1,0 +1,69 @@
+name: GREÑA · Publicar Desktop v5.1.2 estable
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/grena-release-v512.yml
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TESTED_RUN: '40585876988'
+      TESTED_SHA: 'b7e4c166b50d35598068246686af2cd62b0ccb61'
+      MAIN_MERGE_SHA: 'f3bec6187f41c5ecc1ed754c475138b1e86d51e6'
+      VERSION: '5.1.2'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Exigir instalador Windows probado, misma rama incorporada a main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_sha)" = "$TESTED_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$MAIN_MERGE_SHA" --jq .sha)" = "$MAIN_MERGE_SHA"
+          test "$(grep -o "tag\[1:\] if tag else '5.1.2'" desktop-build/fix_official_updates.py | wc -l)" -eq 1
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Ya está publicada; no modificar una release existente.'
+            exit 1
+          fi
+      - name: Descargar ejecutable de la compilación aprobada
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-release
+          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v5.1.2 --dir dist-release
+          exe="$(find dist-release -maxdepth 2 -type f -name '*.exe' -size +60000k | head -1)"
+          test -n "$exe" || { echo 'Falta un instalador v5.1.2 verificado'; exit 1; }
+          name="$(basename "$exe")"
+          size="$(stat -c '%s' "$exe")"
+          hash="$(openssl dgst -sha512 -binary "$exe" | base64 -w0)"
+          test "${#hash}" -ge 70
+          printf 'version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %s\npath: %s\nsha512: %s\nreleaseDate: %s\n' "$VERSION" "$name" "$hash" "$size" "$name" "$hash" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist-release/latest.yml
+          sha256sum "$exe" > dist-release/SHA256SUMS.txt
+          echo "$name" > exe-name.txt
+      - name: Publicar v5.1.2 con latest.yml (Cloudflare aún controla los avisos)
+        shell: bash
+        run: |
+          set -euo pipefail
+          installer="$(cat exe-name.txt)"
+          cat > notes.md <<'EOF'
+          GREÑA Live Desktop v5.1.2
+
+          - Administración: oculta cuentas etiquetadas GitHub Actions de la lista y los contadores, sin borrar registros.
+          - Fish Audio: el usuario vincula, cambia o quita su API exclusivamente desde Configuración en FREE/PRO.
+          - Los paneles de Fish Audio desaparecen de Administración; las APIs antiguas del propietario no se modifican.
+          - Configuración indica si el GREÑA ID aún no está sincronizado con Cloudflare.
+          - Nueva versión 5.1.2, superior a 5.1.1, con manifiesto latest.yml.
+
+          El aviso de actualización dentro de GREÑA Live requiere aprobación separada en Cloudflare D1.
+          Antes de instalar encima de tu versión principal, respalda %APPDATA%\\GREÑA LIVE PRO y comprueba tus dos APIs.
+          La sincronización real de yaqui_gr y las APIs del propietario deben verificarse con sus cuentas.
+          EOF
+          gh release create "v$VERSION" "dist-release/$installer" dist-release/latest.yml dist-release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$MAIN_MERGE_SHA" \
+            --title "GREÑA Live Desktop v$VERSION" --notes-file notes.md
