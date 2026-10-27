@@ -11,6 +11,12 @@ if pkg.get('version')!='5.0.0':
 pkg['version']='5.0.1'
 # ELECTRON_RUN_AS_NODE launches a separate process: virtual app.asar isn't a real path.
 pkg['build']['asar']=False
+# El paquete Electron debe incluir las rutas importadas por server.mjs en ejecución.
+files=pkg['build'].get('files')
+if isinstance(files,list):
+    for required in ['grena-licensing.mjs','license.html','license-admin.html']:
+        if required not in files:
+            files.append(required)
 pkg_file.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 s=main_file.read_text(encoding='utf-8')
 def change(before,after):
