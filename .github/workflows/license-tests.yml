@@ -1,0 +1,36 @@
+name: GREÑA · Validación de licencias
+on:
+  push:
+    paths:
+      - 'grena-licensing.mjs'
+      - 'server.mjs'
+      - 'license.html'
+      - 'license-admin.html'
+      - 'mode.html'
+      - 'tests/grena-licensing.test.mjs'
+      - '.github/workflows/license-tests.yml'
+  pull_request:
+    paths:
+      - 'grena-licensing.mjs'
+      - 'server.mjs'
+      - 'license.html'
+      - 'license-admin.html'
+      - 'mode.html'
+      - 'tests/grena-licensing.test.mjs'
+      - '.github/workflows/license-tests.yml'
+permissions:
+  contents: read
+jobs:
+  licenses:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Check server and licensing syntax
+        run: |
+          node --check server.mjs
+          node --check grena-licensing.mjs
+      - name: Test account registry and 30-day license operations
+        run: node --test tests/grena-licensing.test.mjs
