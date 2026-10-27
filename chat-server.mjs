@@ -74,7 +74,7 @@ const BRIDGE_TOKEN=process.env.GRENA_BRIDGE_TOKEN||randomBytes(24).toString('hex
 if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no definido: arranca con INICIAR_GRENA.vbs (launcher) o con server.mjs para que el puente con el servidor principal funcione.');
 const FISH_AUDIO_API_KEY_1 = process.env.GRENA_FISH_API_KEY || Buffer.from('c2stZmlzaC1PTGJKdExlRzkxeEFXWlFleFlta05UandvSnNlTE9WTUx3OTk2Vnl5Ym9F','base64').toString('utf8');
 const FISH_AUDIO_API_KEY_2 = String(process.env.GRENA_FISH_API_KEY_2 || '').trim();
-const FISH_AUDIO_MODEL = 's2.1-pro-free';
+// Model is chosen per request using a server-side allowlist. Free remains the default.
 
 // GREÑA Dual Fish Pool:
 // - cada credencial tiene su propio carril de hasta 5 generaciones simultáneas;
@@ -2490,7 +2490,7 @@ const server =
                   headers:{
                     'Authorization':`Bearer ${fishAccount.key}`,
                     'Content-Type':'application/json',
-                    'model':FISH_AUDIO_MODEL,
+                    'model':naturalSpeech.model==='pro'?'s2.1-pro':'s2.1-pro-free',
                     'Accept':'audio/mpeg,application/octet-stream'
                   },
                   body:JSON.stringify({text:naturalSpeech.text,reference_id:referenceId,format:'mp3',...naturalSpeech.params}),
@@ -2519,6 +2519,7 @@ const server =
                   let friendly=`Fish Audio respondió HTTP ${fish.status}.`;
                   if(fish.status===401||fish.status===403) friendly='Fish Audio rechazó una de las credenciales o el acceso a esa voz.';
                   else if(fish.status===404) friendly='Fish Audio no encontró ese ID de modelo.';
+                  else if(fish.status===402) friendly='Este modelo PRO requiere créditos o permisos de pago en Fish Audio. Selecciona el modelo gratuito para continuar.';
                   else if(fish.status===429) friendly='Fish Audio está limitando temporalmente una de las cuentas.';
                   else if(upstream && upstream.length<220) friendly += ` ${upstream}`;
                   const outgoingStatus = fish.status===429 ? 429 : (fish.status>=500 ? 502 : 400);
