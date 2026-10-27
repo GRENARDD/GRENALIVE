@@ -1746,7 +1746,7 @@ async function deactivateProfile(){disconnectPrivateSockets();await stopProfileR
 async function persistUsers(){await safeWriteJson(USERS_FILE,usersStore)}
 function accountPayload(user){return {ok:true,authenticated:!!user,user:accountUser(user),activeUserId:user?activeUserId:null,active:!!user&&user.id===activeUserId,needsRecoveryEmail:!!user&&!user.email,mailConfigured:mailConfigured()}}
 // El registro central de licencias no toca las credenciales de streaming ni los perfiles locales.
-const licensing=await makeLicensing({cloud:CLOUD_MODE,dataDir:DATA_DIR,profileFile,activeUser:sessionUser,readBody,remoteUrl:!CLOUD_MODE?String(process.env.GRENA_LICENSE_URL||'https://grenalive-production.up.railway.app').replace(/\/+$/,''):''});
+const licensing=await makeLicensing({cloud:CLOUD_MODE,dataDir:DATA_DIR,profileFile,activeUser:sessionUser,readBody,remoteUrl:!CLOUD_MODE?String(process.env.GRENA_LICENSE_URL||packagedPublicConfig.licenseServiceUrl||'').trim().replace(/\/+$/,''):''});
 if(!CLOUD_MODE){const licenseBeat=setInterval(()=>{if(activeUserId)licensing.heartbeat(activeUserId).catch(e=>console.warn('[GREÑA licencia]',e?.message||e))},60000);licenseBeat.unref?.()}
 
 
@@ -2035,7 +2035,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    if(!allowed){
      const guardedPages=new Set(['/','/index.html','/mode.html','/mobile.html','/alerts.html','/widgets.html','/custom-alerts.html','/afterglow-studio.html','/cam-room.html','/gift-catalog.html']);
      if(guardedPages.has(pathname)){res.writeHead(302,{location:'/license.html','cache-control':'no-store'});return res.end()}
-     if(pathname.startsWith('/api/')&&!pathname.startsWith('/api/account/')&&!pathname.startsWith('/api/app/')&&pathname!=='/api/overlay-version')return json(res,402,{ok:false,error:'Necesitas una licencia GREÑA Live PRO activa.'});
+     if(pathname.startsWith('/api/')&&!pathname.startsWith('/api/account/')&&!pathname.startsWith('/api/app/')&&!pathname.startsWith('/api/license/')&&!pathname.startsWith('/api/license-admin/')&&pathname!=='/api/overlay-version')return json(res,402,{ok:false,error:'Necesitas una licencia GREÑA Live PRO activa.'});
    }
  }
  if(pathname==='/favicon.ico'&&(req.method==='GET'||req.method==='HEAD')){res.writeHead(302,{location:'/favicon.svg','cache-control':'public, max-age=3600'});return res.end()}
@@ -2586,7 +2586,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
- const interactive=new Set(['/','/index.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/license.html']);
+ const interactive=new Set(['/','/index.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/license.html','/license-admin.html']);
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);if(!su){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}

@@ -29,7 +29,7 @@ test('código único, 30 días desde activación, registro y un solo uso',async(
    const unauth=await call('/api/license-admin/users',null);
    assert.equal(unauth.status,401);
    const adm=process.env.GRENA_LICENSE_ADMIN_KEY;
-   const codes=await call('/api/license-admin/create',{count:2},{admin:adm});
+   const codes=await call('/api/license-admin/create',{count:2,days:30},{admin:adm});
    assert.equal(codes.status,201);assert.equal(codes.body.codes.length,2);assert.notEqual(codes.body.codes[0],codes.body.codes[1]);
    let result=await call('/api/license/redeem',{code:codes.body.codes[0],deviceId:'DEVICE123456789012345678901234567890'},{token:t});
    assert.equal(result.status,200);assert.equal(result.body.license.active,true);
@@ -68,7 +68,7 @@ test('cliente local sincroniza GREÑA ID y permite activar/renovar sin tocar per
  const {dir,call}=await setup(),localDir=await mkdtemp(join(tmpdir(),'grena-device-'));
  const oldFetch=globalThis.fetch;
  try{
-   const code=(await call('/api/license-admin/create',{count:1},{admin:process.env.GRENA_LICENSE_ADMIN_KEY})).body.codes[0];
+   const code=(await call('/api/license-admin/create',{count:1,days:90},{admin:process.env.GRENA_LICENSE_ADMIN_KEY})).body.codes[0];
    globalThis.fetch=async(url,opts)=>{
      const req={method:'POST',body:opts.body,headers:opts.headers,socket:{remoteAddress:'127.0.0.1'}};
      let status,content;
@@ -81,8 +81,28 @@ test('cliente local sincroniza GREÑA ID y permite activar/renovar sin tocar per
    let response={},req={method:'POST',body:JSON.stringify({code}),headers:{}};
    await local.handle(req,{writeHead(s){response.status=s},end(v){response.body=JSON.parse(v)}},'/api/license/redeem');
    assert.equal(response.status,200);assert.equal(response.body.license.active,true);
+   assert.equal(response.body.license.expiresAt-response.body.license.activatedAt,90*24*60*60*1000);
    assert.equal(await local.canUse(user.id),true);
    await local.heartbeat(user.id);
    assert.equal((await local.getCached(user.id)).connected,true);
  }finally{globalThis.fetch=oldFetch;if(old===undefined)delete process.env.GRENA_LICENSE_ADMIN_KEY;else process.env.GRENA_LICENSE_ADMIN_KEY=old;await rm(dir,{recursive:true,force:true});await rm(localDir,{recursive:true,force:true})}
+});
+
+test('licencias de 60 días y renovación acumulan tiempo restante',async()=>{
+ const old=process.env.GRENA_LICENSE_ADMIN_KEY;
+ process.env.GRENA_LICENSE_ADMIN_KEY='super-secret-admin-key-for-test-only-123456789';
+ const {dir,call}=await setup();
+ try{
+   const reg=await call('/api/license/identity/register',{username:'laura',displayName:'Laura',email:'laura@example.net',password:'una-contraseña-segura'});
+   const adm=process.env.GRENA_LICENSE_ADMIN_KEY,deviceId='ABCDEF1234567890123456789012345';
+   const first=(await call('/api/license-admin/create',{count:1,days:60},{admin:adm})).body.codes[0];
+   const second=(await call('/api/license-admin/create',{count:1,days:90},{admin:adm})).body.codes[0];
+   const initial=await call('/api/license/redeem',{code:first,deviceId},{token:reg.body.token});
+   assert.equal(initial.status,200);
+   assert.equal(initial.body.license.expiresAt-initial.body.license.activatedAt,60*24*60*60*1000);
+   const renewed=await call('/api/license/redeem',{code:second,deviceId},{token:reg.body.token});
+   assert.equal(renewed.status,200);
+   assert.equal(renewed.body.license.expiresAt-initial.body.license.expiresAt,90*24*60*60*1000);
+   assert.equal((await call('/api/license-admin/create',{count:1,days:0},{admin:adm})).status,400);
+ }finally{if(old===undefined)delete process.env.GRENA_LICENSE_ADMIN_KEY;else process.env.GRENA_LICENSE_ADMIN_KEY=old;await rm(dir,{recursive:true,force:true})}
 });

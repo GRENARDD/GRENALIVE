@@ -8,6 +8,8 @@ on:
       - 'license-admin.html'
       - 'mode.html'
       - 'tests/grena-licensing.test.mjs'
+      - 'tests/cloudflare-license-worker.test.mjs'
+      - 'cloudflare/licenses/**'
       - '.github/workflows/license-tests.yml'
   pull_request:
     paths:
@@ -17,6 +19,8 @@ on:
       - 'license-admin.html'
       - 'mode.html'
       - 'tests/grena-licensing.test.mjs'
+      - 'tests/cloudflare-license-worker.test.mjs'
+      - 'cloudflare/licenses/**'
       - '.github/workflows/license-tests.yml'
 permissions:
   contents: read
@@ -32,5 +36,6 @@ jobs:
         run: |
           node --check server.mjs
           node --check grena-licensing.mjs
-      - name: Test account registry and 30-day license operations
-        run: node --test tests/grena-licensing.test.mjs
+          node --check cloudflare/licenses/src/worker.mjs
+      - name: Test identity and variable-duration licenses locally + Cloudflare D1
+        run: node --test tests/grena-licensing.test.mjs tests/cloudflare-license-worker.test.mjs

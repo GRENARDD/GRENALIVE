@@ -1,4 +1,5 @@
 {
   "authServiceUrl": "https://grena-auth.omelicolon18.workers.dev",
-  "twitchClientId": "r3fxkwi6mn2aq0vra3s4bcg4yxve71"
+  "twitchClientId": "r3fxkwi6mn2aq0vra3s4bcg4yxve71",
+  "licenseServiceUrl": ""
 }
