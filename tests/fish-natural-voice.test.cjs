@@ -28,3 +28,19 @@ test('No emotion tags, extra punctuation, changes to capitalization or synthesiz
 test('Only trim transport whitespace, never alter the actual comment',()=>{
   assert.equal(prepareFishNaturalRequest('   Hola, Sofía.   ',{model:'free'}).text,'Hola, Sofía.');
 });
+
+test('La integración transmite modelo PRO/FREE y MP3 sin modificar síntesis ni reproducción',()=>{
+ const fs=require('node:fs'),path=require('node:path');
+ const root=path.resolve(__dirname,'..');
+ const server=fs.readFileSync(path.join(root,'chat-server.mjs'),'utf8');
+ const ui=fs.readFileSync(path.join(root,'chat.html'),'utf8');
+ assert.match(server,/prepareFishNaturalRequest\(text,\{model:incoming\.model\}\)/);
+ assert.match(server,/'model':naturalSpeech\.model==='pro'\?'s2\.1-pro':'s2\.1-pro-free'/);
+ assert.match(server,/JSON\.stringify\(\{text:naturalSpeech\.text,reference_id:referenceId,format:'mp3'\}\)/);
+ assert.doesNotMatch(server,/FISH_AUDIO_MODEL/);
+ assert.match(ui,/<select id="fishEngine">/);
+ assert.match(ui,/<option value="free"/);
+ assert.match(ui,/<option value="pro"/);
+ assert.match(ui,/audio\.playbackRate = 1/);
+ assert.doesNotMatch(ui,/getFishNaturalOptions|fishNaturalStyle|fishExpressiveness|fishNaturalSpeed|updateFishNaturalLabels/);
+});
