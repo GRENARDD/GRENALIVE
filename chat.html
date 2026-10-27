@@ -832,28 +832,13 @@ body.voice-settings-modal-open{overflow:hidden!important}
       </div>
 
       <div class="voice-field" id="fishNaturalPanel" style="display:none;border:1px solid #53617b;border-radius:12px;padding:12px;margin-bottom:12px">
-        <h4 style="margin:0 0 8px">✨ Fish Audio · Voz más humana</h4>
-        <div class="voice-field">
-          <label for="fishNaturalStyle">Estilo de lectura</label>
-          <select id="fishNaturalStyle">
-            <option value="natural" selected>Natural · Conversación cotidiana</option>
-            <option value="expressive">Expresiva · LIVE animado</option>
-            <option value="calm">Suave · Tranquila</option>
-            <option value="off">Clásica · Sin mejoras (anterior)</option>
-          </select>
-        </div>
-        <div class="voice-field">
-          <label for="fishExpressiveness">Expresividad <span id="fishExpressivenessValue">75%</span></label>
-          <input id="fishExpressiveness" type="range" min="0" max="100" step="5" value="75">
-        </div>
-        <div class="voice-field">
-          <label for="fishNaturalSpeed">Velocidad al generar <span id="fishNaturalSpeedValue">1.00x</span></label>
-          <input id="fishNaturalSpeed" type="range" min="0.8" max="1.2" step="0.05" value="1">
-          <small>Combina este ajuste con la velocidad general del chat. En modo natural Fish ajusta la voz al generarla, sin acelerar el MP3.</small>
-        </div>
-        <label class="voice-check"><input id="fishNaturalPauses" type="checkbox" checked> Pausas y puntuación naturales</label>
-        <label class="voice-check"><input id="fishNaturalEmotions" type="checkbox" checked> Emociones automáticas moderadas</label>
-        <small style="display:block;margin-top:7px;color:#a9b5c5">Solo modifica el audio Fish Audio; el texto del chat permanece igual. Cada cuenta guarda su preferencia.</small>
+        <h4 style="margin:0 0 8px">🎙 Fish Audio · Sonido original</h4>
+        <label for="fishEngine">Modelo de voz</label>
+        <select id="fishEngine">
+          <option value="free" selected>FREE · Fish Audio S2.1 Pro Free</option>
+          <option value="pro">PRO · Fish Audio S2.1 Pro (consume créditos)</option>
+        </select>
+        <small style="display:block;margin-top:8px;color:#a9b5c5">La voz y el comentario se envían a Fish Audio sin agregar emociones, pausas, velocidad ni efectos. Se reproduce el MP3 a velocidad original (1.0x). PRO puede consumir créditos de tu cuenta.</small>
       </div>
 
       <div class="voice-field">
@@ -1505,11 +1490,7 @@ function saveSettings(){
       voiceVolume:
         $('voiceVolume').value,
 
-      fishNaturalStyle:$('fishNaturalStyle')?.value || 'natural',
-      fishExpressiveness:$('fishExpressiveness')?.value || '75',
-      fishNaturalSpeed:$('fishNaturalSpeed')?.value || '1',
-      fishNaturalPauses:!!$('fishNaturalPauses')?.checked,
-      fishNaturalEmotions:!!$('fishNaturalEmotions')?.checked,
+      fishEngine:$('fishEngine')?.value==='pro'?'pro':'free',
 
       maxCharacters:
         $('maxCharacters').value,
@@ -1709,12 +1690,8 @@ function restoreSettings(){
 
   }
 
-  if(['off','natural','expressive','calm'].includes(settings.fishNaturalStyle)) $('fishNaturalStyle').value=settings.fishNaturalStyle;
-  if(settings.fishExpressiveness != null) $('fishExpressiveness').value=settings.fishExpressiveness;
-  if(settings.fishNaturalSpeed != null) $('fishNaturalSpeed').value=settings.fishNaturalSpeed;
-  if(typeof settings.fishNaturalPauses==='boolean') $('fishNaturalPauses').checked=settings.fishNaturalPauses;
-  if(typeof settings.fishNaturalEmotions==='boolean') $('fishNaturalEmotions').checked=settings.fishNaturalEmotions;
-  updateFishNaturalLabels();
+  // Old artificial-naturalness settings are intentionally ignored.
+  $('fishEngine').value=settings.fishEngine==='pro'?'pro':'free';
 
   if(['all','es','en','es-en','custom'].includes(settings.voiceLanguageFilter)) $('voiceLanguageFilter').value=settings.voiceLanguageFilter;
   if(Array.isArray(settings.voiceCustomLanguages)) document.querySelectorAll('input[name="voiceCustomLanguage"]').forEach(el=>{el.checked=settings.voiceCustomLanguages.includes(el.value);});
@@ -2087,31 +2064,7 @@ function getNextFishVoice(message){
   return selection;
 }
 
-// GRENA_FISH_NATURAL_UI_BEGIN
-function getFishNaturalOptions(){
-  const style=$('fishNaturalStyle')?.value||'natural';
-  const expressiveness=Number($('fishExpressiveness')?.value??75);
-  const requestedRate=Number($('voiceRate')?.value||1);
-  const naturalSpeed=Number($('fishNaturalSpeed')?.value||1);
-  return {
-    style,
-    expressiveness,
-    // The general rate control is respected, but safe synthesis limits avoid distortion.
-    speed:Math.max(0.7,Math.min(1.4,requestedRate*naturalSpeed)),
-    naturalPauses:!!$('fishNaturalPauses')?.checked,
-    automaticEmotion:!!$('fishNaturalEmotions')?.checked
-  };
-}
-function updateFishNaturalLabels(){
-  if($('fishExpressivenessValue')) $('fishExpressivenessValue').textContent =
-    Math.round(Number($('fishExpressiveness')?.value||75))+'%';
-  if($('fishNaturalSpeedValue')) $('fishNaturalSpeedValue').textContent =
-    Number($('fishNaturalSpeed')?.value||1).toFixed(2)+'x';
-  const off=$('fishNaturalStyle')?.value==='off';
-  ['fishExpressiveness','fishNaturalSpeed','fishNaturalPauses','fishNaturalEmotions']
-    .forEach(id=>{if($(id)) $(id).disabled=off;});
-}
-// GRENA_FISH_NATURAL_UI_END
+
 
 async function fetchFishAudioBlob(spokenText, modelId, controller){
   let timeout = null;
@@ -2125,7 +2078,7 @@ async function fetchFishAudioBlob(spokenText, modelId, controller){
     const response = await fetch('/api/fish-tts',{
       method:'POST',
       headers:{'content-type':'application/json'},
-      body:JSON.stringify({text:spokenText,reference_id:modelId,natural:getFishNaturalOptions()}),
+      body:JSON.stringify({text:spokenText,reference_id:modelId,model:$('fishEngine')?.value==='pro'?'pro':'free'}),
       signal:controller?.signal,
       cache:'no-store'
     });
@@ -2210,10 +2163,18 @@ function pumpFishPrefetch(){
 }
 
 function updateFishControls(){
+  const fish = isFishVoiceSelected();
   const field = $('fishModelField');
-  if(field) field.style.display = isFishVoiceSelected() ? '' : 'none';
-  const natural = $('fishNaturalPanel');
-  if(natural) natural.style.display = isFishVoiceSelected() ? '' : 'none';
+  if(field) field.style.display = fish ? '' : 'none';
+  const engine = $('fishNaturalPanel');
+  if(engine) engine.style.display = fish ? '' : 'none';
+  const systemSpeed = $('voiceRate');
+  if(systemSpeed){
+    systemSpeed.disabled = fish;
+    systemSpeed.title = fish
+      ? 'Fish Audio se reproduce a su velocidad original de 1.0x. El control de velocidad es solo para voces de Windows/navegador.'
+      : 'Velocidad de las voces del sistema';
+  }
 }
 
 function getSelectedVoicePreset(){
@@ -3765,12 +3726,12 @@ function queueVoice(m){
    * preparada para la voz.
    */
 
-  let text =
-    stripStickerAndInternalCodes(
-      cleanTextForVoice(
-        m.text || ''
-      )
-    );
+  // Fish receives the same comment that viewers typed, not a rewritten copy.
+  // Legacy cleanTextForVoice() remains exclusively for Windows/browser voices.
+  // Priority, spam, language, opt-in username and character limits still apply.
+  let text=isFishVoiceSelected()
+    ? String(m.text||'').trim()
+    : stripStickerAndInternalCodes(cleanTextForVoice(m.text||''));
 
   if(!text){
 
@@ -3979,7 +3940,6 @@ async function speakFishMessage(message, spokenText){
 
   activeFishVoiceSlot = Number(fishVoice.slot) || 0;
 
-  const requestedRate = Math.max(0.5,Math.min(2,Number($('voiceRate').value)||1));
   const volume = Math.max(0,Math.min(1,Number($('voiceVolume').value)));
   const runId = ++voiceRunId;
   let settled = false;
@@ -4115,8 +4075,8 @@ async function speakFishMessage(message, spokenText){
     activeFishAudio = audio;
     audio.preload = 'auto';
     audio.volume = Number.isFinite(volume) ? volume : 1;
-    // Speed is synthesized by Fish Audio; do not distort the generated MP3 again.
-    audio.playbackRate = getFishNaturalOptions().style==='off' ? requestedRate : 1;
+    // Never pitch-shift or time-stretch Fish Audio; play the original generated waveform.
+    audio.playbackRate = 1;
     audio.onended = () => finish('',false);
     audio.onerror = () => finish('No se pudo reproducir el audio generado por Fish Audio.',true);
 
@@ -4132,7 +4092,7 @@ async function speakFishMessage(message, spokenText){
     pumpFishPrefetch();
 
     const fishWatchdogMs = Math.max(18000,Math.min(90000,
-      7000 + Math.ceil(spokenText.length * 220 / Math.max(0.5,requestedRate))
+      7000 + Math.ceil(spokenText.length * 220)
     ));
     voiceWatchdogTimer = setTimeout(() => {
       if(runId !== voiceRunId || !speaking) return;
@@ -5448,11 +5408,7 @@ function installSettingsListeners(){
     'voiceLanguageFilter',
     'voiceRate',
     'voiceVolume',
-    'fishNaturalStyle',
-    'fishExpressiveness',
-    'fishNaturalSpeed',
-    'fishNaturalPauses',
-    'fishNaturalEmotions',
+    'fishEngine',
     'fishModelId1',
     'fishModelId2',
     'fishModelId3',
@@ -5503,17 +5459,13 @@ function installSettingsListeners(){
     }
   );
 
-  ['fishNaturalStyle','fishExpressiveness','fishNaturalSpeed','fishNaturalPauses','fishNaturalEmotions','voiceRate'].forEach(id=>{
-    $(id)?.addEventListener('change',()=>{
-      updateFishNaturalLabels();
-      // Prefetched audio was generated using the previous controls.
-      // Do not stop the currently playing message or clear the remaining queue.
-      cancelFishPrefetches();
-      if(isFishVoiceSelected()) pumpFishPrefetch();
-    });
+  $('fishEngine')?.addEventListener('change',()=>{
+    // A new engine must not play audio prefetched by the previously selected model.
+    // The active comment finishes with its original voice; future ones use the new model.
+    cancelFishPrefetches();
+    saveSettings();
+    if(isFishVoiceSelected()) pumpFishPrefetch();
   });
-  ['fishNaturalStyle','fishExpressiveness','fishNaturalSpeed'].forEach(id=>
-    $(id)?.addEventListener('input',updateFishNaturalLabels));
   $('voiceLanguageFilter')?.addEventListener('change',updateVoiceLanguageChoices);
   document.querySelectorAll('input[name="voiceCustomLanguage"]').forEach(el=>el.addEventListener('change',saveSettings));
   document
@@ -5704,7 +5656,6 @@ syncSavedConnections();
 installSettingsListeners();
 
 updateRangeLabels();
-updateFishNaturalLabels();
 
 updateVoiceStatus();
 

@@ -1,67 +1,14 @@
 'use strict';
 
-// Fish Audio S2.1 natural delivery: only operates on the TTS copy of a comment.
-// Never rewrite the original chat message or infer the user's language.
-const STYLES = new Set(['off','natural','expressive','calm']);
-const clamp = (value,min,max,fallback) => {
-  const n=Number(value);
-  return Number.isFinite(n) ? Math.min(max,Math.max(min,n)) : fallback;
-};
-
+// Pass the original chat text directly to Fish Audio, without artificial
+// excitement, pauses, prosody, speed changes, filters or altered sampling.
+// The only choice is the official Fish Audio engine (FREE by default, or PRO).
 function normalizeFishNaturalOptions(input){
-  const value=input && typeof input==='object'&&!Array.isArray(input)?input:{};
-  const style=STYLES.has(value.style)?value.style:'off'; // old clients retain their original TTS
-  return {
-    style,
-    expressiveness:clamp(value.expressiveness,0,100,75),
-    speed:clamp(value.speed,0.5,2,1),
-    naturalPauses:value.naturalPauses===true,
-    automaticEmotion:value.automaticEmotion===true
-  };
+  const options=input&&typeof input==='object'&&!Array.isArray(input)?input:{};
+  return {model:options.model==='pro'?'pro':'free'};
 }
-
 function prepareFishNaturalRequest(originalText,options){
-  const opts=normalizeFishNaturalOptions(options);
-  const original=String(originalText||'').trim();
-  if(opts.style==='off'){
-    return {text:original,params:{},enabled:false};
-  }
-  // Treat chat text as plain speech, not executable inline Fish control tags.
-  // We add ONLY our own curated tags; the viewer cannot set a speaking instruction.
-  let content=original
-    .replace(/\[([^\]\r\n]{1,80})\]/g,'($1)')
-    .replace(/\s+([,.!?;:])/g,'$1')
-    .replace(/([!?])\1{2,}/g,'$1')
-    .replace(/\s+/g,' ')
-    .trim();
-  if(opts.naturalPauses && content && !/[.!?…:;]$/.test(content)){
-    content+='.';
-  }
-  // Short chat messages are deliberately kept neutral. Aggressive emoting every
-  // second is unnatural in a live stream and increases synthetic-speech latency.
-  const excited=/(!{1,}|\b(?:wow|increíble|increible|brutal|ganamos|let's go|lets go|felicidades|awesome|amazing)\b)/iu.test(content);
-  const sad=/\b(?:triste|lo siento|perdón|perdon|sad|sorry|rip)\b/iu.test(content);
-  let tag='';
-  if(opts.style==='calm'){
-    tag='[calm] ';
-  }else if(opts.automaticEmotion && content.length>=16 && opts.expressiveness>=40){
-    if(excited && opts.style==='expressive')tag='[excited] ';
-    else if(sad && opts.expressiveness>=65)tag='[sad] ';
-    else if(excited && opts.expressiveness>=75 && /!/.test(content))tag='[excited] ';
-  }
-  // Sampling: deliberately narrow and bounded, to avoid unstable voices.
-  const temp=Math.round((0.58+opts.expressiveness*0.0026)*100)/100;
-  const topP=opts.style==='expressive'?0.8:0.7;
-  return {
-    text:(tag+content).slice(0,650),
-    enabled:true,
-    params:{
-      temperature:temp,
-      top_p:topP,
-      prosody:{speed:opts.speed},
-      normalize:false
-    }
-  };
+  const choice=normalizeFishNaturalOptions(options);
+  return {text:String(originalText||'').trim(),params:{},model:choice.model};
 }
-
 module.exports={normalizeFishNaturalOptions,prepareFishNaturalRequest};

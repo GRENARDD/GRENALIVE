@@ -33,10 +33,11 @@ test('las banderas, tonos de piel, emojis unidos y keycaps se descartan completo
 test('los mensajes normales, acentos y números no se alteran',()=>{
   for(const x of ['Hola, ¿cómo estás?','GREÑA LIVE 2026','12345, qué lo qué','@grena_rd gracias','mañana jugamos Minecraft'])assert.equal(strip(x),x);
 });
-test('el chat utiliza el filtro en los dos motores TTS, sin modificar m.text del chat',()=>{
+test('voces del sistema conservan filtro emoji, Fish recibe texto original sin cambios',()=>{
   assert.match(html,/result\s*=\s*stripEmojisForVoice\(\s*result\s*\)/);
   assert.match(html,/const spokenName = stripEmojisForVoice\(/);
-  assert.match(html,/stripStickerAndInternalCodes\(\s*cleanTextForVoice\(\s*m\.text\s*\|\|\s*''/);
+  assert.match(html,/isFishVoiceSelected\(\)\s*\?\s*String\(m\.text\|\|''\)\.trim\(\)/);
+  assert.match(html,/stripStickerAndInternalCodes\(cleanTextForVoice\(m\.text\|\|''\)\)/);
   assert.match(html,/insertVoiceByPriority\(\{\s*\.\.\.m,\s*text\s*\}\)/);
   assert.match(html,/function buildSpokenText\(message\)/);
   assert.match(html,/const spokenText = buildSpokenText\(message\)/);
