@@ -57,20 +57,20 @@ test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',a
      const r=await request(env,'/api/license-admin/create',{count:1,days},{token:tk});
      assert.equal(r.status,201);assert.equal(r.data.days,days);assert.equal(r.data.codes.length,1);
      const code=r.data.codes[0];
-     const activation=await request(env,'/api/license/redeem',{code,deviceId},{token:tk});
+     const activation=await request(env,'/api/license/redeem',{code,deviceId},{token:ct});
      assert.equal(activation.status,200);assert.equal(activation.data.license.active,true);
      if(lastExpiry)assert.equal(activation.data.license.expiresAt-lastExpiry,days*DAY);
      else assert.equal(activation.data.license.expiresAt-activation.data.license.activatedAt,days*DAY);
      lastExpiry=activation.data.license.expiresAt;
-     assert.equal((await request(env,'/api/license/redeem',{code,deviceId},{token:tk})).status,409);
+     assert.equal((await request(env,'/api/license/redeem',{code,deviceId},{token:ct})).status,409);
    }
    const list=await request(env,'/api/license-admin/users',null,{token:tk});
-   assert.equal(list.status,200);assert.equal(list.data.total,1);assert.equal(list.data.online,1);
+   assert.equal(list.status,200);assert.equal(list.data.total,2);assert.equal(list.data.online,2);
    assert.deepEqual(list.data.codes.map(x=>x.days).sort((a,b)=>a-b),[17,30,60,90]);
-   const dbUser=DB.prepare('SELECT * FROM users WHERE username=?').bind('sofia');const user=await dbUser.first();
+   const dbUser=DB.prepare('SELECT * FROM users WHERE username=?').bind('viewer');const user=await dbUser.first();
    assert.ok(user.password_hash&&!user.password_hash.includes('clave-fuerte'));
    assert.equal((await DB.prepare('SELECT COUNT(*) AS n FROM user_sessions WHERE token_hash=?').bind(tk).first()).n,0);
-   const other=await request(env,'/api/license/heartbeat',{deviceId:'ANOTHER1234567890123456789012345'},{token:tk});
+   const other=await request(env,'/api/license/heartbeat',{deviceId:'ANOTHER1234567890123456789012345'},{token:ct});
    assert.equal(other.status,200);assert.equal(other.data.license,null);
    assert.equal((await request(env,'/api/license-admin/revoke',{userId:user.id},{token:tk})).data.user.license.active,false);
  }finally{close()}
