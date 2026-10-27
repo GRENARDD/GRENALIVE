@@ -8,19 +8,22 @@ const {randomBytes}=require('node:crypto');
 const VAULT_FILE='owner-fish-vault.json';
 const PS_SCRIPT = String.raw`
 $ErrorActionPreference='Stop'
+# Powershell's type resolver doesn't autoload System.Security on bare runners.
+[void][System.Reflection.Assembly]::LoadWithPartialName('System.Security')
 $request=[Console]::In.ReadToEnd() | ConvertFrom-Json
 $result=@()
 foreach($item in @($request.keys)){
  if([string]::IsNullOrWhiteSpace([string]$item)){ $result+= ''; continue }
  if($request.operation -eq 'protect'){
-   # ConvertFrom-SecureString uses Windows CurrentUser DPAPI unless -Key is passed.
-   $secure=ConvertTo-SecureString -String ([string]$item) -AsPlainText -Force
-   $result+=(ConvertFrom-SecureString -SecureString $secure)
+   $raw=[System.Text.Encoding]::UTF8.GetBytes([string]$item)
+   $bytes=[System.Security.Cryptography.ProtectedData]::Protect($raw,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)
+   [Array]::Clear($raw,0,$raw.Length)
+   $result+=[Convert]::ToBase64String($bytes)
  }elseif($request.operation -eq 'unprotect'){
-   $secure=ConvertTo-SecureString -String ([string]$item)
-   $ptr=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-   try{ $result+=[Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr) }
-   finally{ [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
+   $bytes=[Convert]::FromBase64String([string]$item)
+   $raw=[System.Security.Cryptography.ProtectedData]::Unprotect($bytes,$null,[System.Security.Cryptography.DataProtectionScope]::CurrentUser)
+   $result+=[System.Text.Encoding]::UTF8.GetString($raw)
+   [Array]::Clear($raw,0,$raw.Length)
  }else{throw 'Invalid operation'}
 }
 @{keys=@($result)} | ConvertTo-Json -Compress -Depth 4
