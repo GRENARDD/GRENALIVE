@@ -3115,6 +3115,20 @@ function bridgeHeartbeat(){
   if(connectionPrefs.starviosEnabled&&starviosReader.running)bridgeStatus('starvios',!!starviosReader.connected,starviosReader.connected?'Starvios · chat conectado':'Starvios · esperando LIVE',starviosReader.channel,{heartbeat:true});
   flushBridgeQueue().catch(()=>{});
 }
+// Stop even an already connected direct 8788 chat when the account's license expires.
+const chatLicenseTimer=setInterval(async()=>{
+  if(process.env.GRENA_LICENSE_REQUIRE!=='1'||!activeProfileId||!clients.size)return;
+  let allowed=false;
+  try{
+    const url=MAIN_ORIGIN+'/api/internal/chat-license-status?profileId='+encodeURIComponent(activeProfileId);
+    const r=await fetch(url,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(3500),cache:'no-store'});
+    const state=await r.json().catch(()=>({}));
+    allowed=r.ok&&state.ok===true&&state.allowed===true;
+  }catch{}
+  if(!allowed)for(const ws of clients)try{if(ws.readyState===WebSocket.OPEN)ws.close(4003,'GREÑA license expired')}catch{}
+},15000);
+chatLicenseTimer.unref?.();
+
 const bridgeHeartbeatTimer=setInterval(bridgeHeartbeat,3000);bridgeHeartbeatTimer.unref?.();setTimeout(bridgeHeartbeat,350);
 
 let autoTikTokBusy=false,autoKickBusy=false;
