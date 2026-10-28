@@ -183,6 +183,14 @@ jobs:
           if (-not $preview.Contains('social-overlay.html?preview=1')) {
             throw "La vista previa del widget no tiene activado el modo oscuro."
           }
+      - name: Set distinct test-only version for Kick PR build
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
+          $pkg.version = "5.1.4-beta.1"
+          $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
+          Write-Host "Instalador de prueba: 5.1.4-beta.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Verify complete Node suite before building installer
