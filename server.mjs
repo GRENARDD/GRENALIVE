@@ -677,7 +677,7 @@ function eventHealthSnapshot(){
  return {
   tiktok:{account:ps.tiktok?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.tiktok,ps.tiktok?.authenticated?'waiting':'off'),events:ttEvents,source:'TikTok LIVE connector · FOLLOW + SOCIAL fallback · SUB_NOTIFY',diagnostics:ttSig},
   twitch:{account:ps.twitch?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.twitch,ps.twitch?.authenticated?'waiting':'off'),events:twitchEvents,source:'Twitch EventSub + IRC',active:[...twitchEventHealth.active],failed:[...twitchEventHealth.failed],lastError:twitchEventHealth.lastError||'',diagnostics:sig('twitch')},
-  kick:{account:ps.kick?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.kick,ps.kick?.authenticated?'waiting':'off'),events:kickEvents,source:'Kick Events API + browser/Pusher realtime fallback',active:[...kickEventHealth.active],failed:[...kickEventHealth.failed],lastError:kickEventHealth.lastError||'',subscriptionsReady:!!kickEventHealth.subscriptionsReady,lastWebhookAt:Number(kickEventHealth.lastWebhookAt||0),diagnostics:kickSig},
+  kick:{account:ps.kick?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.kick,ps.kick?.authenticated?'waiting':'off'),events:kickEvents,source:'Kick Events API + browser/Pusher realtime fallback',active:[...kickEventHealth.active],failed:[...kickEventHealth.failed],lastError:kickEventHealth.lastError||'',subscriptionsReady:!!kickEventHealth.subscriptionsReady,lastWebhookAt:Number(kickEventHealth.lastWebhookAt||0),webhookDeliveryVerified:!!kickEventHealth.lastWebhookAt,requiresPublicWebhook:true,diagnostics:kickSig},
   starvios:{account:ps.starvios?.account?'ready':'off',chat:stateFor(bridgeRuntime.starvios,ps.starvios?.account?'waiting':'off'),events:!ps.starvios?.account?'off':starviosRealEventAt?'ready':'waiting',source:'StarVios public chat records + follower totals · verificación de eventos LIVE',lastRealEventAt:starviosRealEventAt,lastRealEventKind:starviosLastRealKind,lastRealNameAvailable:starviosLastRealNameAvailable,diagnostics:sig('starvios')}
  };
 }
@@ -1547,7 +1547,7 @@ async function ensureKickEventSubscriptions(){
   const failedNames=KICK_EVENT_SUBSCRIPTIONS.filter(x=>!active.includes(x));
   kickEventHealth.subscriptionsReady=failedNames.length===0;
   kickEventHealth.active=active;kickEventHealth.failed=failedNames;
-  kickEventHealth.lastError=failures.join(' | ');
+  kickEventHealth.lastError=failures.join(' | ')||(failedNames.length?'Kick no confirmó las suscripciones: '+failedNames.join(', '):'');
   kickEventHealth.updatedAt=Date.now();pushEventHealth();
   if(failures.length)console.warn('[KICK EVENTS]',kickEventHealth.lastError);
   else console.log('[KICK EVENTS]',JSON.stringify({active,failed:failedNames}));
@@ -2503,7 +2503,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    kickEventHealth.lastWebhookAt=Date.now();noteBridgeSignal('kick',eventType,{official:true});pushEventHealth();
    const person=(x={})=>({name:String(x?.username||x?.name||'Usuario'),avatar:String(x?.profile_picture||x?.profilePicture||'')});
    if(eventType==='chat.message.sent'){
-     try{await fetch('http://127.0.0.1:8788/api/internal/kick-chat',{method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify(body)})}catch(e){console.warn('[KICK CHAT BRIDGE]',e?.message||e)}
+     try{const forwarded=await fetch('http://127.0.0.1:8788/api/internal/kick-chat',{method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify(body)});if(!forwarded.ok)throw Error('Puente de chat HTTP '+forwarded.status)}catch(e){console.warn('[KICK CHAT BRIDGE]',e?.message||e)}
    }else if(eventType==='channel.followed'){const u=person(body.follower);alert('Kick','follow',u.name,'te siguió',{avatar:u.avatar,kickEvent:eventType});
    }else if(eventType==='channel.subscription.new'){const u=person(body.subscriber);alert('Kick','sub',u.name,`se suscribió${Number(body.duration)>0?' · '+Number(body.duration)+' mes(es)':''}`,{avatar:u.avatar,months:Number(body.duration||1),kickEvent:eventType});
    }else if(eventType==='channel.subscription.renewal'){const u=person(body.subscriber);alert('Kick','sub',u.name,`renovó su suscripción${Number(body.duration)>0?' · '+Number(body.duration)+' mes(es)':''}`,{avatar:u.avatar,months:Number(body.duration||1),kickEvent:eventType});
