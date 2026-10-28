@@ -133,21 +133,34 @@ async function fishPoolForProfile(profileId){
    clearFishCredentialCache();
    fishCredentialCache.profileId=profileIdString;
  }
- if(fishCredentialCache.result&&fishCredentialCache.expiresAt>Date.now())
+ // Start refreshing a still-valid credential before it expires, off the
+ // critical audio path. Cached credentials never leave RAM or cross GREÑA IDs.
+ const beginRefresh=()=>{
+   if(fishCredentialCache.pending)return fishCredentialCache.pending;
+   const pending=fetchFishPoolForProfile(profileIdString);
+   fishCredentialCache.pending=pending;
+   void pending.then(result=>{
+     if(profileIdString!==activeProfileId||fishCredentialCache.profileId!==profileIdString||fishCredentialCache.pending!==pending)return;
+     // A revoked key or a missing license must not remain in a cached pool.
+     if(result.accounts?.length){
+       fishCredentialCache.result=result;
+       fishCredentialCache.expiresAt=Date.now()+FISH_CREDENTIAL_CACHE_MS;
+     }else{
+       fishCredentialCache.result=null;
+       fishCredentialCache.expiresAt=0;
+     }
+   }).catch(()=>{}).finally(()=>{
+     if(fishCredentialCache.pending===pending)fishCredentialCache.pending=null;
+   });
+   return pending;
+ };
+ const now=Date.now();
+ if(fishCredentialCache.result&&fishCredentialCache.expiresAt>now){
+   if(fishCredentialCache.expiresAt-now<=6000 && !fishCredentialCache.pending)beginRefresh();
    return fishCredentialCache.result;
- if(fishCredentialCache.pending)return fishCredentialCache.pending;
- const pending=fetchFishPoolForProfile(profileIdString);
- fishCredentialCache.pending=pending;
- try{
-   const result=await pending;
-   if(profileIdString===activeProfileId&&fishCredentialCache.profileId===profileIdString&&fishCredentialCache.pending===pending){
-     // Do not cache errors or missing credentials. A user can add their key at any time.
-     if(result.accounts?.length){fishCredentialCache.result=result;fishCredentialCache.expiresAt=Date.now()+FISH_CREDENTIAL_CACHE_MS}
-   }
-   return profileIdString===activeProfileId?result:{accounts:[],error:'El perfil cambió durante la solicitud de voz.'};
- }finally{
-   if(fishCredentialCache.pending===pending)fishCredentialCache.pending=null;
  }
+ const result=await beginRefresh();
+ return profileIdString===activeProfileId?result:{accounts:[],error:'El perfil cambió durante la solicitud de voz.'};
 }
 
 let fishRoundRobin = 0;
