@@ -188,7 +188,7 @@ jobs:
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "5.1.4-beta.1"
+          $pkg.version = "5.1.4-beta.2"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
           Write-Host "Instalador de prueba: 5.1.4-beta.1, no publicar en GitHub Releases"
       - name: Install dependencies
@@ -230,6 +230,6 @@ jobs:
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: GRENA-LIVE-Installer-Windows-v5.1.3
+          name: GRENA-LIVE-Voice-Latency-Test-v5.1.4-beta.2
           path: dist/*.exe
           if-no-files-found: error
