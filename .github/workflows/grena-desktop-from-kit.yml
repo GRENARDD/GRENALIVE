@@ -188,7 +188,7 @@ jobs:
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "5.1.4-beta.2"
+          $pkg.version = "5.1.4-beta.3"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
           Write-Host "Instalador de prueba: 5.1.4-beta.1, no publicar en GitHub Releases"
       - name: Install dependencies
