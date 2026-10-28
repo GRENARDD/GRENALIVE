@@ -506,7 +506,7 @@ function ttGiftData(data={}, connection=tiktokConn) {
   return {giftId,giftName,count,unitDiamonds,totalDiamonds:unitDiamonds*count,giftImage:ttGiftImage(data,ext)};
 }
 function bridgeAlert(platform,event,name,action,extra={}) {
-  const payload={platform,event,name:name||'Usuario',action,...extra};if(!payload.bridgeEventId)payload.bridgeEventId=bridgeMessageId(`${String(platform).toLowerCase()}-${event}`);sendToAlerts('/api/internal/event',payload,{reliable:true});
+  const payload={platform,event,name:name||'Usuario',action,...extra};if(!payload.bridgeEventId&&String(platform).toLowerCase()!=='kick')payload.bridgeEventId=bridgeMessageId(`${String(platform).toLowerCase()}-${event}`);sendToAlerts('/api/internal/event',payload,{reliable:true});
 }
 function bridgeViewers(platform,count,source='') {
   sendToAlerts('/api/internal/viewers',{platform,count:Number(count)||0,source});
@@ -1077,6 +1077,7 @@ function consumeKickRealtimeFrame(payload){
       bridgeAlert('Kick','gift',who,`regaló ${count} suscripción${count===1?'':'es'}`,{
         count,giftName:'Suscripciones regaladas',giftKind:'subscription',
         avatar:findUrl(d?.gifter?.profile_picture||d?.sender?.profile_picture||''),
+        eventId:String(d.event_id||d.message_id||d.notification_id||''),
         kickEvent:name||dataType
       });handled=true;continue;
     }
@@ -1091,6 +1092,7 @@ function consumeKickRealtimeFrame(payload){
         kickGiftTier:firstString(gift.tier,d.tier),
         giftMessage:firstString(gift.message,d.message),
         avatar:findUrl(d?.sender?.profile_picture||d?.gifter?.profile_picture||''),
+        eventId:String(d.event_id||d.message_id||d.notification_id||''),
         kickEvent:name||dataType
       });handled=true;continue;
     }
@@ -1100,6 +1102,7 @@ function consumeKickRealtimeFrame(payload){
       if(key){const old=kickUsers.get(key)||{username:who,nickname:who,userId:'',lastSeen:Date.now()};kickUsers.set(key,{...old,isSubscriber:true,lastSeen:Date.now()})}
       bridgeAlert('Kick','sub',who,name==='channel.subscription.renewal'?'renovó su suscripción':'se suscribió',{
         avatar:findUrl(d?.subscriber?.profile_picture||d?.sender?.profile_picture||''),
+        eventId:String(d.event_id||d.message_id||d.notification_id||''),
         kickEvent:name||dataType
       });handled=true;continue;
     }
@@ -1107,7 +1110,7 @@ function consumeKickRealtimeFrame(payload){
     if(/FollowEvent$/i.test(name)||name==='channel.followed'||dataType==='follow'||dataType==='followed'){
       const who=kickPerson(d),key=String(who||'').toLowerCase();
       if(key){const old=kickUsers.get(key)||{username:who,nickname:who,userId:'',lastSeen:Date.now()};kickUsers.set(key,{...old,isFollower:true,lastSeen:Date.now()})}
-      bridgeAlert('Kick','follow',who,'te siguió',{kickEvent:name||dataType});handled=true;continue;
+      bridgeAlert('Kick','follow',who,'te siguió',{kickEvent:name||dataType,eventId:String(d.event_id||d.message_id||d.notification_id||'')});handled=true;continue;
     }
   }
   return handled;
