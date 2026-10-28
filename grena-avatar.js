@@ -4,9 +4,19 @@
   const av=document.getElementById('profileAvatar'); if(!av) return;
   const SIZE=256; let key='grena-avatar:guest';
   const OK=/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/;
+  const inlinePhoto=document.getElementById('profileNamePhoto');
   const apply=()=>{let d=null;try{d=localStorage.getItem(key)}catch{}
     if(d&&!OK.test(d)) d=null;
-    av.classList.toggle('has-photo',!!d); av.style.backgroundImage=d?`url(${d})`:''};
+    av.classList.toggle('has-photo',!!d); av.style.backgroundImage=d?`url(${d})`:'';
+    // Both badges always use the same local profile-scoped image, never
+    // another user's avatar. The fallback remains a simple name initial.
+    if(inlinePhoto){
+      inlinePhoto.classList.toggle('has-photo',!!d);
+      inlinePhoto.style.backgroundImage=d?`url(${d})`:'';
+      inlinePhoto.textContent=d?'':String(document.getElementById('profileName')?.textContent||'G').trim().slice(0,1).toUpperCase();
+    }
+  };
+  addEventListener('storage',event=>{if(event.key===key)apply()});
   fetch('/api/account/me',{cache:'no-store'}).then(r=>r.json())
     .then(d=>{if(d&&d.user&&d.user.id) key='grena-avatar:'+d.user.id; apply()}).catch(apply);
 
