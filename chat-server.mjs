@@ -100,9 +100,16 @@ function reconcileOwnerFishAccounts(keys){
 }
 
 let fishProfileAccount=null;
-async function fishPoolForProfile(profileId){
+// Cache only successful credential resolutions in the same GREÑA ID for 15 s.
+// Keep API keys in RAM; avoid per-comment Cloudflare D1 network latency.
+const FISH_CREDENTIAL_CACHE_MS=15000;
+let fishCredentialCache={profileId:'',result:null,expiresAt:0,pending:null};
+function clearFishCredentialCache(){
+  fishCredentialCache={profileId:'',result:null,expiresAt:0,pending:null};
+}
+async function fetchFishPoolForProfile(profileId){
  const requested=String(profileId||'');
- if(!requested)return {accounts:[],error:'Inicia sesión en tu GREÑA ID para usar Fish Audio.'};
+ if(!requested||requested!==activeProfileId)return {accounts:[],error:'Inicia sesión en tu GREÑA ID para usar Fish Audio.'};
  try{
    const url=MAIN_ORIGIN+'/api/internal/fish-credential?profileId='+encodeURIComponent(requested);
    const r=await fetch(url,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(4500),cache:'no-store'});
@@ -118,6 +125,29 @@ async function fishPoolForProfile(profileId){
    if(result.permanentAccess===true)return {accounts:reconcileOwnerFishAccounts(result.ownerKeys)};
    return {accounts:[],error:result.unavailable?'No se pudo consultar la API de Fish Audio. Revisa Cloudflare.':'Configura tu propia API Fish Audio en Configuración para activar el chat de voz.'};
  }catch{return {accounts:[],error:'No se pudo verificar la API Fish Audio de esta cuenta.'}}
+}
+async function fishPoolForProfile(profileId){
+ const profileIdString=String(profileId||'');
+ if(!profileIdString||profileIdString!==activeProfileId)return {accounts:[],error:'Perfil de GREÑA ID no activo.'};
+ if(fishCredentialCache.profileId!==profileIdString){
+   clearFishCredentialCache();
+   fishCredentialCache.profileId=profileIdString;
+ }
+ if(fishCredentialCache.result&&fishCredentialCache.expiresAt>Date.now())
+   return fishCredentialCache.result;
+ if(fishCredentialCache.pending)return fishCredentialCache.pending;
+ const pending=fetchFishPoolForProfile(profileIdString);
+ fishCredentialCache.pending=pending;
+ try{
+   const result=await pending;
+   if(profileIdString===activeProfileId&&fishCredentialCache.profileId===profileIdString&&fishCredentialCache.pending===pending){
+     // Do not cache errors or missing credentials. A user can add their key at any time.
+     if(result.accounts?.length){fishCredentialCache.result=result;fishCredentialCache.expiresAt=Date.now()+FISH_CREDENTIAL_CACHE_MS}
+   }
+   return profileIdString===activeProfileId?result:{accounts:[],error:'El perfil cambió durante la solicitud de voz.'};
+ }finally{
+   if(fishCredentialCache.pending===pending)fishCredentialCache.pending=null;
+ }
 }
 
 let fishRoundRobin = 0;
@@ -228,6 +258,7 @@ let multichatSettings = sanitizeMultichatSettings(await readJson(MULTICHAT_SETTI
 async function loadChatProfile(userId=''){
   activeProfileId=String(userId||'');
   fishProfileAccount=null; // Never carry API key material across GREÑA ID switches.
+  clearFishCredentialCache(); // No credential cache survives an account change.
   if(activeProfileId)await mkdir(join(PROFILES_DIR,activeProfileId),{recursive:true}).catch(()=>{});
   CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
   MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
@@ -1011,10 +1042,12 @@ async function deliverKickChat(msg){
   const oldUser=kickUsers.get(msg.user.toLowerCase())||{};
   const isFollower=typeof oldUser.isFollower==='boolean'?oldUser.isFollower:null;
   const isSubscriber=!!msg.isSubscriber||!!oldUser.isSubscriber;
+  // Never hold a chat message (or TTS) while waiting up to 1.8s for an avatar.
+  // An already cached avatar is immediate; missing avatars load in the background.
   let avatar=findUrl(msg.avatar,oldUser.avatar);
   if(!avatar&&msg.userId){
-    const meta=await kickChatUserMeta(msg.userId);
-    avatar=findUrl(meta.avatar);
+    const cached=kickMetaCache.get(String(msg.userId));
+    if(cached&&Date.now()-cached.at<30*60*1000)avatar=findUrl(cached.value?.avatar);
   }
   kickUsers.set(msg.user.toLowerCase(),{
     ...oldUser,
@@ -1041,6 +1074,18 @@ async function deliverKickChat(msg){
     isModerator:!!msg.isModerator,
     isBroadcaster:!!msg.isBroadcaster||String(msg.user||'').toLowerCase()===String(currentKickChannel||'').toLowerCase()
   });
+  if(!avatar&&msg.userId){
+    const profileAtMessage=activeProfileId;
+    const userIdAtMessage=String(msg.userId);
+    const userKeyAtMessage=String(msg.user).toLowerCase();
+    void kickChatUserMeta(userIdAtMessage).then(meta=>{
+      if(profileAtMessage!==activeProfileId)return;
+      const current=kickUsers.get(userKeyAtMessage);
+      if(!current||String(current.userId)!==userIdAtMessage)return;
+      const fresh=findUrl(meta?.avatar);
+      if(fresh)kickUsers.set(userKeyAtMessage,{...current,avatar:fresh});
+    }).catch(()=>{});
+  }
   return true;
 }
 
