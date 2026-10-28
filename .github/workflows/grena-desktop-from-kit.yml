@@ -154,6 +154,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check server.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check chat-server.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check kick-realtime.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           foreach ($path in @('grena-licensing.mjs', 'grena-avatar.js', 'grena-community.js')) {
             node --check $path
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
