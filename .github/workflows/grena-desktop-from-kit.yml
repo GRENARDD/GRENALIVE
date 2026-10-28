@@ -6,6 +6,10 @@ on:
       - main
     paths:
       - 'grena-gamer.css'
+      - 'chat-server.mjs'
+      - 'server.mjs'
+      - 'kick-realtime.mjs'
+      - 'tests/kick-*.test.mjs'
       - 'grena-tokens.css'
       - 'grena-avatar.js'
       - 'grena-community.js'
