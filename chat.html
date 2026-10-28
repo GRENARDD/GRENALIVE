@@ -3502,6 +3502,10 @@ function looksLikeStickerOrInternalCode(text=''){
      /(?:sticker|emote|emoji|gift|asset|image|animation|webp|png|gif|tt_|tiktok|kick|twitch|id[:_\-]?\d)/i.test(s)) return true;
   if(/^(?:sticker|emote|emoji|asset|image)[:_\-][A-Za-z0-9_:\-./]{3,100}$/i.test(s)) return true;
   if(/^\[[A-Za-z0-9_\-]{8,}\]$/.test(s)) return true;
+  // Platform :shortcode: emotes, bare media links and internal sticker markers.
+  if(/^(?:\s*:[A-Za-z][A-Za-z0-9_\-]{1,49}:\s*)+$/.test(s)) return true;
+  if(/^https?:\/\/\S+\.(?:gif|webp|png|jpe?g)(?:[?#]\S*)?$/i.test(s)) return true;
+  if(/^(?:\[?(?:sticker|emote|gif|animation|image)(?:\s*(?::|#|id[:_\-=]?|\s+)[\w\-]+)?\]?)$/i.test(s)) return true;
   return false;
 }
 
@@ -3513,6 +3517,10 @@ function stripStickerAndInternalCodes(text=''){
   // Quita otros tokens internos incrustados sin destruir frases humanas normales.
   s=s.replace(/[\[(<{](?:sticker|emote|emoji|asset|image|animation|gift|tt_sticker|tiktok_sticker|kick_emote|twitch_emote)[^\])>}]{0,120}[\])>}]/gi,' ');
   s=s.replace(/\b(?:sticker|emote|emoji|asset|image)[:_\-][A-Za-z0-9_:\-./]{3,100}\b/gi,' ');
+  // Strip embedded platform :shortcodes: without removing normal sentences.
+  s=s.replace(/(^|\s):[A-Za-z][A-Za-z0-9_\-]{1,49}:(?=\s|$)/g,' ');
+  // Media URLs are not a spoken contribution.
+  s=s.replace(/https?:\/\/[^\s]+\.(?:gif|webp|png|jpe?g)(?:[?#][^\s]*)?/gi,' ');
   return s.replace(/\s{2,}/g,' ').trim();
 }
 
@@ -3565,7 +3573,9 @@ function shouldIgnoreVoice(m){
 
   }
 
-  if(looksLikeStickerOrInternalCode(text)){
+  if(looksLikeStickerOrInternalCode(text) || 
+     /^(?:sticker|emote|gif|image|animation)$/i.test(String(m?.messageType||m?.kind||m?.contentType||'')) &&
+     !stripStickerAndInternalCodes(text)){
     return true;
   }
 
@@ -3740,12 +3750,13 @@ function queueVoice(m){
    * preparada para la voz.
    */
 
-  // Fish receives the same comment that viewers typed, not a rewritten copy.
-  // Legacy cleanTextForVoice() remains exclusively for Windows/browser voices.
-  // Priority, spam, language, opt-in username and character limits still apply.
+  // Fish receives the original human words with media/sticker/emote codes
+  // removed. Keep normal sentences and natural speech untouched; never send
+  // visual sticker tokens to Fish Audio, including when mixed with text.
+  const humanText=stripStickerAndInternalCodes(m.text||'');
   let text=isFishVoiceSelected()
-    ? String(m.text||'').trim()
-    : stripStickerAndInternalCodes(cleanTextForVoice(m.text||''));
+    ? humanText
+    : cleanTextForVoice(humanText);
 
   if(!text){
 
