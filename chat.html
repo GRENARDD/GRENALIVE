@@ -1406,10 +1406,13 @@ const VOICE_SPAM_HISTORY_TTL_MS = 2 * 60 * 1000;
 
 // GREÑA LIVE VOICE GUARD · protección para chats masivos.
 // La voz debe sonar "ahora", no leer minutos de atraso.
-const VOICE_QUEUE_SOFT_LIMIT = 10;
-const VOICE_QUEUE_HARD_LIMIT = 20;
-const VOICE_STALE_MS = 12000;
-const VOICE_STALE_OVERLOAD_MS = 6500;
+// SIN ACUMULACION: mientras se habla, conservar como máximo UN comentario
+// reciente pendiente. Los demás se descartan/reemplazan, nunca se reproduce
+// una lista de mensajes atrasados.
+const VOICE_QUEUE_SOFT_LIMIT = 1;
+const VOICE_QUEUE_HARD_LIMIT = 1;
+const VOICE_STALE_MS = 2500;
+const VOICE_STALE_OVERLOAD_MS = 1800;
 const VOICE_USER_COOLDOWN_MS = 2200;
 const voiceUserLastQueuedAt = new Map();
 let voiceDroppedOverload = 0;
@@ -3646,12 +3649,21 @@ function insertVoiceByPriority(message){
   message.__voicePriority = priority;
   message.__voiceQueuedAt = Date.now();
 
-  // Conserva FIFO dentro del mismo nivel. Un moderador nuevo no adelanta a
-  // otro moderador que ya estaba esperando, pero sí pasa delante de usuarios
-  // de menor prioridad.
-  let index = voiceQueue.findIndex(item => voicePriority(item) < priority);
-  if(index < 0) index = voiceQueue.length;
-  voiceQueue.splice(index,0,message);
+  // Live / sin cola: solo cabe un comentario pendiente, no una lista FIFO.
+  // El último del mismo rango reemplaza al anterior; las prioridades altas
+  // (dueño y moderadores) no son desplazadas por mensajes normales.
+  if(voiceQueue.length){
+    const pending=voiceQueue[0];
+    if(voicePriority(pending)>priority && !message.__voiceTest){
+      voiceDroppedOverload++;
+      return false;
+    }
+    voiceQueue.length=0;
+    cleanupFishPreparedMessage(pending,true);
+    voiceDroppedOverload++;
+  }
+  voiceQueue.push(message);
+  return true;
 }
 
 function dropLowestPriorityVoice(){
@@ -3786,24 +3798,15 @@ function queueVoice(m){
 
   if(!languageAllowedForVoice(text)) return;
 
-  // Antes de añadir otro comentario, purgamos los que ya perdieron
-  // relevancia. En una avalancha (400/4000 personas) el motor permanece cerca
-  // del presente y nunca intenta "ponerse al día" leyendo minutos atrasados.
+  // Sin acumulación: eliminamos comentarios viejos y sólo guardamos
+  // un mensaje pendiente mientras una voz está sonando o generándose.
   dropStaleVoiceMessages();
 
-  while(voiceQueue.length >= VOICE_QUEUE_HARD_LIMIT){
-    const dropped = dropLowestPriorityVoice();
-    cleanupFishPreparedMessage(dropped,true);
-    voiceDroppedOverload++;
-  }
-
-  insertVoiceByPriority({
-
+  const queued=insertVoiceByPriority({
     ...m,
-
     text
-
   });
+  if(!queued){updateVoiceStatus();return;}
 
   updateVoiceStatus();
 
@@ -4437,8 +4440,8 @@ function updateVoiceStatus(){
   if(speaking){
 
     $('voiceStatus').textContent = isFishVoiceSelected() && activeFishVoiceSlot
-      ? `🔊 Voz ${activeFishVoiceSlot} hablando... | Cola: ${voiceQueue.length} · preparando ${Math.min(fishPrefetchActive,fishPrefetchConcurrency())}`
-      : `🔊 Hablando... | Cola: ${voiceQueue.length}`;
+      ? `🔊 Voz ${activeFishVoiceSlot} hablando · sin cola acumulada · ${voiceQueue.length?'1 próximo':'sin pendiente'}`
+      : `🔊 Hablando · sin cola acumulada · ${voiceQueue.length?'1 próximo':'sin pendiente'}`;
 
     return;
 
@@ -4447,7 +4450,7 @@ function updateVoiceStatus(){
   if(voiceQueue.length){
 
     $('voiceStatus').textContent =
-      `⏳ ${voiceQueue.length} mensaje(s) en cola.`;
+      `⏳ Preparando el último mensaje · sin cola acumulada.`;
 
     return;
 
@@ -4456,8 +4459,8 @@ function updateVoiceStatus(){
   if(isFishVoiceSelected()){
     const count = getConfiguredFishModels().length;
     $('voiceStatus').textContent = count === 5
-      ? '🟢 Fish Audio: 5 voces por usuario activas · asignación aleatoria fija · preparación inteligente de hasta 3 mensajes.'
-      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · preparación inteligente de hasta 3 mensajes.`;
+      ? '🟢 Fish Audio: 5 voces naturales · tiempo real sin cola · solo el mensaje más reciente pendiente.'
+      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · sin cola acumulada.`;
     return;
   }
 
