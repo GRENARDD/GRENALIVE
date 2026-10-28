@@ -1357,7 +1357,10 @@ const VOICE_GAP_MS = 140;
 // Fish Audio usa un hueco mucho menor porque el siguiente comentario se
 // prepara mientras el actual todavía se está reproduciendo.
 const FISH_VOICE_GAP_MS = 24;
-const FISH_PREFETCH_LIMIT = 2;
+const FISH_PREFETCH_LIMIT = 4;
+// Prepare up to three next messages in parallel, reserving capacity for
+// real-time voice generation. The five assigned Fish voices stay unchanged.
+const FISH_PREFETCH_CONCURRENCY = 3;
 const FISH_MAX_RETRIES_PER_MESSAGE = 3;
 const FISH_RETRY_BASE_MS = 900;
 const FISH_RETRY_MAX_MS = 8000;
@@ -2155,7 +2158,7 @@ function pumpFishPrefetch(){
   // no saturamos Fish Audio y normalmente la próxima voz ya está lista.
   const candidates = voiceQueue.slice(0,FISH_PREFETCH_LIMIT);
   for(const message of candidates){
-    if(fishPrefetchActive >= FISH_PREFETCH_LIMIT) break;
+    if(fishPrefetchActive >= FISH_PREFETCH_CONCURRENCY) break;
     if(!message?.__fishPreparedBlob && !message?.__fishPreparePromise && !message?.__fishPrefetchError){
       startFishPrefetch(message);
     }
@@ -4412,7 +4415,7 @@ function updateVoiceStatus(){
   if(speaking){
 
     $('voiceStatus').textContent = isFishVoiceSelected() && activeFishVoiceSlot
-      ? `🔊 Voz ${activeFishVoiceSlot} hablando... | Cola: ${voiceQueue.length} · preparando ${Math.min(fishPrefetchActive,FISH_PREFETCH_LIMIT)}`
+      ? `🔊 Voz ${activeFishVoiceSlot} hablando... | Cola: ${voiceQueue.length} · preparando ${Math.min(fishPrefetchActive,FISH_PREFETCH_CONCURRENCY)}`
       : `🔊 Hablando... | Cola: ${voiceQueue.length}`;
 
     return;
@@ -4431,8 +4434,8 @@ function updateVoiceStatus(){
   if(isFishVoiceSelected()){
     const count = getConfiguredFishModels().length;
     $('voiceStatus').textContent = count === 5
-      ? '🟢 Fish Audio: 5 voces por usuario activas · asignación aleatoria fija · prebuffer rápido 2.'
-      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · prebuffer rápido 2.`;
+      ? '🟢 Fish Audio: 5 voces por usuario activas · asignación aleatoria fija · preparación inteligente de hasta 3 mensajes.'
+      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · preparación inteligente de hasta 3 mensajes.`;
     return;
   }
 
