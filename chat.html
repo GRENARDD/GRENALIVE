@@ -3943,6 +3943,10 @@ async function speakFishMessage(message, spokenText){
   const volume = Math.max(0,Math.min(1,Number($('voiceVolume').value)));
   const runId = ++voiceRunId;
   let settled = false;
+  // Safe timing diagnostics: never log comments, usernames, API keys or Fish voice IDs.
+  const generationStartAt=Date.now();
+  const queuedAt=Number(message.__voiceQueuedAt||0);
+  const hadPreparedAudio=!!(message.__fishPreparedBlob||message.__fishPreparePromise);
 
   speaking = true;
   activeVoiceMessage = message;
@@ -4088,6 +4092,13 @@ async function speakFishMessage(message, spokenText){
       return;
     }
 
+    console.info('[GREÑA VOZ LATENCIA]',JSON.stringify({
+      queueWaitMs:queuedAt?Math.max(0,generationStartAt-queuedAt):null,
+      synthesisToPlaybackMs:Math.max(0,Date.now()-generationStartAt),
+      messageToPlaybackMs:queuedAt?Math.max(0,Date.now()-queuedAt):null,
+      prefetched:hadPreparedAudio,
+      pendingMessages:voiceQueue.length
+    }));
     // Mientras esta voz está sonando, generamos hasta dos mensajes futuros.
     pumpFishPrefetch();
 
