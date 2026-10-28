@@ -19,7 +19,7 @@ import {
 import tmi from 'tmi.js';
 import {YouTubeLiveReader} from './youtube-live.mjs';
 import { chromium } from 'playwright-core';
-import {kickRealtimeFrames,kickRealtimeSubscriptionRequest} from './kick-realtime.mjs';
+import {kickRealtimeFrames as decodeKickRealtimeFrames,kickRealtimeSubscriptionRequest} from './kick-realtime.mjs';
 import { StarviosReader, normalizeStarviosChannel } from './starvios-reader.mjs';
 import fishNaturalVoice from './fish-natural-voice.cjs';
 const {prepareFishNaturalRequest} = fishNaturalVoice;
@@ -1045,7 +1045,7 @@ async function deliverKickChat(msg){
 }
 
 function consumeKickRealtimeFrame(payload){
-  const items=kickRealtimeFrames(payload);let handled=false;
+  const items=decodeKickRealtimeFrames(payload);let handled=false;
   for(const ev of items){
     if(!ev||typeof ev!=='object')continue;
     if(ev.centrifugoControl)continue;
