@@ -11,6 +11,14 @@
 <link rel="stylesheet" href="/ui-v2.css">
 <link rel="stylesheet" href="/aurora-ui.css">
 <link rel="stylesheet" href="/grena-gamer.css">
+<style id="grena-profile-name-photo-style">
+/* Same per-GREÑA-ID profile photo, visible directly beside the account name. */
+.grena-control .profile-copy b.gx-profile-name-inline{display:flex;align-items:center;gap:6px;max-width:165px;min-width:0;overflow:hidden}
+.grena-control .gx-profile-name-inline #profileName{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.grena-control .gx-profile-name-photo{display:inline-flex;flex:0 0 17px;width:17px;height:17px;align-items:center;justify-content:center;border-radius:50%;font:800 9px sans-serif;font-style:normal;color:#fff;background:#6650af;background-size:cover;background-position:center;border:1px solid rgba(255,255,255,.4)}
+.grena-control .gx-profile-name-photo.has-photo{color:transparent}
+</style>
+
 <style>.platform-row[data-platform="starvios"]{border-color:rgba(255,130,194,.38)!important;background:linear-gradient(90deg,rgba(255,106,185,.085),transparent)!important}.viewer-card.starvios{border-color:rgba(255,137,198,.4)!important}.platform-row[data-platform="starvios"] .platform-id b,.viewer-card.starvios small{color:#ff9cd3!important}</style></head>
 <body class="grena-control">
 <div class="app-shell">
@@ -30,7 +38,7 @@
     <div class="top-status">
       <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
       <a class="top-link" href="/mode.html" title="Elegir versión web o móvil">📱 Cambiar versión</a>
-      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b id="profileName">GREÑA ID</b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
+      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b class="gx-profile-name-inline"><i class="gx-profile-name-photo" id="profileNamePhoto" aria-hidden="true">G</i><span id="profileName">GREÑA ID</span></b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
       <button id="exitAppBtn" class="app-exit-btn" type="button">Salir de GREÑA</button>
     </div>
   </header>
