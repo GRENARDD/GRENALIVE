@@ -19,6 +19,7 @@ import {
 import tmi from 'tmi.js';
 import {YouTubeLiveReader} from './youtube-live.mjs';
 import { chromium } from 'playwright-core';
+import {kickRealtimeFrames,kickRealtimeSubscriptionRequest} from './kick-realtime.mjs';
 import { StarviosReader, normalizeStarviosChannel } from './starvios-reader.mjs';
 import fishNaturalVoice from './fish-natural-voice.cjs';
 const {prepareFishNaturalRequest} = fishNaturalVoice;
@@ -309,6 +310,9 @@ let kickRealtimeFrames = 0;
 let kickPusherReady = false;
 let kickBrowserChatReady = false;
 let kickRealtimeLastError = '';
+let kickRealtimeProvider = '';
+let kickBrowserPusherUrl = '';
+let kickLastChatAt = 0;
 let kickFollowerSeeded = false;
 let kickFollowerProbeLogged = false;
 let kickFollowerListDisabled = false;
@@ -926,7 +930,7 @@ async function disconnectKick() {
   if(kickReconnectTimer){clearTimeout(kickReconnectTimer);kickReconnectTimer=null;}
   if(kickPagePollTimer){clearInterval(kickPagePollTimer);kickPagePollTimer=null;}
   if(kickSocket){try{kickSocket.removeAllListeners();kickSocket.close()}catch{}}
-  kickSocket=null;kickChatroomId=0;kickRealtimeFrames=0;kickPusherReady=false;kickBrowserChatReady=false;kickRealtimeLastError='';
+  kickSocket=null;kickChatroomId=0;kickRealtimeFrames=0;kickPusherReady=false;kickBrowserChatReady=false;kickRealtimeLastError='';kickRealtimeProvider='';kickBrowserPusherUrl='';kickLastChatAt=0;
   if(kickBrowser){ try{await kickBrowser.close()}catch{} }
   kickBrowser=null; kickPage=null;
   if(old) broadcastPlatform('kick',{type:'disconnected',message:`Kick se desconectó de ${old}.`});
@@ -1022,6 +1026,7 @@ async function deliverKickChat(msg){
     isSubscriber,
     lastSeen:now
   });
+  kickLastChatAt=Date.now();
   broadcastPlatform('kick',{
     type:'chat',
     user:msg.user,
@@ -1040,14 +1045,10 @@ async function deliverKickChat(msg){
 }
 
 function consumeKickRealtimeFrame(payload){
-  let raw=payload;
-  if(Buffer.isBuffer(raw))raw=raw.toString('utf8');
-  if(typeof raw!=='string')return false;
-  const text=raw.trim();if(!text||text[0]!=='{'&&text[0]!=='[')return false;
-  let parsed;try{parsed=JSON.parse(text)}catch{return false}
-  const items=Array.isArray(parsed)?parsed:[parsed];let handled=false;
+  const items=kickRealtimeFrames(payload);let handled=false;
   for(const ev of items){
     if(!ev||typeof ev!=='object')continue;
+    if(ev.centrifugoControl)continue;
     const name=String(ev.event||ev.type||'');
     if(name==='pusher:ping'){try{kickSocket?.send(JSON.stringify({event:'pusher:pong',data:{}}))}catch{};continue}
     const room=/^chatrooms\.(\d+)(?:\.v2)?$/.exec(String(ev.channel||''));
@@ -1247,9 +1248,34 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
     // depender exclusivamente de un nombre de evento o canal Pusher que Kick pueda cambiar.
     page.on('websocket',socket=>{
       let hasChatSubscription=false;
+      const requests=new Map();
+      const socketUrl=String(socket.url()||'');
+      if(/^wss:\/\/ws-[a-z0-9-]+\.pusher\.com\/app\/[A-Za-z0-9_-]{12,80}(?:\?|$)/i.test(socketUrl)){
+        kickBrowserPusherUrl=socketUrl;kickRealtimeProvider='pusher-browser';
+      }else if(/^wss:\/\//i.test(socketUrl)&&/centrifug|websockets\.kick\.com/i.test(socketUrl)){
+        kickRealtimeProvider='centrifugo-browser';
+      }
+      socket.on('framesent',frame=>{
+        for(const req of kickRealtimeSubscriptionRequest(frame.payload)){
+          requests.set(req.id,req);
+          if(requests.size>150)requests.delete(requests.keys().next().value);
+        }
+      });
       socket.on('framereceived',frame=>{
         const wasReady=kickBrowserChatReady;
-        kickRealtimeFrames++;consumeKickRealtimeFrame(frame.payload);
+        kickRealtimeFrames++;
+        for(const line of String(frame.payload||'').split(/\r?\n/).slice(0,32)){
+          let reply;try{reply=JSON.parse(line)}catch{continue}
+          if(reply?.id&&reply.subscribe&&!reply.error){
+            const info=requests.get(Number(reply.id));
+            if(info){kickBrowserChatReady=true;kickChatroomId=info.roomId||kickChatroomId;}
+          }
+          if(reply?.push?.pub&&/^chatrooms\.[0-9]+(?:\.v2)?$/.test(String(reply.push.channel||''))){
+            kickBrowserChatReady=true;
+            kickChatroomId=Number(String(reply.push.channel).match(/[0-9]+/)?.[0])||kickChatroomId;
+          }
+        }
+        consumeKickRealtimeFrame(frame.payload);
         if(!wasReady&&kickBrowserChatReady)hasChatSubscription=true;
       });
       socket.on('close',()=>{if(hasChatSubscription&&kickPage===page){kickBrowserChatReady=false;if(!kickPusherReady&&kickConnected){kickConnected=false;bridgeStatus('kick',false,'Kick · chat realtime desconectado',currentKickChannel,{lastError:'Se cerró el WebSocket del navegador'});}}});
@@ -1340,7 +1366,8 @@ async function pollKickPageState(channel){
 }
 function connectKickPusher(channel,chatroomId,channelId=0){
   return new Promise((resolve,reject)=>{
-    const url='wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false';
+    const url=kickBrowserPusherUrl;
+    if(!url) return reject(Error('Kick no publicó una clave Pusher actual; usando el WebSocket del navegador.'));
     const ws=new WebSocket(url,{headers:{Origin:'https://kick.com','User-Agent':'Mozilla/5.0'}});kickSocket=ws;let settled=false;
     const fail=e=>{if(!settled){settled=true;reject(e instanceof Error?e:Error(String(e)))}};
     ws.on('open',()=>{
@@ -1371,7 +1398,7 @@ async function launchKickChatReader(channel){
   const state=await resolveKickPageState(channel,{keepBrowser:true});
   kickChatroomId=Number(state.chatroomId)||kickChatroomId||0;
   if(!kickChatroomId&&!kickBrowserChatReady){
-    await new Promise(resolve=>setTimeout(resolve,1200));
+    await new Promise(resolve=>setTimeout(resolve,5500));
     if(!kickChatroomId&&!kickBrowserChatReady)
       throw Error('Kick no entregó el chatroom ID y no confirmó el WebSocket. El inicio de sesión está bien, pero el chat no está conectado.');
   }
@@ -2689,7 +2716,7 @@ const server =
             response.end(JSON.stringify({
               ok:true,
               prefs:connectionPrefs,
-              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running,starvios:starviosReader.connected},kickDiagnostics:{channel:currentKickChannel,enabled:connectionPrefs.kickEnabled,readerConnected:!!kickConnected,pusherSubscribed:!!kickPusherReady,browserSubscribed:!!kickBrowserChatReady,chatroomResolved:!!kickChatroomId,realtimeFrames:kickRealtimeFrames,lastChatAt:kickLastChatAt,lastError:kickRealtimeLastError},tiktokDiagnostics:tiktokConnectionDiagnostics(),starviosDiagnostics:starviosReader.getDiagnostics()
+              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running,starvios:starviosReader.connected},kickDiagnostics:{channel:currentKickChannel,enabled:connectionPrefs.kickEnabled,readerConnected:!!kickConnected,pusherSubscribed:!!kickPusherReady,browserSubscribed:!!kickBrowserChatReady,chatroomResolved:!!kickChatroomId,realtimeFrames:kickRealtimeFrames,lastChatAt:kickLastChatAt,provider:kickRealtimeProvider,lastError:kickRealtimeLastError},tiktokDiagnostics:tiktokConnectionDiagnostics(),starviosDiagnostics:starviosReader.getDiagnostics()
             }));
             return;
           }
