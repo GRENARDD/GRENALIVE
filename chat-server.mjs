@@ -19,6 +19,7 @@ import {
 import tmi from 'tmi.js';
 import {YouTubeLiveReader} from './youtube-live.mjs';
 import { chromium } from 'playwright-core';
+import {kickRealtimeFrames as decodeKickRealtimeFrames,kickRealtimeSubscriptionRequest} from './kick-realtime.mjs';
 import { StarviosReader, normalizeStarviosChannel } from './starvios-reader.mjs';
 import fishNaturalVoice from './fish-natural-voice.cjs';
 const {prepareFishNaturalRequest} = fishNaturalVoice;
@@ -99,9 +100,16 @@ function reconcileOwnerFishAccounts(keys){
 }
 
 let fishProfileAccount=null;
-async function fishPoolForProfile(profileId){
+// Cache only successful credential resolutions in the same GREÑA ID for 15 s.
+// Keep API keys in RAM; avoid per-comment Cloudflare D1 network latency.
+const FISH_CREDENTIAL_CACHE_MS=15000;
+let fishCredentialCache={profileId:'',result:null,expiresAt:0,pending:null};
+function clearFishCredentialCache(){
+  fishCredentialCache={profileId:'',result:null,expiresAt:0,pending:null};
+}
+async function fetchFishPoolForProfile(profileId){
  const requested=String(profileId||'');
- if(!requested)return {accounts:[],error:'Inicia sesión en tu GREÑA ID para usar Fish Audio.'};
+ if(!requested||requested!==activeProfileId)return {accounts:[],error:'Inicia sesión en tu GREÑA ID para usar Fish Audio.'};
  try{
    const url=MAIN_ORIGIN+'/api/internal/fish-credential?profileId='+encodeURIComponent(requested);
    const r=await fetch(url,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(4500),cache:'no-store'});
@@ -117,6 +125,42 @@ async function fishPoolForProfile(profileId){
    if(result.permanentAccess===true)return {accounts:reconcileOwnerFishAccounts(result.ownerKeys)};
    return {accounts:[],error:result.unavailable?'No se pudo consultar la API de Fish Audio. Revisa Cloudflare.':'Configura tu propia API Fish Audio en Configuración para activar el chat de voz.'};
  }catch{return {accounts:[],error:'No se pudo verificar la API Fish Audio de esta cuenta.'}}
+}
+async function fishPoolForProfile(profileId){
+ const profileIdString=String(profileId||'');
+ if(!profileIdString||profileIdString!==activeProfileId)return {accounts:[],error:'Perfil de GREÑA ID no activo.'};
+ if(fishCredentialCache.profileId!==profileIdString){
+   clearFishCredentialCache();
+   fishCredentialCache.profileId=profileIdString;
+ }
+ // Start refreshing a still-valid credential before it expires, off the
+ // critical audio path. Cached credentials never leave RAM or cross GREÑA IDs.
+ const beginRefresh=()=>{
+   if(fishCredentialCache.pending)return fishCredentialCache.pending;
+   const pending=fetchFishPoolForProfile(profileIdString);
+   fishCredentialCache.pending=pending;
+   void pending.then(result=>{
+     if(profileIdString!==activeProfileId||fishCredentialCache.profileId!==profileIdString||fishCredentialCache.pending!==pending)return;
+     // A revoked key or a missing license must not remain in a cached pool.
+     if(result.accounts?.length){
+       fishCredentialCache.result=result;
+       fishCredentialCache.expiresAt=Date.now()+FISH_CREDENTIAL_CACHE_MS;
+     }else{
+       fishCredentialCache.result=null;
+       fishCredentialCache.expiresAt=0;
+     }
+   }).catch(()=>{}).finally(()=>{
+     if(fishCredentialCache.pending===pending)fishCredentialCache.pending=null;
+   });
+   return pending;
+ };
+ const now=Date.now();
+ if(fishCredentialCache.result&&fishCredentialCache.expiresAt>now){
+   if(fishCredentialCache.expiresAt-now<=6000 && !fishCredentialCache.pending)beginRefresh();
+   return fishCredentialCache.result;
+ }
+ const result=await beginRefresh();
+ return profileIdString===activeProfileId?result:{accounts:[],error:'El perfil cambió durante la solicitud de voz.'};
 }
 
 let fishRoundRobin = 0;
@@ -227,6 +271,7 @@ let multichatSettings = sanitizeMultichatSettings(await readJson(MULTICHAT_SETTI
 async function loadChatProfile(userId=''){
   activeProfileId=String(userId||'');
   fishProfileAccount=null; // Never carry API key material across GREÑA ID switches.
+  clearFishCredentialCache(); // No credential cache survives an account change.
   if(activeProfileId)await mkdir(join(PROFILES_DIR,activeProfileId),{recursive:true}).catch(()=>{});
   CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
   MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
@@ -306,6 +351,12 @@ let kickPagePollBusy = false;
 let kickViewerDiagnosticAt = 0;
 let kickViewerDiagnosticSource = '';
 let kickRealtimeFrames = 0;
+let kickPusherReady = false;
+let kickBrowserChatReady = false;
+let kickRealtimeLastError = '';
+let kickRealtimeProvider = '';
+let kickBrowserPusherUrl = '';
+let kickLastChatAt = 0;
 let kickFollowerSeeded = false;
 let kickFollowerProbeLogged = false;
 let kickFollowerListDisabled = false;
@@ -503,7 +554,7 @@ function ttGiftData(data={}, connection=tiktokConn) {
   return {giftId,giftName,count,unitDiamonds,totalDiamonds:unitDiamonds*count,giftImage:ttGiftImage(data,ext)};
 }
 function bridgeAlert(platform,event,name,action,extra={}) {
-  const payload={platform,event,name:name||'Usuario',action,...extra};if(!payload.bridgeEventId)payload.bridgeEventId=bridgeMessageId(`${String(platform).toLowerCase()}-${event}`);sendToAlerts('/api/internal/event',payload,{reliable:true});
+  const payload={platform,event,name:name||'Usuario',action,...extra};if(!payload.bridgeEventId&&String(platform).toLowerCase()!=='kick')payload.bridgeEventId=bridgeMessageId(`${String(platform).toLowerCase()}-${event}`);sendToAlerts('/api/internal/event',payload,{reliable:true});
 }
 function bridgeViewers(platform,count,source='') {
   sendToAlerts('/api/internal/viewers',{platform,count:Number(count)||0,source});
@@ -923,7 +974,7 @@ async function disconnectKick() {
   if(kickReconnectTimer){clearTimeout(kickReconnectTimer);kickReconnectTimer=null;}
   if(kickPagePollTimer){clearInterval(kickPagePollTimer);kickPagePollTimer=null;}
   if(kickSocket){try{kickSocket.removeAllListeners();kickSocket.close()}catch{}}
-  kickSocket=null;kickChatroomId=0;kickRealtimeFrames=0;
+  kickSocket=null;kickChatroomId=0;kickRealtimeFrames=0;kickPusherReady=false;kickBrowserChatReady=false;kickRealtimeLastError='';kickRealtimeProvider='';kickBrowserPusherUrl='';kickLastChatAt=0;
   if(kickBrowser){ try{await kickBrowser.close()}catch{} }
   kickBrowser=null; kickPage=null;
   if(old) broadcastPlatform('kick',{type:'disconnected',message:`Kick se desconectó de ${old}.`});
@@ -1004,10 +1055,12 @@ async function deliverKickChat(msg){
   const oldUser=kickUsers.get(msg.user.toLowerCase())||{};
   const isFollower=typeof oldUser.isFollower==='boolean'?oldUser.isFollower:null;
   const isSubscriber=!!msg.isSubscriber||!!oldUser.isSubscriber;
+  // Never hold a chat message (or TTS) while waiting up to 1.8s for an avatar.
+  // An already cached avatar is immediate; missing avatars load in the background.
   let avatar=findUrl(msg.avatar,oldUser.avatar);
   if(!avatar&&msg.userId){
-    const meta=await kickChatUserMeta(msg.userId);
-    avatar=findUrl(meta.avatar);
+    const cached=kickMetaCache.get(String(msg.userId));
+    if(cached&&Date.now()-cached.at<30*60*1000)avatar=findUrl(cached.value?.avatar);
   }
   kickUsers.set(msg.user.toLowerCase(),{
     ...oldUser,
@@ -1019,6 +1072,7 @@ async function deliverKickChat(msg){
     isSubscriber,
     lastSeen:now
   });
+  kickLastChatAt=Date.now();
   broadcastPlatform('kick',{
     type:'chat',
     user:msg.user,
@@ -1033,20 +1087,34 @@ async function deliverKickChat(msg){
     isModerator:!!msg.isModerator,
     isBroadcaster:!!msg.isBroadcaster||String(msg.user||'').toLowerCase()===String(currentKickChannel||'').toLowerCase()
   });
+  if(!avatar&&msg.userId){
+    const profileAtMessage=activeProfileId;
+    const userIdAtMessage=String(msg.userId);
+    const userKeyAtMessage=String(msg.user).toLowerCase();
+    void kickChatUserMeta(userIdAtMessage).then(meta=>{
+      if(profileAtMessage!==activeProfileId)return;
+      const current=kickUsers.get(userKeyAtMessage);
+      if(!current||String(current.userId)!==userIdAtMessage)return;
+      const fresh=findUrl(meta?.avatar);
+      if(fresh)kickUsers.set(userKeyAtMessage,{...current,avatar:fresh});
+    }).catch(()=>{});
+  }
   return true;
 }
 
 function consumeKickRealtimeFrame(payload){
-  let raw=payload;
-  if(Buffer.isBuffer(raw))raw=raw.toString('utf8');
-  if(typeof raw!=='string')return false;
-  const text=raw.trim();if(!text||text[0]!=='{'&&text[0]!=='[')return false;
-  let parsed;try{parsed=JSON.parse(text)}catch{return false}
-  const items=Array.isArray(parsed)?parsed:[parsed];let handled=false;
+  const items=decodeKickRealtimeFrames(payload);let handled=false;
   for(const ev of items){
     if(!ev||typeof ev!=='object')continue;
+    if(ev.centrifugoControl)continue;
     const name=String(ev.event||ev.type||'');
     if(name==='pusher:ping'){try{kickSocket?.send(JSON.stringify({event:'pusher:pong',data:{}}))}catch{};continue}
+    const room=/^chatrooms\.(\d+)(?:\.v2)?$/.exec(String(ev.channel||''));
+    if(name==='pusher_internal:subscription_succeeded'&&room){
+      kickBrowserChatReady=true;
+      if(!kickChatroomId)kickChatroomId=Number(room[1])||0;
+      continue;
+    }
     if(/^pusher(?:_internal)?:/i.test(name))continue;
     const d=kickEventData(ev);
     const dataType=String(d?.type||d?.event_type||d?.event||'').toLowerCase();
@@ -1056,7 +1124,7 @@ function consumeKickRealtimeFrame(payload){
     }
 
     if(/ChatMessage(?:Sent)?Event$/i.test(name)||name==='chat.message.sent'||dataType==='message'||dataType==='chat_message'){
-      const m=normalizeKickChatPayload(d);if(m){void deliverKickChat(m);handled=true}continue;
+      const m=normalizeKickChatPayload(d);if(m){kickBrowserChatReady=true;void deliverKickChat(m);handled=true}continue;
     }
 
     if(/GiftedSubscriptionsEvent$/i.test(name)||name==='channel.subscription.gifts'||dataType==='gifted_subscriptions'){
@@ -1068,6 +1136,7 @@ function consumeKickRealtimeFrame(payload){
       bridgeAlert('Kick','gift',who,`regaló ${count} suscripción${count===1?'':'es'}`,{
         count,giftName:'Suscripciones regaladas',giftKind:'subscription',
         avatar:findUrl(d?.gifter?.profile_picture||d?.sender?.profile_picture||''),
+        eventId:String(d.event_id||d.message_id||d.notification_id||''),
         kickEvent:name||dataType
       });handled=true;continue;
     }
@@ -1082,6 +1151,7 @@ function consumeKickRealtimeFrame(payload){
         kickGiftTier:firstString(gift.tier,d.tier),
         giftMessage:firstString(gift.message,d.message),
         avatar:findUrl(d?.sender?.profile_picture||d?.gifter?.profile_picture||''),
+        eventId:String(d.event_id||d.message_id||d.notification_id||''),
         kickEvent:name||dataType
       });handled=true;continue;
     }
@@ -1091,6 +1161,7 @@ function consumeKickRealtimeFrame(payload){
       if(key){const old=kickUsers.get(key)||{username:who,nickname:who,userId:'',lastSeen:Date.now()};kickUsers.set(key,{...old,isSubscriber:true,lastSeen:Date.now()})}
       bridgeAlert('Kick','sub',who,name==='channel.subscription.renewal'?'renovó su suscripción':'se suscribió',{
         avatar:findUrl(d?.subscriber?.profile_picture||d?.sender?.profile_picture||''),
+        eventId:String(d.event_id||d.message_id||d.notification_id||''),
         kickEvent:name||dataType
       });handled=true;continue;
     }
@@ -1098,7 +1169,7 @@ function consumeKickRealtimeFrame(payload){
     if(/FollowEvent$/i.test(name)||name==='channel.followed'||dataType==='follow'||dataType==='followed'){
       const who=kickPerson(d),key=String(who||'').toLowerCase();
       if(key){const old=kickUsers.get(key)||{username:who,nickname:who,userId:'',lastSeen:Date.now()};kickUsers.set(key,{...old,isFollower:true,lastSeen:Date.now()})}
-      bridgeAlert('Kick','follow',who,'te siguió',{kickEvent:name||dataType});handled=true;continue;
+      bridgeAlert('Kick','follow',who,'te siguió',{kickEvent:name||dataType,eventId:String(d.event_id||d.message_id||d.notification_id||'')});handled=true;continue;
     }
   }
   return handled;
@@ -1234,7 +1305,38 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
     // La propia web de Kick abre su realtime actual. Escucharlo desde Playwright evita
     // depender exclusivamente de un nombre de evento o canal Pusher que Kick pueda cambiar.
     page.on('websocket',socket=>{
-      socket.on('framereceived',frame=>{kickRealtimeFrames++;consumeKickRealtimeFrame(frame.payload)});
+      let hasChatSubscription=false;
+      const requests=new Map();
+      const socketUrl=String(socket.url()||'');
+      if(/^wss:\/\/ws-[a-z0-9-]+\.pusher\.com\/app\/[A-Za-z0-9_-]{12,80}(?:\?|$)/i.test(socketUrl)){
+        kickBrowserPusherUrl=socketUrl;kickRealtimeProvider='pusher-browser';
+      }else if(/^wss:\/\//i.test(socketUrl)&&/centrifug|websockets\.kick\.com/i.test(socketUrl)){
+        kickRealtimeProvider='centrifugo-browser';
+      }
+      socket.on('framesent',frame=>{
+        for(const req of kickRealtimeSubscriptionRequest(frame.payload)){
+          requests.set(req.id,req);
+          if(requests.size>150)requests.delete(requests.keys().next().value);
+        }
+      });
+      socket.on('framereceived',frame=>{
+        const wasReady=kickBrowserChatReady;
+        kickRealtimeFrames++;
+        for(const line of String(frame.payload||'').split(/\r?\n/).slice(0,32)){
+          let reply;try{reply=JSON.parse(line)}catch{continue}
+          if(reply?.id&&reply.subscribe&&!reply.error){
+            const info=requests.get(Number(reply.id));
+            if(info){kickBrowserChatReady=true;kickChatroomId=info.roomId||kickChatroomId;}
+          }
+          if(reply?.push?.pub&&/^chatrooms\.[0-9]+(?:\.v2)?$/.test(String(reply.push.channel||''))){
+            kickBrowserChatReady=true;
+            kickChatroomId=Number(String(reply.push.channel).match(/[0-9]+/)?.[0])||kickChatroomId;
+          }
+        }
+        consumeKickRealtimeFrame(frame.payload);
+        if(!wasReady&&kickBrowserChatReady)hasChatSubscription=true;
+      });
+      socket.on('close',()=>{if(hasChatSubscription&&kickPage===page){kickBrowserChatReady=false;if(!kickPusherReady&&kickConnected){kickConnected=false;bridgeStatus('kick',false,'Kick · chat realtime desconectado',currentKickChannel,{lastError:'Se cerró el WebSocket del navegador'});}}});
     });
     const response=await page.goto(`https://kick.com/${encodeURIComponent(channel)}`,{waitUntil:'domcontentloaded',timeout:45000}).catch(()=>null);
     if(!response){try{await browser.close()}catch{};kickBrowser=null;kickPage=null;throw Error('No pude abrir el canal de Kick. Revisa Internet o el nombre del canal.')}
@@ -1322,30 +1424,42 @@ async function pollKickPageState(channel){
 }
 function connectKickPusher(channel,chatroomId,channelId=0){
   return new Promise((resolve,reject)=>{
-    const url='wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false';
+    const url=kickBrowserPusherUrl;
+    if(!url) return reject(Error('Kick no publicó una clave Pusher actual; usando el WebSocket del navegador.'));
     const ws=new WebSocket(url,{headers:{Origin:'https://kick.com','User-Agent':'Mozilla/5.0'}});kickSocket=ws;let settled=false;
     const fail=e=>{if(!settled){settled=true;reject(e instanceof Error?e:Error(String(e)))}};
-    ws.on('open',()=>{
-      // Kick ha usado más de una variante del canal. Nos suscribimos a las variantes
-      // públicas conocidas y el deduplicador evita mensajes repetidos.
+    const subscribeAfterHandshake=()=>{
+      // Pusher requires connection_established BEFORE sending subscriptions.
       for(const ch of [`chatrooms.${chatroomId}.v2`,`chatrooms.${chatroomId}`,`chatroom_${chatroomId}`,...(Number(channelId)>0?[`channel.${channelId}`,`channel_${channelId}`,`predictions-channel-${channelId}`]:[])]){
         try{ws.send(JSON.stringify({event:'pusher:subscribe',data:{auth:'',channel:ch}}))}catch{}
       }
-    });
+    };
     ws.on('message',buf=>{
       let ev;try{ev=JSON.parse(String(buf))}catch{return}
-      if(ev.event==='pusher_internal:subscription_succeeded'){if(!settled){settled=true;resolve(true)};return}
+      if(ev.event==='pusher:connection_established'){subscribeAfterHandshake();return}
+      if(ev.event==='pusher_internal:subscription_succeeded'){
+        if(/^chatrooms\.[0-9]+(?:\.v2)?$/.test(String(ev.channel||''))){
+          kickPusherReady=true;kickRealtimeLastError='';
+          if(!settled){settled=true;resolve(true)}
+        }
+        return
+      }
       if(ev.event==='pusher:error'){const d=kickEventData(ev);if(!settled)fail(Error(`Kick realtime rechazó la suscripción${d?.message?': '+d.message:''}`));return}
       handleKickPusherEvent(ev)
     });
     ws.on('error',fail);
-    ws.on('close',()=>{if(kickSocket===ws)kickSocket=null;if(kickConnected&&currentKickChannel===channel){broadcastPlatform('kick',{type:'status',message:'Kick perdió el realtime. Reconectando automáticamente...'});kickReconnectTimer=setTimeout(async()=>{try{const state=await resolveKickPageState(channel,{keepBrowser:true});const id=state.chatroomId||kickChatroomId;if(!id)throw Error('Sin chatroom ID');kickChatroomId=id;await connectKickPusher(channel,id,state.channelId||0);broadcastPlatform('kick',{type:'connected',username:channel,message:`Kick reconectado: ${channel}.`})}catch{}},3000)}});
+    ws.on('close',()=>{if(kickSocket===ws){kickSocket=null;kickPusherReady=false}if(kickConnected&&currentKickChannel===channel&&!kickBrowserChatReady){kickConnected=false;bridgeStatus('kick',false,'Kick · chat realtime desconectado',channel,{lastError:'Se cerró el WebSocket Pusher'});return}if(kickConnected&&currentKickChannel===channel){broadcastPlatform('kick',{type:'status',message:'Kick perdió el realtime. Reconectando automáticamente...'});kickReconnectTimer=setTimeout(async()=>{try{const state=await resolveKickPageState(channel,{keepBrowser:true});const id=state.chatroomId||kickChatroomId;if(!id)throw Error('Sin chatroom ID');kickChatroomId=id;await connectKickPusher(channel,id,state.channelId||0);broadcastPlatform('kick',{type:'connected',username:channel,message:`Kick reconectado: ${channel}.`})}catch{}},3000)}});
     setTimeout(()=>fail(Error('Kick no confirmó la suscripción al chat.')),12000);
   });
 }
 async function launchKickChatReader(channel){
   const state=await resolveKickPageState(channel,{keepBrowser:true});
-  kickChatroomId=Number(state.chatroomId)||0;
+  kickChatroomId=Number(state.chatroomId)||kickChatroomId||0;
+  if(!kickChatroomId&&!kickBrowserChatReady){
+    await new Promise(resolve=>setTimeout(resolve,5500));
+    if(!kickChatroomId&&!kickBrowserChatReady)
+      throw Error('Kick no entregó el chatroom ID y no confirmó el WebSocket. El inicio de sesión está bien, pero el chat no está conectado.');
+  }
   if(state.liveKnown&&state.viewerCount!==null)bridgeViewers('kick',state.viewerCount,state.viewerSource||'Kick browser realtime');
   handleKickFollowerCount(state.followerCount);
   if(kickPagePollTimer)clearInterval(kickPagePollTimer);
@@ -1354,9 +1468,12 @@ async function launchKickChatReader(channel){
   // propia página ya están siendo observados por Playwright aunque Pusher directo falle.
   if(kickChatroomId){
     try{await connectKickPusher(channel,kickChatroomId,state.channelId||0)}catch(e){
-      console.warn('[KICK realtime directo]',e?.message||e,'· usando lector del navegador');
+      kickRealtimeLastError=String(e?.message||e);
+      console.warn('[KICK realtime directo]',kickRealtimeLastError,'· verificando lector del navegador');
     }
   }
+  if(!kickPusherReady&&!kickBrowserChatReady)
+    throw Error('Kick no confirmó una suscripción al chat. '+(kickRealtimeLastError||'Se reintentará la conexión.'));
   return true;
 }
 
@@ -1375,15 +1492,15 @@ async function connectKick(input) {
   if(CLOUD_MODE){
     let realtime=false;
     try{await launchKickChatReader(channel);realtime=true}
-    catch(e){console.warn('[KICK CLOUD REALTIME]',e?.message||e)}
-    kickConnected=true;
+    catch(e){kickRealtimeLastError=String(e?.message||e);console.warn('[KICK CLOUD REALTIME]',kickRealtimeLastError)}
+    kickConnected=realtime;
     broadcastPlatform('kick',{
-      type:'connected',username:channel,
+      type:realtime?'connected':'error',username:channel,
       message:realtime
-        ?`Kick conectado: ${channel}. Chat realtime + webhook oficial activos.`
-        :`Kick conectado: ${channel}. Webhook oficial listo; realtime de respaldo no disponible.`
+        ?`Kick conectado: ${channel}. Chat realtime confirmado; los webhooks se validan por separado.`
+        :`Kick ${channel}: el lector de chat no consiguió conectarse. ${kickRealtimeLastError}`
     });
-    bridgeStatus('kick',true,realtime?`${channel} · chat realtime activo`:`${channel} · chat oficial listo`,channel,{source:realtime?'hybrid-realtime-webhook':'official-webhook'});
+    bridgeStatus('kick',realtime,realtime?`${channel} · chat realtime confirmado`:`${channel} · lector sin conexión`,channel,{source:realtime?'kick-realtime':'kick-retry',lastError:realtime?'':kickRealtimeLastError});
     return true;
   }
 
@@ -1393,7 +1510,7 @@ async function connectKick(input) {
     type:'connected',username:channel,
     message:`Kick conectado automáticamente: ${channel}. Chat y contador activos en segundo plano.`
   });
-  bridgeStatus('kick',true,`${channel} · chat conectado`,channel);
+  bridgeStatus('kick',true,`${channel} · chat realtime confirmado`,channel,{source:kickPusherReady?'pusher':'kick-browser'});
   return true;
 }
 
@@ -2657,7 +2774,7 @@ const server =
             response.end(JSON.stringify({
               ok:true,
               prefs:connectionPrefs,
-              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running,starvios:starviosReader.connected},tiktokDiagnostics:tiktokConnectionDiagnostics(),starviosDiagnostics:starviosReader.getDiagnostics()
+              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running,starvios:starviosReader.connected},kickDiagnostics:{channel:currentKickChannel,enabled:connectionPrefs.kickEnabled,readerConnected:!!kickConnected,pusherSubscribed:!!kickPusherReady,browserSubscribed:!!kickBrowserChatReady,chatroomResolved:!!kickChatroomId,realtimeFrames:kickRealtimeFrames,lastChatAt:kickLastChatAt,provider:kickRealtimeProvider,lastError:kickRealtimeLastError},tiktokDiagnostics:tiktokConnectionDiagnostics(),starviosDiagnostics:starviosReader.getDiagnostics()
             }));
             return;
           }

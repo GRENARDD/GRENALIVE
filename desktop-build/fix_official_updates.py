@@ -37,10 +37,11 @@ s+=r"""
  const logError=e=>{try{logStartup('AUTOACTUALIZADOR',String(e?.message||e))}catch{}};
  const showUpdateDialog=opts=>mainWindow&&!mainWindow.isDestroyed()?dialog.showMessageBox(mainWindow,opts):dialog.showMessageBox(opts);
  const isNewVersion=(candidate,current)=>{
-   if(!/^\d+\.\d+\.\d+$/.test(candidate)||!/^\d+\.\d+\.\d+$/.test(current))return false;
-   const a=candidate.split('.').map(Number),b=current.split('.').map(Number);
+   if(!/^\d+\.\d+\.\d+$/.test(candidate)||!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(current))return false;
+   const stableCurrent=current.split('-')[0];
+   const a=candidate.split('.').map(Number),b=stableCurrent.split('.').map(Number);
    for(let i=0;i<3;i++){if(a[i]!==b[i])return a[i]>b[i]}
-   return false;
+   return current!==stableCurrent;
  };
  autoUpdater.on('error',logError);
  autoUpdater.on('update-available',info=>{

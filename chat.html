@@ -1357,7 +1357,21 @@ const VOICE_GAP_MS = 140;
 // Fish Audio usa un hueco mucho menor porque el siguiente comentario se
 // prepara mientras el actual todavía se está reproduciendo.
 const FISH_VOICE_GAP_MS = 24;
-const FISH_PREFETCH_LIMIT = 2;
+const FISH_PREFETCH_LIMIT = 4;
+// Prepare up to three next messages in parallel, reserving capacity for
+// real-time voice generation. The five assigned Fish voices stay unchanged.
+const FISH_PREFETCH_CONCURRENCY = 3;
+function fishPrefetchConcurrency(){
+  // Prioritize the CURRENT voice on slow connections; more parallel downloads
+  // can make the first audio start later on congested mobile Internet.
+  const conn=typeof navigator!=='undefined'?navigator.connection:null;
+  if(!conn)return FISH_PREFETCH_CONCURRENCY;
+  const type=String(conn.effectiveType||'');
+  const rtt=Number(conn.rtt||0),down=Number(conn.downlink||0);
+  if(conn.saveData||type==='slow-2g'||type==='2g'||type==='3g'||rtt>=400||(down>0&&down<1.5))return 1;
+  if(rtt>=250||(down>0&&down<4))return 2;
+  return FISH_PREFETCH_CONCURRENCY;
+}
 const FISH_MAX_RETRIES_PER_MESSAGE = 3;
 const FISH_RETRY_BASE_MS = 900;
 const FISH_RETRY_MAX_MS = 8000;
@@ -1392,10 +1406,13 @@ const VOICE_SPAM_HISTORY_TTL_MS = 2 * 60 * 1000;
 
 // GREÑA LIVE VOICE GUARD · protección para chats masivos.
 // La voz debe sonar "ahora", no leer minutos de atraso.
-const VOICE_QUEUE_SOFT_LIMIT = 10;
-const VOICE_QUEUE_HARD_LIMIT = 20;
-const VOICE_STALE_MS = 12000;
-const VOICE_STALE_OVERLOAD_MS = 6500;
+// SIN ACUMULACION: mientras se habla, conservar como máximo UN comentario
+// reciente pendiente. Los demás se descartan/reemplazan, nunca se reproduce
+// una lista de mensajes atrasados.
+const VOICE_QUEUE_SOFT_LIMIT = 1;
+const VOICE_QUEUE_HARD_LIMIT = 1;
+const VOICE_STALE_MS = 2500;
+const VOICE_STALE_OVERLOAD_MS = 1800;
 const VOICE_USER_COOLDOWN_MS = 2200;
 const voiceUserLastQueuedAt = new Map();
 let voiceDroppedOverload = 0;
@@ -2155,7 +2172,7 @@ function pumpFishPrefetch(){
   // no saturamos Fish Audio y normalmente la próxima voz ya está lista.
   const candidates = voiceQueue.slice(0,FISH_PREFETCH_LIMIT);
   for(const message of candidates){
-    if(fishPrefetchActive >= FISH_PREFETCH_LIMIT) break;
+    if(fishPrefetchActive >= fishPrefetchConcurrency()) break;
     if(!message?.__fishPreparedBlob && !message?.__fishPreparePromise && !message?.__fishPrefetchError){
       startFishPrefetch(message);
     }
@@ -3488,6 +3505,10 @@ function looksLikeStickerOrInternalCode(text=''){
      /(?:sticker|emote|emoji|gift|asset|image|animation|webp|png|gif|tt_|tiktok|kick|twitch|id[:_\-]?\d)/i.test(s)) return true;
   if(/^(?:sticker|emote|emoji|asset|image)[:_\-][A-Za-z0-9_:\-./]{3,100}$/i.test(s)) return true;
   if(/^\[[A-Za-z0-9_\-]{8,}\]$/.test(s)) return true;
+  // Platform :shortcode: emotes, bare media links and internal sticker markers.
+  if(/^(?:\s*:[A-Za-z][A-Za-z0-9_\-]{1,49}:\s*)+$/.test(s)) return true;
+  if(/^https?:\/\/\S+\.(?:gif|webp|png|jpe?g)(?:[?#]\S*)?$/i.test(s)) return true;
+  if(/^(?:\[?(?:sticker|emote|gif|animation|image)(?:\s*(?::|#|id[:_\-=]?|\s+)[\w\-]+)?\]?)$/i.test(s)) return true;
   return false;
 }
 
@@ -3499,6 +3520,10 @@ function stripStickerAndInternalCodes(text=''){
   // Quita otros tokens internos incrustados sin destruir frases humanas normales.
   s=s.replace(/[\[(<{](?:sticker|emote|emoji|asset|image|animation|gift|tt_sticker|tiktok_sticker|kick_emote|twitch_emote)[^\])>}]{0,120}[\])>}]/gi,' ');
   s=s.replace(/\b(?:sticker|emote|emoji|asset|image)[:_\-][A-Za-z0-9_:\-./]{3,100}\b/gi,' ');
+  // Strip embedded platform :shortcodes: without removing normal sentences.
+  s=s.replace(/(^|\s):[A-Za-z][A-Za-z0-9_\-]{1,49}:(?=\s|$)/g,' ');
+  // Media URLs are not a spoken contribution.
+  s=s.replace(/https?:\/\/[^\s]+\.(?:gif|webp|png|jpe?g)(?:[?#][^\s]*)?/gi,' ');
   return s.replace(/\s{2,}/g,' ').trim();
 }
 
@@ -3551,7 +3576,9 @@ function shouldIgnoreVoice(m){
 
   }
 
-  if(looksLikeStickerOrInternalCode(text)){
+  if(looksLikeStickerOrInternalCode(text) || 
+     /^(?:sticker|emote|gif|image|animation)$/i.test(String(m?.messageType||m?.kind||m?.contentType||'')) &&
+     !stripStickerAndInternalCodes(text)){
     return true;
   }
 
@@ -3622,12 +3649,21 @@ function insertVoiceByPriority(message){
   message.__voicePriority = priority;
   message.__voiceQueuedAt = Date.now();
 
-  // Conserva FIFO dentro del mismo nivel. Un moderador nuevo no adelanta a
-  // otro moderador que ya estaba esperando, pero sí pasa delante de usuarios
-  // de menor prioridad.
-  let index = voiceQueue.findIndex(item => voicePriority(item) < priority);
-  if(index < 0) index = voiceQueue.length;
-  voiceQueue.splice(index,0,message);
+  // Live / sin cola: solo cabe un comentario pendiente, no una lista FIFO.
+  // El último del mismo rango reemplaza al anterior; las prioridades altas
+  // (dueño y moderadores) no son desplazadas por mensajes normales.
+  if(voiceQueue.length){
+    const pending=voiceQueue[0];
+    if(voicePriority(pending)>priority && !message.__voiceTest){
+      voiceDroppedOverload++;
+      return false;
+    }
+    voiceQueue.length=0;
+    cleanupFishPreparedMessage(pending,true);
+    voiceDroppedOverload++;
+  }
+  voiceQueue.push(message);
+  return true;
 }
 
 function dropLowestPriorityVoice(){
@@ -3726,12 +3762,13 @@ function queueVoice(m){
    * preparada para la voz.
    */
 
-  // Fish receives the same comment that viewers typed, not a rewritten copy.
-  // Legacy cleanTextForVoice() remains exclusively for Windows/browser voices.
-  // Priority, spam, language, opt-in username and character limits still apply.
+  // Fish receives the original human words with media/sticker/emote codes
+  // removed. Keep normal sentences and natural speech untouched; never send
+  // visual sticker tokens to Fish Audio, including when mixed with text.
+  const humanText=stripStickerAndInternalCodes(m.text||'');
   let text=isFishVoiceSelected()
-    ? String(m.text||'').trim()
-    : stripStickerAndInternalCodes(cleanTextForVoice(m.text||''));
+    ? humanText
+    : cleanTextForVoice(humanText);
 
   if(!text){
 
@@ -3761,24 +3798,15 @@ function queueVoice(m){
 
   if(!languageAllowedForVoice(text)) return;
 
-  // Antes de añadir otro comentario, purgamos los que ya perdieron
-  // relevancia. En una avalancha (400/4000 personas) el motor permanece cerca
-  // del presente y nunca intenta "ponerse al día" leyendo minutos atrasados.
+  // Sin acumulación: eliminamos comentarios viejos y sólo guardamos
+  // un mensaje pendiente mientras una voz está sonando o generándose.
   dropStaleVoiceMessages();
 
-  while(voiceQueue.length >= VOICE_QUEUE_HARD_LIMIT){
-    const dropped = dropLowestPriorityVoice();
-    cleanupFishPreparedMessage(dropped,true);
-    voiceDroppedOverload++;
-  }
-
-  insertVoiceByPriority({
-
+  const queued=insertVoiceByPriority({
     ...m,
-
     text
-
   });
+  if(!queued){updateVoiceStatus();return;}
 
   updateVoiceStatus();
 
@@ -3943,6 +3971,10 @@ async function speakFishMessage(message, spokenText){
   const volume = Math.max(0,Math.min(1,Number($('voiceVolume').value)));
   const runId = ++voiceRunId;
   let settled = false;
+  // Safe timing diagnostics: never log comments, usernames, API keys or Fish voice IDs.
+  const generationStartAt=Date.now();
+  const queuedAt=Number(message.__voiceQueuedAt||0);
+  const hadPreparedAudio=!!(message.__fishPreparedBlob||message.__fishPreparePromise);
 
   speaking = true;
   activeVoiceMessage = message;
@@ -4088,6 +4120,13 @@ async function speakFishMessage(message, spokenText){
       return;
     }
 
+    console.info('[GREÑA VOZ LATENCIA]',JSON.stringify({
+      queueWaitMs:queuedAt?Math.max(0,generationStartAt-queuedAt):null,
+      synthesisToPlaybackMs:Math.max(0,Date.now()-generationStartAt),
+      messageToPlaybackMs:queuedAt?Math.max(0,Date.now()-queuedAt):null,
+      prefetched:hadPreparedAudio,
+      pendingMessages:voiceQueue.length
+    }));
     // Mientras esta voz está sonando, generamos hasta dos mensajes futuros.
     pumpFishPrefetch();
 
@@ -4401,8 +4440,8 @@ function updateVoiceStatus(){
   if(speaking){
 
     $('voiceStatus').textContent = isFishVoiceSelected() && activeFishVoiceSlot
-      ? `🔊 Voz ${activeFishVoiceSlot} hablando... | Cola: ${voiceQueue.length} · preparando ${Math.min(fishPrefetchActive,FISH_PREFETCH_LIMIT)}`
-      : `🔊 Hablando... | Cola: ${voiceQueue.length}`;
+      ? `🔊 Voz ${activeFishVoiceSlot} hablando · sin cola acumulada · ${voiceQueue.length?'1 próximo':'sin pendiente'}`
+      : `🔊 Hablando · sin cola acumulada · ${voiceQueue.length?'1 próximo':'sin pendiente'}`;
 
     return;
 
@@ -4411,7 +4450,7 @@ function updateVoiceStatus(){
   if(voiceQueue.length){
 
     $('voiceStatus').textContent =
-      `⏳ ${voiceQueue.length} mensaje(s) en cola.`;
+      `⏳ Preparando el último mensaje · sin cola acumulada.`;
 
     return;
 
@@ -4420,8 +4459,8 @@ function updateVoiceStatus(){
   if(isFishVoiceSelected()){
     const count = getConfiguredFishModels().length;
     $('voiceStatus').textContent = count === 5
-      ? '🟢 Fish Audio: 5 voces por usuario activas · asignación aleatoria fija · prebuffer rápido 2.'
-      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · prebuffer rápido 2.`;
+      ? '🟢 Fish Audio: 5 voces naturales · tiempo real sin cola · solo el mensaje más reciente pendiente.'
+      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · sin cola acumulada.`;
     return;
   }
 
