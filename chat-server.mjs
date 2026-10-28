@@ -1370,15 +1370,15 @@ function connectKickPusher(channel,chatroomId,channelId=0){
     if(!url) return reject(Error('Kick no publicó una clave Pusher actual; usando el WebSocket del navegador.'));
     const ws=new WebSocket(url,{headers:{Origin:'https://kick.com','User-Agent':'Mozilla/5.0'}});kickSocket=ws;let settled=false;
     const fail=e=>{if(!settled){settled=true;reject(e instanceof Error?e:Error(String(e)))}};
-    ws.on('open',()=>{
-      // Kick ha usado más de una variante del canal. Nos suscribimos a las variantes
-      // públicas conocidas y el deduplicador evita mensajes repetidos.
+    const subscribeAfterHandshake=()=>{
+      // Pusher requires connection_established BEFORE sending subscriptions.
       for(const ch of [`chatrooms.${chatroomId}.v2`,`chatrooms.${chatroomId}`,`chatroom_${chatroomId}`,...(Number(channelId)>0?[`channel.${channelId}`,`channel_${channelId}`,`predictions-channel-${channelId}`]:[])]){
         try{ws.send(JSON.stringify({event:'pusher:subscribe',data:{auth:'',channel:ch}}))}catch{}
       }
-    });
+    };
     ws.on('message',buf=>{
       let ev;try{ev=JSON.parse(String(buf))}catch{return}
+      if(ev.event==='pusher:connection_established'){subscribeAfterHandshake();return}
       if(ev.event==='pusher_internal:subscription_succeeded'){
         if(/^chatrooms\.[0-9]+(?:\.v2)?$/.test(String(ev.channel||''))){
           kickPusherReady=true;kickRealtimeLastError='';
