@@ -1361,6 +1361,17 @@ const FISH_PREFETCH_LIMIT = 4;
 // Prepare up to three next messages in parallel, reserving capacity for
 // real-time voice generation. The five assigned Fish voices stay unchanged.
 const FISH_PREFETCH_CONCURRENCY = 3;
+function fishPrefetchConcurrency(){
+  // Prioritize the CURRENT voice on slow connections; more parallel downloads
+  // can make the first audio start later on congested mobile Internet.
+  const conn=typeof navigator!=='undefined'?navigator.connection:null;
+  if(!conn)return FISH_PREFETCH_CONCURRENCY;
+  const type=String(conn.effectiveType||'');
+  const rtt=Number(conn.rtt||0),down=Number(conn.downlink||0);
+  if(conn.saveData||type==='slow-2g'||type==='2g'||type==='3g'||rtt>=400||(down>0&&down<1.5))return 1;
+  if(rtt>=250||(down>0&&down<4))return 2;
+  return FISH_PREFETCH_CONCURRENCY;
+}
 const FISH_MAX_RETRIES_PER_MESSAGE = 3;
 const FISH_RETRY_BASE_MS = 900;
 const FISH_RETRY_MAX_MS = 8000;
@@ -2158,7 +2169,7 @@ function pumpFishPrefetch(){
   // no saturamos Fish Audio y normalmente la próxima voz ya está lista.
   const candidates = voiceQueue.slice(0,FISH_PREFETCH_LIMIT);
   for(const message of candidates){
-    if(fishPrefetchActive >= FISH_PREFETCH_CONCURRENCY) break;
+    if(fishPrefetchActive >= fishPrefetchConcurrency()) break;
     if(!message?.__fishPreparedBlob && !message?.__fishPreparePromise && !message?.__fishPrefetchError){
       startFishPrefetch(message);
     }
@@ -4415,7 +4426,7 @@ function updateVoiceStatus(){
   if(speaking){
 
     $('voiceStatus').textContent = isFishVoiceSelected() && activeFishVoiceSlot
-      ? `🔊 Voz ${activeFishVoiceSlot} hablando... | Cola: ${voiceQueue.length} · preparando ${Math.min(fishPrefetchActive,FISH_PREFETCH_CONCURRENCY)}`
+      ? `🔊 Voz ${activeFishVoiceSlot} hablando... | Cola: ${voiceQueue.length} · preparando ${Math.min(fishPrefetchActive,fishPrefetchConcurrency())}`
       : `🔊 Hablando... | Cola: ${voiceQueue.length}`;
 
     return;
