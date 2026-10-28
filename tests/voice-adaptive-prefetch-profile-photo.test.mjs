@@ -10,7 +10,7 @@ const cut=(s,a,b)=>{
  assert.ok(begin>=0&&end>begin,'Missing snippet '+a);
  return s.slice(begin,end);
 };
-const networkCode=cut(chat,'function fishPrefetchConcurrency(){','const VOICE_GAP_MS =');
+const networkCode=cut(chat,'const FISH_PREFETCH_CONCURRENCY = 3;','const FISH_MAX_RETRIES_PER_MESSAGE');
 const readNetwork=connection=>{
  const ctx={navigator:{connection}};
  runInNewContext(networkCode+'\nthis.test=fishPrefetchConcurrency',ctx);
