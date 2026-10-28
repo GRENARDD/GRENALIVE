@@ -27,13 +27,59 @@ s+=r"""
 // The owner must explicitly approve the exact release in Cloudflare D1 first.
 {
  const {autoUpdater}=require('electron-updater');
+ const {BrowserWindow}=require('electron');
  const releaseBase='https://grena-live-licenses.omelicolon18.workers.dev';
  const updateFeed=releaseBase+'/api/updates/';
  autoUpdater.autoDownload=false;
  autoUpdater.autoInstallOnAppQuit=false;
  autoUpdater.allowPrerelease=false;
  autoUpdater.setFeedURL({provider:'generic',url:updateFeed});
- let lastOffered='',downloading=false,checking=false;
+ let lastOffered='',downloading=false,checking=false,progressWindow=null,progressReady=false;
+ const closeDownloadWindow=()=>{
+   const win=progressWindow;progressWindow=null;progressReady=false;
+   if(win&&!win.isDestroyed())win.close();
+ };
+ const showDownloadWindow=()=>{
+   if(progressWindow&&!progressWindow.isDestroyed()){progressWindow.show();return}
+   progressReady=false;
+   const win=new BrowserWindow({
+     width:500,height:250,resizable:false,maximizable:false,minimizable:true,
+     parent:mainWindow&&!mainWindow.isDestroyed()?mainWindow:undefined,
+     modal:false,show:false,backgroundColor:'#101525',
+     title:'GREÑA Live PRO · Descargando actualización',
+     autoHideMenuBar:true,
+     webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true}
+   });
+   progressWindow=win;
+   win.on('closed',()=>{if(progressWindow===win){progressWindow=null;progressReady=false}});
+   const html=`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+   <style>*{box-sizing:border-box}body{margin:0;padding:24px;color:#f1f5ff;font:15px system-ui,'Segoe UI',sans-serif;background:#101525}
+   b{font-size:18px}p{color:#b3bed8;font-size:12px;margin:8px 0 18px}.line{display:flex;align-items:baseline;justify-content:space-between}
+   #pct{color:#77e4d6;font-size:29px;font-weight:900;font-variant-numeric:tabular-nums}
+   progress{width:100%;height:23px;accent-color:#56c8ce;border-radius:12px}small{display:block;margin-top:12px;color:#b3bed8}</style>
+   </head><body><div class="line"><b>Actualizando GREÑA Live</b><span id="pct">0%</span></div>
+   <p>Descargando el instalador oficial. Puedes seguir usando tu directo.</p>
+   <progress id="bar" value="0" max="100"></progress>
+   <small id="details">Preparando descarga…</small>
+   <script>window.updateProgress=function(p,done,total,speed){
+     p=Math.max(0,Math.min(100,Number(p)||0));document.getElementById('bar').value=p;
+     document.getElementById('pct').textContent=p.toFixed(1)+'%';
+     const mb=n=>(Math.max(0,Number(n)||0)/1048576).toFixed(1)+' MB';
+     document.getElementById('details').textContent=mb(done)+' / '+(total?mb(total):'tamaño pendiente')+(speed?' · '+mb(speed)+'/s':'');
+   };<\/script></body></html>`;
+   win.loadURL('data:text/html;charset=UTF-8,'+encodeURIComponent(html)).then(()=>{
+     if(progressWindow!==win||win.isDestroyed())return;
+     progressReady=true;win.show();
+   }).catch(logError);
+ };
+ const renderDownloadProgress=p=>{
+   const percent=Math.max(0,Math.min(100,Number(p.percent)||0));
+   if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(percent/100);
+   if(progressWindow&&!progressWindow.isDestroyed()){
+     progressWindow.setTitle('GREÑA Live PRO · '+percent.toFixed(1)+'%');
+     if(progressReady)progressWindow.webContents.executeJavaScript('window.updateProgress('+[percent,Number(p.transferred)||0,Number(p.total)||0,Number(p.bytesPerSecond)||0].join(',')+')').catch(logError);
+   }
+ };
  const logError=e=>{try{logStartup('AUTOACTUALIZADOR',String(e?.message||e))}catch{}};
  const showUpdateDialog=opts=>mainWindow&&!mainWindow.isDestroyed()?dialog.showMessageBox(mainWindow,opts):dialog.showMessageBox(opts);
  const isNewVersion=(candidate,current)=>{
@@ -54,14 +100,19 @@ s+=r"""
    }).then(answer=>{
      if(answer.response!==0||downloading)return;
      downloading=true;
-     autoUpdater.downloadUpdate().catch(error=>{downloading=false;logError(error)});
+     showDownloadWindow();
+     autoUpdater.downloadUpdate().catch(error=>{
+       downloading=false;closeDownloadWindow();
+       if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1);
+       logError(error);
+       showUpdateDialog({type:'error',title:'GREÑA Live · Descarga interrumpida',message:'No se completó la actualización.',detail:'Revisa tu conexión e intenta de nuevo cuando aparezca el aviso.',buttons:['Aceptar']}).catch(logError);
+     });
    }).catch(logError);
  });
- autoUpdater.on('download-progress',progress=>{
-   if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(Math.max(0,Math.min(1,progress.percent/100)));
- });
+ autoUpdater.on('download-progress',renderDownloadProgress);
  autoUpdater.on('update-downloaded',info=>{
    downloading=false;
+   closeDownloadWindow();
    if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1);
    showUpdateDialog({
      type:'question',title:'GREÑA Live PRO · Lista para instalar',

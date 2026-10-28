@@ -351,3 +351,42 @@ test('Actualizaciones: nadie recibe aviso hasta que el propietario publica ofici
    function requestRaw(path){return worker.fetch(new Request('https://license.test'+path),env)}
  }finally{globalThis.fetch=originalFetch;close()}
 });
+
+test('BETA indefinida: solo propietario la concede/quita y conserva la licencia anterior',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
+ try{
+   const owner=(await request(env,'/api/license/identity/register',{username:'owner_beta',email:'beta-owner@example.test',password:'owner-beta-strong-pass'})).data;
+   const member=(await request(env,'/api/license/identity/register',{username:'member_beta',email:'beta-member@example.test',password:'member-beta-strong-pass'})).data;
+   const device='BETATESTDEVICE123456789012345678901';
+   assert.equal((await request(env,'/api/license/owner/claim',{}, {token:owner.token,admin:ADMIN})).status,200);
+   const paid=await request(env,'/api/license-admin/grant',{username:'member_beta',days:30},{token:owner.token});
+   assert.equal(paid.status,200);
+   const initial=await request(env,'/api/license/heartbeat',{deviceId:device,appVersion:'5.1.5'},{token:member.token});
+   assert.equal(initial.data.license.active,true);
+   assert.equal(initial.data.betaAccess,false);
+   assert.equal((await request(env,'/api/license-admin/beta/grant',{userId:member.user.id},{token:member.token})).status,403);
+   const granted=await request(env,'/api/license-admin/beta/grant',{userId:member.user.id},{token:owner.token});
+   assert.equal(granted.status,200);
+   assert.equal(granted.data.betaAccess,true);
+   const beta=await request(env,'/api/license/heartbeat',{deviceId:device,appVersion:'5.1.6'},{token:member.token});
+   assert.equal(beta.data.betaAccess,true);
+   assert.equal(beta.data.permanentAccess,false);
+   assert.equal((await request(env,'/api/license/owner/status',null,{token:member.token})).data.isOwner,false);
+   assert.equal((await request(env,'/api/license-admin/users',null,{token:member.token})).status,403);
+   assert.equal((await request(env,'/api/license/redeem',{code:'GRENA-0000000000-0000000000',deviceId:device},{token:member.token})).status,409);
+   const list=await request(env,'/api/license-admin/users',null,{token:owner.token});
+   const row=list.data.users.find(x=>x.username==='member_beta');
+   assert.equal(row.betaAccess,true);
+   assert.equal(row.installedVersion,'5.1.6');
+   assert.equal(row.online,true);
+   assert.equal(row.license.active,true,'No cambiar la licencia de pago cuando se concede BETA');
+   assert.equal((await request(env,'/api/license-admin/beta/grant',{userId:owner.user.id},{token:owner.token})).status,409);
+   const revoked=await request(env,'/api/license-admin/beta/revoke',{userId:member.user.id},{token:owner.token});
+   assert.equal(revoked.status,200);
+   const afterward=await request(env,'/api/license/heartbeat',{deviceId:device},{token:member.token});
+   assert.equal(afterward.data.betaAccess,false);
+   assert.equal(afterward.data.license.active,true,'Al quitar BETA sigue vigente su licencia normal');
+   assert.equal((await DB.prepare('SELECT COUNT(*) AS n FROM beta_memberships').first()).n,0);
+   assert.equal((await DB.prepare('SELECT COUNT(*) AS n FROM beta_audit_log').first()).n,2);
+ }finally{close()}
+});

@@ -69,7 +69,7 @@ const publicUser=u=>({
  deviceBound:!!u.license_device_id,license:cleanLicense(u)
 });
 // Owner access comes from the authenticated, one-time D1 ownership claim.
-const status=(u,deviceId,permanentAccess=false)=>({ok:true,registered:!!u,user:publicUser(u),license:permanentAccess?null:cleanLicense(u,deviceId),permanentAccess:permanentAccess===true});
+const status=(u,deviceId,permanentAccess=false,betaAccess=false)=>({ok:true,registered:!!u,user:publicUser(u),license:permanentAccess?null:cleanLicense(u,deviceId),permanentAccess:permanentAccess===true,betaAccess:!permanentAccess&&betaAccess===true});
 const deviceValid=d=>/^[A-Za-z0-9_-]{25,80}$/.test(String(d||''));
 async function body(req){
  if(req.headers.get('content-type')?.split(';')[0].trim().toLowerCase()!=='application/json')throw {status:415,message:'Content-Type debe ser application/json'};
@@ -120,6 +120,16 @@ async function ownerInfo(env,u){
  await ensureOwners(env);
  const owners=(await env.DB.prepare('SELECT user_id FROM license_owners LIMIT 1').first());
  return {ok:true,isOwner:owners?.user_id===u.id,configured:!!owners};
+}
+// BETA is independent of licenses and never grants any owner/admin permissions.
+async function betaTable(env){
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS beta_memberships (user_id TEXT PRIMARY KEY REFERENCES users(id), granted_at INTEGER NOT NULL, granted_by TEXT NOT NULL)').run();
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS beta_audit_log (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, admin_user_id TEXT NOT NULL, action TEXT NOT NULL, created_at INTEGER NOT NULL)').run();
+}
+async function hasBeta(env,u){
+ if(!u)return false;
+ await betaTable(env);
+ return !!(await env.DB.prepare('SELECT user_id FROM beta_memberships WHERE user_id=?').bind(u.id).first());
 }
 async function adminCheck(env,req){
  // Owner is authenticated with GREÑA ID; the private ADMIN_KEY is required only
@@ -219,14 +229,30 @@ async function handle(req,env){
      const users=((await env.DB.prepare('SELECT * FROM users ORDER BY registered_at DESC LIMIT 5000').all()).results||[]).filter(u=>!githubActionsTestUser(u));
      const codes=(await env.DB.prepare('SELECT id,suffix,days,created_at,redeemed_at FROM license_codes ORDER BY created_at DESC LIMIT 5000').all()).results||[];
      const ownerRow=await env.DB.prepare('SELECT user_id FROM license_owners LIMIT 1').first();
+     await betaTable(env);
+     const betaIds=new Set(((await env.DB.prepare('SELECT user_id FROM beta_memberships').all()).results||[]).map(x=>x.user_id));
+     await env.DB.prepare('CREATE TABLE IF NOT EXISTS client_versions (user_id TEXT PRIMARY KEY REFERENCES users(id), app_version TEXT NOT NULL, updated_at INTEGER NOT NULL)').run();
+     const versions=new Map(((await env.DB.prepare('SELECT user_id,app_version,updated_at FROM client_versions').all()).results||[]).map(x=>[x.user_id,x]));
      await fishTable(env);
      const fishConfigured=new Set(((await env.DB.prepare('SELECT user_id FROM fish_credentials').all()).results||[]).map(x=>x.user_id));
-     return json({ok:true,users:users.map(u=>({...publicUser(u),isOwner:u.id===ownerRow?.user_id,permanentAccess:u.id===ownerRow?.user_id,fishConfigured:fishConfigured.has(u.id)})),total:users.length,online:users.filter(u=>u.last_seen_at&&now()-u.last_seen_at<ONLINE).length,
+     return json({ok:true,users:users.map(u=>({...publicUser(u),isOwner:u.id===ownerRow?.user_id,permanentAccess:u.id===ownerRow?.user_id,betaAccess:betaIds.has(u.id)&&u.id!==ownerRow?.user_id,installedVersion:versions.get(u.id)?.app_version||null,versionReportedAt:versions.get(u.id)?.updated_at||null,fishConfigured:fishConfigured.has(u.id)})),total:users.length,online:users.filter(u=>u.last_seen_at&&now()-u.last_seen_at<ONLINE).length,
        codes:codes.map(c=>({id:c.id,suffix:c.suffix,days:c.days,createdAt:c.created_at,redeemedAt:c.redeemed_at}))});
    }
    if(req.method!=='POST')return fail('Método no permitido.',405);
    const b=await body(req);
-   if(path==='/api/license-admin/grant'){
+   if(path==='/api/license-admin/beta/grant'||path==='/api/license-admin/beta/revoke'){
+      const target=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(String(b.userId||'')).first();
+      if(!target)return fail('Usuario GREÑA ID no encontrado.',404);
+      if((await ownerInfo(env,target)).isOwner)return fail('La cuenta propietaria no puede convertirse en BETA.',409);
+      if(target.disabled&&path.endsWith('/grant'))return fail('Reactiva la cuenta antes de conceder BETA.',409);
+      await betaTable(env);
+      const owner=await sessionUser(env,req),action=path.endsWith('/grant')?'grant':'revoke';
+      if(action==='grant')await env.DB.prepare('INSERT INTO beta_memberships(user_id,granted_at,granted_by) VALUES(?,?,?) ON CONFLICT(user_id) DO NOTHING').bind(target.id,now(),owner.id).run();
+      else await env.DB.prepare('DELETE FROM beta_memberships WHERE user_id=?').bind(target.id).run();
+      await env.DB.prepare('INSERT INTO beta_audit_log(id,user_id,admin_user_id,action,created_at) VALUES(?,?,?,?,?)').bind(crypto.randomUUID(),target.id,owner.id,action,now()).run();
+      return json({ok:true,username:target.username,betaAccess:action==='grant',user:{...publicUser(target),betaAccess:action==='grant'},message:action==='grant'?'BETA permanente concedida.':'BETA retirada; se conserva cualquier licencia normal existente.'});
+    }
+    if(path==='/api/license-admin/grant'){
      // Start now. When still active, add the new days to the existing expiration.
      const raw=String(b.username||'').trim().replace(/^@/,'').toLowerCase();
      const username=cleanUser(raw),days=Number(b.days);
@@ -236,6 +262,7 @@ async function handle(req,env){
      if(!target)return fail('Este GREÑA ID todavía no está en Cloudflare. El usuario debe iniciar sesión y sincronizar primero.',404);
      if(target.disabled)return fail('La cuenta está suspendida. Reactívala antes de asignar días.',409);
      if((await ownerInfo(env,target)).isOwner)return fail('La cuenta propietaria ya tiene acceso permanente: no necesita días ni renovaciones.',409);
+      if(await hasBeta(env,target))return fail('Esta cuenta es BETA permanente. Quita BETA antes de asignar días.',409);
      const time=now(),continuing=target.license_expires_at>time&&!target.license_revoked_at&&target.license_code_id!==TRIAL_TAG;
      // An audit log is retained centrally. IF NOT EXISTS protects existing D1 data.
      await env.DB.prepare('CREATE TABLE IF NOT EXISTS license_grants (id TEXT PRIMARY KEY, target_user_id TEXT NOT NULL, admin_user_id TEXT NOT NULL, days INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)').run();
@@ -308,7 +335,7 @@ async function handle(req,env){
    const fresh=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first();
    const ready=await bindPendingDevice(env,fresh,String(b.deviceId||''));
    const owner=await ownerInfo(env,ready);
-   return json({...status(ready,String(b.deviceId||''),owner.isOwner),token:await issueSession(env,u)});
+   return json({...status(ready,String(b.deviceId||''),owner.isOwner,await hasBeta(env,ready)),token:await issueSession(env,u)});
  }
  const u=await sessionUser(env,req);
  if(!u)return fail('La sesión central venció o está suspendida.',401);
@@ -332,15 +359,22 @@ async function handle(req,env){
    const b=await body(req),deviceId=String(b.deviceId||'');
    if(!deviceValid(deviceId))return fail('Identificador de dispositivo inválido.');
    await env.DB.prepare('UPDATE users SET last_seen_at=? WHERE id=?').bind(now(),u.id).run();
+   // Only an actually running app version is reported, not downloaded installers.
+   const appVersion=String(b.appVersion||'').trim();
+   if(/^\d{1,3}\.\d{1,3}\.\d{1,4}$/.test(appVersion)){
+     await env.DB.prepare('CREATE TABLE IF NOT EXISTS client_versions (user_id TEXT PRIMARY KEY REFERENCES users(id), app_version TEXT NOT NULL, updated_at INTEGER NOT NULL)').run();
+     await env.DB.prepare('INSERT INTO client_versions(user_id,app_version,updated_at) VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET app_version=excluded.app_version,updated_at=excluded.updated_at').bind(u.id,appVersion,now()).run();
+   }
    const ready=await bindPendingDevice(env,{...u,last_seen_at:now()},deviceId);
    const owner=await ownerInfo(env,ready);
-   return json(status(ready,deviceId,owner.isOwner));
+   return json(status(ready,deviceId,owner.isOwner,await hasBeta(env,ready)));
  }
  if(path==='/api/license/redeem'){
    if(await limiter(env,req,'redeem',12))return fail('Demasiados intentos de activación.',429);
    const b=await body(req),code=String(b.code||'').trim().toUpperCase(),deviceId=String(b.deviceId||'');
    if(!/^GRENA-[A-F0-9]{10}-[A-F0-9]{10}$/.test(code)||!deviceValid(deviceId))return fail('Código o dispositivo inválido.');
    if((await ownerInfo(env,u)).isOwner)return fail('Tu cuenta es propietaria y tiene acceso permanente. No necesitas activar un código.',409);
+   if(await hasBeta(env,u))return fail('Tu cuenta BETA tiene acceso permanente. No necesitas consumir un código.',409);
    if(u.license_expires_at>now()&&!u.license_revoked_at&&u.license_device_id!==deviceId)
      return fail('Tu licencia está vinculada a otra computadora.',403);
    const codeHash=await sha(code);
