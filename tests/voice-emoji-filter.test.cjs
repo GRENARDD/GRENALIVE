@@ -33,11 +33,12 @@ test('las banderas, tonos de piel, emojis unidos y keycaps se descartan completo
 test('los mensajes normales, acentos y números no se alteran',()=>{
   for(const x of ['Hola, ¿cómo estás?','GREÑA LIVE 2026','12345, qué lo qué','@grena_rd gracias','mañana jugamos Minecraft'])assert.equal(strip(x),x);
 });
-test('voces del sistema conservan filtro emoji, Fish recibe texto original sin cambios',()=>{
+test('voces del sistema conservan filtro emoji y Fish elimina codigos de stickers sin alterar frases',()=>{
   assert.match(html,/result\s*=\s*stripEmojisForVoice\(\s*result\s*\)/);
   assert.match(html,/const spokenName = stripEmojisForVoice\(/);
-  assert.match(html,/isFishVoiceSelected\(\)\s*\?\s*String\(m\.text\|\|''\)\.trim\(\)/);
-  assert.match(html,/stripStickerAndInternalCodes\(cleanTextForVoice\(m\.text\|\|''\)\)/);
+  assert.match(html,/const humanText=stripStickerAndInternalCodes\(m\.text\|\|''\)/);
+  assert.match(html,/isFishVoiceSelected\(\)\s*\?\s*humanText/);
+  assert.match(html,/cleanTextForVoice\(humanText\)/);
   assert.match(html,/insertVoiceByPriority\(\{\s*\.\.\.m,\s*text\s*\}\)/);
   assert.match(html,/function buildSpokenText\(message\)/);
   assert.match(html,/const spokenText = buildSpokenText\(message\)/);
