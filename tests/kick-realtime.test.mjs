@@ -16,7 +16,7 @@ test('Kick Centrifugo publishes chat events as Pusher-compatible envelopes',()=>
   assert.equal(rows[0].transport,'centrifugo');
   assert.equal(rows[0].channel,'chatrooms.72.v2');
   assert.match(rows[0].event,/ChatMessageEvent$/);
-  assert.equal(JSON.parse(rows[0].data).content,'PRUEBA GREÑA 123');
+  assert.equal(rows[0].data.content,'PRUEBA GREÑA 123');
   assert.equal(rows[1].centrifugoControl,true);
 });
 
