@@ -23,7 +23,7 @@ test('Configuración permite vincular, cambiar y quitar la API propia sin mostra
 });
 test('Compilación estable publica instalador 5.1.7',()=>{
  const update=src('desktop-build/fix_official_updates.py');
- assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '5\.1\.6'/);
+ assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '5\.1\.7'/);
  const gh=src('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(gh,/GRENA-LIVE-Installer-Windows-v5\.1\.6/);
+ assert.match(gh,/GRENA-LIVE-Installer-Windows-v5\.1\.7/);
 });
