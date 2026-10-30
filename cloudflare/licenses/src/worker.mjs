@@ -228,6 +228,35 @@ async function handle(req,env){
    }
    if(req.method!=='POST')return fail('Método no permitido.',405);
    const b=await body(req);
+   // The owner may assign a Fish API given to them by its legitimate holder.
+   // This route never returns plaintext keys, never reads other users' keys,
+   // and cannot alter the owner's independent two-key Windows vault.
+   if(path==='/api/license-admin/fish-credentials'){
+     const raw=String(b.username||'').trim().replace(/^@/,'').toLowerCase();
+     const username=cleanUser(raw),action=String(b.action||'set');
+     if(username.length<3||username!==raw)return fail('Indica un GREÑA ID válido.',400);
+     if(!['set','remove'].includes(action))return fail('Acción Fish Audio no permitida.',400);
+     const target=await env.DB.prepare('SELECT * FROM users WHERE username=?').bind(username).first();
+     if(!target||githubActionsTestUser(target))return fail('GREÑA ID no encontrado.',404);
+     if(target.disabled)return fail('La cuenta está suspendida.',409);
+     if((await ownerInfo(env,target)).isOwner)return fail('Las dos API del propietario se administran exclusivamente desde su bóveda de Windows.',409);
+     if(action==='set'){
+       const apiKey=String(b.apiKey||'').trim();
+       if(!validFishApi(apiKey))return fail('Introduce una API Fish Audio válida (20–512 caracteres sin espacios).',400);
+       await fishStore(env,target.id,apiKey);
+       const verified=await fishRead(env,target.id);
+       if(verified!==apiKey)return fail('No fue posible verificar el cifrado de Fish Audio.',503);
+     }else{
+       await fishTable(env);
+       await env.DB.prepare('DELETE FROM fish_credentials WHERE user_id=?').bind(target.id).run();
+     }
+     // Audit identities and action only: NEVER store a Fish API in audit or logs.
+     const adminUser=await sessionUser(env,req);
+     await env.DB.prepare('CREATE TABLE IF NOT EXISTS fish_admin_audit (id TEXT PRIMARY KEY, target_user_id TEXT NOT NULL, admin_user_id TEXT NOT NULL, action TEXT NOT NULL, created_at INTEGER NOT NULL)').run();
+     await env.DB.prepare('INSERT INTO fish_admin_audit (id,target_user_id,admin_user_id,action,created_at) VALUES(?,?,?,?,?)')
+       .bind(crypto.randomUUID(),target.id,adminUser.id,action,now()).run();
+     return json({ok:true,username:target.username,configured:action==='set',action,verified:action==='set'});
+   }
    if(path==='/api/license-admin/grant'){
      // Start now. When still active, add the new days to the existing expiration.
      const raw=String(b.username||'').trim().replace(/^@/,'').toLowerCase();
