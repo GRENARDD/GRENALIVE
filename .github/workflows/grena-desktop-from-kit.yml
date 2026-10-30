@@ -73,6 +73,7 @@ on:
       - 'tests/**'
       - 'desktop-build/**'
       - '.github/workflows/grena-desktop-from-kit.yml'
+      - '.github/workflows/grena-release-v517.yml'
 permissions:
   contents: write
 concurrency:
