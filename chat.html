@@ -1271,7 +1271,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 
 <section class="live-chat-shell">
   <div class="live-chat-head">
-    <div class="live-chat-title"><span class="live-chat-icon">💬</span><div><b>Chat en vivo</b><small>Mensajes del público en tiempo real.</small></div></div>
+    <div class="live-chat-title"><span class="live-chat-icon">💬</span><div><b>Chat en vivo</b><small>Mensajes del público en tiempo real.</small><small id="tiktokDeliveryDiag" role="status" style="display:block;color:#a7cce0;margin-top:3px;font-size:11px" title="Comparación de eventos que TikTok entrega al motor y mensajes retransmitidos. No incluye comentarios omitidos por TikTok.">TikTok: revisando recepción...</small></div></div>
     <div class="live-chat-actions">
       <button type="button" id="manageMutedUsers" class="muted-manage-btn">⊘ Silenciados</button>
       <label class="chat-search"><span>⌕</span><input id="chatSearchInput" type="search" placeholder="Buscar mensajes…" autocomplete="off"></label>
@@ -5702,6 +5702,20 @@ updateRangeLabels();
 
 updateVoiceStatus();
 
+// Diagnóstico sin almacenar ni revelar contenido de mensajes de espectadores.
+async function pollTikTokDelivery(){
+ const label=document.getElementById('tiktokDeliveryDiag');if(!label)return;
+ try{
+  const response=await fetch('/api/connection-prefs',{cache:'no-store'});
+  if(!response.ok)return;
+  const data=await response.json(),diag=data.tiktokDiagnostics||{},c=diag.comments||{};
+  if(!diag.connected){label.textContent='TikTok: chat sin conexión · espera reconexión';return}
+  const received=Number(c.sessionReceived||0),forwarded=Number(c.sessionForwarded||0);
+  const empty=Number(c.sessionEmpty||0),muted=Number(c.sessionMuted||0),errors=Number(c.errors||0);
+  label.textContent='TikTok LIVE: '+received+' recibidos · '+forwarded+' al chat'+(empty?' · '+empty+' sin texto':'')+(muted?' · '+muted+' silenciados':'')+(errors?' · '+errors+' errores':'');
+ }catch{}
+}
+setInterval(pollTikTokDelivery,12000);pollTikTokDelivery();
 // Respaldo HTTP: mantiene el multichat visible incluso si falla el WebSocket.
 async function pollLiveChat(){
   try{

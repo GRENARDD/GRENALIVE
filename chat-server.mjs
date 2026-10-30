@@ -324,7 +324,7 @@ const TIKTOK_CONNECTION_LOG=join(CHAT_LOG_DIR,'tiktok-connection.log');
 const tiktokRetry={failures:0,nextAt:0,kind:'',lastOutcome:'',lastAt:0,connectedAt:0};
 // Diagnóstico sin nombres, comentarios ni datos privados. Cuenta mensajes que el
 // conector realmente emitió, versus omitidos localmente por bloqueo o texto vacío.
-const tiktokChatStats={received:0,forwarded:0,empty:0,muted:0,lastReceivedAt:0,lastForwardedAt:0,sessionReceived:0,sessionForwarded:0};
+const tiktokChatStats={received:0,forwarded:0,empty:0,muted:0,unidentified:0,errors:0,socketFailures:0,lastReceivedAt:0,lastForwardedAt:0,sessionReceived:0,sessionForwarded:0,sessionEmpty:0,sessionMuted:0};
 const TIKTOK_BACKOFF_MS=[15000,30000,60000,120000,240000,480000,600000];
 function tiktokConnectionLog(event,details={}){
  const line=JSON.stringify({at:new Date().toISOString(),event,...details});
@@ -364,7 +364,7 @@ function tiktokConnectionDiagnostics(){
  return {connected:tiktokConnectionReady&&!!tiktokConn,connecting:!!tiktokConn&&!tiktokConnectionReady,
   retryAt:tiktokRetry.nextAt,retryReason:tiktokRetry.kind,retryCount:tiktokRetry.failures,
   lastOutcome:tiktokRetry.lastOutcome,lastAttemptAt:tiktokRetry.lastAt,lastConnectedAt:tiktokRetry.connectedAt,
-  lastViewerSignalAt:tiktokViewerLastSignalAt,viewerFallbackFailures:tiktokViewerPollFailures,comments:{...tiktokChatStats}};
+  lastViewerSignalAt:tiktokViewerLastSignalAt,viewerFallbackFailures:tiktokViewerPollFailures,comments:{...tiktokChatStats,websocketClients:[...clients].filter(ws=>ws.readyState===1).length}};
 }
 let twitchClient = null;
 let kickConnected = false;
@@ -446,9 +446,13 @@ await loadLocalMutedUsers();
 const send = (ws, data) => {
   try {
     if (ws.readyState === 1) {
-      ws.send(JSON.stringify(data));
+      ws.send(JSON.stringify(data),error=>{
+        if(error&&data?.platform==='tiktok'&&data?.type==='chat')tiktokChatStats.socketFailures++;
+      });
     }
-  } catch {}
+  } catch(error) {
+    if(data?.platform==='tiktok'&&data?.type==='chat')tiktokChatStats.socketFailures++;
+  }
 };
 
 const recentChatHistory = [];
@@ -738,6 +742,25 @@ function getTikTokSubscriberStatus(data, user) {
 // EXTRAER DATOS DE TIKTOK
 // =====================================
 
+// Solo leer campos textuales de mensajes: no convertir objetos en "[object Object]".
+function tiktokDeepCommentText(data) {
+ const candidates=[data?.comment,data?.message,data?.text,data?.content,data?.chat,
+  data?.chatMessage,data?.data?.comment,data?.data?.message,data?.data?.text,
+  data?.data?.content,data?.data?.chat,data?.data?.chatMessage,
+  data?.data?.data?.comment,data?.data?.data?.message];
+ const extract=(value,depth=0)=>{
+  if(typeof value==='string')return value.trim();
+  if(!value||typeof value!=='object'||depth>4)return '';
+  for(const k of ['text','comment','message','content','body','chatMessage','chat','value','textContent']){
+   if(Object.prototype.hasOwnProperty.call(value,k)){
+    const found=extract(value[k],depth+1);if(found)return found;
+   }
+  }
+  return '';
+ };
+ for(const value of candidates){const found=extract(value);if(found)return found}
+ return '';
+}
 function extractTikTokChat(data) {
   const user =
     data?.user ||
@@ -761,7 +784,12 @@ function extractTikTokChat(data) {
     data?.unique_id,
     data?.username,
     data?.userName,
-    data?.handle
+    data?.handle,
+    data?.data?.author?.uniqueId,
+    data?.data?.author?.username,
+    data?.data?.userInfo?.uniqueId,
+    data?.data?.user?.user?.uniqueId,
+    data?.userInfo?.user?.uniqueId
   );
 
   const nickname = firstString(
@@ -775,7 +803,11 @@ function extractTikTokChat(data) {
     data?.displayName,
     data?.display_name,
     data?.data?.user?.nickname,
-    data?.data?.nickname
+    data?.data?.nickname,
+    data?.data?.author?.nickname,
+    data?.data?.userInfo?.nickname,
+    data?.data?.user?.user?.nickname,
+    data?.userInfo?.user?.nickname
   );
 
   const text = firstString(
@@ -800,7 +832,7 @@ function extractTikTokChat(data) {
     data?.comment?.text,
     data?.message?.text,
     data?.content?.text
-  );
+  ) || tiktokDeepCommentText(data);
 
   const avatar = findUrl(
     user.avatarThumb,
@@ -837,7 +869,8 @@ function extractTikTokChat(data) {
   return {
     user:
       username ||
-      'Usuario',
+      nickname ||
+      (user?.id ? 'tiktok_'+String(user.id).slice(-10) : 'Usuario'),
 
     nickname:
       nickname ||
@@ -852,8 +885,8 @@ function extractTikTokChat(data) {
       avatar ||
       '',
 
-    userId: String(user?.id || user?.userId || user?.user_id || data?.userId || data?.user_id || data?.user?.id || ''),
-    messageId: String(data?.msgId || data?.msgIdStr || data?.messageId || data?.message_id || data?.common?.msgId || ''),
+    userId: String(user?.id || user?.userId || user?.user_id || data?.userId || data?.user_id || data?.user?.id || data?.data?.user?.id || data?.data?.userId || ''),
+    messageId: String(data?.msgId || data?.msgIdStr || data?.messageId || data?.message_id || data?.common?.msgId || data?.data?.msgId || data?.data?.messageId || ''),
     isFollower,
     isSubscriber,
     isModerator: !!(user?.isModerator || user?.is_moderator || data?.isModerator || data?.is_moderator || data?.user?.isModerator),
@@ -1806,7 +1839,7 @@ async function connectTikTok(input,{automatic=false}={}) {
 
   tiktokConn =
     connection;
-  tiktokChatStats.sessionReceived=0;tiktokChatStats.sessionForwarded=0;
+  tiktokChatStats.sessionReceived=0;tiktokChatStats.sessionForwarded=0;tiktokChatStats.sessionEmpty=0;tiktokChatStats.sessionMuted=0;
   let likeTotal = 0;
   let lastLikeMilestone = 0;
   const recentFollows=new Map();
@@ -1835,6 +1868,8 @@ async function connectTikTok(input,{automatic=false}={}) {
   connection.on(
     WebcastEvent.CHAT,
     data => {
+      if(tiktokConn!==connection)return;
+      try {
       tiktokChatStats.received++;tiktokChatStats.sessionReceived++;tiktokChatStats.lastReceivedAt=Date.now();
       const chat =
         extractTikTokChat(
@@ -1873,20 +1908,21 @@ async function connectTikTok(input,{automatic=false}={}) {
         );
       }
 
+      if(chat.user==='Usuario')tiktokChatStats.unidentified++;
       if(!chat.text){
-        tiktokChatStats.empty++;
+        tiktokChatStats.empty++;tiktokChatStats.sessionEmpty++;
         // Sin cuerpo: guardar solamente el tipo de estructura, nunca los datos del espectador.
         if(tiktokChatStats.empty<=3||tiktokChatStats.empty%50===0)console.warn('[GREÑA TikTok] comentario sin texto reconocido', {total:tiktokChatStats.empty});
         return;
       }
       if(isLocallyMuted('tiktok',chat.user||chat.nickname)){
-        tiktokChatStats.muted++;
+        tiktokChatStats.muted++;tiktokChatStats.sessionMuted++;
         return; // Silenciamiento solicitado explícitamente por el creador.
       }
       // No registrar texto/nombres del público. Confirmar volumen sin filtrar información sensible.
       tiktokChatStats.forwarded++;tiktokChatStats.sessionForwarded++;
       tiktokChatStats.lastForwardedAt=Date.now();
-      if(tiktokChatStats.forwarded%100===0)tiktokConnectionLog('chat-summary',{received:tiktokChatStats.received,forwarded:tiktokChatStats.forwarded,empty:tiktokChatStats.empty,muted:tiktokChatStats.muted});
+      if(tiktokChatStats.forwarded%100===0)tiktokConnectionLog('chat-summary',{received:tiktokChatStats.received,forwarded:tiktokChatStats.forwarded,empty:tiktokChatStats.empty,muted:tiktokChatStats.muted,unidentified:tiktokChatStats.unidentified,errors:tiktokChatStats.errors,socketFailures:tiktokChatStats.socketFailures});
 
       broadcastPlatform(
         'tiktok',
@@ -1928,10 +1964,15 @@ async function connectTikTok(input,{automatic=false}={}) {
             chat.isBroadcaster || String(chat.user||'').replace(/^@/,'').toLowerCase()===String(currentTikTokUser||'').replace(/^@/,'').toLowerCase()
         }
       );
+      } catch(error) {
+        // Un evento malformado no debe romper la conexión ni interrumpir a otros usuarios.
+        tiktokChatStats.errors++;
+        logChatFault('TikTok chat decode',error);
+      }
     }
   );
 
-  // =================================
+    // =================================
   // ALERTAS REALES + VIEWERS (MISMA CONEXIÓN DEL CHAT)
   // =================================
   const tiktokViewerCount = (data,{roomUser=false}={}) => {
@@ -1979,6 +2020,14 @@ async function connectTikTok(input,{automatic=false}={}) {
       return false;
     }finally{tiktokViewerPollBusy=false}
   };
+  // Los eventos MEMBER permiten estimar presencia, pero no prueban cuánto tiempo real
+  // permanece cada espectador: TikTok no comunica salidas individuales fiables.
+  if(WebcastEvent.MEMBER)connection.on(WebcastEvent.MEMBER,data=>{
+    if(tiktokConn!==connection)return;
+    const username=firstString(data?.user?.uniqueId,data?.user?.unique_id,data?.uniqueId,data?.data?.user?.uniqueId);
+    const nickname=firstString(data?.user?.nickname,data?.nickname,data?.data?.user?.nickname,username);
+    if(username)broadcastPlatform('tiktok',{type:'join',user:username,nickname});
+  });
   if (WebcastEvent.ROOM_USER) connection.on(WebcastEvent.ROOM_USER, data => {
     if(tiktokConn!==connection)return;
     const count=tiktokViewerCount(data,{roomUser:true});
@@ -1989,7 +2038,7 @@ async function connectTikTok(input,{automatic=false}={}) {
     if ((data?.giftType ?? data?.giftDetails?.giftType ?? data?.gift?.type) === 1 && !data?.repeatEnd) return;
     const gift=ttGiftData(data,connection);
     const action=`envió ${gift.giftName}${gift.count>1?' × '+gift.count:''}${gift.totalDiamonds>0?' · '+gift.totalDiamonds.toLocaleString('es-DO')+' diamantes':''}`;
-    bridgeAlert('TikTok','gift',ttWho(data),action,{avatar:ttAvatar(data),...gift,diamondCount:gift.unitDiamonds,giftKind:'tiktok-gift',eventId:String(data?.msgId||data?.common?.msgId||data?.id||'')});
+    bridgeAlert('TikTok','gift',ttWho(data),action,{avatar:ttAvatar(data),...gift,username:firstString(data?.user?.uniqueId,data?.user?.unique_id,data?.uniqueId,data?.data?.user?.uniqueId),userId:ttUserId(data),diamondCount:gift.unitDiamonds,giftKind:'tiktok-gift',eventId:String(data?.msgId||data?.common?.msgId||data?.id||'')});
   });
   const ttSubEvent=WebcastEvent.SUB_NOTIFY||'subNotify';
   connection.on(ttSubEvent, data => {

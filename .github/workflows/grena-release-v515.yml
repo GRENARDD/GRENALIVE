@@ -23,7 +23,18 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: main
+      - name: Skip when v5.1.5 is already official
+        id: existing_release
+        shell: bash
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION ya está publicada. Los cambios siguientes deben salir como una nueva versión."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Verify Windows build, current HEAD and release identity
+        if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -37,6 +48,7 @@ jobs:
             exit 1
           fi
       - name: Download and verify compiled 5.1.5 Windows installer
+        if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -55,6 +67,7 @@ jobs:
           ( cd dist-release && sha256sum "$exe" > SHA256SUMS.txt )
           test -s dist-release/latest.yml
       - name: Publish official v5.1.5 release (not Cloudflare rollout)
+        if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
         run: |
           set -euo pipefail

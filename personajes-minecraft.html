@@ -10,14 +10,19 @@ canvas{position:absolute;inset:0;image-rendering:pixelated}
 </style></head><body>
 <canvas id="c"></canvas>
 <div id="tools"><button id="bc">Chat</button><button id="bg">Regalo</button><button id="bl">Subir nivel</button><button id="bs">Salir</button><button id="br">Reiniciar</button></div>
+<script src="/assets/minecraft-activity-ranking.js"></script>
 <script>
 /* ===== Evento normalizado =====
  {type:'chat', platform, user, text}   -> aparece el personaje y habla
  {type:'gift', platform, user, gift, coins, count} -> salta, muestra el regalo y sube de nivel según las monedas acumuladas (ver LV)
  {type:'join', platform, user}  ·  {type:'leave', platform, user} (quita al personaje)  ·  {type:'reset'}
  Entrada: window.postMessage(obj) · window.Buddies.push(obj) · ?ws=ws://localhost:PUERTO · ?twitch=canal
- Extras: ?max=40 (personajes máximos) · ?idle=10 (minutos sin actividad antes de quitarlo; 0 = nunca) · ?scale=3 (tamaño de píxel) · ?test=1 */
-const Q=new URLSearchParams(location.search),MAX=+Q.get('max')||40,U=+Q.get('scale')||3,IDLE=(Q.get('idle')===null?10:+Q.get('idle'))*60000,SAVED=new Map();
+ Extras: máximo 10 por comentarios + permanencia estimada; niveles por comentarios, tiempo y regalos. ?max=10 · ?scale=3 */
+const Q=new URLSearchParams(location.search),MAX=Math.max(1,Math.min(10,Number(Q.get('max'))||10)),U=+Q.get('scale')||3;
+const activity=window.GrenaMinecraftActivity.createTracker();
+const OBS_KEY=String(Q.get('obs')||'local');let hkey=2166136261;for(const c of OBS_KEY)hkey=Math.imul(hkey^c.charCodeAt(0),16777619)>>>0;
+const STORAGE_KEY='grena-minecraft-ranking-v2-'+hkey.toString(16);
+try{activity.restore(JSON.parse(localStorage.getItem(STORAGE_KEY)||'null'))}catch{}
 const COL={tiktok:'#fe2c55',kick:'#53fc18',twitch:'#9146ff',youtube:'#ff3030',starvios:'#ef5da8'};
 const cv=document.getElementById('c'),x=cv.getContext('2d');
 let w,h,B=new Map(),DPR=devicePixelRatio||1;
@@ -34,7 +39,7 @@ const SK={
  creeper:{s:'#4caf50',h:'#4caf50',t:'#43a047',p:'#388e3c',noarm:1,f:[[1,2,2,2,'#111'],[5,2,2,2,'#111'],[3,4,2,2,'#111'],[2,5,1,2,'#111'],[5,5,1,2,'#111']]},
  enderman:{s:'#1a1a1a',h:'#1a1a1a',t:'#222',p:'#1a1a1a',tall:1,f:[[0,4,3,1,'#e040fb'],[5,4,3,1,'#e040fb']]}
 },KEYS=['steve','alex','zombie','skeleton'];
-/* ===== NIVELES: c = monedas acumuladas necesarias. Edita esta lista a tu gusto. =====
+/* ===== NIVELES: c = experiencia por comentarios, tiempo activo y regalos. Edita esta lista a tu gusto. =====
    armor = [color principal, color oscuro]; crown = corona */
 const LV=[
  {n:'Pollo',c:0,kind:'chicken',col:'#ffffff'},
@@ -85,20 +90,37 @@ function label(b,top,t){const f=Math.max(11,U*4.5);x.font=`bold ${f}px "Trebuche
   x.fillStyle=b.say.gift?'#ffd23f':'#f4f4f4';rr(b.x-mw/2,yy-fs*.8,mw,fs*1.6,8);
   x.beginPath();x.moveTo(b.x-5,yy+fs*.8);x.lineTo(b.x+5,yy+fs*.8);x.lineTo(b.x,yy+fs*1.3);x.fill();
   x.fillStyle='#222';x.fillText(m.length>34?m.slice(0,33)+'…':m,b.x,yy,mw-fs)}}
-function get(e){const id=e.platform+':'+e.user;let b=B.get(id);
- if(!b){if(B.size>=MAX){const old=[...B.entries()].sort((p,q)=>p[1].last-q[1].last)[0];SAVED.set(old[0],old[1].coins);B.delete(old[0])}
-  let hs=0;for(const c of id)hs=(hs*31+c.charCodeAt(0))>>>0;
-  b={name:e.user,platform:e.platform,type:KEYS[hs%KEYS.length],x:Math.max(20,40+Math.random()*Math.max(0,w-80)),y:h-6,dir:1,fx:0,jy:0,vy:0,tx:null,wait:0,moving:0,ph:Math.random()*6,sz:1,out:0,coins:SAVED.get(id)||0,say:null,last:0};B.set(id,b)}
- b.last=performance.now();b.out=0;return b}
-function push(e){if(e.type==='reset'){B.clear();SAVED.clear();return}
- if(e.type==='leave'&&e.user){const u=String(e.user).toLowerCase();for(const b of B.values())if(b.platform===e.platform&&b.name.toLowerCase()===u&&!b.out)b.out=performance.now()+700;return}
- if(!e.user||!['chat','gift','join'].includes(e.type))return;
- const b=get(e),now=performance.now();
+function get(e){const id=activity.keyFor(e);if(!id)return null;let b=B.get(id);
+ if(!b){let hs=0;for(const c of id)hs=(hs*31+c.charCodeAt(0))>>>0;
+   b={name:e.nickname||e.user,platform:e.platform,type:KEYS[hs%KEYS.length],x:Math.max(20,40+Math.random()*Math.max(0,w-80)),y:h-6,dir:1,fx:0,jy:0,vy:0,tx:null,wait:0,moving:0,ph:Math.random()*6,sz:1,out:0,coins:0,say:null,last:0};B.set(id,b)}
+ return b}
+function syncRanking(){
+ const leaders=activity.top().slice(0,MAX),keys=new Set(leaders.map(u=>u.key));
+ for(const id of [...B.keys()])if(!keys.has(id))B.delete(id);
+ for(const u of leaders){
+   const b=get({platform:u.platform,user:u.key.split(':').slice(1).join(':'),nickname:u.name});
+   if(b){b.name=u.name;b.platform=u.platform;b.coins=u.xpTotal;b.last=u.lastSeen;b.out=0}
+ }
+}
+function saveActivity(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(activity.exportState()))}catch{}}
+function push(e){
+ if(!e||typeof e!=='object')return;
+ if(e.type==='reset'||e.type==='ended'){activity.reset();B.clear();saveActivity();return}
+ if(e.type==='connected'){const before=activity.exportState().roomId;activity.setRoom(e.roomId);if(before&&e.roomId&&before!==String(e.roomId))B.clear();syncRanking();return}
+ if(!e.user||!['chat','gift','join','leave'].includes(e.type))return;
+ const key=activity.keyFor(e),previous=B.get(key),oldLevel=previous?lvl(previous):0;
+ activity.observe(e);syncRanking();const b=B.get(key),now=performance.now();
+ if(!b)return;
  if(e.type==='chat'&&e.text)b.say={text:String(e.text),until:now+5000};
- if(e.type==='gift'){const c=Math.max(1,+e.count||1),o=lvl(b);b.coins+=(+e.coins||1)*c;const n=lvl(b);
-  b.say={text:`🎁 ${e.gift||'Regalo'} x${c}`,until:now+5000,gift:1};b.vy=-9;
-  if(n>o){b.say={text:`¡Nivel ${n+1}! ${LV[n].n}`,until:now+6000,gift:1};b.fx=now+1500;b.vy=-11}}}
-function step(t){for(const[id,b]of B){if(b.out&&b.out<t){SAVED.set(id,b.coins);B.delete(id);continue}if(IDLE&&!b.out&&t-b.last>IDLE)b.out=t+700;
+ if(e.type==='gift'){
+   const c=Math.max(1,+e.count||1),n=lvl(b);
+   b.say={text:`🎁 ${e.gift||'Regalo'} x${c}`,until:now+5000,gift:1};b.vy=-9;
+   if(n>oldLevel){b.say={text:`¡Nivel ${n+1}! ${LV[n].n}`,until:now+6000,gift:1};b.fx=now+1500;b.vy=-11}
+ }
+}
+syncRanking();setInterval(()=>{syncRanking();saveActivity()},5000);
+addEventListener('pagehide',saveActivity);
+function step(t){for(const[id,b]of B){if(b.out&&b.out<t){B.delete(id);continue}
  b.sz=1+lvl(b)*.05;b.vy+=.6;b.jy+=b.vy;if(b.jy>0){b.jy=0;b.vy=0}
  if(b.wait>t){b.moving=0;continue}
  if(b.tx==null||Math.abs(b.tx-b.x)<3){b.tx=null;if(Math.random()<.02){b.tx=30+Math.random()*(w-60);b.wait=0}else if(Math.random()<.03)b.wait=t+1500+Math.random()*3000;b.moving=0;continue}
@@ -122,7 +144,7 @@ if(Q.get('twitch'))(function c(){const s=new WebSocket('wss://irc-ws.chat.twitch
   if(!n||!t)return;push({type:'chat',platform:'twitch',user:n[1],text:t[1]});
   if(b)push({type:'gift',platform:'twitch',user:n[1],gift:'Bits',coins:+b[1],count:1})});
  s.onclose=()=>setTimeout(c,3000)})();
-window.Buddies={push,reset:()=>B.clear()};
+window.Buddies={push,reset:()=>push({type:'reset'}),top:()=>activity.top(),state:()=>activity.exportState()};
 
 /* ===== Pruebas ===== */
 if(!Q.get('clean')){document.getElementById('tools').style.display='flex';
@@ -130,7 +152,7 @@ if(!Q.get('clean')){document.getElementById('tools').style.display='flex';
  const r=a=>a[Math.random()*a.length|0];
  bc.onclick=()=>push({type:'chat',platform:r(P),user:r(N),text:r(T)});
  bg.onclick=()=>push({type:'gift',platform:r(P),user:r(N),gift:'Rose',coins:5,count:1+(Math.random()*9|0)});
- br.onclick=()=>B.clear();
+ br.onclick=()=>push({type:'reset'});
  bl.onclick=()=>{const b=B.size?r([...B.values()]):get({platform:r(P),user:r(N)}),n=Math.min(lvl(b)+1,LV.length-1);
   push({type:'gift',platform:b.platform,user:b.name,gift:'Diamond',coins:Math.max(1,LV[n].c-b.coins),count:1})};
  bs.onclick=()=>{if(B.size){const b=r([...B.values()]);push({type:'leave',platform:b.platform,user:b.name})}}}
@@ -143,24 +165,30 @@ if(!Q.get('clean')){document.getElementById('tools').style.display='flex';
  let stopped=false;
  const normPlatform=p=>{p=String(p||'').toLowerCase();return p==='strivos'||p==='starviews'?'starvios':p;};
  const emit=d=>{if(d&&d.user)window.Buddies.push(d)};
- function handle(raw) {
+ function handle(raw,source) {
   let d;try{d=JSON.parse(raw)}catch{return}
-  if(d.type==='chat' && d.text){
-   emit({type:'chat',platform:normPlatform(d.platform),user:d.nickname||d.user||d.username,text:d.text});return;
+  // Contar cada fuente solo una vez: chat del motor 8788 y regalos del servidor 8787.
+  if(source==='chat'){
+   if(d.type==='chat'&&d.text){
+    emit({type:'chat',platform:normPlatform(d.platform),user:d.user||d.nickname||d.username,nickname:d.nickname||d.user,messageId:d.messageId||d._historyId,text:d.text});return;
+   }
+   if(d.type==='join'){emit({type:'join',platform:normPlatform(d.platform),user:d.user||d.nickname,nickname:d.nickname||d.user});return}
+   if(d.type==='ended'){push({type:'ended'});return}
+   if(d.type==='connected'&&d.platform==='tiktok'){push({type:'connected',roomId:d.roomId});return}
   }
-  if(d.type==='alert'){
+  if(source==='main'&&d.type==='alert'){
    const a=d.alert||d.activity||{};
    const kind=String(a.event||a.type||a.kind||'').toLowerCase();
    if(!/gift|donat|cheer|bits|tip|superchat|subscription|sub/.test(kind))return;
-   const user=a.name||a.user||a.nickname||a.username||a.uniqueId||a.displayName;
+   const user=a.username||a.user||a.name||a.nickname||a.uniqueId||a.displayName;
    const value=Number(a.totalDiamonds||a.bits||a.amount||a.coins||a.diamonds||a.value||0);
-   emit({type:'gift',platform:normPlatform(a.platform),user,gift:a.giftName||a.gift||a.title||'Apoyo',coins:Math.max(1,value),count:1});
+   emit({type:'gift',platform:normPlatform(a.platform),user,nickname:a.name||a.nickname||user,gift:a.giftName||a.gift||a.title||'Apoyo',coins:Math.max(1,value),count:1,totalValue:true,eventId:a.bridgeEventId||a.eventId||a.messageId});
   }
  }
- ENDPOINTS.forEach(url=>{
-  let retry=0,ws;
+ ENDPOINTS.forEach((url,index)=>{
+  let retry=0,ws;const source=index===0?'chat':'main';
   const connect=()=>{if(stopped)return;try{ws=new WebSocket(url)}catch{return schedule()};
-    ws.onmessage=e=>handle(e.data);
+    ws.onmessage=e=>handle(e.data,source);
     ws.onopen=()=>retry=0;
     ws.onclose=()=>schedule();
     ws.onerror=()=>{try{ws.close()}catch{}};
