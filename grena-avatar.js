@@ -40,6 +40,7 @@
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
         <button data-s="fish-manage" type="button">Vincular API</button>
         <button data-s="fish-clear" type="button" hidden>Quitar API</button>
+        <button data-s="fish-sync" type="button" hidden>Sincronizar con Cloudflare</button>
       </div>
       <form data-fish-form hidden autocomplete="off">
         <label for="gx-fish-key">Tu API privada de Fish Audio</label>
@@ -56,11 +57,12 @@
   const fishPanel=settings.querySelector('[data-fish-panel]');
   const fishManage=settings.querySelector('[data-s="fish-manage"]');
   const fishClear=settings.querySelector('[data-s="fish-clear"]');
+  const fishSync=settings.querySelector('[data-s="fish-sync"]');
   const syncStatus=settings.querySelector('[data-sync-status]');
   const ownerInfo=settings.querySelector('[data-owner-info]');
-  let fishConfigured=false;
-  const fishRequest=async(method,body)=>{
-    const response=await fetch('/api/license/fish-credentials',{method,headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});
+  let fishConfigured=false,fishNeedsSync=false,fishRevision=0;
+  const fishRequest=async(method,body,path='/api/license/fish-credentials')=>{
+    const response=await fetch(path,{method,headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});
     const data=await response.json().catch(()=>({}));
     if(!response.ok||!data.ok)throw Error(data.error||'No se pudo conectar con GREÑA.');
     return data;
@@ -68,14 +70,26 @@
   function fishDraw(){
     fishManage.textContent=fishConfigured?'Cambiar API':'Vincular API';
     fishClear.hidden=!fishConfigured;
+    fishSync.hidden=!fishConfigured||!fishNeedsSync;
     fishForm.hidden=true;
     fishForm.querySelector('input').value='';
   }
+  function fishSavedStatus(state){
+    fishConfigured=state.configured===true;
+    fishNeedsSync=fishConfigured&&state.needsSync===true;
+    fishStatus.textContent=!fishConfigured?'No tienes ninguna API vinculada.':
+      fishNeedsSync?'✓ API protegida en este equipo. Pendiente de sincronizar con Cloudflare.':
+        '✓ API cifrada y vinculada a tu GREÑA ID en Cloudflare.';
+    if(state.warning&&fishNeedsSync)fishStatus.textContent+=' '+state.warning;
+    fishDraw();
+  }
   async function fishRefresh(){
+    const current=++fishRevision;
     fishForm.hidden=true;
     try{
       const response=await fetch('/api/license/status',{cache:'no-store'});
       const access=await response.json();
+      if(current!==fishRevision)return; // Don't overwrite a newer save with an old GET.
       if(!response.ok||!access.ok)throw Error(access.error||'No se pudo verificar tu GREÑA ID.');
       if(!access.registered||!access.connected){
         syncStatus.textContent='Tu GREÑA ID aún no está sincronizado con Cloudflare. Inicia sesión nuevamente en GREÑA Live con internet. '+(access.syncError||'');
@@ -85,12 +99,12 @@
       const owner=access.permanentAccess===true;
       ownerInfo.hidden=!owner;
       fishPanel.hidden=owner;
-      if(owner)return; // Keep both original owner Fish APIs intact.
-      const r=await fishRequest('GET');
-      fishConfigured=r.configured===true;
-      fishStatus.textContent=fishConfigured?'✓ API vinculada correctamente a tu GREÑA ID.':'No tienes ninguna API vinculada.';
-      fishDraw();
+      if(owner)return; // Preserve both existing owner Fish APIs untouched.
+      const state=await fishRequest('GET');
+      if(current!==fishRevision)return;
+      fishSavedStatus(state);
     }catch(error){
+      if(current!==fishRevision)return;
       syncStatus.textContent=error.message||'Sin conexión con el servicio de cuentas.';
       fishStatus.textContent='No fue posible consultar tu API. No se modificó ninguna configuración.';
       fishForm.hidden=true;
@@ -100,31 +114,44 @@
     e.preventDefault();
     const input=fishForm.querySelector('#gx-fish-key'),apiKey=input.value.trim();
     if(apiKey.length<20||apiKey.length>512){fishStatus.textContent='Introduce una API válida de Fish Audio.';return}
+    ++fishRevision; // Cancel any stale GET started when the settings dialog opened.
     const submit=fishForm.querySelector('[type="submit"]');submit.disabled=true;
     try{
-      await fishRequest('POST',{apiKey});
-      fishConfigured=true;
-      fishStatus.textContent='✓ API vinculada y cifrada para tu GREÑA ID.';
-      fishDraw();
-    }catch(error){fishStatus.textContent=error.message||'No se pudo guardar la API.'}
-    finally{input.value='';submit.disabled=false}
+      const saved=await fishRequest('POST',{apiKey});
+      if(saved.configured!==true)throw Error('GREÑA no confirmó el guardado de tu API.');
+      fishSavedStatus(saved);
+    }catch(error){
+      // Keep the value until the user retries or cancels. Never fake success.
+      fishStatus.textContent=error.message||'No se pudo guardar la API.';
+      fishForm.hidden=false;
+      input.value=apiKey;
+    }finally{submit.disabled=false}
   });
   settings.addEventListener('click',async e=>{
     const b=e.target.closest('[data-s]');if(!b)return;
-    if(b.dataset.s==='close')settings.close();
+    if(b.dataset.s==='close'){++fishRevision;settings.close()}
     if(b.dataset.s==='fish-manage'){
+      ++fishRevision;
       fishForm.hidden=false;fishForm.querySelector('input').focus();
     }
     if(b.dataset.s==='fish-cancel'){
       fishForm.querySelector('input').value='';fishForm.hidden=true;
     }
-    if(b.dataset.s==='fish-clear'&&fishConfigured&&confirm('¿Quitar tu API de Fish Audio de esta cuenta GREÑA ID?')){
-      b.disabled=true;
+    if(b.dataset.s==='fish-sync'&&fishConfigured&&fishNeedsSync){
+      ++fishRevision;b.disabled=true;
       try{
-        await fishRequest('DELETE');
-        fishConfigured=false;
+        const synced=await fishRequest('POST',undefined,'/api/license/fish-credentials/sync');
+        fishSavedStatus(synced);
+      }catch(err){fishStatus.textContent=err.message||'No se pudo sincronizar. La copia cifrada local sigue disponible.'}
+      finally{b.disabled=false}
+    }
+    if(b.dataset.s==='fish-clear'&&fishConfigured&&confirm('¿Quitar tu API de Fish Audio de esta cuenta GREÑA ID?')){
+      ++fishRevision;b.disabled=true;
+      try{
+        const removed=await fishRequest('DELETE');
+        if(removed.configured!==false)throw Error('El servidor no confirmó que se quitó la API.');
+        fishSavedStatus({configured:false});
         fishStatus.textContent='API desvinculada. Puedes vincular otra cuando quieras.';
-        fishDraw();
       }catch(err){fishStatus.textContent=err.message||'No se pudo quitar la API.'}
       finally{b.disabled=false}
     }

@@ -1751,7 +1751,20 @@ async function deactivateProfile(){disconnectPrivateSockets();await stopProfileR
 async function persistUsers(){await safeWriteJson(USERS_FILE,usersStore)}
 function accountPayload(user){return {ok:true,authenticated:!!user,user:accountUser(user),activeUserId:user?activeUserId:null,active:!!user&&user.id===activeUserId,needsRecoveryEmail:!!user&&!user.email,mailConfigured:mailConfigured()}}
 // El registro central de licencias no toca las credenciales de streaming ni los perfiles locales.
-const licensing=await makeLicensing({cloud:CLOUD_MODE,dataDir:DATA_DIR,profileFile,activeUser:sessionUser,readBody,remoteUrl:!CLOUD_MODE?String(process.env.GRENA_LICENSE_URL||packagedPublicConfig.licenseServiceUrl||'').trim().replace(/\/+$/,''):''});
+const licensing=await makeLicensing({
+ cloud:CLOUD_MODE,dataDir:DATA_DIR,profileFile,activeUser:sessionUser,readBody,
+ remoteUrl:!CLOUD_MODE?String(process.env.GRENA_LICENSE_URL||packagedPublicConfig.licenseServiceUrl||'').trim().replace(/\/+$/,''):'',
+ onFishCredentialsChanged:async userId=>{
+   if(!userId||userId!==activeUserId)return;
+   try{
+     const r=await fetch('http://127.0.0.1:8788/api/fish-credentials-reload',{
+       method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},
+       body:JSON.stringify({profileId:userId}),signal:AbortSignal.timeout(1800)
+     });
+     if(!r.ok)console.warn('[GREÑA Fish] Motor de voz no confirmó actualización de clave.');
+   }catch{ /* El chat no estaba abierto; al iniciarlo leerá la clave más reciente. */ }
+ }
+});
 if(!CLOUD_MODE){const licenseBeat=setInterval(()=>{if(activeUserId)licensing.heartbeat(activeUserId).catch(e=>console.warn('[GREÑA licencia]',e?.message||e))},60000);licenseBeat.unref?.()}
 
 

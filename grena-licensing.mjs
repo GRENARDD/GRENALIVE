@@ -3,6 +3,7 @@
 import {randomBytes,createHash,scrypt,timingSafeEqual} from 'node:crypto';
 import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
 import {dirname,join} from 'node:path';
+import fishUserVault from './fish-user-vault.cjs';
 
 const DAY=24*60*60*1000;
 const ONLINE_MS=135000;
@@ -36,7 +37,7 @@ async function parseBody(req,readBody){
  const raw=await readBody(req,8192);
  try{const body=JSON.parse(raw||'{}');if(!body||typeof body!=='object'||Array.isArray(body))throw Error();return body}catch{throw Object.assign(Error('JSON no válido.'),{status:400})}
 }
-export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBody,remoteUrl}){
+export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBody,remoteUrl,onFishCredentialsChanged=async()=>{},fishVault=fishUserVault}){
  const cloudFile=join(dataDir,'grena-license-registry.json'); // Legacy host implementation; el cliente local usa Cloudflare Worker.
  let registry=cloud?await readJson(cloudFile,{version:1,users:[],codes:[]}):null;
  if(cloud){
@@ -192,18 +193,78 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    if(cloud)return true;
    return localAllowed(await getCached(userId));
  }
+
+ // The remote Fish API is the source of truth across devices; a Windows DPAPI
+ // per-user backup keeps speech available when the cloud read is unavailable.
+ // Backups are bound to BOTH the local profile and verified central account.
+ function fishBackupPath(userId){return profileFile('fish-user-credential.json',userId)}
+ async function ownFishBackup(userId,c){
+   if(c?.permanentAccess===true||!c?.centralUserId||!c?.token)return null;
+   try{return await fishVault.readUserFishKey(fishBackupPath(userId),userId,c.centralUserId)}
+   catch(error){console.warn('[GREÑA Fish] Bóveda de usuario no disponible:',error?.message||'error');return null}
+ }
  async function getFishCredential(userId){
    if(cloud||!remoteUrl||!userId)return {configured:false,apiKey:null,permanentAccess:false};
-   const local=await getCached(userId);
-   const owner=local?.permanentAccess===true&&!!local?.token;
-   if(!local?.token)return {configured:false,apiKey:null,permanentAccess:owner};
+   const c=await getCached(userId),owner=c?.permanentAccess===true&&!!c?.token;
+   if(!c?.token)return {configured:false,apiKey:null,permanentAccess:owner};
    try{
-     const result=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,local.token);
-     return {configured:result.configured===true,apiKey:typeof result.apiKey==='string'?result.apiKey:null,permanentAccess:owner};
+     const result=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,c.token);
+     if(result.configured===true&&typeof result.apiKey==='string'&&result.apiKey.length>=20)
+       return {configured:true,apiKey:result.apiKey,permanentAccess:owner,source:'cloud'};
+     if(owner)return {configured:false,apiKey:null,permanentAccess:true};
+     const backup=await ownFishBackup(userId,c);
+     return backup?{configured:true,apiKey:backup,permanentAccess:false,source:'device',needsSync:true}:
+       {configured:false,apiKey:null,permanentAccess:false};
    }catch(error){
-     // The owner's existing Fish setup keeps working offline; no user key leaks into disk or logs.
+     if(!owner){
+       const backup=await ownFishBackup(userId,c);
+       if(backup)return {configured:true,apiKey:backup,permanentAccess:false,source:'device',needsSync:true,unavailable:true};
+     }
      return {configured:false,apiKey:null,permanentAccess:owner,unavailable:true};
    }
+ }
+ async function fishStatus(userId,c){
+   let remote=null,remoteError=null;
+   try{remote=await fetchCentral('/api/license/fish-credentials','GET',undefined,c.token)}
+   catch(error){remoteError=error}
+   if(remote?.configured===true)return {ok:true,configured:true,source:'cloud',needsSync:false,updatedAt:remote.updatedAt||null};
+   const backup=await ownFishBackup(userId,c);
+   if(backup)return {ok:true,configured:true,source:'device',needsSync:true,
+     warning:remoteError?'No se pudo consultar Cloudflare; la API está protegida en este equipo.':'API protegida en este equipo. Debe sincronizarse con Cloudflare.'};
+   if(remoteError)throw remoteError;
+   return {ok:true,configured:false,source:'none',needsSync:false,updatedAt:null};
+ }
+ async function storeFishCredential(userId,c,key){
+   if(typeof key!=='string'||key.length<20||key.length>512||!/^[\x21-\x7e]+$/.test(key))
+     throw Object.assign(Error('Introduce una API Fish Audio válida.'),{status:400});
+   let backedUp=false,cloudSaved=false,cloudError=null;
+   if(c.permanentAccess!==true&&c.centralUserId){
+     try{backedUp=await fishVault.saveUserFishKey(fishBackupPath(userId),userId,c.centralUserId,key)}
+     catch(e){console.warn('[GREÑA Fish] No se pudo crear copia DPAPI:',e?.message||'error')}
+   }
+   try{
+     const result=await fetchCentral('/api/license/fish-credentials','POST',{apiKey:key},c.token);
+     if(result.configured!==true)throw Object.assign(Error('Cloudflare no confirmó el guardado.'),{status:502});
+     // Always verify by reading the exact secret back BEFORE claiming cloud save.
+     const check=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,c.token);
+     if(check.configured!==true||check.apiKey!==key)
+       throw Object.assign(Error('Cloudflare todavía no confirmó la API guardada.'),{status:502});
+     cloudSaved=true;
+   }catch(e){cloudError=e}
+   if(!cloudSaved&&!backedUp)throw cloudError||Object.assign(Error('No se pudo guardar de forma segura la API Fish Audio.'),{status:503});
+   try{await onFishCredentialsChanged(userId)}catch{}
+   return {ok:true,configured:true,source:cloudSaved?'cloud':'device',
+     needsSync:!cloudSaved,warning:cloudSaved?'': 'La API funciona desde la copia cifrada de este equipo, pero no pudo sincronizarse con Cloudflare.'};
+ }
+ async function syncFishCredential(userId,c){
+   const backup=await ownFishBackup(userId,c);
+   if(!backup)throw Object.assign(Error('No hay ninguna copia local de la API para sincronizar.'),{status:409});
+   const saved=await fetchCentral('/api/license/fish-credentials','POST',{apiKey:backup},c.token);
+   if(saved.configured!==true)throw Object.assign(Error('Cloudflare no confirmó el guardado.'),{status:502});
+   const verified=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,c.token);
+   if(!verified.configured||verified.apiKey!==backup)throw Object.assign(Error('Cloudflare no confirmó la API guardada.'),{status:502});
+   try{await onFishCredentialsChanged(userId)}catch{}
+   return {ok:true,configured:true,source:'cloud',needsSync:false};
  }
  async function handle(req,res,pathname){
    const remote=pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/');
@@ -341,13 +402,31 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
        const result=await fetchCentral(pathname,req.method,payload,c.token);
        return reply(res,200,result),true;
      }
-     if(pathname==='/api/license/fish-credentials'&&['GET','POST','DELETE'].includes(req.method)){
+     if((pathname==='/api/license/fish-credentials'&&['GET','POST','DELETE'].includes(req.method))||
+        (pathname==='/api/license/fish-credentials/sync'&&req.method==='POST')){
        const c=await getCached(u.id);
        if(!c?.token)return reply(res,401,{ok:false,error:'Sincroniza tu GREÑA ID antes de configurar Fish Audio.'}),true;
-       const payload=req.method==='POST'?await parseBody(req,readBody):undefined;
-       const result=await fetchCentral(pathname,req.method,payload,c.token);
-       // Never include an API key in a status response.
-       return reply(res,200,{ok:true,configured:result.configured===true,updatedAt:result.updatedAt||null}),true;
+       if(pathname.endsWith('/sync')){
+         const saved=await syncFishCredential(u.id,c);
+         return reply(res,200,saved),true;
+       }
+       if(req.method==='GET'){
+         const state=await fishStatus(u.id,c);
+         return reply(res,200,state),true;
+       }
+       if(req.method==='POST'){
+         const payload=await parseBody(req,readBody);
+         const saved=await storeFishCredential(u.id,c,String(payload.apiKey||'').trim());
+         return reply(res,200,saved),true;
+       }
+       // Clear the central credential before removing the isolated Windows backup.
+       const removed=await fetchCentral(pathname,'DELETE',undefined,c.token);
+       if(removed.configured!==false)throw Object.assign(Error('Cloudflare no confirmó que se quitó la API.'),{status:502});
+       if(c.centralUserId&&c.permanentAccess!==true){
+         await fishVault.deleteUserFishKey(fishBackupPath(u.id),u.id,c.centralUserId);
+       }
+       try{await onFishCredentialsChanged(u.id)}catch{}
+       return reply(res,200,{ok:true,configured:false,source:'none'}),true;
      }
      if(pathname==='/api/license/status'&&req.method==='GET'){
        const c=await getCached(u.id);

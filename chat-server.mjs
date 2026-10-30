@@ -2821,6 +2821,28 @@ const server =
           }
         }
 
+        // Refresh only the Fish key; unlike a profile reload, do not restart
+        // platforms or discard live chat when the user links their own API.
+        if (url.pathname === '/api/fish-credentials-reload' && request.method === 'POST') {
+          if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){
+            response.writeHead(403,{'content-type':'application/json; charset=utf-8'});
+            response.end(JSON.stringify({ok:false,error:'Forbidden'}));return;
+          }
+          let body='';body=await readBody(request,2048);
+          let incoming={};try{incoming=JSON.parse(body||'{}')}catch{}
+          const requested=String(incoming.profileId||'');
+          if(!requested||requested!==activeProfileId){
+            response.writeHead(409,{'content-type':'application/json; charset=utf-8'});
+            response.end(JSON.stringify({ok:false,error:'GREÑA ID no activo'}));return;
+          }
+          fishProfileAccount=null;
+          clearFishCredentialCache();
+          // Audio cache is also per-user but old generated speech should not
+          // survive an explicit key rotation or deletion.
+          fishAudioCache.clear();fishAudioCacheBytes=0;
+          response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+          response.end(JSON.stringify({ok:true,refreshed:true}));return;
+        }
         if (url.pathname === '/api/profile-reload' && request.method === 'POST') {
           if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){response.writeHead(403);response.end('Forbidden');return;}
           let body='';body=await readBody(request);
