@@ -115,19 +115,60 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    }catch{return {isOwner:false,configured:false,registered:!!c.token}}
  }
  async function isOwner(userId){return (await ownerStatus(userId)).isOwner===true}
+
+ // La identidad remota es el GREÑA ID compartido entre equipos; las cuentas de
+ // streaming y los ajustes continúan en perfiles locales, aislados por dispositivo.
+ function centralConfigured(){return !cloud&&/^https:\/\//.test(remoteUrl||'')}
+ async function loginCentralIdentity(username,password){
+   if(!centralConfigured())throw Object.assign(Error('Cloudflare no está configurado.'),{status:503});
+   const result=await callCloud('/api/license/identity/login',{username:normalizeUser(username),password,deviceId:installId});
+   if(!result?.token||normalizeUser(result?.user?.username)!==normalizeUser(username)){
+     throw Object.assign(Error('Cloudflare devolvió una identidad distinta o incompleta.'),{status:502});
+   }
+   return result;
+ }
+ async function registerCentralIdentity(user,password){
+   if(!centralConfigured())throw Object.assign(Error('Cloudflare no está configurado.'),{status:503});
+   const result=await callCloud('/api/license/identity/register',{
+     username:normalizeUser(user.username),email:normalizeEmail(user.email),
+     displayName:String(user.displayName||user.username||'').trim().slice(0,40),password,deviceId:installId
+   });
+   if(!result?.token||normalizeUser(result?.user?.username)!==normalizeUser(user.username)){
+     throw Object.assign(Error('No se confirmó el registro de GREÑA ID en Cloudflare.'),{status:502});
+   }
+   return result;
+ }
+ async function attachCentralSession(localUserId,result,username){
+   if(!result?.token||normalizeUser(result?.user?.username)!==normalizeUser(username)){
+     throw Object.assign(Error('La identidad central no coincide con este perfil.'),{status:409});
+   }
+   const old=await getCached(localUserId);
+   if(old?.centralUserId&&result?.user?.id&&old.centralUserId!==String(result.user.id)){
+     throw Object.assign(Error('Este perfil ya pertenece a otro GREÑA ID central.'),{status:409});
+   }
+   await updateCached(localUserId,{
+     connected:true,token:result.token,centralUserId:String(result.user.id||old?.centralUserId||''),
+     license:result.license||null,permanentAccess:result.permanentAccess===true,
+     lastValidatedAt:Date.now(),syncError:''
+   });
+ }
  async function onLocalAuth(user,password){
-   if(cloud||!user||!remoteUrl)return;
+   if(cloud||!user||!remoteUrl)return {connected:false,skipped:true};
    try{
      let result;
-     try{result=await callCloud('/api/license/identity/login',{username:user.username,password,deviceId:installId})}
+     try{result=await loginCentralIdentity(user.username,password)}
      catch(e){
        if(e.status!==404)throw e;
-       result=await callCloud('/api/license/identity/register',{username:user.username,email:user.email,displayName:user.displayName,password,deviceId:installId});
+       result=await registerCentralIdentity(user,password);
      }
-     await updateCached(user.id,{connected:true,token:result.token,license:result.license||null,permanentAccess:result.permanentAccess===true,lastValidatedAt:Date.now(),syncError:''});
+     await attachCentralSession(user.id,result,user.username);
+     return {connected:true};
    }catch(e){
+     // No borrar el token/licencia previamente validado: una caída temporal no
+     // debe desvincular de forma irreversible las cuentas existentes.
      await updateCached(user.id,{connected:false,syncError:String(e.message||e).slice(0,180)}).catch(()=>{});
      console.warn('[GREÑA licencias] Identidad pendiente de sincronizar:',e?.message||e);
+     return {connected:false,error:String(e.message||e).slice(0,180)};
    }
  }
  async function heartbeat(userId){
@@ -331,5 +372,5 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      return true;
    }
  }
- return {handle,onLocalAuth,heartbeat,canUse,getCached,getFishCredential,ownerStatus,isOwner};
+ return {handle,onLocalAuth,heartbeat,canUse,getCached,getFishCredential,ownerStatus,isOwner,centralConfigured,loginCentralIdentity,registerCentralIdentity,attachCentralSession};
 }
