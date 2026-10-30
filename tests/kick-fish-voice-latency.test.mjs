@@ -86,3 +86,19 @@ test('Fish Audio preserves original provider format and does not pitch-shift voi
  const chat=readFileSync(new URL('../chat.html',import.meta.url),'utf8');
  assert.match(chat,/audio\.playbackRate = 1/);
 });
+
+test('Fish audio cache is bounded and keyed by account credentials',()=>{
+ const server=readFileSync(new URL('../chat-server.mjs',import.meta.url),'utf8');
+ const cacheSource=portion('const FISH_AUDIO_CACHE_TTL_MS=90000;','const FISH_CREDENTIAL_CACHE_MS=15000;');
+ const ctx={Buffer,Map,Date};
+ runInNewContext(cacheSource+String.fromCharCode(10)+'this.get=fishAudioCacheGet;this.put=fishAudioCachePut;this.cache=fishAudioCache',ctx);
+ ctx.put('profile-a-key1-model-text',Buffer.from('audio-a'));
+ assert.equal(ctx.get('profile-a-key1-model-text').toString(),'audio-a');
+ assert.equal(ctx.get('profile-b-key1-model-text'),null);
+ assert.equal(ctx.get('profile-a-key2-model-text'),null);
+ assert.ok(server.includes("fishContext.accounts.map(a=>a.key).sort()"));
+ assert.ok(server.includes('fishAudioCacheGet(fishCacheKey)'));
+ assert.ok(server.includes('fishAudioCachePut(fishCacheKey,audio)'));
+ for(let i=0;i<60;i++)ctx.put('unique-'+i,Buffer.from('a'));
+ assert.ok(ctx.cache.size<=48);
+});

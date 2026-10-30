@@ -2170,9 +2170,13 @@ function pumpFishPrefetch(){
 
   // Solo adelantamos los primeros mensajes de la cola. Así mantenemos orden,
   // no saturamos Fish Audio y normalmente la próxima voz ya está lista.
-  const candidates = voiceQueue.slice(0,FISH_PREFETCH_LIMIT);
+  // With a one-message live queue, prefetch only the next audible message.
+  // Never spend multiple Fish requests preparing audio that overload protection
+  // will discard; this leaves network and provider capacity for playback.
+  const candidates = voiceQueue.slice(0,Math.min(1,FISH_PREFETCH_LIMIT));
+  const prefetchBudget = Math.min(1,fishPrefetchConcurrency());
   for(const message of candidates){
-    if(fishPrefetchActive >= fishPrefetchConcurrency()) break;
+    if(fishPrefetchActive >= prefetchBudget) break;
     if(!message?.__fishPreparedBlob && !message?.__fishPreparePromise && !message?.__fishPrefetchError){
       startFishPrefetch(message);
     }
