@@ -15,6 +15,7 @@ on:
       - 'grena-community.js'
       - 'grena-licensing.mjs'
       - 'fish-owner-vault.cjs'
+      - 'fish-user-vault.cjs'
       - 'license-admin.html'
       - 'license.html'
       - 'mode.html'
@@ -172,6 +173,8 @@ jobs:
           node --check desktop-bubble-preload.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check server.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node --check fish-user-vault.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --check chat-server.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
