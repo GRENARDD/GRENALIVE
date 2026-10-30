@@ -235,7 +235,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    return {ok:true,configured:false,source:'none',needsSync:false,updatedAt:null};
  }
  async function storeFishCredential(userId,c,key){
-   if(typeof key!=='string'||key.length<20||key.length>512||!/^[\\x21-\\x7e]+$/.test(key))
+   if(typeof key!=='string'||key.length<20||key.length>512||!/^[\x21-\x7e]+$/.test(key))
      throw Object.assign(Error('Introduce una API Fish Audio válida.'),{status:400});
    let backedUp=false,cloudSaved=false,cloudError=null;
    if(c.permanentAccess!==true&&c.centralUserId){
