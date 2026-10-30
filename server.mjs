@@ -2209,7 +2209,18 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    if(usersStore.users.some(u=>normalizeEmail(u.email)===email))return json(res,409,{ok:false,error:'Ese correo ya está vinculado a otra cuenta GREÑA.'});
    const first=usersStore.users.length===0,salt=randomBytes(16).toString('hex');
    const user={id:createHash('sha256').update(username+Date.now()+randomBytes(8).toString('hex')).digest('hex').slice(0,20),username,displayName:displayName||username,email,salt,passwordHash:hashPassword(password,salt),createdAt:Date.now()};
-   usersStore.users.push(user);await persistUsers();if(first&&!CLOUD_MODE)await migrateLegacyIntoProfile(user.id);sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user);await licensing.onLocalAuth(user,password);return json(res,201,accountPayload(user));
+   // Registrar centralmente ANTES de crear el perfil local: evitar cuentas huérfanas.
+   let central=null;
+   if(!CLOUD_MODE&&licensing.centralConfigured()){
+     try{central=await licensing.registerCentralIdentity(user,password)}
+     catch(e){return json(res,e.status===409?409:503,{ok:false,error:e.status===409?'Este GREÑA ID o correo ya existe en Cloudflare. Inicia sesión en lugar de registrarte.':'No se pudo vincular GREÑA ID con Cloudflare. Revisa internet e inténtalo de nuevo.'})}
+   }
+   usersStore.users.push(user);await persistUsers();
+   if(first&&!CLOUD_MODE)await migrateLegacyIntoProfile(user.id);
+   if(central)await licensing.attachCentralSession(user.id,central,user.username);
+   sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user);
+   if(!central)await licensing.onLocalAuth(user,password);
+   return json(res,201,{...accountPayload(user),centralLinked:!!central});
   });
  }
  if(pathname==='/api/account/login'&&req.method==='POST'){
@@ -2218,9 +2229,38 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    {const l=loginLockedSeconds(username);if(l)return tooMany(res,l)}
    const user=usersStore.users.find(u=>u.username===username);
    const passOk=user?await verifyPasswordAsync(password,user):(await scryptAsync(password,DUMMY_SALT).catch(()=>0),false);
+   if(!user&&username.length>=3&&password&&!CLOUD_MODE&&licensing.centralConfigured()){
+     // Nueva instalación: un GREÑA ID válido en Cloudflare puede entrar sin
+     // registro local previo. El perfil de streaming sigue aislado en este PC.
+     let remote;
+     try{remote=await licensing.loginCentralIdentity(username,password)}
+     catch(e){
+       if(e.status===404||e.status===401){loginFailed(username);return json(res,401,{ok:false,error:'Usuario o contraseña incorrectos.'})}
+       return json(res,503,{ok:false,error:'No se pudo verificar tu GREÑA ID en Cloudflare. Comprueba la conexión y vuelve a intentarlo.'});
+     }
+     const remoteUser=remote.user||{},email=normalizeEmail(remoteUser.email);
+     if(!validEmail(email))return json(res,502,{ok:false,error:'Tu GREÑA ID central necesita un correo de recuperación válido.'});
+     const salt=randomBytes(16).toString('hex');
+     const provisioned={id:createHash('sha256').update(username+Date.now()+randomBytes(8).toString('hex')).digest('hex').slice(0,20),
+       username,displayName:String(remoteUser.displayName||username).slice(0,40),email,
+       salt,passwordHash:hashPassword(password,salt),createdAt:Date.now()};
+     try{
+       await withAccountTransition(async()=>{
+         if(usersStore.users.some(x=>x.username===username||normalizeEmail(x.email)===email))throw Object.assign(Error('La cuenta se creó en otra sesión. Intenta entrar de nuevo.'),{status:409});
+         usersStore.users.push(provisioned);
+         await persistUsers();
+         await licensing.attachCentralSession(provisioned.id,remote,username);
+         await activateProfile(provisioned.id);
+         await createSession(res,provisioned);
+       });
+     }catch(e){return json(res,e.status===409?409:500,{ok:false,error:'No se pudo guardar el perfil local. Vuelve a intentarlo.'})}
+     return json(res,200,{...accountPayload(provisioned),centralLinked:true,newDevice:true});
+   }
    if(!user||!passOk){loginFailed(username);return json(res,401,{ok:false,error:'Usuario o contraseña incorrectos.'})}
    loginRate.delete(username);
-   await withAccountTransition(async()=>{sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user)});await licensing.onLocalAuth(user,password);return json(res,200,accountPayload(user));
+   await withAccountTransition(async()=>{sessionsStore.sessions={};await activateProfile(user.id);await createSession(res,user)});
+   const sync=await licensing.onLocalAuth(user,password);
+   return json(res,200,{...accountPayload(user),centralLinked:sync.connected===true,centralSyncError:sync.error||''});
  }
  if(pathname==='/api/account/logout'&&req.method==='POST'){await withAccountTransition(async()=>{const u=sessionUser(req);await destroySession(req,res);if(u?.id&&u.id===activeUserId)await deactivateProfile()});return json(res,200,{ok:true});}
  if(pathname==='/api/account/recovery-email'&&req.method==='POST'){

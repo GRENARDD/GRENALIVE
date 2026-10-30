@@ -10,7 +10,7 @@ if pkg.get('version')!='5.0.9':
 tag=os.getenv('GITHUB_REF_NAME','') if os.getenv('GITHUB_REF_TYPE')=='tag' else ''
 if tag and not re.fullmatch(r'v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,4}',tag):
     raise RuntimeError('Tag de actualización inválido')
-pkg['version']=tag[1:] if tag else '5.1.6'
+pkg['version']=tag[1:] if tag else '5.1.7'
 pkg.setdefault('dependencies',{})['electron-updater']='^6.6.2'
 pkg['build']['publish']={'provider':'github','owner':'GRENARDD','repo':'GRENALIVE','releaseType':'release'}
 pkgpath.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
