@@ -10,7 +10,7 @@ if pkg.get('version')!='5.0.9':
 tag=os.getenv('GITHUB_REF_NAME','') if os.getenv('GITHUB_REF_TYPE')=='tag' else ''
 if tag and not re.fullmatch(r'v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,4}',tag):
     raise RuntimeError('Tag de actualización inválido')
-pkg['version']=tag[1:] if tag else '5.1.3'
+pkg['version']=tag[1:] if tag else '5.1.6'
 pkg.setdefault('dependencies',{})['electron-updater']='^6.6.2'
 pkg['build']['publish']={'provider':'github','owner':'GRENARDD','repo':'GRENALIVE','releaseType':'release'}
 pkgpath.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -43,7 +43,11 @@ s+=r"""
    for(let i=0;i<3;i++){if(a[i]!==b[i])return a[i]>b[i]}
    return current!==stableCurrent;
  };
- autoUpdater.on('error',logError);
+ autoUpdater.on('error',error=>{
+   downloading=false;lastOffered='';
+   if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1);
+   logError(error);
+ });
  autoUpdater.on('update-available',info=>{
    if(info.version===lastOffered)return;
    lastOffered=info.version;
@@ -55,7 +59,11 @@ s+=r"""
    }).then(answer=>{
      if(answer.response!==0||downloading)return;
      downloading=true;
-     autoUpdater.downloadUpdate().catch(error=>{downloading=false;logError(error)});
+     autoUpdater.downloadUpdate().catch(error=>{
+       downloading=false;lastOffered='';
+       if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1);
+       logError(error);
+     });
    }).catch(logError);
  });
  autoUpdater.on('download-progress',progress=>{
