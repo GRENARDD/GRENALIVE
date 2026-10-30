@@ -5,11 +5,16 @@ const {readFileSync}=require('node:fs');
 const {join}=require('node:path');
 const src=name=>readFileSync(join(__dirname,'..',name),'utf8');
 
-test('Administración no contiene bodegas ni asignación de APIs de Fish Audio',()=>{
+test('Solo el propietario tiene en Administración el formulario de asignación Fish para otros GREÑA ID',()=>{
  const ui=src('license-admin.html');
- assert.doesNotMatch(ui,/id="ownerFishPanel"|id="fishAdminPanel"|data-owner-fish|fishAdminForm/);
+ assert.match(ui,/id="fishOwnerAssignment"/);
+ assert.match(ui,/id="assignFishForm"/);
+ assert.match(ui,/id="assignFishKey" type="password"/);
+ assert.match(ui,/request\('fish-credentials',\{username,apiKey,action:'set'\}\)/);
+ assert.match(ui,/fishButton\.textContent=u\.fishConfigured/);
  assert.match(ui,/Usuarios GREÑA ID/);
  assert.match(ui,/isGithubActionsTestUser/);
+ assert.doesNotMatch(ui,/id="ownerFishPanel"|data-owner-fish/);
 });
 test('Configuración permite vincular, cambiar y quitar la API propia sin mostrarla',()=>{
  const ui=src('grena-avatar.js');
