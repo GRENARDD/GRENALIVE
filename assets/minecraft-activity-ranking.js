@@ -60,7 +60,8 @@
         u.xp+=Math.max(10,Math.min(400,Math.round(10+3*Math.sqrt(coins))));
       }
       if(users.size>MAX_TRACKED){
-        const oldest=[...users.values()].sort((a,b)=>a.lastSeen-b.lastSeen).slice(0,users.size-MAX_TRACKED);
+        // Retain the most active participants even when TikTok emits thousands of joins.
+        const oldest=[...users.values()].sort((a,b)=>(a.comments*5+a.timeMs/60000*2)-(b.comments*5+b.timeMs/60000*2)||a.lastSeen-b.lastSeen).slice(0,users.size-MAX_TRACKED);
         for(const r of oldest)users.delete(r.key);
       }
       return u;
