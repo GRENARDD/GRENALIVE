@@ -13,6 +13,12 @@ test('Minecraft muestra como máximo diez y los ordena por comentarios y tiempo 
  assert.equal(top[0].key,'tiktok:viewer12');
  assert.ok(top.every(x=>x.comments>=1));
 });
+test('Miles de entradas de TikTok no desplazan al participante con más actividad',()=>{
+ const a=createTracker(),now=Date.now();
+ a.observe({type:'chat',platform:'tiktok',user:'top_fan',text:'hola'},now);
+ for(let i=0;i<540;i++)a.observe({type:'join',platform:'tiktok',user:'nuevo'+i},now+1000+i);
+ assert.ok(a.top(now+2000).some(u=>u.key==='tiktok:top_fan'));
+});
 test('Tiempo estimado no aumenta indefinidamente sin nueva señal de presencia',()=>{
  const a=createTracker(),now=Date.now();
  a.observe({type:'join',platform:'tiktok',user:'viewer'},now);
