@@ -51,6 +51,27 @@ function draw(){
    const add=document.createElement('button');add.className='quick';add.textContent='+ Días';add.title='Activar o renovar días a @'+u.username;add.onclick=()=>{$('grantUser').value=u.username;window.scrollTo({top:document.getElementById('directGrant').offsetTop-20,behavior:'smooth'});$('grantUser').focus()};action.appendChild(add);
    if(license?.active){const revoke=document.createElement('button');revoke.className='danger';revoke.textContent='Revocar';revoke.onclick=async()=>{if(!confirm('¿Revocar la licencia de @'+u.username+'?'))return;try{await request('revoke',{userId:u.id});await reload()}catch(e){$('error').textContent=e.message}};action.appendChild(revoke)}
    const suspend=document.createElement('button');suspend.className='secondary';suspend.textContent=u.disabled?'Reactivar cuenta':'Suspender';suspend.onclick=async()=>{if(!confirm('¿Cambiar el estado de @'+u.username+'?'))return;try{await request('suspend',{userId:u.id,disabled:!u.disabled});await reload()}catch(e){$('error').textContent=e.message}};action.appendChild(suspend);
+   if(u.email){
+     const recover=document.createElement('button');
+     recover.className='secondary';
+     recover.textContent='Recuperar acceso';
+     recover.title='Enviar instrucciones de recuperación al correo vinculado';
+     recover.onclick=async()=>{
+       if(!confirm('¿Solicitar un código de recuperación para @'+u.username+'? Se enviará únicamente al correo vinculado; no podrás ver ni cambiar su contraseña.'))return;
+       recover.disabled=true;
+       try{
+         const response=await fetch('/api/account/recovery/request',{
+           method:'POST',headers:{'content-type':'application/json'},
+           body:JSON.stringify({email:u.email}),cache:'no-store'
+         });
+         const data=await response.json().catch(()=>({}));
+         if(!response.ok||!data.ok)throw Error(data.error||'No se pudo solicitar la recuperación.');
+         $('error').textContent='Solicitud enviada para @'+u.username+'. Si el correo está configurado y vinculado, recibirá un código temporal. El usuario debe terminar el proceso desde el inicio de sesión.';
+       }catch(error){$('error').textContent=String(error.message||error)}
+       finally{recover.disabled=false}
+     };
+     action.appendChild(recover);
+   }
    tbody.appendChild(row);
  }
 }
