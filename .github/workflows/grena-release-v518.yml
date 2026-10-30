@@ -1,0 +1,94 @@
+name: GREÑA · Publicar Desktop v5.1.8 estable
+on:
+  workflow_run:
+    workflows:
+      - GREÑA LIVE Desktop (kit de integración)
+    types:
+      - completed
+    branches:
+      - main
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: '5.1.8'
+      TESTED_RUN: ${{ github.event.workflow_run.id }}
+      TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Skip when v5.1.8 is already official
+        id: existing_release
+        shell: bash
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION ya está publicada. Los cambios siguientes deben salir como una nueva versión."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify Windows build, current HEAD and release identity
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TESTED_SHA" || { echo 'El código de main cambió después de compilar; no publicar un instalador antiguo'; exit 1; }
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_sha)" = "$TESTED_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .event)" = push
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_branch)" = main
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'v5.1.8 ya existe. No sobrescribir una versión oficial.'
+            exit 1
+          fi
+      - name: Download and verify compiled 5.1.8 Windows installer
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-release
+          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v5.1.8 --dir dist-release
+          mapfile -t installers < <(find dist-release -maxdepth 2 -type f -iname '*5.1.8.exe' -size +60000k)
+          test "${#installers[@]}" -eq 1 || { echo "Se esperaba exactamente un instalador estable 5.1.8 (encontrados: ${#installers[@]})"; exit 1; }
+          installer="${installers[0]}"
+          test -s "$installer"
+          mv "$installer" dist-release/GRENA.LIVE.Setup.5.1.8.exe
+          exe='GRENA.LIVE.Setup.5.1.8.exe'
+          size="$(stat -c '%s' "dist-release/$exe")"
+          hash="$(openssl dgst -sha512 -binary "dist-release/$exe" | base64 -w0)"
+          test "${#hash}" -ge 70
+          printf 'version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %s\npath: %s\nsha512: %s\nreleaseDate: %s\n' "$VERSION" "$exe" "$hash" "$size" "$exe" "$hash" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist-release/latest.yml
+          ( cd dist-release && sha256sum "$exe" > SHA256SUMS.txt )
+          test -s dist-release/latest.yml
+      - name: Publish official v5.1.8 release (not Cloudflare rollout)
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'EOF'
+          GREÑA Live Desktop v5.1.8 — reparación de Fish Audio por usuario
+
+          - Actualizaciones seguras: instalador v5.1.8 con prueba real de actualización desde v5.1.7 y comprobación SHA256 de los datos del perfil.
+          - GREÑA ID: mantiene la vinculación central y las sesiones individuales ya corregidas en v5.1.7.
+          - Fish Audio: ahora verifica en Cloudflare que el guardado de la API fue real y ofrece copia local cifrada con Windows DPAPI, independiente por usuario.
+          - Fish Audio: el botón Sincronizar con Cloudflare permite restaurar una clave local y el motor de voz descarta inmediatamente la caché antigua sin desconectar el LIVE.
+          - Se mantienen los personajes de Minecraft y el ranking de actividad de la versión anterior.
+          - Inicio de Electron: se mantiene la verificación de universalify, fs-extra y electron-updater para evitar errores de dependencias.
+          - Interfaz: impide que consultas antiguas muestren una API como desaparecida después de guardar; indica si está en Cloudflare o solo en el equipo.
+          - Se mantiene la recuperación de acceso mediante correo verificado y los ajustes existentes de voz y cuentas.
+          - Cloudflare D1: mantiene el servicio y los datos actuales; FISH_CREDENTIALS_KEY debe estar configurado para sincronizar APIs en todos los dispositivos.
+          - El programa no comparte las API de Fish Audio entre usuarios ni altera las dos claves del propietario.
+
+          El instalador v5.1.8 se probó mediante GitHub Actions en Windows.
+          La actualización automática dentro del programa NO se habilita con la publicación de GitHub:
+          requiere una aprobación del propietario en GREÑA Licencias Cloudflare D1.
+          Antes de actualizar, haz una copia de %APPDATA%\\GREÑA LIVE PRO.
+          EOF
+          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.5.1.8.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" --title "GREÑA Live Desktop v$VERSION" --notes-file release-notes.md
