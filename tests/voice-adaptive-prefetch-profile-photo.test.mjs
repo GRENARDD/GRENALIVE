@@ -26,7 +26,7 @@ test('Adaptive Fish prefetch reserves resources for the current audio on slow ne
  assert.equal(readNetwork({downlink:2.5}),2);
  assert.equal(readNetwork({effectiveType:'4g',rtt:65,downlink:20}),3);
 });
-test('Fish prefetch prepares at most three requests from the first four queued messages',()=>{
+test('Fish prefetch reserves capacity for only the next audible message',()=>{
  const source=cut(chat,'function pumpFishPrefetch(){','function updateFishControls(){');
  const messages=Array.from({length:7},(_,id)=>({text:String(id)}));
  const started=[];
@@ -43,9 +43,9 @@ test('Fish prefetch prepares at most three requests from the first four queued m
  };
  runInNewContext(source+'\nthis.pump=pumpFishPrefetch',ctx);
  ctx.pump();
- assert.deepEqual(started,['0','1','2']);
+ assert.deepEqual(started,['0']);
  ctx.pump();
- assert.deepEqual(started,['0','1','2']);
+ assert.deepEqual(started,['0']);
 });
 test('The existing five stable Fish voices and natural waveform stay unchanged',()=>{
  assert.match(chat,/const FISH_VOICE_COUNT = 5/);
