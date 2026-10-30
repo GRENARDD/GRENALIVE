@@ -2,19 +2,19 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {readFileSync}=require('node:fs'),{join}=require('node:path');
 const src=file=>readFileSync(join(__dirname,'..',file),'utf8');
-test('5.1.6 uses a unique artifact and does not silently publish a tag build',()=>{
+test('5.1.7 uses a unique artifact and does not silently publish a tag build',()=>{
  const flow=src('.github/workflows/grena-desktop-from-kit.yml');
  assert.match(flow,/Set official 5\.1\.6 version on main/);
  assert.match(flow,/GRENA-LIVE-Installer-Windows-v5\.1\.6/);
  assert.match(flow,/electron-builder --win nsis --x64 --publish never/);
  assert.doesNotMatch(flow,/electron-builder --win nsis --x64 --publish always/);
- assert.match(flow,/verify-upgrade-515-to-516\.ps1/);
+ assert.match(flow,/verify-upgrade-516-to-517\.ps1/);
  assert.match(flow,/Language\.Parser\]::ParseFile/);
- assert.match(src('desktop-build/verify-upgrade-515-to-516.ps1'),/OK \$\{stage\}: perfil/);
+ assert.match(src('desktop-build/verify-upgrade-516-to-517.ps1'),/OK \$\{stage\}: perfil/);
 });
-test('upgrade gate installs 5.1.5 and 5.1.6 in same location and preserves hashed app data',()=>{
+test('upgrade gate installs 5.1.6 and 5.1.7 in same location and preserves hashed app data',()=>{
  const flow=src('.github/workflows/grena-desktop-from-kit.yml');
- const script=src('desktop-build/verify-upgrade-515-to-516.ps1');
+ const script=src('desktop-build/verify-upgrade-516-to-517.ps1');
  assert.match(script,/\$oldVersion='5\.1\.5'/);
  assert.match(script,/\$newVersion='5\.1\.6'/);
  assert.match(script,/Install-Silent \$oldSetup \$oldVersion/);
@@ -27,8 +27,8 @@ test('upgrade gate installs 5.1.5 and 5.1.6 in same location and preserves hashe
  assert.ok(flow.indexOf('Smoke test compiled Windows backend')<flow.indexOf('Verify installed upgrade'));
  assert.ok(flow.indexOf('Verify installed upgrade')<flow.indexOf('Upload the Windows installer'));
 });
-test('release 5.1.6 requires successful build at current commit and owner still approves rollout',()=>{
- const flow=src('.github/workflows/grena-release-v516.yml');
+test('release 5.1.7 requires successful build at current commit and owner still approves rollout',()=>{
+ const flow=src('.github/workflows/grena-release-v517.yml');
  const up=src('desktop-build/fix_official_updates.py');
  const worker=src('cloudflare/licenses/src/updates.mjs');
  assert.match(flow,/VERSION: '5\.1\.6'/);
