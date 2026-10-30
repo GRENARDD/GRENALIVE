@@ -64,6 +64,7 @@ jobs:
           - Inicio de Electron: empaquetado y verificación de universalify, fs-extra y electron-updater para corregir el fallo por dependencia ausente.
           - Fish Audio: optimizaciones de latencia y prebuffer limitado para priorizar el siguiente mensaje audible, con caché de audio acotada y aislada.
           - Administración de cuentas: posibilidad de iniciar el proceso de recuperación para cuentas con correo verificado desde la lista de usuarios.
+          - Licencias BETA: asignación sin vencimiento, revocación por el propietario e insignia BETA visible en la aplicación. Requiere el Worker Cloudflare actualizado.
           - No se incluye todavía el restablecimiento mediante contraseña provisional para cuentas sin correo verificado.
 
           El instalador v5.1.5 se probó mediante GitHub Actions en Windows.

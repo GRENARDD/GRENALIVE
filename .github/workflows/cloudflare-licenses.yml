@@ -1,6 +1,15 @@
 name: Publicar licencias Cloudflare
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cloudflare/licenses/src/worker.mjs'
+      - 'cloudflare/licenses/src/updates.mjs'
+      - 'cloudflare/licenses/migrations/**'
+      - 'tests/beta-license.test.cjs'
+      - '.github/workflows/cloudflare-licenses.yml'
 permissions:
   contents: read
 jobs:
@@ -13,6 +22,8 @@ jobs:
           node-version: '24'
       - name: Verify Worker syntax
         run: node --check cloudflare/licenses/src/worker.mjs
+      - name: Validate BETA licensing invariants
+        run: node --test tests/beta-license.test.cjs
       - name: Apply schema and publish Worker
         working-directory: cloudflare/licenses
         env:

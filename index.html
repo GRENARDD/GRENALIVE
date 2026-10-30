@@ -38,7 +38,7 @@
     <div class="top-status">
       <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
       <a class="top-link" href="/mode.html" title="Elegir versión web o móvil">📱 Cambiar versión</a>
-      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b class="gx-profile-name-inline"><i class="gx-profile-name-photo" id="profileNamePhoto" aria-hidden="true">G</i><span id="profileName">GREÑA ID</span></b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
+      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b class="gx-profile-name-inline"><i class="gx-profile-name-photo" id="profileNamePhoto" aria-hidden="true">G</i><span id="profileName">GREÑA ID</span><span id="betaLicenseBadge" hidden style="margin-left:7px;padding:2px 7px;background:#145568;color:#d7ffff;border:1px solid #52e2ec;border-radius:7px;font-size:10px;font-weight:900;letter-spacing:.7px" title="Licencia BETA sin fecha de vencimiento">✦ BETA</span></b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
       <button id="exitAppBtn" class="app-exit-btn" type="button">Salir de GREÑA</button>
     </div>
   </header>
@@ -243,6 +243,13 @@
 <script>if(/Electron\/\d+/i.test(navigator.userAgent)){const b=document.getElementById('grenaBubbleModeControl');if(b)b.style.display='inline-flex'}</script>
 <script src="/ui-v2.js"></script>
 <script src="/grena-avatar.js"></script>
+<script>
+(()=>{const badge=document.getElementById('betaLicenseBadge');if(!badge)return;
+ const check=async()=>{try{const r=await fetch('/api/license/status',{cache:'no-store'}),d=await r.json();badge.hidden=!(r.ok&&d.allowed===true&&d.license?.kind==='beta'&&d.license?.active===true)}
+ catch{badge.hidden=true}};
+ check();setInterval(check,60000);
+})();
+</script>
 <script src="/grena-community.js"></script>
 <script src="/app-lifecycle.js"></script>
 <script>(()=>{const e=document.getElementById('overlayUrl');if(e)e.textContent=location.origin+'/overlay.html'})();</script>

@@ -21,9 +21,9 @@ test('Configuración permite vincular, cambiar y quitar la API propia sin mostra
  assert.match(ui,/syncStatus\.textContent=/);
  assert.match(ui,/fishPanel\.hidden=owner/);
 });
-test('Versión de la aplicación se incrementa a 5.1.3',()=>{
+test('Compilación estable publica instalador 5.1.5',()=>{
  const update=src('desktop-build/fix_official_updates.py');
  assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '5\.1\.3'/);
  const gh=src('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(gh,/GRENA-LIVE-Installer-Windows-v5\.1\.3/);
+ assert.match(gh,/GRENA-LIVE-Installer-Windows-v5\.1\.5/);
 });

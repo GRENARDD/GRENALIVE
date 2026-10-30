@@ -2,7 +2,7 @@ import {publicUpdates,adminUpdates} from './updates.mjs';
 // GREÑA Live PRO — Cloudflare Worker + D1.
 // Only account identity, status and licensing metadata are stored here.
 const DAY=86400000, ONLINE=135000, SESSION_AGE=90*DAY, MAX_DAYS=3650;
-const TRIAL_DAYS=3, TRIAL_TAG='TRIAL'; // Non-destructive marker stored in the existing license_code_id column.
+const TRIAL_DAYS=3, TRIAL_TAG='TRIAL', BETA_TAG='BETA'; // Non-destructive marker stored in the existing license_code_id column.
 // Cloudflare production Workerd rejects PBKDF2 iterations >100,000.
 // Stronger passwords and migration to a dedicated identity service remain advisable.
 export const PBKDF2_ITERATIONS=100000;
@@ -57,10 +57,11 @@ const githubActionsTestUser=u=>{
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','strict-transport-security':'max-age=31536000'}});
 const fail=(error,status=400)=>json({ok:false,error},status);
 const cleanLicense=(u,deviceId)=>{
- if(!u?.license_expires_at)return null;
- if(deviceId&&u.license_device_id!==deviceId)return null;
- const revokedAt=u.license_revoked_at||null,expiresAt=u.license_expires_at;
- return {activatedAt:u.license_activated_at,expiresAt,revokedAt,active:!revokedAt&&expiresAt>now(),expired:expiresAt<=now(),kind:u.license_code_id===TRIAL_TAG?'trial':'license'};
+ const beta=u?.license_code_id===BETA_TAG;
+ if(!u||(!beta&&!u.license_expires_at))return null;
+ if(deviceId&&u.license_device_id&&u.license_device_id!==deviceId)return null;
+ const revokedAt=u.license_revoked_at||null,expiresAt=beta?null:u.license_expires_at;
+ return {activatedAt:u.license_activated_at,expiresAt,revokedAt,active:!revokedAt&&(beta||expiresAt>now()),expired:!beta&&expiresAt<=now(),kind:beta?'beta':u.license_code_id===TRIAL_TAG?'trial':'license',unlimited:beta};
 };
 const publicUser=u=>({
  id:u.id,username:u.username,displayName:u.display_name,email:u.email,
@@ -99,9 +100,10 @@ async function sessionUser(env,req){
 // Directly granted days attach to the first authenticated device that reconnects.
 // Only an active unbound license is eligible; a later device cannot steal it.
 async function bindPendingDevice(env,u,deviceId){
- if(!deviceValid(deviceId)||!u?.license_expires_at||u.license_expires_at<=now()||u.license_revoked_at)return u;
+ if(!deviceValid(deviceId)||(!u?.license_expires_at&&u?.license_code_id!==BETA_TAG)||u.license_revoked_at)return u;
+ if(u.license_code_id!==BETA_TAG&&u.license_expires_at<=now())return u;
  if(!u.license_device_id){
-   await env.DB.prepare('UPDATE users SET license_device_id=? WHERE id=? AND license_device_id IS NULL AND license_expires_at>? AND license_revoked_at IS NULL')
+   await env.DB.prepare("UPDATE users SET license_device_id=? WHERE id=? AND license_device_id IS NULL AND (license_expires_at>? OR license_code_id='BETA') AND license_revoked_at IS NULL")
      .bind(deviceId,u.id,now()).run();
    return await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first();
  }
@@ -229,9 +231,9 @@ async function handle(req,env){
    if(path==='/api/license-admin/grant'){
      // Start now. When still active, add the new days to the existing expiration.
      const raw=String(b.username||'').trim().replace(/^@/,'').toLowerCase();
-     const username=cleanUser(raw),days=Number(b.days);
+     const username=cleanUser(raw),beta=String(b.days||'').toUpperCase()===BETA_TAG,days=beta?null:Number(b.days);
      if(!username||username!==raw||username.length<3)return fail('Escribe un usuario GREÑA ID válido.');
-     if(!Number.isInteger(days)||days<1||days>MAX_DAYS)return fail('La duración debe ser de 1 a 3650 días.');
+     if(!beta&&(!Number.isInteger(days)||days<1||days>MAX_DAYS))return fail('La duración debe ser BETA o de 1 a 3650 días.');
      const target=await env.DB.prepare('SELECT * FROM users WHERE username=?').bind(username).first();
      if(!target)return fail('Este GREÑA ID todavía no está en Cloudflare. El usuario debe iniciar sesión y sincronizar primero.',404);
      if(target.disabled)return fail('La cuenta está suspendida. Reactívala antes de asignar días.',409);
@@ -240,6 +242,17 @@ async function handle(req,env){
      // An audit log is retained centrally. IF NOT EXISTS protects existing D1 data.
      await env.DB.prepare('CREATE TABLE IF NOT EXISTS license_grants (id TEXT PRIMARY KEY, target_user_id TEXT NOT NULL, admin_user_id TEXT NOT NULL, days INTEGER NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)').run();
      const owner=await sessionUser(env,req);
+     if(beta){
+       // BETA is explicitly revocable and has no expiry timestamp.
+       const update=env.DB.prepare("UPDATE users SET license_activated_at=?,license_expires_at=NULL,license_device_id=NULL,license_revoked_at=NULL,license_code_id=? WHERE id=? AND disabled=0")
+         .bind(time,BETA_TAG,target.id);
+       const audit=env.DB.prepare('INSERT INTO license_grants(id,target_user_id,admin_user_id,days,created_at,expires_at) VALUES(?,?,?,-1,?,0)')
+         .bind(crypto.randomUUID(),target.id,owner.id,time);
+       const changes=await env.DB.batch([update,audit]);
+       if(Number(changes[0]?.meta?.changes||0)!==1)return fail('No se pudo activar BETA.',409);
+       const fresh=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(target.id).first();
+       return json({ok:true,username:fresh.username,days:'BETA',beta:true,renewed:false,expiresAt:null,user:publicUser(fresh)});
+     }
      const update=env.DB.prepare(`UPDATE users SET
        license_expires_at=MAX(CASE WHEN license_revoked_at IS NULL AND COALESCE(license_code_id,'') != 'TRIAL' THEN COALESCE(license_expires_at,0) ELSE 0 END, ?) + ?,
        license_activated_at=CASE WHEN license_revoked_at IS NULL AND COALESCE(license_code_id,'') != 'TRIAL' AND license_expires_at>? THEN COALESCE(license_activated_at,?) ELSE ? END,
@@ -271,7 +284,7 @@ async function handle(req,env){
      const u=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(String(b.userId||'')).first();
      if(!u)return fail('Usuario no encontrado.',404);
      if((await ownerInfo(env,u)).isOwner)return fail('No se puede revocar ni suspender la cuenta propietaria.',409);
-     if(path.endsWith('/revoke'))await env.DB.prepare('UPDATE users SET license_revoked_at=? WHERE id=? AND license_expires_at IS NOT NULL').bind(now(),u.id).run();
+     if(path.endsWith('/revoke'))await env.DB.prepare("UPDATE users SET license_revoked_at=? WHERE id=? AND (license_expires_at IS NOT NULL OR license_code_id='BETA')").bind(now(),u.id).run();
      else await env.DB.prepare('UPDATE users SET disabled=? WHERE id=?').bind(b.disabled===true?1:0,u.id).run();
      const fresh=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first();
      return json({ok:true,user:publicUser(fresh)});
@@ -341,6 +354,7 @@ async function handle(req,env){
    const b=await body(req),code=String(b.code||'').trim().toUpperCase(),deviceId=String(b.deviceId||'');
    if(!/^GRENA-[A-F0-9]{10}-[A-F0-9]{10}$/.test(code)||!deviceValid(deviceId))return fail('Código o dispositivo inválido.');
    if((await ownerInfo(env,u)).isOwner)return fail('Tu cuenta es propietaria y tiene acceso permanente. No necesitas activar un código.',409);
+    if(u.license_code_id===BETA_TAG&&!u.license_revoked_at)return fail('Tu licencia BETA ya tiene acceso indefinido y no requiere códigos.',409);
    if(u.license_expires_at>now()&&!u.license_revoked_at&&u.license_device_id!==deviceId)
      return fail('Tu licencia está vinculada a otra computadora.',403);
    const codeHash=await sha(code);

@@ -31,14 +31,14 @@ function date(t){return new Date(t).toLocaleString('es-DO',{dateStyle:'medium',t
 function message(t,ok=false){el('message').textContent=t;el('message').className='msg'+(ok?' ok':'')}
 async function api(path,body){const r=await fetch(path,{method:body?'POST':'GET',headers:body?{'content-type':'application/json'}:{},body:body?JSON.stringify(body):undefined,cache:'no-store'});const data=await r.json().catch(()=>({}));if(!r.ok||data.ok===false)throw Error(data.error||'No se pudo conectar.');return data}
 function paint(d){
- const l=d.license,permanent=d.permanentAccess===true,valid=!!l&&!l.revokedAt&&Date.now()<Number(l.expiresAt),registered=!!d.registered;
- el('state').textContent=!registered?'GREÑA ID aún no sincronizado':permanent?'♛ PROPIETARIO · ACCESO ILIMITADO':valid?'Licencia PRO activa':l?.revokedAt?'Licencia revocada':l?'Licencia vencida':'Esperando activación';
- el('detail').textContent=permanent?'Tu GREÑA ID está reconocido como propietario. No necesitas códigos ni renovar.':valid?'Válida hasta el '+date(l.expiresAt)+(d.connected?' · Conectado':' · Sin conexión'):registered?'Introduce un código nuevo o solicita días al administrador.':'Inicia sesión de nuevo para vincular esta cuenta al registro central.';
+ const l=d.license,permanent=d.permanentAccess===true,beta=l?.kind==='beta'&&!l.revokedAt&&l.active===true,valid=!!l&&!l.revokedAt&&(beta||Date.now()<Number(l.expiresAt)),registered=!!d.registered;
+ el('state').textContent=!registered?'GREÑA ID aún no sincronizado':permanent?'♛ PROPIETARIO · ACCESO ILIMITADO':beta?'✦ BETA · ACCESO SIN VENCIMIENTO':valid?'Licencia PRO activa':l?.revokedAt?'Licencia revocada':l?'Licencia vencida':'Esperando activación';
+ el('detail').textContent=permanent?'Tu GREÑA ID está reconocido como propietario. No necesitas códigos ni renovar.':beta?'Tu licencia BETA es indefinida hasta que el propietario la retire.':valid?'Válida hasta el '+date(l.expiresAt)+(d.connected?' · Conectado':' · Sin conexión'):registered?'Introduce un código nuevo o solicita días al administrador.':'Inicia sesión de nuevo para vincular esta cuenta al registro central.';
  if(d.syncError&&!d.connected)message('Servidor central: '+d.syncError);
- el('redeem').hidden=permanent;
+ el('redeem').hidden=permanent||beta;
  el('sync-box').hidden=registered&&d.connected!==false;
  if(el('owner-claim'))el('owner-claim').disabled=!registered;
- el('activate').disabled=permanent||!registered;
+ el('activate').disabled=permanent||beta||!registered;
 }
 async function refresh(){try{const d=await api('/api/license/refresh',{});paint(d);return d}catch(e){message(e.message)}}
 el('redeem').onsubmit=async e=>{e.preventDefault();el('activate').disabled=true;try{const d=await api('/api/license/redeem',{code:el('code').value.trim().toUpperCase()});message('¡Activación completada! Tu licencia vence el '+date(d.license.expiresAt),true);el('code').value='';paint({registered:true,connected:true,license:d.license})}catch(e){message(e.message)}finally{el('activate').disabled=false}};

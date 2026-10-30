@@ -13,7 +13,7 @@ const normalizeEmail=v=>String(v||'').trim().toLowerCase().slice(0,254);
 const pwHash=(password,salt)=>new Promise((resolve,reject)=>scrypt(String(password),String(salt),64,(err,result)=>err?reject(err):resolve(result.toString('hex'))));
 const same=(a,b)=>{const x=Buffer.from(String(a)),y=Buffer.from(String(b));return x.length>0&&x.length===y.length&&timingSafeEqual(x,y)};
 const reply=(res,status,data)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});res.end(JSON.stringify(data))};
-const publicLicense=l=>!l?null:{activatedAt:l.activatedAt,expiresAt:l.expiresAt,revokedAt:l.revokedAt||null,expired:Date.now()>=l.expiresAt,active:!l.revokedAt&&Date.now()<l.expiresAt,kind:l.kind==='trial'?'trial':'license'};
+const publicLicense=l=>!l?null:{activatedAt:l.activatedAt,expiresAt:l.kind==='beta'?null:l.expiresAt,revokedAt:l.revokedAt||null,expired:l.kind!=='beta'&&Date.now()>=l.expiresAt,active:!l.revokedAt&&(l.kind==='beta'||Date.now()<l.expiresAt),kind:l.kind==='beta'?'beta':l.kind==='trial'?'trial':'license',unlimited:l.kind==='beta'};
 const limitMap=new Map();
 function limited(req,bucket,max=15){
  const ip=String(req.socket?.remoteAddress||'unknown'),key=bucket+':'+ip,now=Date.now();
@@ -143,7 +143,8 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    // After successful validation, the owner keeps access if Cloudflare is offline.
    if(local?.permanentAccess===true&&local?.token)return true;
    // Hasta 24 horas sin conexión para una licencia YA VALIDADA y aún vigente.
-   if(!local?.license||local.license.revokedAt||Date.now()>=Number(local.license.expiresAt||0))return false;
+   if(!local?.license||local.license.revokedAt)return false;
+    if(local.license.kind!=='beta'&&Date.now()>=Number(local.license.expiresAt||0))return false;
    return Date.now()-Number(local.lastValidatedAt||0)<24*60*60*1000;
  }
  async function canUse(userId){
