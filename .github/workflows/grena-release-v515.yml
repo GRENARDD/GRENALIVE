@@ -1,18 +1,12 @@
-name: GREÑA · Publicar Desktop v5.1.5 estable
+name: GREÑA · Histórico v5.1.5 (deshabilitado)
 on:
-  workflow_run:
-    workflows:
-      - GREÑA LIVE Desktop (kit de integración)
-    types:
-      - completed
-    branches:
-      - main
+  workflow_dispatch:
 permissions:
   contents: write
   actions: read
 jobs:
   release:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    if: ${{ false }} # Archivado: no publicar 5.1.5 ni siquiera desde el botón manual.
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
