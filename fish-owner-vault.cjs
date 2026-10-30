@@ -85,4 +85,16 @@ async function storeOwnerFishKey(dataDir,index,apiKey){
  await chmod(dest,0o600).catch(()=>{});
  return keys.filter(Boolean).length;
 }
-module.exports={readOwnerFishKeys,storeOwnerFishKey,validFishKey,VAULT_FILE};
+// DPAPI helpers for independent per-user Fish vaults. The owner's two-slot
+// vault file, format, and read/write behavior remain unchanged.
+async function protectOtherFishKey(apiKey){
+ if(!validFishKey(apiKey))throw Error('API Fish Audio no válida.');
+ return (await crypt('protect',[apiKey]))[0];
+}
+async function unprotectOtherFishKey(ciphertext){
+ if(typeof ciphertext!=='string'||ciphertext.length<24||ciphertext.length>8192)throw Error('Bóveda de usuario no válida.');
+ const key=(await crypt('unprotect',[ciphertext]))[0];
+ if(!validFishKey(key))throw Error('API Fish Audio guardada no válida.');
+ return key;
+}
+module.exports={readOwnerFishKeys,storeOwnerFishKey,validFishKey,VAULT_FILE,protectOtherFishKey,unprotectOtherFishKey};
