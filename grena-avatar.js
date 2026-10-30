@@ -131,6 +131,7 @@
     const b=e.target.closest('[data-s]');if(!b)return;
     if(b.dataset.s==='close'){++fishRevision;settings.close()}
     if(b.dataset.s==='fish-manage'){
+      ++fishRevision;
       fishForm.hidden=false;fishForm.querySelector('input').focus();
     }
     if(b.dataset.s==='fish-cancel'){
