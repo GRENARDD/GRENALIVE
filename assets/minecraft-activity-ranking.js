@@ -80,12 +80,12 @@
     }
     function exportState(){return {version:1,savedAt:Date.now(),lastEventAt,roomId,users:[...users.values()]}}
     function restore(data,now=Date.now()){
-      if(!data||data.version!==1||now-numeric(data.lastEventAt)>SESSION_GAP_MS||!Array.isArray(data.users))return false;
+      if(!data||data.version!==1||now-numeric(data.lastEventAt,Number.MAX_SAFE_INTEGER)>SESSION_GAP_MS||!Array.isArray(data.users))return false;
       reset();
-      roomId=String(data.roomId||'').slice(0,100);lastEventAt=numeric(data.lastEventAt);
+      roomId=String(data.roomId||'').slice(0,100);lastEventAt=numeric(data.lastEventAt,Number.MAX_SAFE_INTEGER);
       for(const u of data.users.slice(-MAX_TRACKED)){
         if(typeof u.key!=='string'||!u.key.includes(':'))continue;
-        const item={key:u.key.slice(0,140),name:String(u.name||'Usuario').slice(0,40),platform:norm(u.platform),comments:numeric(u.comments),gifts:numeric(u.gifts),giftValue:numeric(u.giftValue),timeMs:numeric(u.timeMs,SESSION_GAP_MS),xp:numeric(u.xp),lastSeen:numeric(u.lastSeen),accountedAt:numeric(u.accountedAt)||numeric(u.lastSeen),lastText:String(u.lastText||'').slice(0,1000),lastCommentAt:numeric(u.lastCommentAt)};
+        const item={key:u.key.slice(0,140),name:String(u.name||'Usuario').slice(0,40),platform:norm(u.platform),comments:numeric(u.comments),gifts:numeric(u.gifts),giftValue:numeric(u.giftValue),timeMs:numeric(u.timeMs,SESSION_GAP_MS),xp:numeric(u.xp),lastSeen:numeric(u.lastSeen,Number.MAX_SAFE_INTEGER),accountedAt:numeric(u.accountedAt,Number.MAX_SAFE_INTEGER)||numeric(u.lastSeen,Number.MAX_SAFE_INTEGER),lastText:String(u.lastText||'').slice(0,1000),lastCommentAt:numeric(u.lastCommentAt,Number.MAX_SAFE_INTEGER)};
         if(item.lastSeen<=now&&now-item.lastSeen<=DISPLAY_MS)users.set(item.key,item);
       }
       return true;
