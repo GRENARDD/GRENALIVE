@@ -193,6 +193,14 @@ jobs:
           Write-Host "Instalador de prueba: 5.1.4-beta.3, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Repair and verify Electron updater runtime dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          npm install --save-prod --no-audit --no-fund universalify fs-extra
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node -e "for (const id of ['universalify','fs-extra','electron-updater']) { console.log(id,require.resolve(id)); require(id); }"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify complete Node suite before building installer
         run: npm test
       - name: Set official 5.1.4 version on main (never on pull requests)
@@ -234,6 +242,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --win nsis --x64 --publish always
+      - name: Assert updater dependencies exist in packaged Windows application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $appRoot = 'dist/win-unpacked/resources/app'
+          if (!(Test-Path $appRoot)) { throw "Falta el directorio de la app desempaquetada: $appRoot" }
+          foreach ($module in @('universalify','fs-extra','electron-updater')) {
+            $modulePath = Join-Path $appRoot "node_modules/$module"
+            if (!(Test-Path $modulePath)) { throw "Dependencia ausente en instalador: $module" }
+          }
+          $env:GRENA_PACKAGED_APP = (Resolve-Path $appRoot).Path
+          node -e "const {createRequire}=require('node:module');const path=require('node:path');const req=createRequire(path.join(process.env.GRENA_PACKAGED_APP,'package.json'));for(const id of ['universalify','fs-extra','electron-updater']){console.log('packaged',id,req.resolve(id));req(id)}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Smoke test compiled Windows backend
         shell: pwsh
         run: ./desktop-build/smoke.ps1
