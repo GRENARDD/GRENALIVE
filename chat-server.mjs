@@ -2,7 +2,7 @@ import http from 'node:http';
 import { readFile, writeFile, mkdir, copyFile, unlink, appendFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import dns from 'node:dns/promises';
 import net from 'node:net';
 import { URL } from 'node:url';
@@ -102,6 +102,34 @@ function reconcileOwnerFishAccounts(keys){
 let fishProfileAccount=null;
 // Cache only successful credential resolutions in the same GREÑA ID for 15 s.
 // Keep API keys in RAM; avoid per-comment Cloudflare D1 network latency.
+// Short-lived, memory-only Fish audio cache. Bounded to 24 MB and 48 entries.
+// Keys include the GREÑA ID and a hash of that profile's API credentials,
+// so neither a profile switch nor key rotation can reuse another account's audio.
+const FISH_AUDIO_CACHE_TTL_MS=90000;
+const FISH_AUDIO_CACHE_MAX_BYTES=24*1024*1024;
+const FISH_AUDIO_CACHE_MAX_ENTRIES=48;
+const fishAudioCache=new Map();
+let fishAudioCacheBytes=0;
+function fishAudioCacheGet(key){
+ const entry=fishAudioCache.get(key);
+ if(!entry)return null;
+ if(entry.expiresAt<=Date.now()){
+  fishAudioCache.delete(key);fishAudioCacheBytes-=entry.audio.length;return null;
+ }
+ fishAudioCache.delete(key);fishAudioCache.set(key,entry);
+ return entry.audio;
+}
+function fishAudioCachePut(key,audio){
+ if(!Buffer.isBuffer(audio)||!audio.length||audio.length>FISH_AUDIO_CACHE_MAX_BYTES)return;
+ const prior=fishAudioCache.get(key);
+ if(prior){fishAudioCacheBytes-=prior.audio.length;fishAudioCache.delete(key);}
+ fishAudioCache.set(key,{audio,expiresAt:Date.now()+FISH_AUDIO_CACHE_TTL_MS});
+ fishAudioCacheBytes+=audio.length;
+ for(const [oldKey,entry] of fishAudioCache){
+  if(fishAudioCacheBytes<=FISH_AUDIO_CACHE_MAX_BYTES&&fishAudioCache.size<=FISH_AUDIO_CACHE_MAX_ENTRIES)break;
+  fishAudioCache.delete(oldKey);fishAudioCacheBytes-=entry.audio.length;
+ }
+}
 const FISH_CREDENTIAL_CACHE_MS=15000;
 let fishCredentialCache={profileId:'',result:null,expiresAt:0,pending:null};
 function clearFishCredentialCache(){
@@ -2612,6 +2640,23 @@ const server =
             return;
           }
 
+          // Authenticate and resolve the active profile before consulting the cache.
+          // Hash keys and text: never retain raw API credentials in cache keys.
+          const fishCacheKey=createHash('sha256').update(JSON.stringify([
+            activeProfileId,
+            fishContext.accounts.map(a=>a.key).sort(),
+            referenceId,naturalSpeech.model,naturalSpeech.text
+          ])).digest('hex');
+          const cachedFishAudio=fishAudioCacheGet(fishCacheKey);
+          if(cachedFishAudio){
+            response.writeHead(200,{
+              'content-type':'audio/mpeg','content-length':cachedFishAudio.length,
+              'cache-control':'no-store, max-age=0','x-content-type-options':'nosniff'
+            });
+            response.end(cachedFishAudio);
+            return;
+          }
+
           let fishAccount=await acquireFishAccount(new Set(),FISH_WAIT_MAX_MS,fishContext.accounts);
           if(!fishAccount){
             response.writeHead(429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-grena-fish-dropped':'stale'});
@@ -2657,6 +2702,7 @@ const server =
                   if(!audio.length || audio.length>20*1024*1024){
                     lastFailure={status:502,error:'Fish Audio devolvió un audio no válido.'};
                   }else{
+                    if(!clientClosed && !response.destroyed)fishAudioCachePut(fishCacheKey,audio);
                     if(!response.writableEnded && !response.destroyed){
                       response.writeHead(200,{
                         'content-type':'audio/mpeg',
