@@ -31,7 +31,7 @@ function Assert-ProfilePreserved([string]$stage){
    throw "El instalador $stage modificó la cuenta o configuración: $file"
   }
  }
- Write-Host "OK $stage: perfil, chat, conexiones y voz conservados (SHA256)."
+ Write-Host "OK ${stage}: perfil, chat, conexiones y voz conservados (SHA256)."
 }
 function Install-Silent([string]$setup,[string]$label){
  if(!(Test-Path -LiteralPath $setup)){throw "No existe el instalador $label ($setup)"}

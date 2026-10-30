@@ -9,6 +9,8 @@ test('5.1.6 uses a unique artifact and does not silently publish a tag build',()
  assert.match(flow,/electron-builder --win nsis --x64 --publish never/);
  assert.doesNotMatch(flow,/electron-builder --win nsis --x64 --publish always/);
  assert.match(flow,/verify-upgrade-515-to-516\.ps1/);
+ assert.match(flow,/Language\.Parser\]::ParseFile/);
+ assert.match(src('desktop-build/verify-upgrade-515-to-516.ps1'),/OK \$\{stage\}: perfil/);
 });
 test('upgrade gate installs 5.1.5 and 5.1.6 in same location and preserves hashed app data',()=>{
  const flow=src('.github/workflows/grena-desktop-from-kit.yml');

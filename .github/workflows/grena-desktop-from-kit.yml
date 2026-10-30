@@ -86,6 +86,19 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+      - name: Parse the Windows upgrade regression script before building
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-515-to-516.ps1'
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
+          if ($errors -and $errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Error $_.Message }
+            throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
+          }
+          Write-Host 'OK: script de upgrade v5.1.5 -> v5.1.6 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
