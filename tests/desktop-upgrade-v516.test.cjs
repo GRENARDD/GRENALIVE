@@ -28,7 +28,7 @@ test('upgrade gate installs 5.1.6 and 5.1.7 in same location and preserves hashe
  assert.ok(flow.indexOf('Verify installed upgrade')<flow.indexOf('Upload the Windows installer'));
 });
 test('release 5.1.7 requires successful build at current commit and owner still approves rollout',()=>{
- const flow=src('.github/workflows/grena-release-v516.yml');
+ const flow=src('.github/workflows/grena-release-v517.yml');
  const up=src('desktop-build/fix_official_updates.py');
  const worker=src('cloudflare/licenses/src/updates.mjs');
  assert.match(flow,/VERSION: '5\.1\.7'/);
