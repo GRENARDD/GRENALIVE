@@ -2,7 +2,10 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const src=file=>fs.readFileSync(path.join(__dirname,'..',file),'utf8');
-const {createTracker}=require('../assets/minecraft-activity-ranking.js');
+// El motor usa UMD para OBS. Ejecutar la versión de navegador también en CI:
+const browser={window:{}};
+vm.runInNewContext(src('assets/minecraft-activity-ranking.js'),browser);
+const {createTracker}=browser.window.GrenaMinecraftActivity;
 
 test('Minecraft muestra como máximo diez y los ordena por comentarios y tiempo activo',()=>{
  const a=createTracker(),now=Date.now();

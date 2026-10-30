@@ -115,6 +115,6 @@ test('TikTok reconoce textos anidados y cuenta posibles descartes sin mostrar da
   assert.match(chat,/const tiktokChatStats=\{/);
   assert.match(chat,/tiktokChatStats\.muted\+\+/);
   assert.match(chat,/tiktokChatStats\.forwarded\+\+/);
-  assert.match(chat,/comments:\{\.\.\.tiktokChatStats\}/);
+  assert.match(chat,/comments:\{\.\.\.tiktokChatStats(?:,|\})/);
   assert.doesNotMatch(chat,/'\[TIKTOK CHAT\]'\s*,\s*chat\.user/);
 });
