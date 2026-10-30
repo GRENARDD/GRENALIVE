@@ -21,7 +21,7 @@ test('Configuración permite vincular, cambiar y quitar la API propia sin mostra
  assert.match(ui,/syncStatus\.textContent=/);
  assert.match(ui,/fishPanel\.hidden=owner/);
 });
-test('Compilación estable publica instalador 5.1.6',()=>{
+test('Compilación estable publica instalador 5.1.7',()=>{
  const update=src('desktop-build/fix_official_updates.py');
  assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '5\.1\.6'/);
  const gh=src('.github/workflows/grena-desktop-from-kit.yml');
