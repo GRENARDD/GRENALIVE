@@ -161,7 +161,10 @@ async function handle(req,env){
    for(const [name,sql] of checks){
      try{await env.DB.prepare(sql).first()}catch(error){console.error('Licenses readiness D1:',name,error?.message||error);failed.push(name)}
    }
-   return json({ok:failed.length===0,service:'GREÑA Licencias Cloudflare D1',databaseReady:failed.length===0,failedChecks:failed},failed.length?503:200);
+   let fishCredentialsReady=false;
+   try{await fishCipherKey(env);fishCredentialsReady=true}catch{}
+   return json({ok:failed.length===0,service:'GREÑA Licencias Cloudflare D1',
+     databaseReady:failed.length===0,fishCredentialsReady,failedChecks:failed},failed.length?503:200);
  }
  if(path==='/api/license/community'&&req.method==='GET'){
    const u=await sessionUser(env,req);
