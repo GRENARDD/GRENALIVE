@@ -62,7 +62,7 @@ $('fishOwnerSlotForm').addEventListener('submit',async e=>{
  const index=Number($('fishOwnerSlot').value),key=$('fishOwnerNewKey').value.trim();
  const msg=$('fishOwnerSlotMessage'),button=$('fishOwnerSaveKey');
  msg.classList.remove('good');
- if(![1,2].includes(index)||key.length<20||key.length>512||/\\s/.test(key)){
+ if(![1,2].includes(index)||key.length<20||key.length>512||/\s/.test(key)){
    msg.textContent='Comprueba el espacio y la clave Fish Audio (20–512 caracteres, sin espacios).';return;
  }
  button.disabled=true;msg.textContent='Guardando API '+index+' con cifrado local de Windows…';
