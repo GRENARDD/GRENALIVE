@@ -24,9 +24,36 @@
 <p class="help">BETA ofrece acceso indefinido mientras no revoques la licencia o suspendas la cuenta. El primer inicio de sesión vincula la licencia al equipo. Los días de las licencias normales se cuentan aunque la app esté cerrada.</p>
 </section>
 <section class="panel"><h2>Generar códigos de activación</h2><div class="line"><label for="quantity">Cantidad</label><input id="quantity" type="number" min="1" max="25" value="1" style="max-width:115px;min-width:80px"><label for="duration">Duración</label><select id="duration" aria-label="Duración de cada licencia"><option value="30">30 días</option><option value="60">60 días</option><option value="90">90 días</option><option value="180">180 días</option><option value="365">365 días</option><option value="custom">Personalizada</option></select><label id="customLabel" for="customDays" class="hidden">Días</label><input class="hidden" id="customDays" type="number" min="1" max="3650" value="45" style="max-width:115px;min-width:80px"><button id="generate">Generar códigos</button></div><p>La duración elegida se guarda dentro de cada licencia. El plazo empieza en la primera activación; si se renueva antes del vencimiento, los nuevos días se suman al tiempo restante. Copia los códigos antes de cerrar esta sección.</p><pre id="codes" class="hidden"></pre><button id="copy" class="secondary hidden">Copiar códigos</button></section>
+<section class="panel" id="fishOwnerAssignment"><h2>Fish Audio · Asignar API a un usuario</h2>
+<p class="help">Puedes vincular una API que la persona te haya autorizado a configurar. Se cifra en Cloudflare para su GREÑA ID y no se comparte con otras cuentas. Nunca se muestra después de guardarla y no modifica tus dos API personales.</p>
+<form id="assignFishForm" autocomplete="off">
+<div class="line"><label for="assignFishUser">GREÑA ID del usuario</label><input id="assignFishUser" placeholder="Ej. yaqui_gr" maxlength="33" required spellcheck="false" autocapitalize="none" autocomplete="off"><label for="assignFishKey">API Fish Audio del usuario</label><input id="assignFishKey" type="password" minlength="20" maxlength="512" required placeholder="Pega la API privada aquí" autocomplete="new-password" spellcheck="false"></div>
+<div class="line" style="margin-top:12px"><button id="assignFishSave" type="submit">Vincular API a este usuario</button><button type="button" id="assignFishCancel" class="secondary">Borrar el formulario</button></div>
+</form><p id="assignFishMessage" class="message" role="status" aria-live="polite"></p></section>
 <section class="panel"><h2>Usuarios GREÑA ID</h2><p class="help">Aquí solo se muestran cuentas registradas en el servicio central. Una persona puede iniciar sesión en su aplicación local y todavía no aparecer aquí si la sincronización con Cloudflare falló. Las cuentas identificadas como pruebas de GitHub Actions quedan ocultas; no se borran ni cuentan como licencias de usuarios reales.</p><div class="line"><input id="filter" placeholder="Buscar usuario o correo"><small id="last"></small></div><div class="scroll"><table><thead><tr><th>Usuario</th><th>Correo</th><th>Registrado</th><th>Conexión</th><th>Licencia</th><th>Administrar</th></tr></thead><tbody id="users"></tbody></table></div><div class="message" id="error"></div></section>
 </div></main><script>
 const $=id=>document.getElementById(id);let all=[],created='';
+$('assignFishForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const username=$('assignFishUser').value.trim().replace(/^@/,'').toLowerCase();
+ const apiKey=$('assignFishKey').value.trim();
+ const target=all.find(u=>u.username===username);
+ const status=$('assignFishMessage');
+ status.classList.remove('good');
+ if(!target){status.textContent='Selecciona un GREÑA ID existente en la lista de usuarios.';return}
+ if(target.permanentAccess){status.textContent='La bóveda Fish del propietario no se administra desde aquí.';return}
+ if(apiKey.length<20||apiKey.length>512||/\s/.test(apiKey)){status.textContent='La API debe tener entre 20 y 512 caracteres y no contener espacios.';return}
+ if(target.fishConfigured&&!confirm('¿Reemplazar la API Fish Audio que ya usa @'+target.username+'?'))return;
+ const save=$('assignFishSave');save.disabled=true;status.textContent='Guardando API cifrada para @'+username+'…';
+ try{
+   const result=await request('fish-credentials',{username,apiKey,action:'set'});
+   if(result.configured!==true||result.verified!==true)throw Error('Cloudflare no confirmó la API.');
+   $('assignFishKey').value='';status.classList.add('good');
+   await reload();status.textContent='✓ API cifrada y vinculada correctamente al GREÑA ID @'+username+'. La próxima consulta del motor de voz la recuperará.';
+ }catch(error){status.textContent=error.message||'No se pudo vincular esta API. No se ha confirmado el guardado.'}
+ finally{save.disabled=false}
+});
+$('assignFishCancel').onclick=()=>{$('assignFishKey').value='';$('assignFishUser').value='';$('assignFishMessage').textContent=''};
 $('duration').onchange=()=>{const custom=$('duration').value==='custom';$('customLabel').classList.toggle('hidden',!custom);$('customDays').classList.toggle('hidden',!custom)};
 const date=t=>t?new Date(t).toLocaleString('es-DO',{dateStyle:'short',timeStyle:'short'}):'—';
 const remaining=t=>{const ms=Math.max(0,Number(t||0)-Date.now());if(!ms)return 'Vencida';const d=Math.floor(ms/86400000),h=Math.floor(ms%86400000/3600000),m=Math.floor(ms%3600000/60000);return (d?d+'d ':'')+h+'h '+m+'min restantes'};
@@ -48,6 +75,20 @@ function draw(){
    const license=u.license;const exp=td(row,u.permanentAccess?'♛ PROPIETARIO · ACCESO ILIMITADO':!license?'Sin licencia':license.revokedAt?'Revocada':license.kind==='beta'&&license.active?'✦ BETA · SIN VENCIMIENTO':license.active?'Activa hasta '+date(license.expiresAt)+' · '+remaining(license.expiresAt):'Vencida '+date(license.expiresAt));if(u.permanentAccess)exp.className='owner';else if(license?.active)exp.className='good';
    const action=document.createElement('td');row.appendChild(action);
    if(u.permanentAccess){const note=document.createElement('small');note.className='owner';note.textContent='Acceso permanente';action.appendChild(note);tbody.appendChild(row);continue}
+   const fishButton=document.createElement('button');fishButton.className='secondary';
+   fishButton.textContent=u.fishConfigured?'Cambiar Fish API':'Asignar Fish API';
+   fishButton.title='Asignar una API de Fish Audio para @'+u.username;
+   fishButton.onclick=()=>{
+     $('assignFishUser').value=u.username;
+     $('assignFishKey').value='';
+     $('assignFishMessage').textContent='Asignando Fish Audio a @'+u.username+'.';
+     document.getElementById('fishOwnerAssignment').scrollIntoView({behavior:'smooth',block:'start'});
+     $('assignFishKey').focus();
+   };
+   action.appendChild(fishButton);
+   const fishFlag=document.createElement('small');fishFlag.className=u.fishConfigured?'good':'muted';
+   fishFlag.textContent=u.fishConfigured?' · Fish vinculado':' · Sin API Fish';
+   action.appendChild(fishFlag);
    const add=document.createElement('button');add.className='quick';add.textContent='+ Días';add.title='Activar o renovar días a @'+u.username;add.onclick=()=>{$('grantUser').value=u.username;window.scrollTo({top:document.getElementById('directGrant').offsetTop-20,behavior:'smooth'});$('grantUser').focus()};action.appendChild(add);
    if(license?.active){const revoke=document.createElement('button');revoke.className='danger';revoke.textContent='Revocar';revoke.onclick=async()=>{if(!confirm('¿Revocar la licencia de @'+u.username+'?'))return;try{await request('revoke',{userId:u.id});await reload()}catch(e){$('error').textContent=e.message}};action.appendChild(revoke)}
    const suspend=document.createElement('button');suspend.className='secondary';suspend.textContent=u.disabled?'Reactivar cuenta':'Suspender';suspend.onclick=async()=>{if(!confirm('¿Cambiar el estado de @'+u.username+'?'))return;try{await request('suspend',{userId:u.id,disabled:!u.disabled});await reload()}catch(e){$('error').textContent=e.message}};action.appendChild(suspend);

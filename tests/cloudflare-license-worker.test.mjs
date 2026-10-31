@@ -43,7 +43,18 @@ test('Fish Audio: cada GREÑA ID vincula, cambia y quita únicamente su propia A
    const yaqui=(await request(env,'/api/license/identity/register',{username:'yaqui_gr',email:'yaqui@example.test',password:'safe-yaqui-password'})).data;
    const other=(await request(env,'/api/license/identity/register',{username:'sofia',email:'sofia2@example.test',password:'safe-sofia-password'})).data;
    assert.equal((await request(env,'/api/license/owner/claim',{}, {token:owner.token,admin:ADMIN})).status,200);
-   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'set',apiKey:secretYaqui},{token:owner.token})).status,404,'Se retiró la asignación de APIs desde Administración');
+   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'set',apiKey:secretYaqui},{token:yaqui.token})).status,403,'Solo propietario puede asignar');
+   assert.equal((await request(env,'/api/license-admin/fish-credentials',{username:'grena_rd',action:'set',apiKey:secretYaqui},{token:owner.token})).status,409,'No tocar las APIs del propietario');
+   const assigned=await request(env,'/api/license-admin/fish-credentials',{username:'yaqui_gr',action:'set',apiKey:secretYaqui},{token:owner.token});
+   assert.equal(assigned.status,200);
+   assert.equal(assigned.data.configured,true);
+   assert.equal(assigned.data.verified,true);
+   assert.ok(!JSON.stringify(assigned.data).includes(secretYaqui),'El administrador no recibe la API de vuelta');
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:yaqui.token})).data.apiKey,secretYaqui);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,null,'No compartir API entre usuarios');
+   const audit=await DB.prepare('SELECT target_user_id,action FROM fish_admin_audit WHERE target_user_id=?').bind(yaqui.user.id).first();
+   assert.equal(audit.action,'set');
+
    const saved=await request(env,'/api/license/fish-credentials',{apiKey:secretYaqui},{token:yaqui.token});
    assert.equal(saved.status,200);
    assert.equal(saved.data.configured,true);
@@ -66,6 +77,9 @@ test('Fish Audio: cada GREÑA ID vincula, cambia y quita únicamente su propia A
    assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,secretOther);
    const noSecretEnv={DB,ADMIN_KEY:ADMIN};
    assert.equal((await request(noSecretEnv,'/api/license/fish-credentials',{apiKey:secretYaqui},{token:yaqui.token})).status,503);
+   const adminNoSecret=await request(noSecretEnv,'/api/license-admin/fish-credentials',{username:'sofia',action:'set',apiKey:secretYaqui},{token:owner.token});
+   assert.equal(adminNoSecret.status,503,'Admin must not falsely claim save without encryption secret');
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.token})).data.apiKey,secretOther,'No secret provisioning failure may corrupt existing user key');
  }finally{close()}
 });
 
