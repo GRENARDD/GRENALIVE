@@ -265,7 +265,31 @@ jobs:
       - name: Probe public Kick authorization broker
         run: node desktop-build/probe-kick-auth.mjs
       - name: Build Windows installer safely (publication happens in verified release workflow)
+        env:
+          # PRs never get publisher secrets; official builds may sign when a valid certificate is available.
+          WIN_CSC_LINK: ${{ github.event_name == 'push' && secrets.GRENA_WINDOWS_CERT_BASE64 || '' }}
+          WIN_CSC_KEY_PASSWORD: ${{ github.event_name == 'push' && secrets.GRENA_WINDOWS_CERT_PASSWORD || '' }}
         run: npx electron-builder --win nsis --x64 --publish never
+      - name: Verify Windows installer Authenticode and SHA256
+        shell: pwsh
+        env:
+          GRENA_SIGNING_EXPECTED: ${{ github.event_name == 'push' && secrets.GRENA_WINDOWS_CERT_BASE64 != '' && 'true' || 'false' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installers = @(Get-ChildItem dist -File -Filter '*.exe' | Where-Object { $_.Name -match 'Setup' })
+          if ($installers.Count -ne 1) { throw "Expected exactly one GREÑA Windows installer, found $($installers.Count)" }
+          $file = $installers[0]
+          $hash = Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256
+          $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+          Write-Host "Installer SHA256: $($hash.Hash)"
+          Write-Host "Authenticode: $($signature.Status)"
+          if ($signature.Status -eq 'Valid') {
+            Write-Host "Verified signer: $($signature.SignerCertificate.Subject)"
+          } elseif ($env:GRENA_SIGNING_EXPECTED -eq 'true') {
+            throw 'A signing certificate was supplied but the installer is not validly signed.'
+          } else {
+            Write-Host '::warning title=Windows installer unsigned::Unsigned installers may be blocked by SmartScreen. A real code-signing certificate is still required for publisher reputation.'
+          }
       - name: Assert updater dependencies exist in packaged Windows application
         shell: pwsh
         run: |
