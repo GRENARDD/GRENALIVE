@@ -76,7 +76,9 @@
   }
   function fishSavedStatus(state){
     fishConfigured=state.configured===true;
-    fishNeedsSync=fishConfigured&&state.needsSync===true;
+    // A cloud label requires explicit D1 readback. Local protection alone
+    // must never masquerade as remote registration.
+    fishNeedsSync=fishConfigured&&(state.needsSync===true||state.source!=='cloud'||state.verified!==true);
     fishStatus.textContent=!fishConfigured?'No tienes ninguna API vinculada.':
       fishNeedsSync?'✓ API protegida en este equipo. Pendiente de sincronizar con Cloudflare.':
         '✓ API cifrada y vinculada a tu GREÑA ID en Cloudflare.';
@@ -118,7 +120,7 @@
     const submit=fishForm.querySelector('[type="submit"]');submit.disabled=true;
     try{
       const saved=await fishRequest('POST',{apiKey});
-      if(saved.configured!==true)throw Error('GREÑA no confirmó el guardado de tu API.');
+      if(saved.configured!==true||saved.source!=='cloud'||saved.verified!==true)throw Error('Todavía no se confirmó el guardado en Cloudflare D1.');
       fishSavedStatus(saved);
     }catch(error){
       // Keep the value until the user retries or cancels. Never fake success.
@@ -141,6 +143,7 @@
       ++fishRevision;b.disabled=true;
       try{
         const synced=await fishRequest('POST',undefined,'/api/license/fish-credentials/sync');
+        if(synced.verified!==true||synced.source!=='cloud')throw Error('Cloudflare no confirmó la sincronización.');
         fishSavedStatus(synced);
       }catch(err){fishStatus.textContent=err.message||'No se pudo sincronizar. La copia cifrada local sigue disponible.'}
       finally{b.disabled=false}

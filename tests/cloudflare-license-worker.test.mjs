@@ -58,6 +58,8 @@ test('Fish Audio: cada GREÑA ID vincula, cambia y quita únicamente su propia A
    const saved=await request(env,'/api/license/fish-credentials',{apiKey:secretYaqui},{token:yaqui.token});
    assert.equal(saved.status,200);
    assert.equal(saved.data.configured,true);
+   assert.equal(saved.data.verified,true,'El Worker confirma lectura de D1');
+   assert.equal(saved.data.storage,'cloudflare-d1');
    assert.ok(!JSON.stringify(saved.data).includes(secretYaqui));
    const record=await DB.prepare('SELECT cipher_text,nonce FROM fish_credentials WHERE user_id=?').bind(yaqui.user.id).first();
    assert.ok(record?.cipher_text && record?.nonce);

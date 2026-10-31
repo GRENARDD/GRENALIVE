@@ -102,12 +102,41 @@ test('False-positive Cloudflare saves must never be described as cloud-synced',a
      activeUser:()=>user,readBody:async req=>req.body,remoteUrl:'https://license.test',fishVault:vault});
    await svc.attachCentralSession(user.id,{token:'X'.repeat(43),user:{username:'userx',id:'central-x'}},user.username);
    const result=await call(svc,'/api/license/fish-credentials','POST',{apiKey:keyA});
-   assert.equal(result.status,200);assert.equal(result.data.needsSync,true);
-   assert.equal(result.data.source,'device');
+   assert.equal(result.status,503,'Never report an unverified D1 write as success');
+   assert.equal(result.data.ok,false);
+   assert.equal(result.data.savedLocally,true);
+   assert.equal(result.data.needsSync,true);
    assert.equal((await svc.getFishCredential(user.id)).apiKey,keyA);
    cloud.setOffline(true);
    assert.equal((await svc.getFishCredential(user.id)).apiKey,keyA,'Offline Fish uses only that user local backup');
    assert.equal((await call(svc,'/api/license/fish-credentials')).data.source,'device');
+ }finally{globalThis.fetch=orig;await rm(dir,{recursive:true,force:true})}
+});
+test('A newer Fish API pending locally never gets overwritten by an older cloud credential',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'grena-fish-pending-old-')),orig=globalThis.fetch;
+ const cloud=mockCloud(),vault=fakeVault(),user={id:'local-p',username:'userp'};
+ cloud.usernameByToken.set('P'.repeat(43),'central-p');cloud.secrets.set('central-p',keyA);
+ try{
+  globalThis.fetch=cloud.fetch;
+  const svc=await makeLicensing({cloud:false,dataDir:dir,profileFile:(n,id)=>join(dir,id,n),
+    activeUser:()=>user,readBody:async req=>req.body,remoteUrl:'https://license.test',fishVault:vault});
+  await svc.attachCentralSession(user.id,{token:'P'.repeat(43),user:{username:'userp',id:'central-p'}},user.username);
+  cloud.setAcceptWrite(false);
+  const denied=await call(svc,'/api/license/fish-credentials','POST',{apiKey:keyB});
+  assert.equal(denied.status,503);
+  assert.equal(cloud.secrets.get('central-p'),keyA);
+  const status=await call(svc,'/api/license/fish-credentials');
+  assert.equal(status.data.source,'device');assert.equal(status.data.needsSync,true);
+  assert.equal(status.data.verified,false);
+  assert.equal((await svc.getFishCredential(user.id)).apiKey,keyB,'Keep latest key for local TTS');
+  const retryFailure=await call(svc,'/api/license/fish-credentials/sync','POST');
+  assert.notEqual(retryFailure.status,200);
+  cloud.setAcceptWrite(true);
+  const restored=await call(svc,'/api/license/fish-credentials/sync','POST');
+  assert.equal(restored.status,200);assert.equal(restored.data.verified,true);
+  assert.equal(cloud.secrets.get('central-p'),keyB);
+  assert.equal((await call(svc,'/api/license/fish-credentials')).data.source,'cloud');
+  assert.equal((await svc.getFishCredential(user.id)).apiKey,keyB);
  }finally{globalThis.fetch=orig;await rm(dir,{recursive:true,force:true})}
 });
 test('Windows DPAPI backup survives restart, stores no plaintext, and rejects another GREÑA ID', {skip:process.platform!=='win32'},async()=>{
