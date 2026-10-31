@@ -75,3 +75,18 @@ test('Owner 401 diagnostics name only the failing slot and throttle rejected cre
  assert.match(chat,/fish\.status===401\)coolDownFishAccount\(fishAccount,30000\)/);
  assert.doesNotMatch(chat,/console\.log\([^\n]*fishAccount\.key/);
 });
+
+test('Owner can replace one Fish API securely in Administration without changing the other',()=>{
+ const html=readFileSync(new URL('../license-admin.html',import.meta.url),'utf8');
+ const server=readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
+ assert.match(html,/id="fishOwnerLocalKeys"/);
+ assert.match(html,/id="fishOwnerSlot"/);
+ assert.match(html,/id="fishOwnerNewKey" type="password"/);
+ assert.match(html,/method:'POST',headers:\{'content-type':'application\/json'\}/);
+ assert.match(html,/fetch\('\/api\/owner\/fish-keys'/);
+ assert.match(html,/\$\('fishOwnerNewKey'\)\.value=''/);
+ assert.match(server,/await storeOwnerFishKey\(DATA_DIR,slot,key\)/);
+ assert.match(server,/\/api\/fish-credentials-reload/);
+ assert.match(server,/JSON\.stringify\(\{profileId:me\.id\}\)/);
+ assert.doesNotMatch(html,/localStorage\.setItem\([^\n]*fishOwner/i);
+});
