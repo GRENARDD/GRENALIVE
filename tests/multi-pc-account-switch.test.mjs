@@ -12,7 +12,7 @@ test('Authenticated profile menu offers switching accounts and creating another 
  assert.match(avatar,/data-a="new-account">[^<]*Crear otro GREÑA ID/);
  assert.match(avatar,/await fetch\('\/api\/account\/logout',[\s\S]*method:'POST'/);
  assert.match(avatar,/location\.replace\(a==='new-account'\?'\/login\.html#register':'\/login\.html#login'\)/);
- assert.match(avatar,/grena-avatar:\+d\.user\.id/);
+ assert.match(avatar,/key='grena-avatar:'\+d\.user\.id/);
 });
 
 test('Registration shortcut shows the form and never silently redirects to an old session',()=>{
