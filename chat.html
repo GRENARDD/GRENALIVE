@@ -3691,6 +3691,24 @@ function insertVoiceByPriority(message){
   return true;
 }
 
+// A failed Fish request must never turn a one-item live queue back into a
+// FIFO backlog. Retry only a fresh comment when no newer/equal priority item
+// has arrived, preserving the original arrival timestamp.
+function requeueFreshFishMessage(message){
+  if(!message || message.__voiceTest) return false;
+  const queuedAt = Number(message.__voiceQueuedAt || 0);
+  if(!queuedAt || Date.now()-queuedAt>VOICE_STALE_MS) return false;
+  if(voiceQueue.length){
+    const pending = voiceQueue[0];
+    if(voicePriority(pending)>=voicePriority(message)) return false;
+    cleanupFishPreparedMessage(pending,true);
+    voiceQueue.length = 0;
+    voiceDroppedOverload++;
+  }
+  voiceQueue.push(message);
+  return true;
+}
+
 function dropLowestPriorityVoice(){
   if(!voiceQueue.length) return null;
   let lowest = Infinity;
@@ -4052,7 +4070,7 @@ async function speakFishMessage(message, spokenText){
       // Solo los errores de configuración/credencial detienen el motor. Un
       // 429, timeout, fallo de red o audio vacío ahora se recupera solo.
       if(isFishPermanentError(failure)){
-        if(!message.__voiceTest) voiceQueue.unshift(message);
+        // Do not resurrect this old comment after the user repairs an API.
         fishBlockedError = failure;
         fishTransientError = '';
         updateVoiceStatus();
@@ -4071,8 +4089,7 @@ async function speakFishMessage(message, spokenText){
       const retryCount = Math.max(0,Number(message.__fishRetryCount)||0) + 1;
       message.__fishRetryCount = retryCount;
 
-      if(!message.__voiceTest && retryCount <= FISH_MAX_RETRIES_PER_MESSAGE){
-        voiceQueue.unshift(message);
+      if(retryCount <= FISH_MAX_RETRIES_PER_MESSAGE && requeueFreshFishMessage(message)){
         const delay = fishRetryDelay(retryCount,failure);
         fishTransientError = `${failure} · reintento ${retryCount}/${FISH_MAX_RETRIES_PER_MESSAGE} automático...`;
         updateVoiceStatus();
