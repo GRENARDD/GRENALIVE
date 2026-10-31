@@ -1926,6 +1926,27 @@ function isFishVoiceSelected(){
   return $('voiceSelect')?.value === 'fish:s2.1-pro-free';
 }
 
+// Verify this GREÑA ID's Fish credentials before viewers start commenting.
+// No API key leaves the server, and a voice on/off toggle does not switch accounts.
+let fishWarmupPending = null;
+let fishLastWarmupAt = 0;
+const FISH_WARMUP_INTERVAL_MS = 11000;
+function warmFishCredentials(force = false){
+  if(!isFishVoiceSelected() || !$('voiceEnabled')?.checked) return Promise.resolve(false);
+  if(fishWarmupPending) return fishWarmupPending;
+  const now = Date.now();
+  if(!force && now - fishLastWarmupAt < FISH_WARMUP_INTERVAL_MS) return Promise.resolve(true);
+  fishLastWarmupAt = now;
+  const pending = fetch('/api/fish-ready',{cache:'no-store'})
+    .then(response => response.ok)
+    .catch(() => false);
+  fishWarmupPending = pending;
+  void pending.finally(() => {
+    if(fishWarmupPending === pending) fishWarmupPending = null;
+  });
+  return pending;
+}
+
 const FISH_VOICE_COUNT = 5;
 
 function getFishModelIds(){
@@ -4510,6 +4531,7 @@ $('voiceEnabled').addEventListener(
       // Este change viene de un clic del usuario y sirve para desbloquear
       // la salida de audio en navegadores con política de autoplay.
       unlockVoiceFromGesture();
+      if(isFishVoiceSelected()) void warmFishCredentials(true);
       speakNext();
 
     }
@@ -4822,7 +4844,7 @@ function openWS(){
             if($('voiceEnabled').checked!==enabled){
               $('voiceEnabled').checked=enabled;
               if(!enabled){voiceNeedsUnlock=false;resetVoiceEngine(true);}
-              else{speakNext();}
+              else{if(isFishVoiceSelected()) void warmFishCredentials(true);speakNext();}
               saveSettings();
               updateVoiceStatus();
             }
@@ -5550,6 +5572,7 @@ function installSettingsListeners(){
       resetVoiceEngine(false);
       updateVoiceHint();
       updateFishControls();
+      if(isFishVoiceSelected()) void warmFishCredentials(true);
       saveSettings();
       if($('voiceEnabled').checked && voiceQueue.length){
         setTimeout(speakNext,VOICE_GAP_MS);
@@ -5707,6 +5730,10 @@ function status(
 
 restoreSettings();
 settingsRestored = true;
+if(isFishVoiceSelected() && $('voiceEnabled')?.checked) void warmFishCredentials(true);
+setInterval(() => {
+  if(isFishVoiceSelected() && $('voiceEnabled')?.checked) void warmFishCredentials();
+},FISH_WARMUP_INTERVAL_MS);
 initVoiceSynthesis();
 syncSavedConnections();
 
