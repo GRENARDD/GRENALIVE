@@ -10,6 +10,7 @@ assert.ok(start>=0&&stop>start,'Live no-backlog voice functions missing');
 function createReader(){
  const dropped=[],ctx={
    voiceQueue:[],voiceDroppedOverload:0,
+   VOICE_STALE_MS:2500,
    cleanupFishPreparedMessage:(msg,abort)=>dropped.push({name:msg.text,abort}),
    Date
  };
