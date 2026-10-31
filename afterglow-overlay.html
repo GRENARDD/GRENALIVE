@@ -200,7 +200,7 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
     root,layout,platform:platformName[platform],ownerName:ownerFor(platform),volume:cfg.volume,soundEnabled:canSound
   }):null;
   if(!packed){
-    if(cfg.theme==='grena_mascots'){
+    if(cfg.theme==='grena_mascots'||cfg.theme==='grena_grenito'){
       // Original five-character SVG player. It shares the existing OBS source and queue.
       const sourceEvent=String(next.event||next.eventKind||'').toLowerCase();
       const sourceKind=String(next.eventKind||next.giftKind||'').toLowerCase();
@@ -213,7 +213,7 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
       scene.setAttribute('aria-hidden','true');
       scene.setAttribute('tabindex','-1');
       scene.setAttribute('allow','autoplay');
-      const mascotUrl=new URL('/assets/grena-mascot-alerts.html',location.origin);
+      const mascotUrl=new URL(cfg.theme==='grena_mascots'?'/assets/grena-mascot-alerts.html':'/assets/grenito-original-alerts.html',location.origin);
       mascotUrl.searchParams.set('obs','1');
       mascotUrl.searchParams.set('char',cfg.mascotCharacter);
       mascotUrl.searchParams.set('volume',canSound?String(cfg.volume):'0');
@@ -252,7 +252,7 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
     }
   }
   personalizeLegacy(root,ownerFor(platform));
-   const ms=packed?.durationMs||(cfg.theme==='ascension'?7200:cfg.theme==='grena_catalog'?6000:cfg.theme==='grena_fullscreen'?7000:cfg.theme==='grena_mascots'?5500:duration(event));
+   const ms=packed?.durationMs||(cfg.theme==='ascension'?7200:cfg.theme==='grena_catalog'?6000:cfg.theme==='grena_fullscreen'?7000:['grena_mascots','grena_grenito'].includes(cfg.theme)?5500:duration(event));
   const fx=root.firstElementChild;
   const endTimer=packed?null:setTimeout(()=>{fx?.classList.add('outro')},ms-650);
   activeTimer=setTimeout(()=>{if(endTimer)clearTimeout(endTimer);root.replaceChildren();working=false;if(!refreshWhenIdle())drain()},ms);
