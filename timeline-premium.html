@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>GREÑA LIVE · Timeline Premium OBS</title>
+<style>
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent!important}
+body{font-family:Inter,"Segoe UI",Arial,sans-serif;color:#fff;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
+#viewport{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:flex-end;flex-direction:column;pointer-events:none;padding:18px 0}
+#timeline{width:min(var(--chat-width,680px),100%);display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;gap:var(--gap,13px);padding-left:var(--offset,12px);padding-right:6px;min-height:0}
+body.right #timeline{margin-left:auto;padding-left:6px;padding-right:var(--offset,12px)}
+.item{position:relative;flex:0 0 auto;min-height:36px;padding:0 0 1px calc(var(--rail-gap,37px));transform-origin:top left;will-change:transform,opacity}
+.item::before{content:"";position:absolute;left:calc(var(--rail-gap,37px) / 2 - 2px);top:-9px;bottom:-15px;width:3px;border-radius:4px;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.9) 0 16px,transparent 16px 23px);filter:drop-shadow(0 1px 2px #000a)}
+.item:last-child::before{bottom:0}
+.marker{position:absolute;left:calc(var(--rail-gap,37px) / 2 - var(--star-size,10px));top:27px;width:calc(var(--star-size,10px) * 2);height:calc(var(--star-size,10px) * 2);display:grid;place-items:center;color:var(--accent,#b48ad6);filter:drop-shadow(0 1px 2px #000b)}
+.marker svg{display:block;width:100%;height:100%;stroke:#fff;stroke-width:1.3;fill:var(--accent);paint-order:stroke fill}
+.header{display:flex;align-items:center;min-width:0;gap:7px;flex-wrap:wrap}
+.name-pill{display:inline-flex;align-items:center;gap:9px;min-height:29px;max-width:100%;padding:4px 15px 4px 12px;border-radius:999px;background:linear-gradient(100deg,var(--pill,#663771),var(--pill2,#4b2957));box-shadow:inset 0 1px 0 #ffffff27,0 1px 4px #0006;color:white;font-size:var(--name-size,17px);font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px #0006}
+.dot{flex:0 0 6px;width:6px;height:6px;border-radius:50%;background:#eeeaff;box-shadow:0 0 2px #fff}
+.nick{overflow:hidden;text-overflow:ellipsis}
+.badge-pill{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:26px;padding:3px 8px;border-radius:999px;background:linear-gradient(110deg,var(--pill,#663771),var(--pill2,#4b2957));box-shadow:inset 0 1px 0 #ffffff30,0 1px 4px #0007}
+.badge-entry{font-size:17px;line-height:18px;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;max-width:38px}
+.badge-entry img{max-width:22px;max-height:20px;object-fit:contain}
+.content{font-size:var(--font-size,20px);font-weight:720;line-height:1.32;letter-spacing:.01em;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap;max-width:100%;padding:4px 0 0 1px;text-shadow:0 2px 2px #000,0 0 5px #0008}
+.content.emoji-only{font-size:calc(var(--font-size,20px) * 1.55);line-height:1.15}
+.emote{width:auto;height:calc(var(--font-size,20px) * 2.2);max-width:72px;object-fit:contain;vertical-align:middle;margin-right:2px;filter:drop-shadow(0 1px 2px #0008)}
+.item.enter{animation:appear var(--speed,300ms) cubic-bezier(.18,.85,.2,1) both}
+.item.leaving{opacity:0!important;transform:translateY(-8px)!important;transition:opacity 280ms,transform 280ms!important}
+#status{position:fixed;bottom:8px;left:15px;font:11px sans-serif;color:#eee;text-shadow:0 1px 4px black;opacity:0;transition:opacity .2s}
+#status.warn{opacity:.7}
+body.right #status{left:auto;right:15px}
+@media(prefers-reduced-motion:reduce){.item.enter{animation:none}.item.leaving{transition:none}}
+@keyframes appear{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div id="viewport"><div id="timeline" aria-live="off"></div></div><div id="status" aria-live="polite"></div>
+<script>
+"use strict";
+const origin=location.origin;
+const qs=new URLSearchParams(location.search);
+const obs=qs.get("obs")||"";
+const suffix=obs?"&obs="+encodeURIComponent(obs):"";
+const api=origin+"/chat/api";
+const socketUrl=(location.protocol==="https:"?"wss://":"ws://")+location.host+"/chat-ws"+(obs?"?obs="+encodeURIComponent(obs):"");
+const defaultCfg={direction:"left",edgeOffset:12,width:680,fontSize:20,nameSize:17,starSize:10,lineWidth:3,gap:13,maxMessages:6,duration:14,speed:300,showBadges:true,showPlatform:true,colorMode:"role",normalColor:"#6b3971",moderatorColor:"#2483b3",ownerColor:"#b78035",subscriberColor:"#8055a7"};
+const limits={edgeOffset:[0,120],width:[160,1920],fontSize:[10,72],nameSize:[9,60],starSize:[5,22],lineWidth:[1,8],gap:[0,48],maxMessages:[1,20],duration:[2,120],speed:[0,1200]};
+function sanitize(obj){
+ const x=obj&&typeof obj==="object"?obj:{},out={...defaultCfg};
+ for(const [k,v] of Object.entries(defaultCfg)){
+   if(typeof v==="number"){let n=Number(x[k]),range=limits[k];out[k]=Number.isFinite(n)&&range?Math.max(range[0],Math.min(range[1],n)):v}
+   else if(typeof v==="boolean"){out[k]=typeof x[k]==="boolean"?x[k]:v}
+   else if(k.endsWith("Color")){out[k]=/^#[0-9a-f]{6}$/i.test(x[k])?x[k]:v}
+   else if(k==="direction"){out[k]=x[k]==="right"?"right":"left"}
+   else if(k==="colorMode"){out[k]=x[k]==="platform"?"platform":"role"}
+ }
+ return out;
+}
+let cfg={...defaultCfg},ws=null,retry=0;
+const timeline=document.getElementById("timeline"),status=document.getElementById("status");
+const seen=new Set(),nodes=new Map();
+const platforms=new Set(["tiktok","twitch","kick","youtube","starvios"]);
+const platformColors={tiktok:"#57a1c4",twitch:"#8f53cb",kick:"#58a64e",youtube:"#c45773",starvios:"#dd6d9a"};
+function shade(hex,factor){let n=parseInt(hex.slice(1),16);return "#"+[16,8,0].map(s=>Math.max(0,Math.min(255,Math.round(((n>>s)&255)*factor))).toString(16).padStart(2,"0")).join("")}
+function apply(){
+ document.body.classList.toggle("right",cfg.direction==="right");
+ const root=document.documentElement.style;
+ root.setProperty("--chat-width",cfg.width+"px");
+ root.setProperty("--offset",cfg.edgeOffset+"px");
+ root.setProperty("--font-size",cfg.fontSize+"px");
+ root.setProperty("--name-size",cfg.nameSize+"px");
+ root.setProperty("--star-size",cfg.starSize+"px");
+ root.setProperty("--gap",cfg.gap+"px");
+ root.setProperty("--speed",cfg.speed+"ms");
+ root.setProperty("--rail-gap",Math.max(25,cfg.starSize*2+17)+"px");
+ timeline.style.setProperty("--line-width",cfg.lineWidth+"px");
+ // A line-width control changes only the rail, not the star.
+ for(const item of timeline.children){
+   item.style.setProperty("--line-width",cfg.lineWidth+"px");
+   const role=item.dataset.role||"normal",p=item.dataset.platform||"tiktok";
+   setColors(item,role,p);
+ }
+ let rule=document.getElementById("dynamicRail");
+ if(!rule){rule=document.createElement("style");rule.id="dynamicRail";document.head.append(rule)}
+ rule.textContent=".item::before{width:"+cfg.lineWidth+"px}";
+ trim();
+}
+function roleFor(d){return d.isBroadcaster||d.isOwner?"owner":d.isModerator?"moderator":d.isSubscriber||d.isMember?"subscriber":"normal"}
+function setColors(el,role,p){
+ const color=cfg.colorMode==="platform"?platformColors[p]||cfg.normalColor:role==="owner"?cfg.ownerColor:role==="moderator"?cfg.moderatorColor:role==="subscriber"?cfg.subscriberColor:cfg.normalColor;
+ el.style.setProperty("--accent",color);
+ el.style.setProperty("--pill",color);
+ el.style.setProperty("--pill2",shade(color,.69));
+}
+function safeEmoteUrl(url){
+ try{const u=new URL(url);return u.protocol==="https:"&&/(^|\.)((jtvnw\.net)|(twitch\.tv)|(tiktokcdn\.com)|(ytimg\.com)|(youtube\.com)|(kick\.com)|(cdn\.7tv\.app)|(betterttv\.net))$/i.test(u.hostname)?u.href:""}catch{return ""}
+}
+function badgesFor(d,role){
+ const list=[];
+ if(role==="owner")list.push(["👑","Dueño"]);
+ if(role==="moderator")list.push(["⚔️","Moderador"]);
+ if(role==="subscriber")list.push(["💜","Suscriptor"]);
+ if(d.isFollower&&role==="normal")list.push(["✦","Seguidor"]);
+ if(Array.isArray(d.badges))for(const badge of d.badges.slice(0,5)){
+   if(typeof badge==="string"&&badge.length<=16)list.push([badge,"Insignia"]);
+   else if(badge&&typeof badge==="object"){const u=safeEmoteUrl(badge.url||badge.image||"");if(u)list.push([{url:u},String(badge.name||"Insignia").slice(0,60)])}
+ }
+ return list.slice(0,5);
+}
+function paintContent(container,d){
+ const text=String(d.text??"").slice(0,2500);
+ const raw=Array.isArray(d.emotes)?d.emotes:[];
+ const emotes=raw.map(e=>({start:Number(e.start),end:Number(e.end),url:safeEmoteUrl(e.url||"")})).filter(e=>Number.isInteger(e.start)&&Number.isInteger(e.end)&&e.start>=0&&e.end>=e.start&&e.end<text.length&&e.url).sort((a,b)=>a.start-b.start).slice(0,32);
+ let pos=0;
+ for(const e of emotes){
+   if(e.start<pos)continue;
+   if(e.start>pos)container.append(document.createTextNode(text.slice(pos,e.start)));
+   const img=document.createElement("img");img.className="emote";img.src=e.url;img.alt=text.slice(e.start,e.end+1);img.referrerPolicy="no-referrer";img.loading="eager";img.decoding="async";
+   img.onerror=()=>img.replaceWith(document.createTextNode(img.alt));
+   container.append(img);pos=e.end+1;
+ }
+ if(pos<text.length)container.append(document.createTextNode(text.slice(pos)));
+ if(!text)container.textContent="";
+ if(!emotes.length&&text.length<36&&/[\p{Extended_Pictographic}]/u.test(text)&&!/[A-Za-z0-9]{3,}/.test(text))container.classList.add("emoji-only");
+}
+function removeItem(el){
+ if(!el||el.classList.contains("leaving"))return;
+ el.classList.add("leaving");
+ setTimeout(()=>{if(el.dataset.key)nodes.delete(el.dataset.key);el.remove()},300);
+}
+function trim(){
+ const list=[...timeline.children].filter(e=>!e.classList.contains("leaving"));
+ while(list.length>cfg.maxMessages)removeItem(list.shift());
+}
+function add(d){
+ if(!d||d.type!=="chat"||!platforms.has(String(d.platform||"").toLowerCase()))return;
+ const key=String(d._historyId||d.messageId||"").slice(0,160);
+ if(key&&seen.has(key))return;
+ if(key){seen.add(key);if(seen.size>750)seen.delete(seen.values().next().value)}
+ const p=String(d.platform).toLowerCase(),role=roleFor(d),nick=String(d.nickname||d.user||"Usuario").slice(0,90);
+ const el=document.createElement("article");el.className="item enter";el.dataset.platform=p;el.dataset.role=role;if(key){el.dataset.key=key;nodes.set(key,el)}
+ setColors(el,role,p);
+ const star=document.createElement("div");star.className="marker";star.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2.7 2.77 5.67 6.26.91-4.53 4.41 1.07 6.23L12 16.98 6.43 19.9l1.07-6.23-4.53-4.4 6.26-.92z"/></svg>';
+ const header=document.createElement("div");header.className="header";
+ const pill=document.createElement("div");pill.className="name-pill";pill.title=nick;
+ const dot=document.createElement("i");dot.className="dot";
+ const name=document.createElement("span");name.className="nick";name.textContent=nick;
+ pill.append(dot,name);header.append(pill);
+ const badges=cfg.showBadges?badgesFor(d,role):[];
+ if(cfg.showPlatform)badges.unshift([{platform:p},p]);
+ if(badges.length){
+   const badgePill=document.createElement("div");badgePill.className="badge-pill";
+   for(const [symbol,title] of badges.slice(0,5)){
+     const s=document.createElement("span");s.className="badge-entry";s.title=title;
+     if(typeof symbol==="object"&&symbol.url){const img=document.createElement("img");img.src=symbol.url;img.alt=title;s.append(img)}
+     else if(typeof symbol==="object"&&symbol.platform){s.textContent={tiktok:"♪",twitch:"◧",kick:"K",youtube:"▶",starvios:"✦"}[symbol.platform]||"✦"}
+     else s.textContent=symbol;
+     badgePill.append(s);
+   }
+   header.append(badgePill);
+ }
+ const content=document.createElement("div");content.className="content";paintContent(content,d);
+ el.append(star,header,content);timeline.append(el);trim();
+ if(key)nodes.set(key,el);
+ const duration=Math.round(cfg.duration*1000);
+ setTimeout(()=>removeItem(el),duration);
+}
+function statusText(text){status.textContent=text;status.classList.toggle("warn",!!text)}
+async function load(){
+ try{
+   const res=await fetch(api+"/timeline-premium-settings?ts="+Date.now()+suffix,{cache:"no-store"});
+   if(res.ok){const data=await res.json();cfg=sanitize(data.settings)}
+ }catch{}
+ apply();
+ try{
+   const res=await fetch(api+"/multichat-history?limit="+cfg.maxMessages+"&ts="+Date.now()+suffix,{cache:"no-store"});
+   if(res.ok){const data=await res.json();for(const m of (data.messages||[]))add(m)}
+ }catch{}
+}
+window.addEventListener("message",e=>{
+ if(e.source!==parent&&e.source!==window)return;
+ if(e.origin!==origin)return;
+ if(e.data?.type==="grena-timeline-settings"){cfg=sanitize(e.data.settings);apply()}
+ if(e.data?.type==="grena-timeline-demo")add({...e.data.message,type:"chat"});
+});
+function connect(){
+ clearTimeout(retry);
+ try{ws=new WebSocket(socketUrl)}catch{retry=setTimeout(connect,1800);return}
+ ws.onopen=()=>{statusText("");load()};
+ ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==="timeline-premium-settings"){cfg=sanitize(d.settings);apply()}else if(d.type==="chat-history"){for(const m of d.messages.slice(-cfg.maxMessages))add(m)}else add(d)}catch{}};
+ ws.onclose=()=>{statusText("Reconectando chat…");retry=setTimeout(connect,1700)};
+ ws.onerror=()=>{try{ws.close()}catch{}};
+}
+load().then(connect);
+</script>
+</body>
+</html>
