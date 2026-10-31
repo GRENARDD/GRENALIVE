@@ -8,7 +8,7 @@ test('5.1.13 uses a unique artifact and does not silently publish a tag build',(
  assert.match(flow,/GRENA-LIVE-Installer-Windows-v5\.1\.14/);
  assert.match(flow,/electron-builder --win nsis --x64 --publish never/);
  assert.doesNotMatch(flow,/electron-builder --win nsis --x64 --publish always/);
- assert.match(flow,/verify-upgrade-5112-to-5113\.ps1/);
+ assert.match(flow,/verify-upgrade-5112-to-5114\.ps1/);
  assert.match(flow,/Language\.Parser\]::ParseFile/);
  assert.match(src('desktop-build/verify-upgrade-5112-to-5113.ps1'),/OK \$\{stage\}: perfil/);
 });
