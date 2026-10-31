@@ -4,8 +4,8 @@ const {readFileSync}=require('node:fs'),{join}=require('node:path');
 const src=file=>readFileSync(join(__dirname,'..',file),'utf8');
 test('5.1.13 uses a unique artifact and does not silently publish a tag build',()=>{
  const flow=src('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(flow,/Set official 5\.1\.13 version on main/);
- assert.match(flow,/GRENA-LIVE-Installer-Windows-v5\.1\.13/);
+ assert.match(flow,/Set official 5\.1\.14 version on main/);
+ assert.match(flow,/GRENA-LIVE-Installer-Windows-v5\.1\.14/);
  assert.match(flow,/electron-builder --win nsis --x64 --publish never/);
  assert.doesNotMatch(flow,/electron-builder --win nsis --x64 --publish always/);
  assert.match(flow,/verify-upgrade-5112-to-5113\.ps1/);
@@ -31,13 +31,13 @@ test('release 5.1.13 requires successful build at current commit and owner still
  const flow=src('.github/workflows/grena-release-v5113.yml');
  const up=src('desktop-build/fix_official_updates.py');
  const worker=src('cloudflare/licenses/src/updates.mjs');
- assert.match(flow,/VERSION: '5\.1\.13'/);
+ assert.match(flow,/VERSION: '5\.1\.14'/);
  assert.match(flow,/git rev-parse HEAD/);
  assert.match(flow,/\$TESTED_SHA/);
  assert.match(flow,/gh run download/);
  assert.match(flow,/sha512/);
  assert.match(flow,/gh release create/);
- assert.match(up,/tag\[1:\] if tag else '5\.1\.13'/);
+ assert.match(up,/tag\[1:\] if tag else '5\.1\.14'/);
  assert.match(up,/const releaseBase='https:\/\/grena-live-licenses/);
  assert.match(up,/autoUpdater\.autoDownload=false/);
  assert.match(up,/autoUpdater\.checkForUpdates\(\)/);
