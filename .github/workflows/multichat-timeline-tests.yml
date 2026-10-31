@@ -1,0 +1,31 @@
+name: GREÑA · Multichat Timeline Premium
+on:
+  pull_request:
+    paths:
+      - 'multichat-overlay.html'
+      - 'widgets.html'
+      - 'chat-server.mjs'
+      - 'tests/multichat-timeline-premium.test.mjs'
+      - '.github/workflows/multichat-timeline-tests.yml'
+  push:
+    branches: [feature/multichat-timeline-premium]
+    paths:
+      - 'multichat-overlay.html'
+      - 'widgets.html'
+      - 'chat-server.mjs'
+      - 'tests/multichat-timeline-premium.test.mjs'
+      - '.github/workflows/multichat-timeline-tests.yml'
+permissions:
+  contents: read
+jobs:
+  timeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Confirm server syntax
+        run: node --check chat-server.mjs
+      - name: Validate Timeline Premium and existing Full HD multichat
+        run: node --test tests/multichat-timeline-premium.test.mjs tests/multichat-fullhd.test.mjs
