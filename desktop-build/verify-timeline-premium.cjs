@@ -39,6 +39,8 @@ const broadcast=data=>{for(const ws of sockets)if(ws.readyState===1)ws.send(JSON
    await page.goto(base+'/chat/timeline-premium.html?obs=TEST',{waitUntil:'load'});
    await page.waitForSelector('.item .name-pill',{timeout:10000});
    await page.waitForFunction(()=>document.querySelectorAll('.item').length===1);
+   let connected=false;for(let i=0;i<100;i++){if(sockets.size){connected=true;break}await new Promise(r=>setTimeout(r,25))}
+   assert.ok(connected,'El overlay no abrió su conexión real WebSocket.');
    let state=await page.evaluate(()=>{
      const html=getComputedStyle(document.documentElement),body=getComputedStyle(document.body);
      const name=document.querySelector('.nick'),rail=getComputedStyle(document.querySelector('.item'),'::before');
