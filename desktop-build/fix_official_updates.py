@@ -79,6 +79,8 @@ s+=r"""
      downloading=true;
      if(mainWindow&&!mainWindow.isDestroyed())originalWindowTitle=mainWindow.getTitle();
      autoUpdater.downloadUpdate().catch(error=>{
+       // The updater also fires an error event; report once, never two dialogs.
+       if(!downloading)return;
        downloading=false;lastOffered='';
        if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1);
        resetDownloadTitle();
