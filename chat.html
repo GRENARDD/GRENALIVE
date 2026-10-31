@@ -1926,6 +1926,27 @@ function isFishVoiceSelected(){
   return $('voiceSelect')?.value === 'fish:s2.1-pro-free';
 }
 
+// Verify this GREÑA ID's Fish credentials before viewers start commenting.
+// No API key leaves the server, and a voice on/off toggle does not switch accounts.
+let fishWarmupPending = null;
+let fishLastWarmupAt = 0;
+const FISH_WARMUP_INTERVAL_MS = 11000;
+function warmFishCredentials(force = false){
+  if(!isFishVoiceSelected() || !$('voiceEnabled')?.checked) return Promise.resolve(false);
+  if(fishWarmupPending) return fishWarmupPending;
+  const now = Date.now();
+  if(!force && now - fishLastWarmupAt < FISH_WARMUP_INTERVAL_MS) return Promise.resolve(true);
+  fishLastWarmupAt = now;
+  const pending = fetch('/api/fish-ready',{cache:'no-store'})
+    .then(response => response.ok)
+    .catch(() => false);
+  fishWarmupPending = pending;
+  void pending.finally(() => {
+    if(fishWarmupPending === pending) fishWarmupPending = null;
+  });
+  return pending;
+}
+
 const FISH_VOICE_COUNT = 5;
 
 function getFishModelIds(){
@@ -3670,6 +3691,24 @@ function insertVoiceByPriority(message){
   return true;
 }
 
+// A failed Fish request must never turn a one-item live queue back into a
+// FIFO backlog. Retry only a fresh comment when no newer/equal priority item
+// has arrived, preserving the original arrival timestamp.
+function requeueFreshFishMessage(message){
+  if(!message || message.__voiceTest) return false;
+  const queuedAt = Number(message.__voiceQueuedAt || 0);
+  if(!queuedAt || Date.now()-queuedAt>VOICE_STALE_MS) return false;
+  if(voiceQueue.length){
+    const pending = voiceQueue[0];
+    if(voicePriority(pending)>=voicePriority(message)) return false;
+    cleanupFishPreparedMessage(pending,true);
+    voiceQueue.length = 0;
+    voiceDroppedOverload++;
+  }
+  voiceQueue.push(message);
+  return true;
+}
+
 function dropLowestPriorityVoice(){
   if(!voiceQueue.length) return null;
   let lowest = Infinity;
@@ -3814,8 +3853,9 @@ function queueVoice(m){
 
   updateVoiceStatus();
 
-  if(isFishVoiceSelected()) pumpFishPrefetch();
+  // Play the first comment immediately; prefetch must never block its stream.
   speakNext();
+  if(isFishVoiceSelected()) pumpFishPrefetch();
 
 }
 
@@ -3967,6 +4007,89 @@ function buildSpokenText(message){
 }
 
 
+
+async function startFishProgressivePlayback(spokenText,modelId,controller,volume,onAudio,onStarted,onFinished,onFailed){
+  // Chromium MediaSource lets playback begin as Fish sends its first MP3 bytes.
+  // Avoid a second paid synthesis: the old full-blob path is used if MSE is absent.
+  if(typeof MediaSource==='undefined'||!MediaSource.isTypeSupported('audio/mpeg'))return false;
+  const response=await fetch('/api/fish-tts',{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({text:spokenText,reference_id:modelId,model:$('fishEngine')?.value==='pro'?'pro':'free',stream:true}),
+    signal:controller.signal,cache:'no-store'
+  });
+  if(!response.ok){
+    let detail='';
+    try{const body=await response.json();detail=String(body?.error||body?.message||'');}catch{}
+    throw new Error(detail||'Fish Audio respondió HTTP '+response.status+'.');
+  }
+  if(!response.body)throw new Error('Esta versión de Chromium no permite recibir audio progresivo.');
+  const mediaSource=new MediaSource();
+  const objectUrl=URL.createObjectURL(mediaSource);
+  const audio=new Audio(objectUrl);
+  audio.preload='auto';
+  audio.volume=volume;
+  audio.playbackRate=1;
+  onAudio(audio,objectUrl);
+  const pending=[];
+  let sourceBuffer=null,complete=false,started=false,failed=false,received=0;
+  const fail=(reason)=>{
+    if(failed||controller.signal.aborted)return;
+    failed=true;
+    onFailed(reason);
+  };
+  const start=()=>{
+    if(started||failed||controller.signal.aborted||audio.readyState<2)return;
+    started=true;
+    audio.play().then(()=>{if(!controller.signal.aborted)onStarted();}).catch(error=>{
+      fail(error?.name==='NotAllowedError'?'not-allowed':'No se pudo iniciar el audio progresivo.');
+    });
+  };
+  const flush=()=>{
+    if(failed||controller.signal.aborted||!sourceBuffer||sourceBuffer.updating)return;
+    if(pending.length){
+      try{sourceBuffer.appendBuffer(pending.shift());}catch{fail('Chromium no pudo decodificar el audio progresivo.');}
+    }else if(complete&&mediaSource.readyState==='open'){
+      try{mediaSource.endOfStream();}catch{fail('No se pudo finalizar el audio progresivo.');}
+    }
+  };
+  audio.addEventListener('canplay',start);
+  audio.addEventListener('loadeddata',start);
+  audio.onended=()=>{if(!controller.signal.aborted)onFinished();};
+  audio.onerror=()=>fail('Chromium no pudo reproducir el audio progresivo de Fish Audio.');
+  mediaSource.addEventListener('sourceopen',()=>{
+    if(controller.signal.aborted||failed)return;
+    try{
+      sourceBuffer=mediaSource.addSourceBuffer('audio/mpeg');
+      sourceBuffer.addEventListener('updateend',()=>{flush();start();});
+      sourceBuffer.addEventListener('error',()=>fail('Error al decodificar un fragmento MP3.'));
+      flush();
+    }catch{fail('El dispositivo no admite MP3 progresivo.');}
+  },{once:true});
+  // Drain in the background while the browser is already playing; backpressure
+  // and abort propagate to the Fish HTTP request when the active voice changes.
+  void (async()=>{
+    try{
+      const reader=response.body.getReader();
+      while(!controller.signal.aborted&&!failed){
+        const {done,value}=await reader.read();
+        if(done){complete=true;break;}
+        if(!value?.byteLength)continue;
+        received+=value.byteLength;
+        if(received>20*1024*1024)throw Error('El audio supera el tamaño máximo.');
+        pending.push(value.slice().buffer);
+        flush();
+      }
+      if(!controller.signal.aborted&&!failed){
+        if(!received)fail('Fish Audio devolvió un audio vacío.');
+        else flush();
+      }
+    }catch(error){
+      if(!controller.signal.aborted)fail('Se interrumpió la descarga progresiva de Fish Audio.');
+    }
+  })();
+  return true;
+}
+
 async function speakFishMessage(message, spokenText){
 
   const fishVoice = getNextFishVoice(message);
@@ -4031,7 +4154,7 @@ async function speakFishMessage(message, spokenText){
       // Solo los errores de configuración/credencial detienen el motor. Un
       // 429, timeout, fallo de red o audio vacío ahora se recupera solo.
       if(isFishPermanentError(failure)){
-        if(!message.__voiceTest) voiceQueue.unshift(message);
+        // Do not resurrect this old comment after the user repairs an API.
         fishBlockedError = failure;
         fishTransientError = '';
         updateVoiceStatus();
@@ -4050,8 +4173,7 @@ async function speakFishMessage(message, spokenText){
       const retryCount = Math.max(0,Number(message.__fishRetryCount)||0) + 1;
       message.__fishRetryCount = retryCount;
 
-      if(!message.__voiceTest && retryCount <= FISH_MAX_RETRIES_PER_MESSAGE){
-        voiceQueue.unshift(message);
+      if(retryCount <= FISH_MAX_RETRIES_PER_MESSAGE && requeueFreshFishMessage(message)){
         const delay = fishRetryDelay(retryCount,failure);
         fishTransientError = `${failure} · reintento ${retryCount}/${FISH_MAX_RETRIES_PER_MESSAGE} automático...`;
         updateVoiceStatus();
@@ -4097,6 +4219,36 @@ async function speakFishMessage(message, spokenText){
       if(runId !== voiceRunId) return;
       if(!blob && message.__fishPrefetchError){
         finish(message.__fishPrefetchError,true);
+        return;
+      }
+    }
+
+    // Live comment: start decoding MP3 before the complete Fish result arrives.
+    // Prefetched audio and Probar voz still use the proven buffered path.
+    if(!blob && !message.__voiceTest && typeof MediaSource!=='undefined' &&
+       MediaSource.isTypeSupported('audio/mpeg')){
+      activeFishAbortController=new AbortController();
+      const progressive=await startFishProgressivePlayback(
+        spokenText,modelId,activeFishAbortController,volume,
+        (audio,url)=>{if(runId===voiceRunId){activeFishAudio=audio;activeFishObjectUrl=url;}},
+        ()=>{
+          if(runId!==voiceRunId)return;
+          console.info('[GREÑA VOZ LATENCIA]',JSON.stringify({
+            queueWaitMs:queuedAt?Math.max(0,generationStartAt-queuedAt):null,
+            synthesisToPlaybackMs:Math.max(0,Date.now()-generationStartAt),
+            messageToPlaybackMs:queuedAt?Math.max(0,Date.now()-queuedAt):null,
+            prefetched:false,progressive:true,pendingMessages:voiceQueue.length
+          }));
+          pumpFishPrefetch();
+        },
+        ()=>finish('',false),
+        error=>finish(error,error!=='not-allowed')
+      );
+      if(runId!==voiceRunId)return;
+      if(progressive){
+        voiceWatchdogTimer=setTimeout(()=>{
+          if(runId===voiceRunId&&speaking)finish('La voz progresiva tardó demasiado.',true);
+        },Math.max(18000,Math.min(90000,7000+Math.ceil(spokenText.length*220))));
         return;
       }
     }
@@ -4207,7 +4359,6 @@ function speakNext(){
       updateVoiceStatus();
       return;
     }
-    pumpFishPrefetch();
     const message = voiceQueue.shift();
     const spokenText = buildSpokenText(message);
     speakFishMessage(message,spokenText);
@@ -4510,6 +4661,7 @@ $('voiceEnabled').addEventListener(
       // Este change viene de un clic del usuario y sirve para desbloquear
       // la salida de audio en navegadores con política de autoplay.
       unlockVoiceFromGesture();
+      if(isFishVoiceSelected()) void warmFishCredentials(true);
       speakNext();
 
     }
@@ -4822,7 +4974,7 @@ function openWS(){
             if($('voiceEnabled').checked!==enabled){
               $('voiceEnabled').checked=enabled;
               if(!enabled){voiceNeedsUnlock=false;resetVoiceEngine(true);}
-              else{speakNext();}
+              else{if(isFishVoiceSelected()) void warmFishCredentials(true);speakNext();}
               saveSettings();
               updateVoiceStatus();
             }
@@ -5550,6 +5702,7 @@ function installSettingsListeners(){
       resetVoiceEngine(false);
       updateVoiceHint();
       updateFishControls();
+      if(isFishVoiceSelected()) void warmFishCredentials(true);
       saveSettings();
       if($('voiceEnabled').checked && voiceQueue.length){
         setTimeout(speakNext,VOICE_GAP_MS);
@@ -5707,6 +5860,10 @@ function status(
 
 restoreSettings();
 settingsRestored = true;
+if(isFishVoiceSelected() && $('voiceEnabled')?.checked) void warmFishCredentials(true);
+setInterval(() => {
+  if(isFishVoiceSelected() && $('voiceEnabled')?.checked) void warmFishCredentials();
+},FISH_WARMUP_INTERVAL_MS);
 initVoiceSynthesis();
 syncSavedConnections();
 

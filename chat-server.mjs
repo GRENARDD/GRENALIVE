@@ -85,6 +85,8 @@ if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no 
 // - si solo existe la cuenta 1, el comportamiento sigue siendo compatible con la versión anterior.
 const FISH_PER_ACCOUNT_MAX_CONCURRENT = 5;
 const FISH_WAIT_MAX_MS = 9000;
+// Live speech may skip a saturated generation instead of waiting nine seconds.
+const FISH_LIVE_ACQUIRE_WAIT_MS = 1500;
 const FISH_FAILOVER_WAIT_MS = 3500;
 const fishAccounts = []; // Owner keys are supplied only from the authenticated local backend.
 function reconcileOwnerFishAccounts(keys){
@@ -2661,6 +2663,28 @@ const server =
           return;
         }
 
+        // Warm the CURRENT GREÑA ID's Fish credentials before the first spoken
+        // comment. The browser never receives a key; account changes are isolated.
+        if (url.pathname === '/api/fish-ready' && request.method === 'GET') {
+          if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){
+            response.writeHead(403,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+            response.end(JSON.stringify({ok:false,ready:false,error:'Acceso interno no autorizado.'}));
+            return;
+          }
+          const context=await fishPoolForProfile(activeProfileId);
+          response.writeHead(context.accounts.length?200:503,{
+            'content-type':'application/json; charset=utf-8',
+            'cache-control':'no-store',
+            'x-content-type-options':'nosniff'
+          });
+          response.end(JSON.stringify({
+            ok:context.accounts.length>0,
+            ready:context.accounts.length>0,
+            error:context.accounts.length?'':context.error||'No se pudo preparar Fish Audio.'
+          }));
+          return;
+        }
+
         // Fish Audio TTS se ejecuta en Node para que las credenciales nunca se envíen
         // al navegador. El frontend solo proporciona texto + ID del modelo de voz.
         if (url.pathname === '/api/fish-tts' && request.method === 'POST') {
@@ -2724,7 +2748,7 @@ const server =
             response.end(JSON.stringify({ok:false,error:preexistingFailure.error}));
             return;
           }
-          let fishAccount=await acquireFishAccount(new Set(),FISH_WAIT_MAX_MS,fishContext.accounts);
+          let fishAccount=await acquireFishAccount(new Set(),FISH_LIVE_ACQUIRE_WAIT_MS,fishContext.accounts);
           if(!fishAccount){
             const failure=fishCooldownFailure(fishContext.accounts);
             response.writeHead(failure?.status||429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -2767,6 +2791,44 @@ const server =
 
                 if(fish.ok){
                   fishAccount.lastFailure=null;
+                  // v5.1.13: send the first MP3 bytes to Chromium immediately.
+                  // The same Fish request, credentials, model and 1x quality are used.
+                  // Buffered requests (voice tests and prefetch) keep the old path.
+                  if(incoming.stream===true && fish.body && !clientClosed && !response.destroyed){
+                    response.writeHead(200,{
+                      'content-type':'audio/mpeg',
+                      'cache-control':'no-store, max-age=0',
+                      'x-content-type-options':'nosniff',
+                      'x-grena-fish-pool':String(fishContext.accounts.length)
+                    });
+                    const streamedParts=[];
+                    let streamedBytes=0;
+                    try{
+                      for await(const part of fish.body){
+                        if(clientClosed || response.destroyed)return;
+                        const chunk=Buffer.from(part);
+                        streamedBytes+=chunk.length;
+                        if(streamedBytes>20*1024*1024)throw new Error('Fish Audio devolvió un audio demasiado grande.');
+                        if(!chunk.length)continue;
+                        streamedParts.push(chunk);
+                        if(!response.write(chunk)){
+                          await new Promise(resolve=>{
+                            response.once('drain',resolve);
+                            response.once('close',resolve);
+                          });
+                        }
+                      }
+                      if(!clientClosed && !response.destroyed && streamedBytes){
+                        fishAudioCachePut(fishCacheKey,Buffer.concat(streamedParts,streamedBytes));
+                        response.end();
+                      }else if(!response.destroyed)response.destroy();
+                    }catch{
+                      // Once the stream starts an HTTP error status cannot be sent.
+                      // Reject partial audio instead of letting it sound complete.
+                      if(!response.destroyed)response.destroy();
+                    }
+                    return;
+                  }
                   const audio=Buffer.from(await fish.arrayBuffer());
                   if(!audio.length || audio.length>20*1024*1024){
                     lastFailure={status:502,error:'Fish Audio devolvió un audio no válido.'};

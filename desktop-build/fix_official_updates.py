@@ -10,7 +10,7 @@ if pkg.get('version')!='5.0.9':
 tag=os.getenv('GITHUB_REF_NAME','') if os.getenv('GITHUB_REF_TYPE')=='tag' else ''
 if tag and not re.fullmatch(r'v[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,4}',tag):
     raise RuntimeError('Tag de actualización inválido')
-pkg['version']=tag[1:] if tag else '5.1.12'
+pkg['version']=tag[1:] if tag else '5.1.13'
 pkg.setdefault('dependencies',{})['electron-updater']='^6.6.2'
 pkg['build']['publish']={'provider':'github','owner':'GRENARDD','repo':'GRENALIVE','releaseType':'release'}
 pkgpath.write_text(json.dumps(pkg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
@@ -30,10 +30,18 @@ s+=r"""
  const releaseBase='https://grena-live-licenses.omelicolon18.workers.dev';
  const updateFeed=releaseBase+'/api/updates/';
  autoUpdater.autoDownload=false;
+ // Official releases publish a full NSIS EXE, not a differential .blockmap.
+ // Avoid dead requests and unreliable partial downloads on other PCs.
+ autoUpdater.disableDifferentialDownload=true;
  autoUpdater.autoInstallOnAppQuit=false;
  autoUpdater.allowPrerelease=false;
  autoUpdater.setFeedURL({provider:'generic',url:updateFeed});
  let lastOffered='',downloading=false,checking=false;
+ let originalWindowTitle='',downloadVersion='';
+ const resetDownloadTitle=()=>{
+   if(mainWindow&&!mainWindow.isDestroyed()&&originalWindowTitle)mainWindow.setTitle(originalWindowTitle);
+   originalWindowTitle='';
+ };
  const logError=e=>{try{logStartup('AUTOACTUALIZADOR',String(e?.message||e))}catch{}};
  const showUpdateDialog=opts=>mainWindow&&!mainWindow.isDestroyed()?dialog.showMessageBox(mainWindow,opts):dialog.showMessageBox(opts);
  const isNewVersion=(candidate,current)=>{
@@ -44,13 +52,23 @@ s+=r"""
    return current!==stableCurrent;
  };
  autoUpdater.on('error',error=>{
+   const wasDownloading=downloading;
    downloading=false;lastOffered='';
    if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1);
+   resetDownloadTitle();
    logError(error);
+   // Don't silently leave a user staring at a stalled download.
+   if(wasDownloading)void showUpdateDialog({
+     type:'error',title:'GREÑA Live · No se pudo actualizar',
+     message:'La descarga o verificación de la actualización falló.',
+     detail:'No se han borrado tus cuentas ni tus ajustes. Comprueba Internet e intenta de nuevo desde GREÑA Live. Detalle: '+String(error?.message||error).slice(0,320),
+     buttons:['Entendido'],noLink:true
+   }).catch(logError);
  });
  autoUpdater.on('update-available',info=>{
    if(info.version===lastOffered)return;
    lastOffered=info.version;
+   downloadVersion=info.version;
    showUpdateDialog({
      type:'info',title:'GREÑA Live PRO · Actualización oficial',
      message:'Nueva versión oficial: GREÑA Live PRO v'+info.version,
@@ -59,19 +77,33 @@ s+=r"""
    }).then(answer=>{
      if(answer.response!==0||downloading)return;
      downloading=true;
+     if(mainWindow&&!mainWindow.isDestroyed())originalWindowTitle=mainWindow.getTitle();
      autoUpdater.downloadUpdate().catch(error=>{
+       // The updater also fires an error event; report once, never two dialogs.
+       if(!downloading)return;
        downloading=false;lastOffered='';
        if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1);
+       resetDownloadTitle();
        logError(error);
+       void showUpdateDialog({
+         type:'error',title:'GREÑA Live · Error de descarga',
+         message:'No se pudo descargar la actualización.',
+         detail:'La instalación anterior sigue intacta. Intenta nuevamente. Detalle: '+String(error?.message||error).slice(0,320),
+         buttons:['Entendido'],noLink:true
+       }).catch(logError);
      });
    }).catch(logError);
  });
  autoUpdater.on('download-progress',progress=>{
-   if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(Math.max(0,Math.min(1,progress.percent/100)));
+   if(!mainWindow||mainWindow.isDestroyed())return;
+   const percent=Math.max(0,Math.min(100,Number(progress.percent)||0));
+   mainWindow.setProgressBar(percent/100);
+   mainWindow.setTitle('GREÑA Live PRO · Descargando v'+downloadVersion+' · '+Math.round(percent)+'%');
  });
  autoUpdater.on('update-downloaded',info=>{
    downloading=false;
    if(mainWindow&&!mainWindow.isDestroyed())mainWindow.setProgressBar(-1);
+   resetDownloadTitle();
    showUpdateDialog({
      type:'question',title:'GREÑA Live PRO · Lista para instalar',
      message:'GREÑA Live PRO v'+info.version+' está descargada y verificada.',
