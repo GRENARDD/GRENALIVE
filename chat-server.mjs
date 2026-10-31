@@ -306,6 +306,22 @@ async function hostIsPublic(hostname){
   try{const list=await dns.lookup(h,{all:true});return list.length>0&&list.every(a=>!isPrivateIp(a.address))}catch{return false}
 }
 
+// Timeline Premium tiene ajustes independientes por GREÑA ID. No modifica los del Multichat clásico.
+const timelinePremiumDefaults={direction:'left',edgeOffset:12,width:680,fontSize:20,nameSize:17,starSize:10,lineWidth:3,gap:13,maxMessages:6,duration:14,speed:300,showBadges:true,showPlatform:true,colorMode:'role',normalColor:'#6b3971',moderatorColor:'#2483b3',ownerColor:'#b78035',subscriberColor:'#8055a7'};
+const timelinePremiumRanges={edgeOffset:[0,120],width:[160,1920],fontSize:[10,72],nameSize:[9,60],starSize:[5,22],lineWidth:[1,8],gap:[0,48],maxMessages:[1,20],duration:[2,120],speed:[0,1200]};
+function sanitizeTimelinePremiumSettings(input){
+ const src=input&&typeof input==='object'&&!Array.isArray(input)?input:{},out={...timelinePremiumDefaults};
+ for(const [k,v] of Object.entries(timelinePremiumDefaults)){
+  if(typeof v==='number'){const n=Number(src[k]),[lo,hi]=timelinePremiumRanges[k];out[k]=Number.isFinite(n)?Math.min(hi,Math.max(lo,n)):v;}
+  else if(typeof v==='boolean')out[k]=typeof src[k]==='boolean'?src[k]:v;
+  else if(k.endsWith('Color'))out[k]=typeof src[k]==='string'&&/^#[0-9a-f]{6}$/i.test(src[k])?src[k]:v;
+  else if(k==='direction')out[k]=src[k]==='right'?'right':'left';
+  else if(k==='colorMode')out[k]=src[k]==='platform'?'platform':'role';
+ }
+ return out;
+}
+let TIMELINE_PREMIUM_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'timeline-premium-settings.json'):join(DATA_DIR,'timeline-premium-settings.json');
+let timelinePremiumSettings=sanitizeTimelinePremiumSettings(await readJson(TIMELINE_PREMIUM_FILE,{}));
 const multichatDefaults = {iconSize:24,readability:'both',shadowStrength:70,direction:'left',edgeOffset:0,fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,showPlatform:true,theme:'clean',showHandle:false,fadeAfter:5};
 let multichatSettings = sanitizeMultichatSettings(await readJson(MULTICHAT_SETTINGS_FILE,{}),multichatDefaults);
 async function loadChatProfile(userId=''){
@@ -318,6 +334,8 @@ async function loadChatProfile(userId=''){
   MUTED_USERS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-muted-users.json'):LEGACY_MUTED_USERS_FILE;
   connectionPrefs={...connectionDefaults,...await readJson(CONNECTIONS_FILE,{})};
   multichatSettings=sanitizeMultichatSettings(await readJson(MULTICHAT_SETTINGS_FILE,{}),multichatDefaults);
+  TIMELINE_PREMIUM_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'timeline-premium-settings.json'):join(DATA_DIR,'timeline-premium-settings.json');
+  timelinePremiumSettings=sanitizeTimelinePremiumSettings(await readJson(TIMELINE_PREMIUM_FILE,{}));
   await loadLocalMutedUsers();
 }
 
@@ -2405,6 +2423,11 @@ async function connectTwitch(input) {
             currentTwitchChannel,
 
           isFollower,
+          // Twitch entrega posiciones reales de emotes; se renderizan como imágenes solo en el overlay.
+          emotes:Object.entries(tags?.emotes||{}).slice(0,24).flatMap(([id,ranges])=>
+            /^\d{1,18}$/.test(id)&&Array.isArray(ranges)
+            ?ranges.slice(0,8).map(pair=>({start:Number(pair?.[0]),end:Number(pair?.[1]),url:'https://static-cdn.jtvnw.net/emoticons/v2/'+id+'/default/dark/2.0'}))
+            :[]).slice(0,32),
 
           isSubscriber:
             tags?.subscriber === '1' || !!tags?.badges?.subscriber || !!tags?.badges?.founder,
@@ -3140,6 +3163,27 @@ const server =
         // ===============================
         // AJUSTES MULTICHAT (compartidos con OBS)
         // ===============================
+        if(url.pathname==='/api/timeline-premium-settings'){
+          applyCors(request,response);
+          response.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');
+          response.setHeader('Access-Control-Allow-Headers','Content-Type');
+          if(request.method==='OPTIONS'){response.writeHead(204);response.end();return;}
+          if(request.method==='GET'){
+            response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+            response.end(JSON.stringify({ok:true,settings:timelinePremiumSettings}));return;
+          }
+          if(request.method==='POST'){
+            const body=await readBody(request);
+            let incoming;try{incoming=JSON.parse(body||'{}')}catch{response.writeHead(400);response.end('JSON inválido');return;}
+            timelinePremiumSettings=sanitizeTimelinePremiumSettings(incoming);
+            await safeWriteJson(TIMELINE_PREMIUM_FILE,timelinePremiumSettings);
+            broadcast({type:'timeline-premium-settings',settings:timelinePremiumSettings});
+            response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+            response.end(JSON.stringify({ok:true,settings:timelinePremiumSettings}));return;
+          }
+          response.writeHead(405);response.end('Método no permitido');return;
+        }
+
         if (url.pathname === '/api/multichat-settings') {
           applyCors(request,response);
           response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -3195,6 +3239,12 @@ const server =
         // ===============================
         // OVERLAY MULTICHAT PARA OBS
         // ===============================
+
+        if(url.pathname==='/timeline-premium.html'){
+          response.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
+          response.end(await readFile(new URL('./timeline-premium.html',import.meta.url)));
+          return;
+        }
 
         if (url.pathname === '/multichat-overlay.html') {
           response.writeHead(200, {
