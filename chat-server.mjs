@@ -307,12 +307,12 @@ async function hostIsPublic(hostname){
 }
 
 // Timeline Premium tiene ajustes independientes por GREÑA ID. No modifica los del Multichat clásico.
-const timelinePremiumDefaults={direction:'left',edgeOffset:12,width:680,scale:100,fontSize:20,nameSize:17,starSize:10,lineWidth:3,gap:13,maxMessages:6,duration:14,speed:300,showBadges:true,showPlatform:true,colorMode:'role',normalColor:'#6b3971',moderatorColor:'#2483b3',ownerColor:'#b78035',subscriberColor:'#8055a7',tiktokColor:'#57a1c4',twitchColor:'#8f53cb',kickColor:'#58a64e',youtubeColor:'#c45773',starviosColor:'#dd6d9a'};
-const timelinePremiumRanges={edgeOffset:[0,120],width:[160,1920],scale:[50,200],fontSize:[10,72],nameSize:[9,60],starSize:[5,22],lineWidth:[1,8],gap:[0,48],maxMessages:[1,20],duration:[2,120],speed:[0,1200]};
+const timelinePremiumDefaults={direction:'left',edgeOffset:24,bottomOffset:24,width:560,scale:100,fontSize:18,nameSize:18,capWidth:300,emoteSize:40,starSize:17,lineWidth:3,gap:30,maxMessages:12,duration:30,speed:520,showBadges:true,showPlatform:true,colorMode:'role',normalColor:'#7c4680',moderatorColor:'#3480b8',ownerColor:'#b9801f',subscriberColor:'#a054d6',normalStarColor:'#d6d6d6',moderatorStarColor:'#58b4ea',ownerStarColor:'#ffd36a',subscriberStarColor:'#d9a8f5',tiktokColor:'#ff3b6b',twitchColor:'#9146ff',kickColor:'#53fc18',youtubeColor:'#ff3030',starviosColor:'#ff88c8'};
+const timelinePremiumRanges={edgeOffset:[0,200],bottomOffset:[0,200],width:[160,1920],scale:[50,200],fontSize:[10,72],nameSize:[9,60],capWidth:[100,900],emoteSize:[16,96],starSize:[8,40],lineWidth:[1,8],gap:[0,80],maxMessages:[1,30],duration:[2,120],speed:[100,1500]};
 function sanitizeTimelinePremiumSettings(input){
  const src=input&&typeof input==='object'&&!Array.isArray(input)?input:{},out={...timelinePremiumDefaults};
  for(const [k,v] of Object.entries(timelinePremiumDefaults)){
-  if(typeof v==='number'){const n=Number(src[k]),[lo,hi]=timelinePremiumRanges[k];out[k]=Number.isFinite(n)?Math.min(hi,Math.max(lo,n)):v;}
+  if(typeof v==='number'){const n=Number(src[k]),[lo,hi]=timelinePremiumRanges[k];out[k]=src[k]!==null&&src[k]!==''&&Number.isFinite(n)?Math.min(hi,Math.max(lo,n)):v;}
   else if(typeof v==='boolean')out[k]=typeof src[k]==='boolean'?src[k]:v;
   else if(k.endsWith('Color'))out[k]=typeof src[k]==='string'&&/^#[0-9a-f]{6}$/i.test(src[k])?src[k]:v;
   else if(k==='direction')out[k]=src[k]==='right'?'right':'left';
