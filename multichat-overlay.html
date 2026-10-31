@@ -439,7 +439,7 @@ async function load(){
   }catch{}
 }
 function applyStage(){
-  stage.style.gap=(cfg.theme==='timeline'?Math.max(22,Number(cfg.gap??8)):Math.max(12,Number(cfg.gap??8)))+'px';
+  stage.style.gap=(cfg.theme==='timeline'?(Number(cfg.gap??8)===8?30:Math.max(0,Number(cfg.gap)||0)):Math.max(12,Number(cfg.gap??8)))+'px';
   stage.style.alignItems=cfg.direction==='right'?'flex-end':'flex-start';
   const edgeOffset=Math.max(0,Math.min(80,Number(cfg.edgeOffset)||0));
   stage.style.paddingLeft=(cfg.direction==='right'?0:edgeOffset)+'px';
@@ -476,6 +476,9 @@ function resizeVisibleMessage(el){
   el.style.setProperty('--tl-railx',Math.max(9,Math.round(fontSize*.65))+'px');
   el.style.setProperty('--tl-indent',Math.max(32,Math.round(fontSize*2.2))+'px');
   el.style.setProperty('--tl-emote-size',Math.max(24,Math.round(fontSize*2.2))+'px');
+  el.style.setProperty('--tl-cap-width',Math.round(300*scale)+'px');
+  el.style.setProperty('--tl-line-width',Math.max(1,Math.round(3*scale))+'px');
+  el.style.setProperty('--tl-gap',String(Number(cfg.gap??8)===8?30:Math.max(0,Number(cfg.gap)||0))+'px');
   el.style.setProperty('--clean-icon-size',iconPx+'px');
   el.style.setProperty('--clean-max-width',Math.max(10,Math.min(100,Number(cfg.bubbleWidth)||85))+'%');
   el.style.maxWidth=(cfg.bubbleWidth??94)+'%';
@@ -513,6 +516,12 @@ function renderTimeline(el,d,nickname){
   const main=document.createElement('div');main.className='tl-main'+(role?' tl-'+role:'');
   main.style.setProperty('--tl-platform',cfg.showPlatform?(platformColors[d.platform]||'#ddd'):'#ded1e7');
   const rail=document.createElement('span');rail.className='tl-rail';rail.setAttribute('aria-hidden','true');
+  // Los dos tramos y los puntos se desplazan junto a la estrella (réplica del video).
+  const segA=document.createElement('span');segA.className='tl-seg tl-sa';
+  const segB=document.createElement('span');segB.className='tl-seg tl-sb';
+  const joinDot=document.createElement('span');joinDot.className='tl-rail-dot';
+  rail.append(segA,segB,joinDot);
+  main.style.setProperty('--tl-gap',String(Number(cfg.gap??8)===8?30:Math.max(0,Number(cfg.gap)||0))+'px');
   const star=document.createElementNS('http://www.w3.org/2000/svg','svg');star.classList.add('tl-star');
   star.setAttribute('viewBox','0 0 24 24');star.setAttribute('aria-hidden','true');
   const starPath=document.createElementNS('http://www.w3.org/2000/svg','path');
@@ -542,7 +551,11 @@ function renderTimeline(el,d,nickname){
   }
   if(badgeBox.childNodes.length)header.append(badgeBox);
   const body=document.createElement('div');body.className='tl-text';
-  const emotes=Array.isArray(d.emotes)?d.emotes.filter(e=>e&&e.code&&e.url).slice(0,40):[];
+  const allEmotes=Array.isArray(d.emotes)?d.emotes.slice(0,40):[];
+  const emotes=allEmotes.filter(e=>e&&e.code&&e.url);
+  const positioned=allEmotes.map(e=>({start:Number(e?.start),end:Number(e?.end),url:e?.url}))
+    .filter(e=>Number.isInteger(e.start)&&Number.isInteger(e.end)&&e.start>=0&&e.end>=e.start&&e.url)
+    .sort((a,b)=>a.start-b.start);
   function addImage(url){
     const value=String(url||'');if(!/^https?:\/\//i.test(value))return;
     const img=document.createElement('img');img.alt='Emote';img.decoding='async';
@@ -566,15 +579,72 @@ function renderTimeline(el,d,nickname){
       else body.append(document.createTextNode(part.t));
     }
   }
+  function addTextWithPositions(value){
+    const text=String(value??'').slice(0,2500);
+    let cursor=0,used=0;
+    for(const e of positioned){
+      if(used>=36||e.start<cursor||e.end>=text.length)continue;
+      if(e.start>cursor)addText(text.slice(cursor,e.start));
+      addImage(e.url);
+      cursor=e.end+1;used++;
+    }
+    if(cursor<text.length)addText(text.slice(cursor));
+    if(!text)body.append(document.createTextNode(''));
+  }
   const parts=Array.isArray(d.parts)&&d.parts.length?d.parts.slice(0,150):[{t:d.text??d.message??''}];
   for(const part of parts){
-    if(typeof part==='string'){addText(part);continue}
+    if(typeof part==='string'){addTextWithPositions(part);continue}
     if(!part||typeof part!=='object')continue;
     if(part.img||(part.type==='emote'&&part.url))addImage(part.img||part.url);
-    else addText(part.t??part.text??'');
+    else addTextWithPositions(part.t??part.text??'');
   }
+  if(body.querySelector?.('img'))main.classList.add('tl-has-emote');
+  // El mock de pruebas no tiene querySelector; en Chromium sí se marca la línea de emotes.
   main.append(rail,star,header,body);el.append(main);
 }
+
+
+/* Timeline FLIP: anima el desplazamiento real de los mensajes antiguos, no solo la entrada.
+   Agrupa las inserciones de un mismo fotograma para no aumentar la latencia del chat. */
+let timelineFrame=0;
+const timelineBefore=new Map(),timelineAdded=[];
+function timelineCaptureBeforeInsert(){
+ if(timelineFrame)return;
+ const items=stage.querySelectorAll('.msg.theme-timeline:not(.fading-old)');
+ for(const item of items){
+   for(const a of item.getAnimations?.()||[])if(a.id==='timeline-shift')a.cancel();
+   timelineBefore.set(item,item.getBoundingClientRect().top);
+ }
+ timelineFrame=requestAnimationFrame(()=>{
+   timelineFrame=0;
+   const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
+   if(!reduced)for(const [item,top] of timelineBefore){
+     if(!item.isConnected)continue;
+     const dy=top-item.getBoundingClientRect().top;
+     if(Math.abs(dy)>1){
+       const a=item.animate([{transform:'translateY('+dy+'px)'},{transform:'none'}],
+         {duration:520,easing:'cubic-bezier(.22,.8,.24,1)'});
+       a.id='timeline-shift';
+     }
+   }
+   timelineBefore.clear();
+   for(const item of timelineAdded.splice(0)){
+     if(!item.isConnected||reduced)continue;
+     const main=item.querySelector('.tl-main'),cap=item.querySelector('.tl-cap');
+     item.animate([{opacity:0,transform:'translateY(12px)'},{opacity:1,transform:'none'}],
+       {duration:520,easing:'cubic-bezier(.22,.8,.24,1)',fill:'backwards'});
+     cap?.animate([{opacity:0,transform:'translateX(-14px) scaleX(.9)'},{opacity:1,transform:'none'}],
+       {duration:520,delay:60,easing:'cubic-bezier(.22,.8,.24,1)',fill:'backwards'});
+     main?.querySelector('.tl-star')?.animate([{opacity:0,transform:'translateX(-50%) scale(.4)'},{opacity:1,transform:'translateX(-50%) scale(1)'}],
+       {duration:520,delay:120,easing:'cubic-bezier(.22,.8,.24,1)',fill:'backwards'});
+     for(const line of main?.querySelectorAll('.tl-seg')||[]){
+       line.animate([{opacity:0,transform:'translateX(-50%) scaleY(0)'},{opacity:1,transform:'translateX(-50%) scaleY(1)'}],
+         {duration:520,delay:40,easing:'cubic-bezier(.22,.8,.24,1)',fill:'backwards'});
+     }
+   }
+ });
+}
+function timelineAnimateInserted(el){timelineAdded.push(el)}
 
 function add(d){
   if(!d||d.type!=='chat'||!['tiktok','twitch','kick','youtube','starvios'].includes(d.platform))return;
@@ -598,7 +668,7 @@ function add(d){
   el.style.transformOrigin=cfg.direction==='right'?'right center':'left center';
   el.style.borderRadius=Math.max(4,Math.round((cfg.radius??17)*scale))+'px';
   el.style.gap=Math.max(8,Math.round(avatarSize*.30))+'px';
-  el.style.animation=`${cfg.direction==='right'?'enterRight':'enterLeft'} .28s cubic-bezier(.2,.8,.2,1) both`;
+  el.style.animation=theme==='timeline'?'none':`${cfg.direction==='right'?'enterRight':'enterLeft'} .28s cubic-bezier(.2,.8,.2,1) both`;
   el.style.setProperty('--bubble-alpha',String(Math.max(.2,Math.min(.98,(cfg.opacity??78)/100))));
 
   const nickname=d.nickname||d.user||'Usuario';
@@ -643,7 +713,9 @@ function add(d){
   }
   const avImg=el.querySelector('img[data-avimg]');
   if(avImg)avImg.addEventListener('error',()=>{const f=document.createElement('div');f.className='fallback';f.style.width=avatarSize+'px';f.style.height=avatarSize+'px';f.style.flexBasis=avatarSize+'px';f.textContent=initialOf(nickname);avImg.replaceWith(f)},{once:true});
+  if(theme==='timeline')timelineCaptureBeforeInsert();
   stage.appendChild(el);
+  if(theme==='timeline')timelineAnimateInserted(el);
   const fadeLimit=Math.max(1,Math.min(Number(cfg.maxMessages||6),Number(cfg.fadeAfter||cfg.maxMessages||6)));
   const live=[...stage.querySelectorAll('.msg:not(.fading-old)')];
   if(live.length>fadeLimit){
