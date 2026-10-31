@@ -63,3 +63,33 @@ test('No-backlog mode never changes Fish natural playback or the five assigned v
  assert.match(html,/audio\.playbackRate = 1/);
  assert.match(html,/const FISH_VOICE_COUNT = 5/);
 });
+
+test('Failed Fish requests cannot rebuild a queue of old chat comments',()=>{
+ const a=html.indexOf('function requeueFreshFishMessage(message){');
+ const b=html.indexOf('function dropLowestPriorityVoice(){',a);
+ assert.ok(a>=0&&b>a,'Live retry guard must exist');
+ const {ctx,dropped}=createReader();
+ runInNewContext(html.slice(a,b)+'\nthis.retry=requeueFreshFishMessage',ctx);
+ const now=Date.now();
+ ctx.voiceQueue=[{text:'latest',__voiceQueuedAt:now,isModerator:true}];
+ assert.equal(ctx.retry({text:'old',__voiceQueuedAt:now-500}),false);
+ assert.equal(ctx.voiceQueue.length,1);
+ assert.equal(ctx.voiceQueue[0].text,'latest');
+ assert.equal(ctx.retry({text:'stale owner',isBroadcaster:true,__voiceQueuedAt:now-5000}),false);
+ assert.equal(ctx.voiceQueue.length,1);
+ assert.equal(ctx.retry({text:'fresh owner',isBroadcaster:true,__voiceQueuedAt:now}),true);
+ assert.equal(ctx.voiceQueue.length,1);
+ assert.equal(ctx.voiceQueue[0].text,'fresh owner');
+ assert.deepEqual(dropped.map(x=>x.name),['latest']);
+});
+test('Fish now primes credentials on activation without leaking keys to browser',()=>{
+ const server=readFileSync(new URL('../chat-server.mjs',import.meta.url),'utf8');
+ const main=readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
+ assert.match(html,/function warmFishCredentials\(force = false\)/);
+ assert.match(html,/fetch\('\/api\/fish-ready',\{cache:'no-store'\}\)/);
+ assert.match(html,/const FISH_WARMUP_INTERVAL_MS = 11000;/);
+ assert.match(server,/url\.pathname === '\/api\/fish-ready'/);
+ assert.match(server,/const FISH_LIVE_ACQUIRE_WAIT_MS = 1500;/);
+ assert.match(main,/\/api\/fish-ready/);
+ assert.doesNotMatch(server.slice(server.indexOf("if (url.pathname === '/api/fish-ready'"),server.indexOf("if (url.pathname === '/api/fish-tts'")),/apiKey|ownerKeys|accounts:\s*context\.accounts/);
+});
