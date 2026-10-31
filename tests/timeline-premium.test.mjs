@@ -6,7 +6,7 @@ const file=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 const overlay=file('timeline-premium.html'),widgets=file('widgets.html'),server=file('server.mjs'),chat=file('chat-server.mjs');
 test('OBS: overlay transparente y sintaxis JS de la plantilla',()=>{
  assert.match(overlay,/background:transparent!important/);
- assert.match(overlay,/class="item enter"/);
+ assert.match(overlay,/el\.className="item enter"/);
  assert.match(overlay,/grena-timeline-settings/);
  assert.match(overlay,/\/chat-ws/);
  assert.match(overlay,/\/multichat-history/);
