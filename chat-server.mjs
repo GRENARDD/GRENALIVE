@@ -250,6 +250,16 @@ function fishRetryDelayMs(response){
   if(/^\d+(?:\.\d+)?$/.test(raw))return Math.min(60000,Math.max(1000,Number(raw)*1000));
   return 8000;
 }
+// A provider rejection must never turn into a misleading "capacity busy" error.
+// Once every key is cooling down, preserve the original Fish Audio failure.
+// Scope this to the already authenticated GREÑA ID's in-memory key pool.
+function fishCooldownFailure(pool,now=Date.now()){
+  if(!pool?.length||!pool.every(account=>account.cooldownUntil>now))return null;
+  const account=pool.find(item=>item.lastFailure&&item.cooldownUntil>now);
+  if(account)return {status:account.lastFailure.status,error:account.lastFailure.error};
+  const seconds=Math.max(1,Math.ceil(Math.min(...pool.map(item=>item.cooldownUntil-now))/1000));
+  return {status:429,error:`Fish Audio está limitando temporalmente las solicitudes. Reintenta en ${seconds} segundos.`};
+}
 const ALLOWED_ORIGINS=new Set([MAIN_ORIGIN,`http://localhost:${MAIN_PORT}`,'http://127.0.0.1:8788','http://localhost:8788']);
 const ALLOWED_HOSTS=new Set(['127.0.0.1:8788','localhost:8788']);
 function hostAllowed(h){return ALLOWED_HOSTS.has(String(h||'').toLowerCase())}
@@ -2706,10 +2716,19 @@ const server =
             return;
           }
 
+          // If Fish already rejected the sole API, fail immediately with the REAL
+          // provider error, not a false overload after nine seconds of waiting.
+          const preexistingFailure=fishCooldownFailure(fishContext.accounts);
+          if(preexistingFailure){
+            response.writeHead(preexistingFailure.status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+            response.end(JSON.stringify({ok:false,error:preexistingFailure.error}));
+            return;
+          }
           let fishAccount=await acquireFishAccount(new Set(),FISH_WAIT_MAX_MS,fishContext.accounts);
           if(!fishAccount){
-            response.writeHead(429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-grena-fish-dropped':'stale'});
-            response.end(JSON.stringify({ok:false,error:'Mensaje de voz descartado por saturación para mantener el LIVE en tiempo real.'}));
+            const failure=fishCooldownFailure(fishContext.accounts);
+            response.writeHead(failure?.status||429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+            response.end(JSON.stringify({ok:false,error:failure?.error||'Motor Fish Audio ocupado: hay demasiadas generaciones simultáneas. Vuelve a probar en unos segundos.'}));
             return;
           }
 
@@ -2747,6 +2766,7 @@ const server =
                 });
 
                 if(fish.ok){
+                  fishAccount.lastFailure=null;
                   const audio=Buffer.from(await fish.arrayBuffer());
                   if(!audio.length || audio.length>20*1024*1024){
                     lastFailure={status:502,error:'Fish Audio devolvió un audio no válido.'};
@@ -2776,8 +2796,12 @@ const server =
                   lastFailure={status:outgoingStatus,error:friendly};
 
                   if(fish.status===429)coolDownFishAccount(fishAccount,fishRetryDelayMs(fish));
-                  else if(fish.status===401||fish.status===403)coolDownFishAccount(fishAccount,5*60*1000);
+                  // A 401/403 can reflect access to the selected voice, not
+                  // just the account: never lock out another model for 5 minutes.
+                  else if(fish.status===401||fish.status===403)coolDownFishAccount(fishAccount,2000);
                   else if(fish.status>=500)coolDownFishAccount(fishAccount,2500);
+                  if(fish.status===401||fish.status===403||fish.status===429||fish.status>=500)
+                    fishAccount.lastFailure={status:outgoingStatus,error:friendly};
 
                   const retryable=fish.status===401||fish.status===403||fish.status===429||fish.status>=500;
                   if(!retryable)break;
@@ -2787,6 +2811,7 @@ const server =
                 const timedOut=error?.name==='AbortError';
                 lastFailure={status:502,error:timedOut?'Fish Audio tardó demasiado en responder.':'No se pudo conectar con Fish Audio.'};
                 coolDownFishAccount(fishAccount,timedOut?2500:1500);
+                fishAccount.lastFailure=lastFailure;
               }finally{
                 clearTimeout(timer);
                 upstreamController=null;
