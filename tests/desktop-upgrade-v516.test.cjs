@@ -28,7 +28,7 @@ test('upgrade gate installs 5.1.12 and 5.1.13 in same location and preserves has
  assert.ok(flow.indexOf('Verify installed upgrade')<flow.indexOf('Upload the Windows installer'));
 });
 test('release 5.1.13 requires successful build at current commit and owner still approves rollout',()=>{
- const flow=src('.github/workflows/grena-release-v5113.yml');
+ const flow=src('.github/workflows/grena-release-v5114.yml');
  const up=src('desktop-build/fix_official_updates.py');
  const worker=src('cloudflare/licenses/src/updates.mjs');
  assert.match(flow,/VERSION: '5\.1\.14'/);
