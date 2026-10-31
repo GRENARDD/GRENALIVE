@@ -2661,6 +2661,28 @@ const server =
           return;
         }
 
+        // Warm the CURRENT GREÑA ID's Fish credentials before the first spoken
+        // comment. The browser never receives a key; account changes are isolated.
+        if (url.pathname === '/api/fish-ready' && request.method === 'GET') {
+          if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){
+            response.writeHead(403,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+            response.end(JSON.stringify({ok:false,ready:false,error:'Acceso interno no autorizado.'}));
+            return;
+          }
+          const context=await fishPoolForProfile(activeProfileId);
+          response.writeHead(context.accounts.length?200:503,{
+            'content-type':'application/json; charset=utf-8',
+            'cache-control':'no-store',
+            'x-content-type-options':'nosniff'
+          });
+          response.end(JSON.stringify({
+            ok:context.accounts.length>0,
+            ready:context.accounts.length>0,
+            error:context.accounts.length?'':context.error||'No se pudo preparar Fish Audio.'
+          }));
+          return;
+        }
+
         // Fish Audio TTS se ejecuta en Node para que las credenciales nunca se envíen
         // al navegador. El frontend solo proporciona texto + ID del modelo de voz.
         if (url.pathname === '/api/fish-tts' && request.method === 'POST') {
