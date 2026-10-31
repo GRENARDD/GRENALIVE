@@ -65,3 +65,44 @@ test('Timeline renderer respects role, escapes text and displays emotes and badg
   assert.match(owner.children[0].className,/tl-owner/);
   assert.equal(owner.children[0].children[2].children[1].children[0].textContent,'👑');
 });
+
+
+test('Timeline Premium 2.0 uses true segmented star rail and coherent FLIP animations',()=>{
+  assert.match(overlay,/tl-seg tl-sa/);
+  assert.match(overlay,/tl-seg tl-sb/);
+  assert.match(overlay,/tl-rail-dot/);
+  assert.match(overlay,/--tl-cap-width,300px/);
+  assert.match(overlay,/--tl-star-y/);
+  assert.match(overlay,/timelineCaptureBeforeInsert\(\)/);
+  assert.match(overlay,/timelineAnimateInserted\(el\)/);
+  assert.match(overlay,/a\.id='timeline-shift'/);
+  assert.match(overlay,/requestAnimationFrame\(/);
+  assert.match(overlay,/for\(const line of main\?\.querySelectorAll\('\.tl-seg'\)\|\|\[\]\)/);
+  assert.match(chat,/static-cdn\.jtvnw\.net\/emoticons\/v2/);
+});
+
+test('Timeline native Twitch emotes render as images without executing raw HTML',()=>{
+  const start=overlay.indexOf('function renderTimeline(');
+  const end=overlay.indexOf('/* Timeline FLIP:',start);
+  assert.ok(start>=0&&end>start);
+  function node(tag){
+    const el={tag,children:[],attrs:{},style:{setProperty(k,v){this[k]=v}},
+      classList:{classes:[],add(v){this.classes.push(v)}},
+      setAttribute(k,v){this.attrs[k]=v},append(...args){this.children.push(...args)}};
+    Object.defineProperty(el,'childNodes',{get(){return this.children}});
+    return el;
+  }
+  const document={createElement:node,createElementNS:(_ns,tag)=>node(tag),
+    createTextNode:value=>({tag:'#text',value})};
+  const render=vm.runInNewContext(overlay.slice(start,end)+';renderTimeline',{
+    document,cfg:{showPlatform:true,gap:8},CHAT_HTTP:'http://127.0.0.1:8788',OBS_SUFFIX:''
+  });
+  const root=node('div');
+  render(root,{platform:'twitch',text:'Hi Kappa <script>x</script>',emotes:[
+    {start:3,end:7,url:'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0'}
+  ]},'STREAM FAN');
+  const main=root.children[0],rail=main.children[0],body=main.children[3];
+  assert.equal(rail.children.length,3,'expected upper, lower and dot segments');
+  assert.ok(body.children.some(x=>x.tag==='img'&&decodeURIComponent(x.src).includes('emoticons/v2/25')));
+  assert.ok(body.children.some(x=>x.tag==='#text'&&x.value.includes('<script>')),'untrusted text remains a text node');
+});
