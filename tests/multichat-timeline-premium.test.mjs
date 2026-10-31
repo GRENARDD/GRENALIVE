@@ -103,6 +103,6 @@ test('Timeline native Twitch emotes render as images without executing raw HTML'
   ]},'STREAM FAN');
   const main=root.children[0],rail=main.children[0],body=main.children[3];
   assert.equal(rail.children.length,3,'expected upper, lower and dot segments');
-  assert.ok(body.children.some(x=>x.tag==='img'&&x.src.includes('emoticons/v2/25')));
+  assert.ok(body.children.some(x=>x.tag==='img'&&decodeURIComponent(x.src).includes('emoticons/v2/25')));
   assert.ok(body.children.some(x=>x.tag==='#text'&&x.value.includes('<script>')),'untrusted text remains a text node');
 });
