@@ -2860,7 +2860,9 @@ const server =
                 }else{
                   const upstream=String(await fish.text().catch(()=>''));
                   let friendly=`Fish Audio respondió HTTP ${fish.status}.`;
-                  if(fish.status===401) friendly='Fish Audio rechazó la credencial de esta cuenta (HTTP 401). Comprueba la API vinculada a este GREÑA ID.';
+                  if(fish.status===401) friendly=fishContext.source==='owner-vault'
+                    ?'Fish Audio rechazó la API '+(fishAccount.id==='fish-1'?'1':'2')+' del propietario (HTTP 401). Revisa esa clave en Administración → API Fish Audio, sin modificar la otra.'
+                    :'Fish Audio rechazó la credencial de esta cuenta (HTTP 401). Comprueba la API vinculada a este GREÑA ID.';
                   else if(fish.status===403) friendly='Fish Audio rechazó el acceso a esa voz o a ese modelo (HTTP 403). Comprueba en Fish Audio que esta cuenta tenga permiso para utilizarlo.';
                   else if(fish.status===404) friendly='Fish Audio no encontró ese ID de modelo (HTTP 404). Comprueba el ID de voz.';
                   else if(fish.status===402) friendly='Este modelo PRO requiere créditos o permisos de pago en Fish Audio. Selecciona el modelo gratuito para continuar.';
@@ -2872,7 +2874,8 @@ const server =
                   if(fish.status===429)coolDownFishAccount(fishAccount,fishRetryDelayMs(fish));
                   // A 401/403 can reflect access to the selected voice, not
                   // just the account: never lock out another model for 5 minutes.
-                  else if(fish.status===401||fish.status===403)coolDownFishAccount(fishAccount,2000);
+                  else if(fish.status===401)coolDownFishAccount(fishAccount,30000);
+                  else if(fish.status===403)coolDownFishAccount(fishAccount,2000);
                   else if(fish.status>=500)coolDownFishAccount(fishAccount,2500);
                   if(fish.status===401||fish.status===403||fish.status===429||fish.status>=500)
                     fishAccount.lastFailure={status:outgoingStatus,error:friendly};
