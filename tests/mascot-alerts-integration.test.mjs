@@ -20,7 +20,7 @@ test('five pixel characters are selectable and profile-persistent',()=>{
   const server=read('server.mjs');
   for(const [key,name] of Object.entries({zp:'Zorro Pixel',pg:'Cerdito Cúbico',bm:'Verdecito Explosivo',sk:'Esqueleto Pixel',dg:'Perro Pixel'})){
     assert.ok(mascot.includes(name),'missing character '+name);
-    assert.ok(picker.includes("value=\""+key+"\"")===false || true);
+    assert.ok(read("alerts.html").includes('<option value="'+key+'">'),"selection missing "+key);
     assert.ok(server.includes("'"+key+"'"));
   }
   assert.match(picker,/mascotCharacterSelect/);
