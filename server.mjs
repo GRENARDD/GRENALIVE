@@ -1975,7 +1975,7 @@ function camWsMessageInner(ws,req,data){
 const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite','/api/afterglow-settings','/api/overlay-version','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/twitch/device/status','/auth/twitch/callback']);
 const PUBLIC_GET_CLOUD=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite']);
 const OBS_PUBLIC_API=new Set(['/api/overlay-version','/api/afterglow-settings','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
-const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/social-overlay-classic.html','/loyalty-overlay.html','/super-fans-overlay.html','/personajes-minecraft.html','/taptap-race.html']);
+const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/overlay.html','/viewers.html','/multichat-overlay.html','/timeline-premium.html','/social-overlay.html','/social-overlay-classic.html','/loyalty-overlay.html','/super-fans-overlay.html','/personajes-minecraft.html','/taptap-race.html']);
 const PUBLIC_POST=new Set(['/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
 function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())}
@@ -2059,8 +2059,8 @@ async function licenseGate(req,res,pathname){
 const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!safeReqPath(req.url))throw 0;url=new URL(req.url,'http://127.0.0.1');pathname=url.pathname}catch{res.writeHead(400,{'content-type':'text/plain; charset=utf-8'});return res.end('Solicitud no válida')}try{
  if(await licenseGate(req,res,pathname))return;
  if(pathname==='/chat'||pathname.startsWith('/chat/')){
-    const chatOverlay=pathname==='/chat/multichat-overlay.html';
-    const chatApi=pathname==='/chat/api/multichat-settings'||pathname==='/chat/api/multichat-history';
+    const chatOverlay=pathname==='/chat/multichat-overlay.html'||pathname==='/chat/timeline-premium.html';
+    const chatApi=pathname==='/chat/api/multichat-settings'||pathname==='/chat/api/multichat-history'||pathname==='/chat/api/timeline-premium-settings';
     const chatAvatar=pathname==='/chat/avatar';
     // OBS Browser Source no tiene cookie de GREÑA; debe usar el token privado
     // incluso en el servidor local (GRENA_CLOUD=0). Los POST siguen requiriendo sesión.
