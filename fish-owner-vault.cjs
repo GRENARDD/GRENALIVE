@@ -70,7 +70,11 @@ const activeOwnerFishKeys=[];
 async function readOwnerFishKeys(dataDir){
  const local=process.platform==='win32'?await vaultRead(dataDir):[];
  const env=[String(process.env.GRENA_FISH_API_KEY||'').trim(),String(process.env.GRENA_FISH_API_KEY_2||'').trim()];
- const next=[0,1].map(i=>env[i]||local[i]||'');
+ // A key explicitly configured in the owner's Windows vault must win over
+ // a legacy environment key. Otherwise the UI says a new key was saved but
+ // Fish still sends the old environment key and receives HTTP 401.
+ // Environment credentials remain a fallback for installations without vault.
+ const next=[0,1].map(i=>local[i]||env[i]||'');
  activeOwnerFishKeys.splice(0,activeOwnerFishKeys.length,...next);
  return activeOwnerFishKeys;
 }

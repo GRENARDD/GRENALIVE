@@ -146,14 +146,25 @@ async function fetchFishPoolForProfile(profileId){
    const result=await r.json().catch(()=>({}));
    if(!r.ok||!result.ok)return {accounts:[],error:'No se pudo verificar la API de tu GREÑA ID.'};
    if(requested!==activeProfileId)return {accounts:[],error:'El perfil cambió. Inténtalo otra vez.'};
+   // IMPORTANT: the verified owner's two Windows-vault keys are the source
+   // of truth. A previous single API saved in Cloudflare must NEVER eclipse
+   // both owner keys (which made an expired cloud key trigger HTTP 401).
+   // The backend only supplies ownerKeys for the authenticated owner.
+   if(result.permanentAccess===true){
+     const ownerPool=reconcileOwnerFishAccounts(result.ownerKeys);
+     if(ownerPool.length)return {accounts:ownerPool,source:'owner-vault'};
+   }
+   // Other GREÑA IDs use only their own Fish credential. For older owner
+   // installations without a Windows vault, keep their own cloud API fallback.
    if(typeof result.apiKey==='string'&&result.apiKey.length>=20){
      if(!fishProfileAccount||fishProfileAccount.id!=='account:'+requested||fishProfileAccount.key!==result.apiKey)
        fishProfileAccount={id:'account:'+requested,key:result.apiKey,active:0,cooldownUntil:0};
-     return {accounts:[fishProfileAccount]};
+     return {accounts:[fishProfileAccount],source:'profile'};
    }
-   // The owner's legacy Fish pool is preserved in full; no other GREÑA ID shares it.
-   if(result.permanentAccess===true)return {accounts:reconcileOwnerFishAccounts(result.ownerKeys)};
-   return {accounts:[],error:result.unavailable?'No se pudo consultar la API de Fish Audio. Revisa Cloudflare.':'Configura tu propia API Fish Audio en Configuración para activar el chat de voz.'};
+   return {accounts:[],error:result.permanentAccess===true
+     ?'No hay ninguna API Fish Audio configurada en la bóveda del propietario. Abre Administración y configura API 1 y API 2.'
+     :result.unavailable?'No se pudo consultar la API de Fish Audio. Revisa Cloudflare.'
+     :'Configura tu propia API Fish Audio en Configuración para activar el chat de voz.'};
  }catch{return {accounts:[],error:'No se pudo verificar la API Fish Audio de esta cuenta.'}}
 }
 async function fishPoolForProfile(profileId){
@@ -2849,7 +2860,9 @@ const server =
                 }else{
                   const upstream=String(await fish.text().catch(()=>''));
                   let friendly=`Fish Audio respondió HTTP ${fish.status}.`;
-                  if(fish.status===401) friendly='Fish Audio rechazó la credencial de esta cuenta (HTTP 401). Comprueba la API vinculada a este GREÑA ID.';
+                  if(fish.status===401) friendly=fishContext.source==='owner-vault'
+                    ?'Fish Audio rechazó la API '+(fishAccount.id==='fish-1'?'1':'2')+' del propietario (HTTP 401). Revisa esa clave en Administración → API Fish Audio, sin modificar la otra.'
+                    :'Fish Audio rechazó la credencial de esta cuenta (HTTP 401). Comprueba la API vinculada a este GREÑA ID.';
                   else if(fish.status===403) friendly='Fish Audio rechazó el acceso a esa voz o a ese modelo (HTTP 403). Comprueba en Fish Audio que esta cuenta tenga permiso para utilizarlo.';
                   else if(fish.status===404) friendly='Fish Audio no encontró ese ID de modelo (HTTP 404). Comprueba el ID de voz.';
                   else if(fish.status===402) friendly='Este modelo PRO requiere créditos o permisos de pago en Fish Audio. Selecciona el modelo gratuito para continuar.';
@@ -2861,7 +2874,8 @@ const server =
                   if(fish.status===429)coolDownFishAccount(fishAccount,fishRetryDelayMs(fish));
                   // A 401/403 can reflect access to the selected voice, not
                   // just the account: never lock out another model for 5 minutes.
-                  else if(fish.status===401||fish.status===403)coolDownFishAccount(fishAccount,2000);
+                  else if(fish.status===401)coolDownFishAccount(fishAccount,30000);
+                  else if(fish.status===403)coolDownFishAccount(fishAccount,2000);
                   else if(fish.status>=500)coolDownFishAccount(fishAccount,2500);
                   if(fish.status===401||fish.status===403||fish.status===429||fish.status>=500)
                     fishAccount.lastFailure={status:outgoingStatus,error:friendly};

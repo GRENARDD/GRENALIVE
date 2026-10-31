@@ -1,0 +1,90 @@
+name: GREÑA · Publicar Desktop v5.1.14 estable
+on:
+  workflow_run:
+    workflows:
+      - GREÑA LIVE Desktop (kit de integración)
+    types:
+      - completed
+    branches:
+      - main
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: '5.1.14'
+      TESTED_RUN: ${{ github.event.workflow_run.id }}
+      TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Skip when v5.1.14 is already official
+        id: existing_release
+        shell: bash
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION ya está publicada. Los cambios siguientes deben salir como una nueva versión."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify Windows build, current HEAD and release identity
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TESTED_SHA" || { echo 'El código de main cambió después de compilar; no publicar un instalador antiguo'; exit 1; }
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_sha)" = "$TESTED_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .event)" = push
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_branch)" = main
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'v5.1.14 ya existe. No sobrescribir una versión oficial.'
+            exit 1
+          fi
+      - name: Download and verify compiled 5.1.14 Windows installer
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-release
+          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v5.1.14 --dir dist-release
+          mapfile -t installers < <(find dist-release -maxdepth 2 -type f -iname '*5.1.14.exe' -size +60000k)
+          test "${#installers[@]}" -eq 1 || { echo "Se esperaba exactamente un instalador estable 5.1.14 (encontrados: ${#installers[@]})"; exit 1; }
+          installer="${installers[0]}"
+          test -s "$installer"
+          mv "$installer" dist-release/GRENA.LIVE.Setup.5.1.14.exe
+          exe='GRENA.LIVE.Setup.5.1.14.exe'
+          size="$(stat -c '%s' "dist-release/$exe")"
+          hash="$(openssl dgst -sha512 -binary "dist-release/$exe" | base64 -w0)"
+          test "${#hash}" -ge 70
+          printf 'version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %s\npath: %s\nsha512: %s\nreleaseDate: %s\n' "$VERSION" "$exe" "$hash" "$size" "$exe" "$hash" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist-release/latest.yml
+          ( cd dist-release && sha256sum "$exe" > SHA256SUMS.txt )
+          test -s dist-release/latest.yml
+      - name: Publish official v5.1.14 release (not Cloudflare rollout)
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'EOF'
+          GREÑA Live Desktop v5.1.14 — Corrección Fish Audio HTTP 401
+
+          - El GREÑA ID propietario vuelve a utilizar primero sus dos claves independientes de Fish Audio guardadas y cifradas en Windows, sin que una API antigua de Cloudflare las sustituya.
+          - Las API que el propietario guarda expresamente en la bóveda Windows DPAPI tienen prioridad sobre variables de entorno heredadas.
+          - Nuevo apartado privado «Mis dos API Fish Audio» en Administración para consultar si cada espacio está configurado y reemplazar solo una clave.
+          - Una clave guardada vuelve a cargarse en el motor de voz sin reiniciar el LIVE ni eliminar mensajes.
+          - Los errores HTTP 401 identifican si el problema es la API 1 o la API 2 y aplican una pausa temporal a la credencial rechazada antes de volver a probar.
+          - Los demás GREÑA ID continúan usando exclusivamente su propia API. Ni la API ni las voces se muestran en registros o en el navegador.
+          - Se mantienen audio progresivo, cinco voces, prioridades, filtros, modelo y reproducción natural a velocidad 1x.
+          - Se comprueba instalación real desde v5.1.13 y preservación SHA256 de datos, cuentas y ajustes.
+          - Publicar la release en GitHub no activa actualizaciones de otros usuarios; únicamente el propietario puede autorizar el despliegue desde Cloudflare D1.
+
+          Nota: un HTTP 401 de ambas claves aún exige reemplazarlas por claves válidas de Fish Audio. No se desactiva el cifrado DPAPI ni el control de Windows SmartScreen.
+          EOF
+          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.5.1.14.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" --title "GREÑA Live Desktop v$VERSION" --notes-file release-notes.md
