@@ -2791,6 +2791,44 @@ const server =
 
                 if(fish.ok){
                   fishAccount.lastFailure=null;
+                  // v5.1.13: send the first MP3 bytes to Chromium immediately.
+                  // The same Fish request, credentials, model and 1x quality are used.
+                  // Buffered requests (voice tests and prefetch) keep the old path.
+                  if(incoming.stream===true && fish.body && !clientClosed && !response.destroyed){
+                    response.writeHead(200,{
+                      'content-type':'audio/mpeg',
+                      'cache-control':'no-store, max-age=0',
+                      'x-content-type-options':'nosniff',
+                      'x-grena-fish-pool':String(fishContext.accounts.length)
+                    });
+                    const streamedParts=[];
+                    let streamedBytes=0;
+                    try{
+                      for await(const part of fish.body){
+                        if(clientClosed || response.destroyed)return;
+                        const chunk=Buffer.from(part);
+                        streamedBytes+=chunk.length;
+                        if(streamedBytes>20*1024*1024)throw new Error('Fish Audio devolvió un audio demasiado grande.');
+                        if(!chunk.length)continue;
+                        streamedParts.push(chunk);
+                        if(!response.write(chunk)){
+                          await new Promise(resolve=>{
+                            response.once('drain',resolve);
+                            response.once('close',resolve);
+                          });
+                        }
+                      }
+                      if(!clientClosed && !response.destroyed && streamedBytes){
+                        fishAudioCachePut(fishCacheKey,Buffer.concat(streamedParts,streamedBytes));
+                        response.end();
+                      }else if(!response.destroyed)response.destroy();
+                    }catch{
+                      // Once the stream starts an HTTP error status cannot be sent.
+                      // Reject partial audio instead of letting it sound complete.
+                      if(!response.destroyed)response.destroy();
+                    }
+                    return;
+                  }
                   const audio=Buffer.from(await fish.arrayBuffer());
                   if(!audio.length || audio.length>20*1024*1024){
                     lastFailure={status:502,error:'Fish Audio devolvió un audio no válido.'};
