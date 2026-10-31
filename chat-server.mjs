@@ -146,14 +146,25 @@ async function fetchFishPoolForProfile(profileId){
    const result=await r.json().catch(()=>({}));
    if(!r.ok||!result.ok)return {accounts:[],error:'No se pudo verificar la API de tu GREÑA ID.'};
    if(requested!==activeProfileId)return {accounts:[],error:'El perfil cambió. Inténtalo otra vez.'};
+   // IMPORTANT: the verified owner's two Windows-vault keys are the source
+   // of truth. A previous single API saved in Cloudflare must NEVER eclipse
+   // both owner keys (which made an expired cloud key trigger HTTP 401).
+   // The backend only supplies ownerKeys for the authenticated owner.
+   if(result.permanentAccess===true){
+     const ownerPool=reconcileOwnerFishAccounts(result.ownerKeys);
+     if(ownerPool.length)return {accounts:ownerPool,source:'owner-vault'};
+   }
+   // Other GREÑA IDs use only their own Fish credential. For older owner
+   // installations without a Windows vault, keep their own cloud API fallback.
    if(typeof result.apiKey==='string'&&result.apiKey.length>=20){
      if(!fishProfileAccount||fishProfileAccount.id!=='account:'+requested||fishProfileAccount.key!==result.apiKey)
        fishProfileAccount={id:'account:'+requested,key:result.apiKey,active:0,cooldownUntil:0};
-     return {accounts:[fishProfileAccount]};
+     return {accounts:[fishProfileAccount],source:'profile'};
    }
-   // The owner's legacy Fish pool is preserved in full; no other GREÑA ID shares it.
-   if(result.permanentAccess===true)return {accounts:reconcileOwnerFishAccounts(result.ownerKeys)};
-   return {accounts:[],error:result.unavailable?'No se pudo consultar la API de Fish Audio. Revisa Cloudflare.':'Configura tu propia API Fish Audio en Configuración para activar el chat de voz.'};
+   return {accounts:[],error:result.permanentAccess===true
+     ?'No hay ninguna API Fish Audio configurada en la bóveda del propietario. Abre Administración y configura API 1 y API 2.'
+     :result.unavailable?'No se pudo consultar la API de Fish Audio. Revisa Cloudflare.'
+     :'Configura tu propia API Fish Audio en Configuración para activar el chat de voz.'};
  }catch{return {accounts:[],error:'No se pudo verificar la API Fish Audio de esta cuenta.'}}
 }
 async function fishPoolForProfile(profileId){
