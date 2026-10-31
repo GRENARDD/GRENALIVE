@@ -2098,6 +2098,16 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
      return json(res,400,{ok:false,error:'Selecciona el espacio 1 o 2 e introduce una API Fish Audio válida.'});
    await storeOwnerFishKey(DATA_DIR,slot,key);
    ownerFishKeys=await readOwnerFishKeys(DATA_DIR);
+   // Make the new API effective immediately without restarting the live,
+   // deleting comments, or mixing this owner's keys with other profiles.
+   try{
+     await fetch('http://127.0.0.1:8788/api/fish-credentials-reload',{
+       method:'POST',
+       headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},
+       body:JSON.stringify({profileId:me.id}),
+       signal:AbortSignal.timeout(1800)
+     });
+   }catch{ /* Chat may be offline; it will read the newest key at startup. */ }
    return json(res,200,{ok:true,configured:[!!ownerFishKeys[0],!!ownerFishKeys[1]]});
  }
  if(pathname==='/api/internal/chat-license-status'&&req.method==='GET'){
