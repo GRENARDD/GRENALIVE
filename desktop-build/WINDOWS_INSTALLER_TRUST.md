@@ -39,19 +39,49 @@ certificado de firma de código válido OV (organización) o una alternativa
 compatible con la elegibilidad del desarrollador; un certificado autofirmado
 NO corrige SmartScreen.
 
-Configurar en GitHub Actions -> Secrets and variables -> Actions ->
-Repository secrets:
+### Requisito 2026: clave protegida en HSM
 
-- `GRENA_WINDOWS_CERT_BASE64`: contenido binario de un certificado PFX válido
-  codificado en Base64 (nunca subir el PFX al repositorio).
-- `GRENA_WINDOWS_CERT_PASSWORD`: contraseña del PFX.
+Desde junio de 2023, los certificados de firma de código de confianza
+pública nuevos exigen almacenar sus claves privadas en hardware criptográfico
+seguro o en un HSM alojado por un proveedor. Por lo tanto, **no asumir que
+al comprar un certificado OV se entregará un PFX exportable**. Un certificado
+nuevo comprado hoy normalmente requiere USB/HSM o servicio de firma remota,
+como DigiCert KeyLocker o la opción de firma en la nube del proveedor.
 
-El workflow `.github/workflows/grena-desktop-from-kit.yml` pasa estas
-credenciales exclusivamente a la compilación de `push`, no a PRs. El paso
-`Get-AuthenticodeSignature` inspecciona el instalador; si se proporcionó
-certificado pero la firma no es válida, la compilación falla. Si aún no se
-dispone de certificado, lanza una advertencia y conserva el comportamiento
-anterior, sin afirmar falsamente que el instalador está firmado.
+- **Para usuarios de República Dominicana:** la firma pública Azure Artifact
+  Signing no incluye actualmente a desarrolladores individuales residentes
+  allí. Consultar con una CA reconocida la elegibilidad de la identidad
+  personal o de la empresa para certificado de firma de código.
+- **Firma en GitHub Actions:** elegir con el emisor un proveedor HSM/cloud
+  compatible con CI. El método de autenticación y firma dependen del proveedor;
+  no añadir claves privadas al repositorio ni al chat.
+- **Certificados PFX heredados válidos:** solo si existe legalmente un PFX
+  exportable de una emisión anterior (u otro formato admitido por la CA),
+  configurar los secretos:
+  - `GRENA_WINDOWS_CERT_BASE64`: PFX codificado Base64
+  - `GRENA_WINDOWS_CERT_PASSWORD`: contraseña del PFX
+
+El workflow `.github/workflows/grena-desktop-from-kit.yml` ya detecta el
+método PFX con los secretos anteriores y valida la firma Authenticode del EXE.
+**No está conectado todavía a ningún emisor de certificado ni a un HSM**.
+Para una CA nueva habrá que integrar la herramienta de firma remota elegida,
+firmar tanto el ejecutable como el instalador y verificar su identidad.
+
+Si no hay certificado, el flujo advierte de que el instalador está sin firmar
+en vez de declarar falsamente un editor verificado. El PR no firma ni publica
+ningún archivo por sí mismo.
+
+### Alternativa de distribución
+
+Microsoft Store puede firmar paquetes MSIX tras su aprobación, sin comprar
+un certificado propio. Esto requiere preparar la distribución MSIX y someter
+GREÑA Live a revisión: **no firma automáticamente el .exe de GitHub**.
+
+Una firma válida cambia el «Editor desconocido» por la identidad legal
+verificada; si el instalador necesita privilegios de administrador, Windows
+puede seguir mostrando UAC. SmartScreen también puede requerir que la firma
+o el programa acumulen reputación.
+
 
 Tras configurar la firma, publicar una **nueva versión** de GREÑA Live
 con su propio número, instalador y manifiesto; no reemplazar el binario
@@ -61,3 +91,5 @@ Fuentes:
 - https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation
 - https://learn.microsoft.com/windows/apps/package-and-deploy/code-signing-options
 - https://www.electron.build/docs/features/code-signing/
+- https://knowledge.digicert.com/general-information/export-a-code-signing-certificate-as-a-pfx-file
+- https://learn.microsoft.com/en-us/azure/artifact-signing/quickstart
