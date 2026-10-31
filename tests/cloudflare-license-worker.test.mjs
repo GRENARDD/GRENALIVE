@@ -104,7 +104,7 @@ test('GitHub Actions: cuentas de prueba no aparecen en usuarios ni alteran las l
  }finally{close()}
 });
 
-test('Nuevas cuentas: prueba única de 3 días en D1, vinculada al dispositivo y sin alterar usuarios existentes',async()=>{
+test('Nuevas cuentas: prueba única de 3 días en D1, portátil entre PCs y sin alterar usuarios existentes',async()=>{
  const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
  try{
    const device='DEVICE123456789012345678901234567890';
@@ -120,7 +120,7 @@ test('Nuevas cuentas: prueba única de 3 días en D1, vinculada al dispositivo y
    const originalExpiry=reg.data.license.expiresAt;
    const wrongDevice=await request(env,'/api/license/heartbeat',{deviceId:other},{token:reg.data.token});
    assert.equal(wrongDevice.status,200);
-   assert.equal(wrongDevice.data.license,null);
+   assert.equal(wrongDevice.data.license.expiresAt,originalExpiry,'La prueba también funciona en otro PC');
    const correct=await request(env,'/api/license/heartbeat',{deviceId:device},{token:reg.data.token});
    assert.equal(correct.data.license.expiresAt,originalExpiry);
    const login=await request(env,'/api/license/identity/login',{username:'trial_client',password:'trial-password-2026',deviceId:device});
@@ -140,12 +140,12 @@ test('Nuevas cuentas: prueba única de 3 días en D1, vinculada al dispositivo y
    const paid=await request(env,'/api/license/heartbeat',{deviceId:device},{token:reg.data.token});
    assert.equal(paid.data.license.kind,'license');
    assert.equal(paid.data.license.expiresAt-paid.data.license.activatedAt,30*DAY);
-   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:reg.data.token})).data.license,null);
+   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:reg.data.token})).data.license.active,true);
    const unbound=await request(env,'/api/license/identity/register',{username:'trial_unbound',email:'unbound@example.org',password:'unbound-password-123'});
    assert.equal(unbound.data.license.kind,'trial');
    const firstBeat=await request(env,'/api/license/heartbeat',{deviceId:device},{token:unbound.data.token});
    assert.equal(firstBeat.data.license.active,true);
-   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:unbound.data.token})).data.license,null);
+   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:unbound.data.token})).data.license.active,true);
  }finally{close()}
 });
 
@@ -185,7 +185,7 @@ test('Cloudflare D1: 30, 60, 90 y días personalizados; renovación acumulada',a
    assert.ok(user.password_hash&&!user.password_hash.includes('clave-fuerte'));
    assert.equal((await DB.prepare('SELECT COUNT(*) AS n FROM user_sessions WHERE token_hash=?').bind(tk).first()).n,0);
    const other=await request(env,'/api/license/heartbeat',{deviceId:'ANOTHER1234567890123456789012345'},{token:ct});
-   assert.equal(other.status,200);assert.equal(other.data.license,null);
+   assert.equal(other.status,200);assert.equal(other.data.license.active,true);
    assert.equal((await request(env,'/api/license-admin/revoke',{userId:user.id},{token:tk})).data.user.license.active,false);
  }finally{close()}
 });
@@ -245,7 +245,7 @@ test('Cloudflare health and D1 readiness report actual table connectivity',async
  }finally{close()}
 });
 
-test('Administrador GREÑA asigna 30 días por nombre sin código, vincula primer dispositivo y renueva 60 días',async()=>{
+test('Administrador GREÑA asigna 30 días por nombre sin código, sirve varios PCs y renueva 60 días',async()=>{
  const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN};
  try{
    const owner=(await request(env,'/api/license/identity/register',{username:'grena_rd',email:'owner@grena.test',password:'owner-password-123'})).data;
@@ -263,20 +263,20 @@ test('Administrador GREÑA asigna 30 días por nombre sin código, vincula prime
    assert.equal(first.data.user.license.active,true);
    assert.equal(first.data.user.deviceBound,false);
    assert.equal(first.data.expiresAt-first.data.user.license.activatedAt,30*DAY);
-   // An authenticated heartbeat claims the license for this device without a code.
+   // An authenticated heartbeat preserves account-scoped access without binding a machine.
    const bound=await request(env,'/api/license/heartbeat',{deviceId:device},{token:user.token});
    assert.equal(bound.status,200);
    assert.equal(bound.data.license.active,true);
    const listing=await request(env,'/api/license-admin/users',null,{token:owner.token});
-   assert.equal(listing.data.users.find(x=>x.username==='sofia_live').deviceBound,true);
+   assert.equal(listing.data.users.find(x=>x.username==='sofia_live').deviceBound,false);
    const otherDevice=await request(env,'/api/license/heartbeat',{deviceId:other},{token:user.token});
    assert.equal(otherDevice.status,200);
-   assert.equal(otherDevice.data.license,null);
+   assert.equal(otherDevice.data.license.active,true);
    const renewal=await request(env,'/api/license-admin/grant',{username:'sofia_live',days:60},{token:owner.token});
    assert.equal(renewal.status,200);
    assert.equal(renewal.data.renewed,true);
    assert.equal(renewal.data.expiresAt-first.data.expiresAt,60*DAY);
-   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:user.token})).data.license,null);
+   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:other},{token:user.token})).data.license.active,true);
    assert.equal((await request(env,'/api/license/heartbeat',{deviceId:device},{token:user.token})).data.license.active,true);
    assert.equal((await DB.prepare('SELECT COUNT(*) AS n FROM license_grants').first()).n,2);
    assert.equal((await request(env,'/api/license-admin/revoke',{userId:user.user.id},{token:owner.token})).status,200);
@@ -366,4 +366,33 @@ test('Actualizaciones: nadie recibe aviso hasta que el propietario publica ofici
    assert.equal((await request(env,'/api/updates/latest')).data.release.version,'5.1.0');
    function requestRaw(path){return worker.fetch(new Request('https://license.test'+path),env)}
  }finally{globalThis.fetch=originalFetch;close()}
+});
+
+test('GREÑA ID: dos sesiones simultáneas en PCs distintos conservan licencia, contraseña y API aislada',async()=>{
+ const {DB,close}=mockD1(),env={DB,ADMIN_KEY:ADMIN,FISH_CREDENTIALS_KEY:Buffer.alloc(32,3).toString('base64')};
+ const firstPc='DEVICE123456789012345678901234567890';
+ const secondPc='ANOTHER123456789012345678901234567890';
+ const fishApi='sk-fish-demo-not-real-separate-2026';
+ try{
+   const a=await request(env,'/api/license/identity/register',{
+     username:'portable_rd',email:'portable@grena.test',password:'portable-secure-password',deviceId:firstPc
+   });
+   assert.equal(a.status,201);
+   const sessionB=await request(env,'/api/license/identity/login',{
+     username:'portable_rd',password:'portable-secure-password',deviceId:secondPc
+   });
+   assert.equal(sessionB.status,200);
+   assert.notEqual(a.data.token,sessionB.data.token,'Cada PC recibe un token independiente');
+   assert.equal(a.data.user.id,sessionB.data.user.id,'Cloudflare reconoce la misma cuenta');
+   assert.equal(sessionB.data.license.active,true,'La misma prueba activa funciona en otra PC');
+   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:firstPc},{token:a.data.token})).data.license.active,true);
+   assert.equal((await request(env,'/api/license/heartbeat',{deviceId:secondPc},{token:sessionB.data.token})).data.license.active,true);
+   assert.equal((await request(env,'/api/license/fish-credentials',{apiKey:fishApi},{token:a.data.token})).status,200);
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:sessionB.data.token})).data.apiKey,fishApi,'La misma cuenta consume su propia API desde otra PC');
+   const other=await request(env,'/api/license/identity/register',{username:'another_creator',email:'another@grena.test',password:'another-password-2026',deviceId:secondPc});
+   assert.equal(other.status,201,'Mismo PC puede registrar otra cuenta con correo distinto');
+   assert.equal((await request(env,'/api/license/fish-credentials/consume',null,{token:other.data.token})).data.apiKey,null,'Otra cuenta local no hereda la API');
+   const before=await DB.prepare('SELECT license_device_id FROM users WHERE username=?').bind('portable_rd').first();
+   assert.equal(before.license_device_id,null,'Nunca se vincula la cuenta al primer PC');
+ }finally{close()}
 });
