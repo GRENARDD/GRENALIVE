@@ -37,7 +37,7 @@ test('release 5.1.12 requires successful build at current commit and owner still
  assert.match(flow,/gh run download/);
  assert.match(flow,/sha512/);
  assert.match(flow,/gh release create/);
- assert.match(up,/tag\[1:\] if tag else '5\.1\.11'/);
+ assert.match(up,/tag\[1:\] if tag else '5\.1\.12'/);
  assert.match(up,/const releaseBase='https:\/\/grena-live-licenses/);
  assert.match(up,/autoUpdater\.autoDownload=false/);
  assert.match(up,/autoUpdater\.checkForUpdates\(\)/);
