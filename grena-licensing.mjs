@@ -203,68 +203,99 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    try{return await fishVault.readUserFishKey(fishBackupPath(userId),userId,c.centralUserId)}
    catch(error){console.warn('[GREÑA Fish] Bóveda de usuario no disponible:',error?.message||'error');return null}
  }
+ // No plaintext API is saved in cloud-license.json. Only the pending flag is
+ // persisted per local profile; the key itself stays in its DPAPI encrypted vault.
+ async function fishCloudRead(c){
+   const result=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,c.token);
+   return result.configured===true&&typeof result.apiKey==='string'&&result.apiKey.length>=20?result.apiKey:null;
+ }
+ async function fishMarkPending(userId,pending){
+   await updateCached(userId,{fishPendingCloud:pending===true,fishPendingAt:pending?Date.now():null});
+ }
+ async function fishCloudConfirmed(userId,c,apiKey){
+   const current=await fishCloudRead(c);
+   if(current!==apiKey)return false;
+   await fishMarkPending(userId,false);
+   return true;
+ }
  async function getFishCredential(userId){
    if(cloud||!remoteUrl||!userId)return {configured:false,apiKey:null,permanentAccess:false};
    const c=await getCached(userId),owner=c?.permanentAccess===true&&!!c?.token;
    if(!c?.token)return {configured:false,apiKey:null,permanentAccess:owner};
+   const backup=owner?null:await ownFishBackup(userId,c);
    try{
-     const result=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,c.token);
-     if(result.configured===true&&typeof result.apiKey==='string'&&result.apiKey.length>=20)
-       return {configured:true,apiKey:result.apiKey,permanentAccess:owner,source:'cloud'};
+     const remoteKey=await fishCloudRead(c);
+     if(c.fishPendingCloud===true&&backup){
+       // A newer locally saved key must not silently be replaced by an older
+       // key previously stored in D1 while the new upload is pending.
+       if(remoteKey===backup){
+         await fishMarkPending(userId,false);
+         return {configured:true,apiKey:remoteKey,permanentAccess:false,source:'cloud'};
+       }
+       return {configured:true,apiKey:backup,permanentAccess:false,source:'device',needsSync:true};
+     }
+     if(remoteKey)return {configured:true,apiKey:remoteKey,permanentAccess:owner,source:'cloud'};
      if(owner)return {configured:false,apiKey:null,permanentAccess:true};
-     const backup=await ownFishBackup(userId,c);
      return backup?{configured:true,apiKey:backup,permanentAccess:false,source:'device',needsSync:true}:
        {configured:false,apiKey:null,permanentAccess:false};
    }catch(error){
-     if(!owner){
-       const backup=await ownFishBackup(userId,c);
-       if(backup)return {configured:true,apiKey:backup,permanentAccess:false,source:'device',needsSync:true,unavailable:true};
-     }
+     if(backup)return {configured:true,apiKey:backup,permanentAccess:false,source:'device',needsSync:true,unavailable:true};
      return {configured:false,apiKey:null,permanentAccess:owner,unavailable:true};
    }
  }
  async function fishStatus(userId,c){
-   let remote=null,remoteError=null;
-   try{remote=await fetchCentral('/api/license/fish-credentials','GET',undefined,c.token)}
-   catch(error){remoteError=error}
-   if(remote?.configured===true)return {ok:true,configured:true,source:'cloud',needsSync:false,updatedAt:remote.updatedAt||null};
    const backup=await ownFishBackup(userId,c);
-   if(backup)return {ok:true,configured:true,source:'device',needsSync:true,
-     warning:remoteError?'No se pudo consultar Cloudflare; la API está protegida en este equipo.':'API protegida en este equipo. Debe sincronizarse con Cloudflare.'};
+   let remoteKey=null,remoteError=null;
+   try{remoteKey=await fishCloudRead(c)}catch(error){remoteError=error}
+   if(c.fishPendingCloud===true&&backup&&remoteKey===backup){
+     await fishMarkPending(userId,false);
+     return {ok:true,configured:true,source:'cloud',needsSync:false,verified:true};
+   }
+   if(c.fishPendingCloud===true&&backup){
+     return {ok:true,configured:true,source:'device',needsSync:true,verified:false,
+       warning:remoteError?'No hay conexión con Cloudflare. API guardada solo en este equipo.':
+         'Hay una API nueva pendiente; Cloudflare todavía tiene otra API o ninguna. Pulsa Sincronizar con Cloudflare.'};
+   }
+   if(remoteKey)return {ok:true,configured:true,source:'cloud',needsSync:false,verified:true};
+   if(backup)return {ok:true,configured:true,source:'device',needsSync:true,verified:false,
+     warning:remoteError?'Cloudflare no responde; la API está protegida en este equipo.':
+       'La copia local no aparece en Cloudflare. Pulsa Sincronizar con Cloudflare.'};
    if(remoteError)throw remoteError;
-   return {ok:true,configured:false,source:'none',needsSync:false,updatedAt:null};
+   return {ok:true,configured:false,source:'none',needsSync:false,verified:false};
  }
  async function storeFishCredential(userId,c,key){
    if(typeof key!=='string'||key.length<20||key.length>512||!/^[\x21-\x7e]+$/.test(key))
      throw Object.assign(Error('Introduce una API Fish Audio válida.'),{status:400});
-   let backedUp=false,cloudSaved=false,cloudError=null;
+   let backedUp=false;
    if(c.permanentAccess!==true&&c.centralUserId){
      try{backedUp=await fishVault.saveUserFishKey(fishBackupPath(userId),userId,c.centralUserId,key)}
-     catch(e){console.warn('[GREÑA Fish] No se pudo crear copia DPAPI:',e?.message||'error')}
+     catch(error){console.warn('[GREÑA Fish] No se pudo proteger una copia local:',error?.message||'error')}
    }
+   // A failed/uncertain cloud write is NEVER a successful link. Keep the
+   // encrypted backup and explicitly mark pending until readback confirms it.
+   if(backedUp)await fishMarkPending(userId,true);
    try{
-     const result=await fetchCentral('/api/license/fish-credentials','POST',{apiKey:key},c.token);
-     if(result.configured!==true)throw Object.assign(Error('Cloudflare no confirmó el guardado.'),{status:502});
-     // Always verify by reading the exact secret back BEFORE claiming cloud save.
-     const check=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,c.token);
-     if(check.configured!==true||check.apiKey!==key)
-       throw Object.assign(Error('Cloudflare todavía no confirmó la API guardada.'),{status:502});
-     cloudSaved=true;
-   }catch(e){cloudError=e}
-   if(!cloudSaved&&!backedUp)throw cloudError||Object.assign(Error('No se pudo guardar de forma segura la API Fish Audio.'),{status:503});
+     const response=await fetchCentral('/api/license/fish-credentials','POST',{apiKey:key},c.token);
+     if(response.configured!==true)throw Object.assign(Error('Cloudflare no confirmó el guardado.'),{status:502});
+     if(!await fishCloudConfirmed(userId,c,key))
+       throw Object.assign(Error('Cloudflare todavía no devuelve la API guardada para este GREÑA ID.'),{status:502});
+   }catch(error){
+     try{await onFishCredentialsChanged(userId)}catch{}
+     throw Object.assign(Error(backedUp?
+       'No se confirmó en Cloudflare. Hay una copia cifrada en este equipo: abre Fish Audio y pulsa Sincronizar con Cloudflare.':
+       'No se confirmó el guardado en Cloudflare. Revisa tu conexión y vuelve a intentarlo.'),{status:503,savedLocally:backedUp,needsSync:backedUp});
+   }
    try{await onFishCredentialsChanged(userId)}catch{}
-   return {ok:true,configured:true,source:cloudSaved?'cloud':'device',
-     needsSync:!cloudSaved,warning:cloudSaved?'': 'La API funciona desde la copia cifrada de este equipo, pero no pudo sincronizarse con Cloudflare.'};
+   return {ok:true,configured:true,source:'cloud',needsSync:false,verified:true};
  }
  async function syncFishCredential(userId,c){
    const backup=await ownFishBackup(userId,c);
-   if(!backup)throw Object.assign(Error('No hay ninguna copia local de la API para sincronizar.'),{status:409});
-   const saved=await fetchCentral('/api/license/fish-credentials','POST',{apiKey:backup},c.token);
-   if(saved.configured!==true)throw Object.assign(Error('Cloudflare no confirmó el guardado.'),{status:502});
-   const verified=await fetchCentral('/api/license/fish-credentials/consume','GET',undefined,c.token);
-   if(!verified.configured||verified.apiKey!==backup)throw Object.assign(Error('Cloudflare no confirmó la API guardada.'),{status:502});
+   if(!backup)throw Object.assign(Error('No hay copia local cifrada de esta API para sincronizar.'),{status:409});
+   const response=await fetchCentral('/api/license/fish-credentials','POST',{apiKey:backup},c.token);
+   if(response.configured!==true||!await fishCloudConfirmed(userId,c,backup))
+     throw Object.assign(Error('Cloudflare no confirmó la API vinculada a tu GREÑA ID.'),{status:503});
    try{await onFishCredentialsChanged(userId)}catch{}
-   return {ok:true,configured:true,source:'cloud',needsSync:false};
+   return {ok:true,configured:true,source:'cloud',needsSync:false,verified:true};
  }
  async function handle(req,res,pathname){
    const remote=pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/');
@@ -425,6 +456,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
        if(c.centralUserId&&c.permanentAccess!==true){
          await fishVault.deleteUserFishKey(fishBackupPath(u.id),u.id,c.centralUserId);
        }
+       await fishMarkPending(u.id,false);
        try{await onFishCredentialsChanged(u.id)}catch{}
        return reply(res,200,{ok:true,configured:false,source:'none'}),true;
      }
@@ -447,7 +479,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      return reply(res,404,{ok:false,error:'Ruta desconocida.'}),true;
    }catch(e){
      const status=Number(e.status)||503;
-     reply(res,status>=400&&status<600?status:503,{ok:false,error:String(e.message||e).slice(0,190)});
+     reply(res,status>=400&&status<600?status:503,{ok:false,error:String(e.message||e).slice(0,190),...(e.savedLocally===true?{savedLocally:true,needsSync:true}:{})});
      return true;
    }
  }
