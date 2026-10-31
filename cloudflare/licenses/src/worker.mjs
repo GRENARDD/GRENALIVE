@@ -287,7 +287,7 @@ async function handle(req,env){
        license_activated_at=CASE WHEN license_revoked_at IS NULL AND COALESCE(license_code_id,'') != 'TRIAL' AND license_expires_at>? THEN COALESCE(license_activated_at,?) ELSE ? END,
        license_device_id=NULL,
        license_revoked_at=NULL, license_code_id=NULL
-       WHERE id=? AND disabled=0`).bind(time,days*DAY,time,time,time,time,target.id);
+       WHERE id=? AND disabled=0`).bind(time,days*DAY,time,time,time,target.id);
      const audit=env.DB.prepare('INSERT INTO license_grants(id,target_user_id,admin_user_id,days,created_at,expires_at) SELECT ?,?,?,?, ?,license_expires_at FROM users WHERE id=?')
        .bind(crypto.randomUUID(),target.id,owner.id,days,time,target.id);
      const changes=await env.DB.batch([update,audit]);
