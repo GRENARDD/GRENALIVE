@@ -2018,7 +2018,10 @@ function proxyChatHttp(req,res,url,stripChat=true){
     const out={...u.headers};delete out['access-control-allow-origin'];delete out['access-control-allow-credentials'];
     res.writeHead(u.statusCode||502,out);u.pipe(res);
   });
-  upstream.on('error',e=>{if(!res.headersSent)json(res,502,{ok:false,error:'Motor de chat no disponible.',detail:String(e?.message||e)});else try{res.end()}catch{}});
+  upstream.on('error',e=>{if(res.destroyed||res.writableEnded)return;if(!res.headersSent)json(res,502,{ok:false,error:'Motor de chat no disponible.',detail:String(e?.message||e)});else try{res.end()}catch{}});
+  // When a user disables Chat de Voz, cancel both local proxy and Fish generation.
+  req.once('aborted',()=>upstream.destroy());
+  res.once('close',()=>{if(!res.writableEnded)upstream.destroy();});
   req.pipe(upstream);
 }
 const CHAT_HTTP_ROUTES=new Set([
