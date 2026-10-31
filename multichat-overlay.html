@@ -291,6 +291,49 @@
 .msg.theme-comicpop .style-name{align-self:flex-start;background:#ffe600;color:#151515;padding:3px 9px;border-radius:3px 3px 0 0;transform:skew(-4deg);box-shadow:2px 2px 0 #000;font-size:.82em;text-transform:uppercase}
 .msg.theme-comicpop .style-message{color:#171717;background:#fff;padding:9px 12px;border-radius:5px 5px 10px 10px;border:2px solid #181818;box-shadow:3px 3px 0 #000;text-shadow:none}
 
+
+/* GREÑA Timeline Premium: transparent animated capsules and a star rail. */
+.msg.theme-timeline,.msg.theme-timeline.tiktok,.msg.theme-timeline.twitch,
+.msg.theme-timeline.kick,.msg.theme-timeline.youtube,.msg.theme-timeline.starvios{
+ display:block!important;position:relative;width:max-content;min-width:0;flex:none!important;
+ max-width:var(--clean-max-width,94%)!important;overflow:visible!important;
+ border:0!important;border-left:0!important;border-radius:0!important;
+ background:transparent!important;box-shadow:none!important;padding:0!important;
+ backdrop-filter:none!important;isolation:auto!important;
+ color:white;font-family:Nunito,Segoe UI,system-ui,sans-serif}
+.msg.theme-timeline::before,.msg.theme-timeline::after{display:none!important;content:none!important}
+.theme-timeline .tl-main{position:relative;min-width:0;padding-left:var(--tl-indent,40px)}
+.theme-timeline .tl-rail{position:absolute;left:var(--tl-railx,12px);top:-30px;bottom:-30px;
+ width:3px;transform:translateX(-50%);border-radius:5px;
+ background:linear-gradient(to bottom,#fff4,#ffff 20%,#ffff 80%,#fff4)}
+.theme-timeline .tl-star{position:absolute;z-index:1;left:var(--tl-railx,12px);
+ top:calc(var(--tl-name,14px)*1.65 + var(--tl-font,16px)*.55);
+ width:var(--tl-star-size,17px);height:var(--tl-star-size,17px);
+ transform:translate(-50%,-50%);stroke:var(--tl-edge,#d6d6d6);
+ fill:var(--tl-fill,#7c7c7c);stroke-width:2;stroke-linejoin:round;
+ filter:drop-shadow(0 0 3px var(--tl-edge,#d6d6d6))}
+.theme-timeline .tl-header{display:flex;align-items:center;gap:5px;height:calc(var(--tl-name,14px)*1.8)}
+.theme-timeline .tl-cap{display:flex;align-items:center;gap:.5em;min-width:0;max-width:100%;
+ height:100%;padding:0 .9em;border-radius:999px;background:linear-gradient(180deg,#ffffff12,transparent),var(--tl-cap,#7c468094);
+ box-shadow:inset 0 0 0 1px #ffffff12}
+.theme-timeline .tl-dot{width:.32em;height:.32em;flex:none;border-radius:50%;
+ background:var(--tl-platform,#ded1e7)}
+.theme-timeline .tl-name{color:#fff;font-size:var(--tl-name,14px);
+ font-weight:900;letter-spacing:.02em;text-transform:uppercase;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theme-timeline .tl-badges{height:86%;padding:0 8px;flex:none;display:flex;align-items:center;gap:4px;
+ border-radius:999px;background:var(--tl-cap,#7c468094)}
+.theme-timeline .tl-badges img{height:calc(var(--tl-name,14px)*.95);max-width:60px;object-fit:contain}
+.theme-timeline .tl-badge{font-size:calc(var(--tl-name,14px)*.85)}
+.theme-timeline .tl-text{margin-top:calc(var(--tl-font,16px)*.3);color:#fff;
+ font-size:var(--tl-font,16px);line-height:1.4;font-weight:700;
+ white-space:pre-wrap;overflow-wrap:anywhere;text-shadow:0 1px 3px #0009}
+.theme-timeline .tl-text img{height:var(--tl-emote-size,38px);max-width:110px;
+ width:auto;object-fit:contain;vertical-align:middle;margin:0 2px}
+.theme-timeline .tl-mod{--tl-cap:#3480b8;--tl-edge:#58b4ea;--tl-fill:#3a8fc9}
+.theme-timeline .tl-sub{--tl-cap:#a054d6c7;--tl-edge:#d9a8f5;--tl-fill:#a45bd6}
+.theme-timeline .tl-owner{--tl-cap:#b9801f;--tl-edge:#ffd36a;--tl-fill:#d9982c}
+@media(prefers-reduced-motion:reduce){.msg.theme-timeline{animation:none!important}}
 </style>
 </head>
 <body>
@@ -320,7 +363,7 @@ function sanitizeCfg(src){
     else if(typeof def==='boolean'){out[k]=typeof v==='boolean'?v:def}
     else if(k==='readability'){out[k]=['none','shadow','outline','both'].includes(v)?v:def}
     else if(k==='direction'){out[k]=v==='right'?'right':'left'}
-    else if(k==='theme'){out[k]=['clean','blossom','comicpop'].includes(v)?v:'clean'}
+    else if(k==='theme'){out[k]=['clean','blossom','comicpop','timeline'].includes(v)?v:'clean'}
     else{out[k]=def}
   }
   return out;
@@ -358,12 +401,20 @@ async function load(){
   }catch{}
 }
 function applyStage(){
-  stage.style.gap=Math.max(12,Number(cfg.gap??8))+'px';
+  stage.style.gap=(cfg.theme==='timeline'?Math.max(22,Number(cfg.gap??8)):Math.max(12,Number(cfg.gap??8)))+'px';
   stage.style.alignItems=cfg.direction==='right'?'flex-end':'flex-start';
   const edgeOffset=Math.max(0,Math.min(80,Number(cfg.edgeOffset)||0));
   stage.style.paddingLeft=(cfg.direction==='right'?0:edgeOffset)+'px';
   stage.style.paddingRight=(cfg.direction==='right'?edgeOffset:0)+'px';
-  const theme='theme-'+(cfg.theme||'neon');
+  const nextTheme=cfg.theme||'clean',previousTheme=stage.dataset.chatTheme||'';
+  stage.dataset.chatTheme=nextTheme;
+  if(previousTheme&&previousTheme!==nextTheme&&(previousTheme==='timeline'||nextTheme==='timeline')){
+    const saved=[...stage.querySelectorAll('.msg:not(.fading-old)')].map(el=>el._timelinePayload).filter(Boolean);
+    stage.replaceChildren();
+    saved.forEach(add);
+    return;
+  }
+  const theme='theme-'+nextTheme;
   for(const el of stage.querySelectorAll('.msg')){
     [...el.classList].filter(c=>c.startsWith('theme-')).forEach(c=>el.classList.remove(c));
     el.classList.add(theme);
@@ -381,6 +432,12 @@ function resizeVisibleMessage(el){
   const iconPx=Math.max(12,Math.round(Math.max(16,Math.min(40,Number(cfg.iconSize)||24))*scale));
   const padY=Math.max(3,Math.round((cfg.padY??8)*scale));
   const padX=Math.max(5,Math.round((cfg.padX??13)*scale));
+  el.style.setProperty('--tl-font',fontSize+'px');
+  el.style.setProperty('--tl-name',nameSize+'px');
+  el.style.setProperty('--tl-star-size',Math.max(12,Math.round(iconPx*.72))+'px');
+  el.style.setProperty('--tl-railx',Math.max(9,Math.round(fontSize*.65))+'px');
+  el.style.setProperty('--tl-indent',Math.max(32,Math.round(fontSize*2.2))+'px');
+  el.style.setProperty('--tl-emote-size',Math.max(24,Math.round(fontSize*2.2))+'px');
   el.style.setProperty('--clean-icon-size',iconPx+'px');
   el.style.setProperty('--clean-max-width',Math.max(10,Math.min(100,Number(cfg.bubbleWidth)||85))+'%');
   el.style.maxWidth=(cfg.bubbleWidth??94)+'%';
