@@ -307,8 +307,8 @@ async function hostIsPublic(hostname){
 }
 
 // Timeline Premium tiene ajustes independientes por GREÑA ID. No modifica los del Multichat clásico.
-const timelinePremiumDefaults={direction:'left',edgeOffset:12,width:680,fontSize:20,nameSize:17,starSize:10,lineWidth:3,gap:13,maxMessages:6,duration:14,speed:300,showBadges:true,showPlatform:true,colorMode:'role',normalColor:'#6b3971',moderatorColor:'#2483b3',ownerColor:'#b78035',subscriberColor:'#8055a7'};
-const timelinePremiumRanges={edgeOffset:[0,120],width:[160,1920],fontSize:[10,72],nameSize:[9,60],starSize:[5,22],lineWidth:[1,8],gap:[0,48],maxMessages:[1,20],duration:[2,120],speed:[0,1200]};
+const timelinePremiumDefaults={direction:'left',edgeOffset:12,width:680,scale:100,fontSize:20,nameSize:17,starSize:10,lineWidth:3,gap:13,maxMessages:6,duration:14,speed:300,showBadges:true,showPlatform:true,colorMode:'role',normalColor:'#6b3971',moderatorColor:'#2483b3',ownerColor:'#b78035',subscriberColor:'#8055a7',tiktokColor:'#57a1c4',twitchColor:'#8f53cb',kickColor:'#58a64e',youtubeColor:'#c45773',starviosColor:'#dd6d9a'};
+const timelinePremiumRanges={edgeOffset:[0,120],width:[160,1920],scale:[50,200],fontSize:[10,72],nameSize:[9,60],starSize:[5,22],lineWidth:[1,8],gap:[0,48],maxMessages:[1,20],duration:[2,120],speed:[0,1200]};
 function sanitizeTimelinePremiumSettings(input){
  const src=input&&typeof input==='object'&&!Array.isArray(input)?input:{},out={...timelinePremiumDefaults};
  for(const [k,v] of Object.entries(timelinePremiumDefaults)){
