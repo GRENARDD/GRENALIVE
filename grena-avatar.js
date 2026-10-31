@@ -40,7 +40,7 @@
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
         <button data-s="fish-manage" type="button">Vincular API</button>
         <button data-s="fish-clear" type="button" hidden>Quitar API</button>
-        <button data-s="fish-sync" type="button" hidden>Sincronizar con Cloudflare</button>
+        <button data-s="fish-sync" type="button">Sincronizar con Cloudflare</button>
       </div>
       <form data-fish-form hidden autocomplete="off">
         <label for="gx-fish-key">Tu API privada de Fish Audio</label>
@@ -70,7 +70,7 @@
   function fishDraw(){
     fishManage.textContent=fishConfigured?'Cambiar API':'Vincular API';
     fishClear.hidden=!fishConfigured;
-    fishSync.hidden=!fishConfigured||!fishNeedsSync;
+    fishSync.hidden=false; // Siempre disponible para comprobar el estado o reintentar la sincronización.
     fishForm.hidden=true;
     fishForm.querySelector('input').value='';
   }
@@ -139,14 +139,33 @@
     if(b.dataset.s==='fish-cancel'){
       fishForm.querySelector('input').value='';fishForm.hidden=true;
     }
-    if(b.dataset.s==='fish-sync'&&fishConfigured&&fishNeedsSync){
-      ++fishRevision;b.disabled=true;
+    if(b.dataset.s==='fish-sync'){
+      ++fishRevision;
+      b.disabled=true;
+      const previous=fishStatus.textContent;
+      fishStatus.textContent='Comprobando la API con Cloudflare…';
       try{
-        const synced=await fishRequest('POST',undefined,'/api/license/fish-credentials/sync');
-        if(synced.verified!==true||synced.source!=='cloud')throw Error('Cloudflare no confirmó la sincronización.');
-        fishSavedStatus(synced);
-      }catch(err){fishStatus.textContent=err.message||'No se pudo sincronizar. La copia cifrada local sigue disponible.'}
-      finally{b.disabled=false}
+        // GET always rechecks the actual central record, even when the UI
+        // previously believed the account had no Fish key.
+        const state=await fishRequest('GET');
+        if(state.configured===true&&state.source==='cloud'&&state.verified===true){
+          fishSavedStatus(state);
+          fishStatus.textContent='✓ API verificada en Cloudflare D1 para tu GREÑA ID. No hace falta volver a guardarla.';
+        }else if(state.configured===true&&state.source==='device'&&state.needsSync===true){
+          fishStatus.textContent='API encontrada en la copia cifrada local. Sincronizando…';
+          const synced=await fishRequest('POST',undefined,'/api/license/fish-credentials/sync');
+          if(synced.verified!==true||synced.source!=='cloud')throw Error('Cloudflare no confirmó la sincronización.');
+          fishSavedStatus(synced);
+        }else if(state.configured===false){
+          fishSavedStatus(state);
+          fishStatus.textContent='No hay API vinculada ni copia local recuperable. Pulsa Vincular API para introducir tu clave Fish Audio.';
+        }else{
+          fishStatus.textContent=previous||'No se pudo comprobar la API.';
+          throw Error('El estado de la API es incierto. No se ha confirmado ninguna sincronización.');
+        }
+      }catch(err){
+        fishStatus.textContent=err.message||'No fue posible comprobar o sincronizar la API en Cloudflare.';
+      }finally{b.disabled=false}
     }
     if(b.dataset.s==='fish-clear'&&fishConfigured&&confirm('¿Quitar tu API de Fish Audio de esta cuenta GREÑA ID?')){
       ++fishRevision;b.disabled=true;

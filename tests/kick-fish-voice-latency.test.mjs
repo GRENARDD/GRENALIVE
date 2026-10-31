@@ -102,3 +102,35 @@ test('Fish audio cache is bounded and keyed by account credentials',()=>{
  for(let i=0;i<60;i++)ctx.put('unique-'+i,Buffer.from('a'));
  assert.ok(ctx.cache.size<=48);
 });
+
+
+test('Fish provider rejection survives cooldown without false queue-saturation error',()=>{
+ const helper=portion('function fishCooldownFailure(pool,now=Date.now()){','const ALLOWED_ORIGINS=');
+ const ctx={Date,Math};
+ runInNewContext(helper+'\nthis.failure=fishCooldownFailure;',ctx);
+ const now=Date.now();
+ const denied=[{active:0,cooldownUntil:now+2000,lastFailure:{
+   status:400,error:'Fish Audio rechazó una de las credenciales o el acceso a esa voz.'
+ }}];
+ const result=ctx.failure(denied,now);
+ assert.equal(result.status,400);
+ assert.match(result.error,/rechazó una de las credenciales/);
+ assert.equal(ctx.failure([{active:5,cooldownUntil:0}],now),null,'Real concurrency saturation must remain distinguishable');
+ assert.equal(ctx.failure(denied,now+3000),null,'Expired cooldown must never block new voices');
+ const rateLimited=[{active:0,cooldownUntil:now+30000,lastFailure:{status:429,error:'Fish Audio está limitando temporalmente una de las cuentas.'}}];
+ assert.equal(ctx.failure(rateLimited,now).status,429);
+});
+
+test('Fish manual voice test stops retries on actual credential and model rejection',()=>{
+ const chat=readFileSync(new URL('../chat.html',import.meta.url),'utf8');
+ const a=chat.indexOf('function isFishPermanentError(errorText');
+ const b=chat.indexOf('function scheduleFishResume(',a);
+ assert.ok(a>=0&&b>a);
+ const ctx={};
+ runInNewContext(chat.slice(a,b)+'\nthis.permanent=isFishPermanentError;',ctx);
+ assert.equal(ctx.permanent('Fish Audio rechazó una de las credenciales o el acceso a esa voz.'),true);
+ assert.equal(ctx.permanent('Fish Audio no encontró ese ID de modelo.'),true);
+ assert.equal(ctx.permanent('Este modelo PRO requiere créditos o permisos de pago en Fish Audio.'),true);
+ assert.equal(ctx.permanent('Fish Audio está limitando temporalmente una de las cuentas.'),false);
+ assert.match(chat,/if\(message\.__voiceTest\)\{\s*fishBlockedError='';\s*fishTransientError='Prueba de voz: '/);
+});
