@@ -56,10 +56,11 @@ const githubActionsTestUser=u=>{
 };
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer','strict-transport-security':'max-age=31536000'}});
 const fail=(error,status=400)=>json({ok:false,error},status);
+// Licenses are attached to authenticated GREÑA ID, never exclusively to a PC.
+// The legacy license_device_id column remains in D1 only for schema compatibility.
 const cleanLicense=(u,deviceId)=>{
  const beta=u?.license_code_id===BETA_TAG;
  if(!u||(!beta&&!u.license_expires_at))return null;
- if(deviceId&&u.license_device_id&&u.license_device_id!==deviceId)return null;
  const revokedAt=u.license_revoked_at||null,expiresAt=beta?null:u.license_expires_at;
  return {activatedAt:u.license_activated_at,expiresAt,revokedAt,active:!revokedAt&&(beta||expiresAt>now()),expired:!beta&&expiresAt<=now(),kind:beta?'beta':u.license_code_id===TRIAL_TAG?'trial':'license',unlimited:beta};
 };
@@ -67,7 +68,7 @@ const publicUser=u=>({
  id:u.id,username:u.username,displayName:u.display_name,email:u.email,
  registeredAt:u.registered_at,lastSeenAt:u.last_seen_at||null,
  online:!!u.last_seen_at&&now()-u.last_seen_at<ONLINE,disabled:!!u.disabled,
- deviceBound:!!u.license_device_id,license:cleanLicense(u)
+ deviceBound:false,license:cleanLicense(u)
 });
 // Owner access comes from the authenticated, one-time D1 ownership claim.
 const status=(u,deviceId,permanentAccess=false)=>({ok:true,registered:!!u,user:publicUser(u),license:permanentAccess?null:cleanLicense(u,deviceId),permanentAccess:permanentAccess===true});
@@ -97,16 +98,10 @@ async function sessionUser(env,req){
  return env.DB.prepare('SELECT u.* FROM user_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at > ? AND u.disabled=0')
    .bind(await sha(match[1]),now()).first();
 }
-// Directly granted days attach to the first authenticated device that reconnects.
-// Only an active unbound license is eligible; a later device cannot steal it.
+// Multiple PCs may hold independent, authenticated sessions for one GREÑA ID.
+// Never claim or move a paid/BETA/trial license to a single machine on heartbeat.
+// A valid deviceId is still accepted for client diagnostics and API compatibility.
 async function bindPendingDevice(env,u,deviceId){
- if(!deviceValid(deviceId)||(!u?.license_expires_at&&u?.license_code_id!==BETA_TAG)||u.license_revoked_at)return u;
- if(u.license_code_id!==BETA_TAG&&u.license_expires_at<=now())return u;
- if(!u.license_device_id){
-   await env.DB.prepare("UPDATE users SET license_device_id=? WHERE id=? AND license_device_id IS NULL AND (license_expires_at>? OR license_code_id='BETA') AND license_revoked_at IS NULL")
-     .bind(deviceId,u.id,now()).run();
-   return await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first();
- }
  return u;
 }
 async function issueSession(env,u){
@@ -290,9 +285,9 @@ async function handle(req,env){
      const update=env.DB.prepare(`UPDATE users SET
        license_expires_at=MAX(CASE WHEN license_revoked_at IS NULL AND COALESCE(license_code_id,'') != 'TRIAL' THEN COALESCE(license_expires_at,0) ELSE 0 END, ?) + ?,
        license_activated_at=CASE WHEN license_revoked_at IS NULL AND COALESCE(license_code_id,'') != 'TRIAL' AND license_expires_at>? THEN COALESCE(license_activated_at,?) ELSE ? END,
-       license_device_id=CASE WHEN license_revoked_at IS NULL AND license_expires_at>? THEN license_device_id ELSE NULL END,
+       license_device_id=NULL,
        license_revoked_at=NULL, license_code_id=NULL
-       WHERE id=? AND disabled=0`).bind(time,days*DAY,time,time,time,time,target.id);
+       WHERE id=? AND disabled=0`).bind(time,days*DAY,time,time,time,target.id);
      const audit=env.DB.prepare('INSERT INTO license_grants(id,target_user_id,admin_user_id,days,created_at,expires_at) SELECT ?,?,?,?, ?,license_expires_at FROM users WHERE id=?')
        .bind(crypto.randomUUID(),target.id,owner.id,days,time,target.id);
      const changes=await env.DB.batch([update,audit]);
@@ -336,7 +331,7 @@ async function handle(req,env){
    const salt=random(16),hash=await passHash(password,salt),id=crypto.randomUUID(),time=now();
    // Only newly created accounts receive a trial; existing rows are never changed.
    // Accept an empty device during initial sync; the first valid heartbeat binds it once.
-   const initialDevice=deviceValid(b.deviceId)?String(b.deviceId):null;
+   const initialDevice=null; // Trial remains on the GREÑA ID, independent of registering PC.
    try{await env.DB.prepare('INSERT INTO users(id,username,display_name,email,salt,password_hash,registered_at,last_seen_at,license_activated_at,license_expires_at,license_device_id,license_code_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)')
      .bind(id,username,display||username,email,salt,hash,time,time,time,time+TRIAL_DAYS*DAY,initialDevice,TRIAL_TAG).run()}
    catch{return fail('Usuario o correo ya registrado.',409)}
@@ -389,8 +384,6 @@ async function handle(req,env){
    if(!/^GRENA-[A-F0-9]{10}-[A-F0-9]{10}$/.test(code)||!deviceValid(deviceId))return fail('Código o dispositivo inválido.');
    if((await ownerInfo(env,u)).isOwner)return fail('Tu cuenta es propietaria y tiene acceso permanente. No necesitas activar un código.',409);
     if(u.license_code_id===BETA_TAG&&!u.license_revoked_at)return fail('Tu licencia BETA ya tiene acceso indefinido y no requiere códigos.',409);
-   if(u.license_expires_at>now()&&!u.license_revoked_at&&u.license_device_id!==deviceId)
-     return fail('Tu licencia está vinculada a otra computadora.',403);
    const codeHash=await sha(code);
    const item=await env.DB.prepare('SELECT * FROM license_codes WHERE code_hash=?').bind(codeHash).first();
    if(!item||item.redeemed_at)return fail('Código inválido o utilizado.',409);
@@ -399,8 +392,8 @@ async function handle(req,env){
    const claimed=await env.DB.prepare('UPDATE license_codes SET redeemed_at=?, used_by=? WHERE id=? AND redeemed_at IS NULL')
      .bind(time,u.id,item.id).run();
    if(Number(claimed.meta?.changes||0)!==1)return fail('Código ya utilizado.',409);
-   await env.DB.prepare('UPDATE users SET license_activated_at=?,license_expires_at=?,license_device_id=?,license_revoked_at=NULL,license_code_id=?,last_seen_at=? WHERE id=?')
-     .bind(time,expiresAt,deviceId,item.id,time,u.id).run();
+   await env.DB.prepare('UPDATE users SET license_activated_at=?,license_expires_at=?,license_device_id=NULL,license_revoked_at=NULL,license_code_id=?,last_seen_at=? WHERE id=?')
+     .bind(time,expiresAt,item.id,time,u.id).run();
    const fresh=await env.DB.prepare('SELECT * FROM users WHERE id=?').bind(u.id).first();
    return json(status(fresh,deviceId));
  }

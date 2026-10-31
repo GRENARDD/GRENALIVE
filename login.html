@@ -44,6 +44,7 @@
    <div class="field"><label for="regUser">Usuario GREÑA</label><input id="regUser" autocomplete="username" placeholder="ejemplo: creador123" required></div>
    <div class="field"><label for="regPass">Contraseña</label><input id="regPass" type="password" autocomplete="new-password" placeholder="Mínimo 8 caracteres" minlength="8" required></div>
    <button class="primary" id="registerBtn">CREAR MI GREÑA ID</button>
+   <p class="recovery-note" style="margin-top:12px">Puedes usar varios GREÑA ID en esta computadora. Cada cuenta tendrá sus propias plataformas, ajustes y API. Crear otra cuenta no borra las anteriores; solo cambiará el perfil activo.</p>
   </form>
 
   <form id="emailPanel" class="panel">
@@ -80,7 +81,9 @@ function show(text,type='error'){msg.textContent=text;msg.className='msg show '+
 function clearMsg(){msg.className='msg'}
 function panel(id,title,sub,{tabs=false}={}){for(const p of panels)$(p).classList.toggle('on',p===id);$('tabs').style.display=tabs?'grid':'none';$('authTitle').textContent=title;$('authSub').textContent=sub;clearMsg()}
 function tab(mode){const login=mode==='login';$('tabLogin').classList.toggle('on',login);$('tabRegister').classList.toggle('on',!login);$('tabLogin').setAttribute('aria-selected',String(login));$('tabRegister').setAttribute('aria-selected',String(!login));panel(login?'loginPanel':'registerPanel',login?'Iniciar sesión':'Crear GREÑA ID',login?'Entra a tu espacio personal de GREÑA.':'Tu correo permitirá recuperar tu cuenta si pierdes el acceso.',{tabs:true});$(login?'loginUser':'regName').focus()}
-$('tabLogin').onclick=()=>tab('login');$('tabRegister').onclick=()=>tab('register');
+$('tabLogin').onclick=()=>{history.replaceState(null,'',location.pathname+'#login');tab('login')};
+$('tabRegister').onclick=()=>{history.replaceState(null,'',location.pathname+'#register');tab('register')};
+if(location.hash==='#register')tab('register');
 async function api(path,body,button){if(button){button.disabled=true;button.dataset.old=button.textContent;button.textContent='PROCESANDO…'}try{const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),d=await r.json().catch(()=>({}));if(!r.ok||!d.ok)throw Error(d.error||'No se pudo completar.');return d}finally{if(button){button.disabled=false;button.textContent=button.dataset.old||button.textContent}}}
 $('loginPanel').onsubmit=async e=>{e.preventDefault();try{const d=await api('/api/account/login',{username:$('loginUser').value,password:$('loginPass').value},$('loginBtn'));if(d.needsRecoveryEmail){panel('emailPanel','Protege tu GREÑA ID','Añade un correo para poder recuperar esta cuenta.');return}show('✓ Perfil cargado. Abriendo GREÑA…','ok');setTimeout(()=>location.replace('/mode.html'),300)}catch(e){show(e.message||String(e))}};
 $('registerPanel').onsubmit=async e=>{e.preventDefault();try{await api('/api/account/register',{displayName:$('regName').value,email:$('regEmail').value,username:$('regUser').value,password:$('regPass').value},$('registerBtn'));show('✓ GREÑA ID creado. Abriendo tu perfil…','ok');setTimeout(()=>location.replace('/mode.html'),300)}catch(e){show(e.message||String(e))}};
@@ -92,7 +95,7 @@ $('recoverPanel').onsubmit=e=>{e.preventDefault();sendRecovery($('recoverSendBtn
 $('resendBtn').onclick=()=>sendRecovery($('resendBtn'));
 $('resetPanel').onsubmit=async e=>{e.preventDefault();try{const d=await api('/api/account/recovery/reset',{email:$('resetEmail').value,code:$('resetCode').value,password:$('resetPass').value},$('resetBtn'));show(`✓ ${d.message||'Contraseña cambiada.'} Abriendo GREÑA…`,'ok');setTimeout(()=>location.replace('/mode.html'),450)}catch(e){show(e.message||String(e))}};
 for(const id of ['loginPass','regPass','resetPass']){const i=$(id),w=i&&i.closest('.field');if(!w)continue;w.classList.add('has-pw');const b=document.createElement('button');b.type='button';b.className='pw-toggle';b.textContent='Mostrar';b.setAttribute('aria-pressed','false');b.setAttribute('aria-label','Mostrar u ocultar contraseña');b.onclick=()=>{const on=i.type==='password';i.type=on?'text':'password';b.textContent=on?'Ocultar':'Mostrar';b.setAttribute('aria-pressed',String(on))};w.append(b)}
-fetch('/api/account/me',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(d.authenticated&&d.user){if(d.needsRecoveryEmail||!d.user.email){panel('emailPanel','Protege tu GREÑA ID','Añade un correo para recuperar esta cuenta si olvidas tus datos.');return}location.replace('/mode.html')}}).catch(()=>{});
+fetch('/api/account/me',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(location.hash==='#register')return; if(d.authenticated&&d.user){if(d.needsRecoveryEmail||!d.user.email){panel('emailPanel','Protege tu GREÑA ID','Añade un correo para recuperar esta cuenta si olvidas tus datos.');return}location.replace('/mode.html')}}).catch(()=>{});
 </script>
 <script src="/ui-v2.js"></script>
 <script src="/app-lifecycle.js"></script>

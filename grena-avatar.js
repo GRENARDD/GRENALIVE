@@ -22,7 +22,7 @@
 
   const input=Object.assign(document.createElement('input'),{type:'file',accept:'image/*',hidden:true});
   const menu=document.createElement('div'); menu.className='gx-avatar-menu'; menu.hidden=true; menu.setAttribute('role','menu');
-  menu.innerHTML='<button type="button" role="menuitem" data-a="pick">📷 Cambiar foto</button><button type="button" role="menuitem" data-a="clear">🗑 Quitar foto</button><button type="button" role="menuitem" data-a="settings">⚙ Configuración</button><button type="button" role="menuitem" data-a="logout">↪ Cerrar sesión</button>';
+  menu.innerHTML='<button type="button" role="menuitem" data-a="pick">📷 Cambiar foto</button><button type="button" role="menuitem" data-a="clear">🗑 Quitar foto</button><button type="button" role="menuitem" data-a="settings">⚙ Configuración</button><button type="button" role="menuitem" data-a="switch">🔄 Cambiar GREÑA ID</button><button type="button" role="menuitem" data-a="new-account">➕ Crear otro GREÑA ID</button><button type="button" role="menuitem" data-a="logout">↪ Cerrar sesión</button>';
   document.body.append(input,menu);
   const logout=document.getElementById('logoutBtn');
   if(logout) logout.style.display='none';
@@ -188,11 +188,21 @@
   av.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle()}});
   document.addEventListener('click',()=>{menu.hidden=true;av.setAttribute('aria-expanded','false')});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.hidden=true;av.setAttribute('aria-expanded','false')}});
-  menu.addEventListener('click',e=>{
+  menu.addEventListener('click',async e=>{
     const a=e.target.closest('button')?.dataset.a; if(!a) return; menu.hidden=true;
     if(a==='pick') input.click();
     if(a==='settings'){settings.showModal();fishRefresh()}
     if(a==='logout') logout?.click();
+    if(a==='switch'||a==='new-account'){
+      // Only one local profile drives OBS, streaming and TTS per app instance.
+      // Ending this session NEVER deletes the old user's local settings, Fish
+      // vault, account record or its independent sessions on another PC.
+      try{
+        const r=await fetch('/api/account/logout',{method:'POST',cache:'no-store'});
+        if(!r.ok)throw Error('No se pudo cerrar la sesión anterior.');
+        location.replace(a==='new-account'?'/login.html#register':'/login.html#login');
+      }catch(error){note(error?.message||'No fue posible cambiar de GREÑA ID.');}
+    }
     if(a==='clear'){try{localStorage.removeItem(key)}catch{} apply()}
   });
   input.addEventListener('change',()=>{

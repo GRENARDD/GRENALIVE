@@ -1,0 +1,93 @@
+name: GREÑA · Publicar Desktop v5.1.12 estable
+on:
+  workflow_run:
+    workflows:
+      - GREÑA LIVE Desktop (kit de integración)
+    types:
+      - completed
+    branches:
+      - main
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: '5.1.12'
+      TESTED_RUN: ${{ github.event.workflow_run.id }}
+      TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Skip when v5.1.12 is already official
+        id: existing_release
+        shell: bash
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION ya está publicada. Los cambios siguientes deben salir como una nueva versión."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify Windows build, current HEAD and release identity
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TESTED_SHA" || { echo 'El código de main cambió después de compilar; no publicar un instalador antiguo'; exit 1; }
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_sha)" = "$TESTED_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .event)" = push
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_branch)" = main
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'v5.1.12 ya existe. No sobrescribir una versión oficial.'
+            exit 1
+          fi
+      - name: Download and verify compiled 5.1.12 Windows installer
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-release
+          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v5.1.12 --dir dist-release
+          mapfile -t installers < <(find dist-release -maxdepth 2 -type f -iname '*5.1.12.exe' -size +60000k)
+          test "${#installers[@]}" -eq 1 || { echo "Se esperaba exactamente un instalador estable 5.1.12 (encontrados: ${#installers[@]})"; exit 1; }
+          installer="${installers[0]}"
+          test -s "$installer"
+          mv "$installer" dist-release/GRENA.LIVE.Setup.5.1.12.exe
+          exe='GRENA.LIVE.Setup.5.1.12.exe'
+          size="$(stat -c '%s' "dist-release/$exe")"
+          hash="$(openssl dgst -sha512 -binary "dist-release/$exe" | base64 -w0)"
+          test "${#hash}" -ge 70
+          printf 'version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %s\npath: %s\nsha512: %s\nreleaseDate: %s\n' "$VERSION" "$exe" "$hash" "$size" "$exe" "$hash" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist-release/latest.yml
+          ( cd dist-release && sha256sum "$exe" > SHA256SUMS.txt )
+          test -s dist-release/latest.yml
+      - name: Publish official v5.1.12 release (not Cloudflare rollout)
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'EOF'
+          GREÑA Live Desktop v5.1.12 — varias cuentas GREÑA ID y acceso desde otras PC
+
+          - Menú de perfil: Cambiar GREÑA ID y Crear otro GREÑA ID. Cada usuario conserva sus ajustes y cuenta local sin que otro usuario los herede.
+          - Registro: puedes crear otra cuenta GREÑA ID con otro usuario/correo en la misma PC y entrar después con contraseña.
+          - Acceso desde varias PC: Cloudflare valida la licencia por GREÑA ID y no por la primera computadora. Cada equipo obtiene su sesión independiente.
+          - Licencia: prueba única de 3 días y licencias de 30/60/90/BETA mantienen su vencimiento original. Abrir otra PC no regala días nuevos.
+          - Datos privados: nunca compartir contraseñas ni API Fish entre cuentas distintas. La misma cuenta puede consultar su API Fish cifrada en Cloudflare desde otro equipo.
+          - Perfil local de OBS, Twitch, Kick, TikTok, voz y alertas se conserva por PC y GREÑA ID; NO se transfieren ajustes locales entre equipos automáticamente.
+          - Propietario: conserva su acceso permanente y sus dos claves Fish locales, sin cambios.
+          - Seguridad: no elimina sesiones remotas cuando cambias la cuenta local. Solo hay un perfil streaming/OBS activo por instancia de GREÑA Live.
+          - Instalación: prueba real 5.1.11 -> 5.1.12, preservación SHA256 del perfil y verificación de dependencias Electron.
+
+          El instalador v5.1.12 se probó mediante GitHub Actions en Windows.
+          La actualización automática dentro del programa NO se habilita con la publicación de GitHub:
+          requiere una aprobación del propietario en GREÑA Licencias Cloudflare D1.
+          Antes de actualizar, haz una copia de %APPDATA%\\GREÑA LIVE PRO.
+          EOF
+          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.5.1.12.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" --title "GREÑA Live Desktop v$VERSION" --notes-file release-notes.md
