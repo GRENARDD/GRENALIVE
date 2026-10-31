@@ -130,6 +130,19 @@ html.grena-obs-mode .main{display:block!important;padding:0!important;margin:0!i
 html.grena-obs-mode .main>div{width:100%!important;height:100%!important}
 html.grena-obs-mode .stage,html.grena-obs-mode .stage[data-o="h"],html.grena-obs-mode .stage[data-o="v"]{width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;min-width:0!important;min-height:0!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
 </style>
+<style id="grena-obs-alpha-hardening">
+/* OBS nested Chromium: no opaque root, editor panel, or canvas backing in the iframe. */
+html.grena-obs-mode,html.grena-obs-mode body,
+html.grena-obs-mode .app,html.grena-obs-mode .main,
+html.grena-obs-mode .main>div,html.grena-obs-mode .stage,
+html.grena-obs-mode #stage,html.grena-obs-mode #fx{
+ background-color:rgba(0,0,0,0)!important;
+ background-image:none!important;
+}
+html.grena-obs-mode .stage{isolation:auto!important}
+html.grena-obs-mode .side,html.grena-obs-mode .hills,
+html.grena-obs-mode .dim,html.grena-obs-mode .bar{display:none!important}
+</style>
 </head>
 <body>
 <div class="app">

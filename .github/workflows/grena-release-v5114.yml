@@ -1,0 +1,94 @@
+name: GREÑA · Publicar Desktop v5.1.14 estable
+on:
+  workflow_run:
+    workflows:
+      - GREÑA LIVE Desktop (kit de integración)
+    types:
+      - completed
+    branches:
+      - main
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: '5.1.14'
+      TESTED_RUN: ${{ github.event.workflow_run.id }}
+      TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Skip when v5.1.14 is already official
+        id: existing_release
+        shell: bash
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION ya está publicada. Los cambios siguientes deben salir como una nueva versión."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify Windows build, current HEAD and release identity
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TESTED_SHA" || { echo 'El código de main cambió después de compilar; no publicar un instalador antiguo'; exit 1; }
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_sha)" = "$TESTED_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .event)" = push
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_branch)" = main
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'v5.1.14 ya existe. No sobrescribir una versión oficial.'
+            exit 1
+          fi
+      - name: Download and verify compiled 5.1.14 Windows installer
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-release
+          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v5.1.14 --dir dist-release
+          mapfile -t installers < <(find dist-release -maxdepth 2 -type f -iname '*5.1.14.exe' -size +60000k)
+          test "${#installers[@]}" -eq 1 || { echo "Se esperaba exactamente un instalador estable 5.1.14 (encontrados: ${#installers[@]})"; exit 1; }
+          installer="${installers[0]}"
+          test -s "$installer"
+          mv "$installer" dist-release/GRENA.LIVE.Setup.5.1.14.exe
+          exe='GRENA.LIVE.Setup.5.1.14.exe'
+          size="$(stat -c '%s' "dist-release/$exe")"
+          hash="$(openssl dgst -sha512 -binary "dist-release/$exe" | base64 -w0)"
+          test "${#hash}" -ge 70
+          printf 'version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %s\npath: %s\nsha512: %s\nreleaseDate: %s\n' "$VERSION" "$exe" "$hash" "$size" "$exe" "$hash" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist-release/latest.yml
+          ( cd dist-release && sha256sum "$exe" > SHA256SUMS.txt )
+          test -s dist-release/latest.yml
+      - name: Publish official v5.1.14 release (not Cloudflare rollout)
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'EOF'
+          GREÑA Live Desktop v5.1.14 — Nuevas Mascot Alerts y transparencia OBS
+
+          - GREÑITO chibi original y Mascot Alerts con cinco personajes Pixel seleccionables, integrados como estilos independientes.
+          - Premium de Catálogo y Pantalla Completa: refuerzo de transparencia en escenas OBS.
+          - Personajes guardados por cuenta GREÑA ID, mismos enlaces OBS y animaciones originales.
+          - Chat de Voz: comienza a reproducir fragmentos MP3 de Fish Audio antes de recibir todo el audio cuando Chromium admite MediaSource. Mantiene ruta clásica en dispositivos no compatibles.
+          - Inicio rápido: precarga la credencial de Fish del GREÑA ID activo sin exponerla al navegador.
+          - Antirretrasos: espera inicial de ocupación reducida y reintentos que nunca acumulan comentarios viejos.
+          - Calidad: conserva cinco voces, modelo y velocidad original 1x; no lee stickers ni cambia claves.
+          - Actualización Windows: utiliza instalador NSIS completo (sin descargas diferenciales que dependan de blockmaps no publicados).
+          - Progreso visible: título de ventana y barra de tareas indican el porcentaje real recibido.
+          - Errores de conexión: informa al usuario en lugar de dejar la actualización aparentemente congelada.
+          - Se ejecuta la prueba real de actualización desde 5.1.12 con verificación SHA256 de datos locales y dependencias Electron.
+          - Las cuentas GREÑA ID, API Fish por usuario y las dos APIs del propietario permanecen aisladas.
+          - La distribución automática permanece desactivada hasta aprobación explícita del propietario mediante Cloudflare D1.
+
+          Nota de seguridad: el instalador NO se debe presentar como firmado digitalmente hasta contar con un certificado Authenticode válido. SmartScreen puede seguir avisando a algunos usuarios. No desactivar protecciones de Windows.
+          EOF
+          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.5.1.14.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" --title "GREÑA Live Desktop v$VERSION" --notes-file release-notes.md
