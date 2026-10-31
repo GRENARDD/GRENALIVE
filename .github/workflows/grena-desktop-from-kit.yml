@@ -262,6 +262,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify real OBS transparency and rising bubbles in Chromium
         run: node desktop-build/verify-premium-alpha.cjs
+      - name: Verify Timeline Premium in Chromium, horizontal and vertical OBS
+        run: node desktop-build/verify-timeline-premium.cjs
       - name: Probe public Kick authorization broker
         run: node desktop-build/probe-kick-auth.mjs
       - name: Build Windows installer safely (publication happens in verified release workflow)
@@ -296,6 +298,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $appRoot = 'dist/win-unpacked/resources/app'
           if (!(Test-Path $appRoot)) { throw "Falta el directorio de la app desempaquetada: $appRoot" }
+          if (!(Test-Path (Join-Path $appRoot "timeline-premium.html"))) { throw "La nueva plantilla Timeline Premium no está incluida en el instalador." }
           foreach ($module in @('universalify','fs-extra','electron-updater')) {
             $modulePath = Join-Path $appRoot "node_modules/$module"
             if (!(Test-Path $modulePath)) { throw "Dependencia ausente en instalador: $module" }
