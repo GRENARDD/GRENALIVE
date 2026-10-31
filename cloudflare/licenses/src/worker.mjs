@@ -211,7 +211,9 @@ async function handle(req,env){
      const input=await body(req),apiKey=String(input.apiKey||'').trim();
      if(!validFishApi(apiKey))return fail('Introduce una API Fish Audio válida (20-512 caracteres, sin espacios).');
      await fishStore(env,u.id,apiKey);
-     return json({ok:true,configured:true});
+     // Verify persisted ciphertext can be decrypted for this exact GREÑA ID.
+     if((await fishRead(env,u.id))!==apiKey)return fail('Cloudflare no confirmó que la API se guardó en tu GREÑA ID.',503);
+     return json({ok:true,configured:true,verified:true,storage:'cloudflare-d1'});
    }
    return fail('Método no permitido.',405);
  }
