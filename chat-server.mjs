@@ -85,6 +85,8 @@ if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no 
 // - si solo existe la cuenta 1, el comportamiento sigue siendo compatible con la versión anterior.
 const FISH_PER_ACCOUNT_MAX_CONCURRENT = 5;
 const FISH_WAIT_MAX_MS = 9000;
+// Live speech may skip a saturated generation instead of waiting nine seconds.
+const FISH_LIVE_ACQUIRE_WAIT_MS = 1500;
 const FISH_FAILOVER_WAIT_MS = 3500;
 const fishAccounts = []; // Owner keys are supplied only from the authenticated local backend.
 function reconcileOwnerFishAccounts(keys){
@@ -2746,7 +2748,7 @@ const server =
             response.end(JSON.stringify({ok:false,error:preexistingFailure.error}));
             return;
           }
-          let fishAccount=await acquireFishAccount(new Set(),FISH_WAIT_MAX_MS,fishContext.accounts);
+          let fishAccount=await acquireFishAccount(new Set(),FISH_LIVE_ACQUIRE_WAIT_MS,fishContext.accounts);
           if(!fishAccount){
             const failure=fishCooldownFailure(fishContext.accounts);
             response.writeHead(failure?.status||429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
