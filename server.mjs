@@ -2012,7 +2012,7 @@ function proxyChatHttp(req,res,url,stripChat=true){
   const pathname=stripChat?(url.pathname==='/chat'?'/':url.pathname.slice('/chat'.length)||'/'):url.pathname;
   const internalOrigin=`http://127.0.0.1:${PORT}`;
   const headers={...req.headers,host:'127.0.0.1:8788',origin:internalOrigin};
-  if(pathname==='/api/fish-tts')headers['x-grena-internal']=BRIDGE_TOKEN;
+  if(pathname==='/api/fish-tts'||pathname==='/api/fish-ready')headers['x-grena-internal']=BRIDGE_TOKEN;
   delete headers['x-forwarded-host'];delete headers['x-forwarded-proto'];delete headers['x-forwarded-for'];
   const upstream=http.request({hostname:'127.0.0.1',port:8788,path:pathname+url.search,method:req.method,headers},u=>{
     const out={...u.headers};delete out['access-control-allow-origin'];delete out['access-control-allow-credentials'];
@@ -2023,6 +2023,7 @@ function proxyChatHttp(req,res,url,stripChat=true){
 }
 const CHAT_HTTP_ROUTES=new Set([
   '/api/fish-tts',
+  '/api/fish-ready',
   '/api/connection-prefs',
   '/api/moderation/action',
   '/api/moderation/muted',

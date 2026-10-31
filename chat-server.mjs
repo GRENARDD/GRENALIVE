@@ -85,6 +85,8 @@ if(!process.env.GRENA_BRIDGE_TOKEN)console.warn('[GREÑA] GRENA_BRIDGE_TOKEN no 
 // - si solo existe la cuenta 1, el comportamiento sigue siendo compatible con la versión anterior.
 const FISH_PER_ACCOUNT_MAX_CONCURRENT = 5;
 const FISH_WAIT_MAX_MS = 9000;
+// Live speech may skip a saturated generation instead of waiting nine seconds.
+const FISH_LIVE_ACQUIRE_WAIT_MS = 1500;
 const FISH_FAILOVER_WAIT_MS = 3500;
 const fishAccounts = []; // Owner keys are supplied only from the authenticated local backend.
 function reconcileOwnerFishAccounts(keys){
@@ -2661,6 +2663,28 @@ const server =
           return;
         }
 
+        // Warm the CURRENT GREÑA ID's Fish credentials before the first spoken
+        // comment. The browser never receives a key; account changes are isolated.
+        if (url.pathname === '/api/fish-ready' && request.method === 'GET') {
+          if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){
+            response.writeHead(403,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
+            response.end(JSON.stringify({ok:false,ready:false,error:'Acceso interno no autorizado.'}));
+            return;
+          }
+          const context=await fishPoolForProfile(activeProfileId);
+          response.writeHead(context.accounts.length?200:503,{
+            'content-type':'application/json; charset=utf-8',
+            'cache-control':'no-store',
+            'x-content-type-options':'nosniff'
+          });
+          response.end(JSON.stringify({
+            ok:context.accounts.length>0,
+            ready:context.accounts.length>0,
+            error:context.accounts.length?'':context.error||'No se pudo preparar Fish Audio.'
+          }));
+          return;
+        }
+
         // Fish Audio TTS se ejecuta en Node para que las credenciales nunca se envíen
         // al navegador. El frontend solo proporciona texto + ID del modelo de voz.
         if (url.pathname === '/api/fish-tts' && request.method === 'POST') {
@@ -2724,7 +2748,7 @@ const server =
             response.end(JSON.stringify({ok:false,error:preexistingFailure.error}));
             return;
           }
-          let fishAccount=await acquireFishAccount(new Set(),FISH_WAIT_MAX_MS,fishContext.accounts);
+          let fishAccount=await acquireFishAccount(new Set(),FISH_LIVE_ACQUIRE_WAIT_MS,fishContext.accounts);
           if(!fishAccount){
             const failure=fishCooldownFailure(fishContext.accounts);
             response.writeHead(failure?.status||429,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
