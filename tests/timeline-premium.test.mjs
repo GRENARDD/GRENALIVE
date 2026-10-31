@@ -6,7 +6,15 @@ const file=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 const overlay=file('timeline-premium.html'),widgets=file('widgets.html'),server=file('server.mjs'),chat=file('chat-server.mjs');
 test('OBS: overlay transparente y sintaxis JS de la plantilla',()=>{
  assert.match(overlay,/background:transparent!important/);
- assert.match(overlay,/el\.className="item enter"/);
+ assert.match(overlay,/el\.className="item"/);
+ assert.match(overlay,/className="sg sa"/);
+ assert.match(overlay,/className="sg sb"/);
+ assert.match(overlay,/className="dt"/);
+ assert.match(overlay,/className="marker"/);
+ assert.match(overlay,/getBoundingClientRect\(\)\.top/);
+ assert.match(overlay,/el\.animate/);
+ assert.match(overlay,/--cap-width/);
+ assert.match(overlay,/--emote-size/);
  assert.match(overlay,/grena-timeline-settings/);
  assert.match(overlay,/\/chat-ws/);
  assert.match(overlay,/\/multichat-history/);
@@ -23,6 +31,11 @@ test('Panel: plantilla aislada y controles con URL privada',()=>{
  assert.match(widgets,/id="tlTiktokColor"/);
  assert.match(widgets,/id="tlNormalColor"/);
  assert.match(widgets,/id="tlScale"/);
+ assert.match(widgets,/id="tlCapWidth"/);
+ assert.match(widgets,/id="tlEmoteSize"/);
+ assert.match(widgets,/id="tlBottomOffset"/);
+ assert.match(widgets,/id="tlNormalStarColor"/);
+ assert.match(widgets,/id="tlModeratorStarColor"/);
  const inline=[...widgets.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
  assert.ok(inline.length>=2);
  new vm.Script(inline.at(-1)[1],{filename:'widgets-timeline-controls.js'});
@@ -46,5 +59,5 @@ test('Configuración: rechaza campos desconocidos y valores fuera de rango',()=>
  const d=chat.match(/const timelinePremiumDefaults=([^\n]+);/),r=chat.match(/const timelinePremiumRanges=([^\n]+);/),f=chat.match(/function sanitizeTimelinePremiumSettings\(input\)\{[\s\S]*?\n\}/);
  assert.ok(d&&r&&f);
  const cfg=vm.runInNewContext('const timelinePremiumDefaults='+d[1]+';const timelinePremiumRanges='+r[1]+';'+f[0]+';sanitizeTimelinePremiumSettings({scale:999,maxMessages:-5,normalColor:"red",twitchColor:"#aabbcc",rogue:"hack"})');
- assert.equal(cfg.scale,200);assert.equal(cfg.maxMessages,1);assert.equal(cfg.normalColor,'#6b3971');assert.equal(cfg.twitchColor,'#aabbcc');assert.ok(!('rogue'in cfg));
+ assert.equal(cfg.scale,200);assert.equal(cfg.maxMessages,1);assert.equal(cfg.normalColor,'#7c4680');assert.equal(cfg.twitchColor,'#aabbcc');assert.ok(!('rogue'in cfg));
 });
