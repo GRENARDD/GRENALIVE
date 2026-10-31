@@ -1,0 +1,26 @@
+name: GREÑA · Timeline Premium (pruebas)
+on:
+  pull_request:
+    paths:
+      - 'timeline-premium.html'
+      - 'widgets.html'
+      - 'chat-server.mjs'
+      - 'server.mjs'
+      - 'tests/timeline-premium.test.mjs'
+      - '.github/workflows/timeline-premium-tests.yml'
+permissions:
+  contents: read
+jobs:
+  timeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Comprobar sintaxis de servidor y multichat
+        run: |
+          node --check server.mjs
+          node --check chat-server.mjs
+      - name: Comprobar rutas OBS, aislamiento y diseño Timeline
+        run: node --test tests/timeline-premium.test.mjs
