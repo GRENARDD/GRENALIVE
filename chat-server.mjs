@@ -2426,7 +2426,7 @@ async function connectTwitch(input) {
           // Twitch entrega posiciones reales de emotes; se renderizan como imágenes solo en el overlay.
           emotes:Object.entries(tags?.emotes||{}).slice(0,24).flatMap(([id,ranges])=>
             /^\d{1,18}$/.test(id)&&Array.isArray(ranges)
-            ?ranges.slice(0,8).map(pair=>({start:Number(pair?.[0]),end:Number(pair?.[1]),url:'https://static-cdn.jtvnw.net/emoticons/v2/'+id+'/default/dark/2.0'}))
+            ?ranges.slice(0,8).map(pair=>{const pos=Array.isArray(pair)?pair:String(pair).split('-');return {start:Number(pos[0]),end:Number(pos[1]),url:'https://static-cdn.jtvnw.net/emoticons/v2/'+id+'/default/dark/2.0'};})
             :[]).slice(0,32),
 
           isSubscriber:
