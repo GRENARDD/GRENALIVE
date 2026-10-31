@@ -46,8 +46,8 @@ const obs=qs.get("obs")||"";
 const suffix=obs?"&obs="+encodeURIComponent(obs):"";
 const api=origin+"/chat/api";
 const socketUrl=(location.protocol==="https:"?"wss://":"ws://")+location.host+"/chat-ws"+(obs?"?obs="+encodeURIComponent(obs):"");
-const defaultCfg={direction:"left",edgeOffset:12,width:680,fontSize:20,nameSize:17,starSize:10,lineWidth:3,gap:13,maxMessages:6,duration:14,speed:300,showBadges:true,showPlatform:true,colorMode:"role",normalColor:"#6b3971",moderatorColor:"#2483b3",ownerColor:"#b78035",subscriberColor:"#8055a7"};
-const limits={edgeOffset:[0,120],width:[160,1920],fontSize:[10,72],nameSize:[9,60],starSize:[5,22],lineWidth:[1,8],gap:[0,48],maxMessages:[1,20],duration:[2,120],speed:[0,1200]};
+const defaultCfg={direction:"left",edgeOffset:12,width:680,scale:100,fontSize:20,nameSize:17,starSize:10,lineWidth:3,gap:13,maxMessages:6,duration:14,speed:300,showBadges:true,showPlatform:true,colorMode:"role",normalColor:"#6b3971",moderatorColor:"#2483b3",ownerColor:"#b78035",subscriberColor:"#8055a7",tiktokColor:"#57a1c4",twitchColor:"#8f53cb",kickColor:"#58a64e",youtubeColor:"#c45773",starviosColor:"#dd6d9a"};
+const limits={edgeOffset:[0,120],width:[160,1920],scale:[50,200],fontSize:[10,72],nameSize:[9,60],starSize:[5,22],lineWidth:[1,8],gap:[0,48],maxMessages:[1,20],duration:[2,120],speed:[0,1200]};
 function sanitize(obj){
  const x=obj&&typeof obj==="object"?obj:{},out={...defaultCfg};
  for(const [k,v] of Object.entries(defaultCfg)){
@@ -63,19 +63,20 @@ let cfg={...defaultCfg},ws=null,retry=0;
 const timeline=document.getElementById("timeline"),status=document.getElementById("status");
 const seen=new Set(),nodes=new Map();
 const platforms=new Set(["tiktok","twitch","kick","youtube","starvios"]);
-const platformColors={tiktok:"#57a1c4",twitch:"#8f53cb",kick:"#58a64e",youtube:"#c45773",starvios:"#dd6d9a"};
+
 function shade(hex,factor){let n=parseInt(hex.slice(1),16);return "#"+[16,8,0].map(s=>Math.max(0,Math.min(255,Math.round(((n>>s)&255)*factor))).toString(16).padStart(2,"0")).join("")}
 function apply(){
  document.body.classList.toggle("right",cfg.direction==="right");
  const root=document.documentElement.style;
- root.setProperty("--chat-width",cfg.width+"px");
+ const scale=cfg.scale/100;
+ root.setProperty("--chat-width",Math.round(cfg.width*scale)+"px");
  root.setProperty("--offset",cfg.edgeOffset+"px");
- root.setProperty("--font-size",cfg.fontSize+"px");
- root.setProperty("--name-size",cfg.nameSize+"px");
- root.setProperty("--star-size",cfg.starSize+"px");
- root.setProperty("--gap",cfg.gap+"px");
+ root.setProperty("--font-size",Math.round(cfg.fontSize*scale)+"px");
+ root.setProperty("--name-size",Math.round(cfg.nameSize*scale)+"px");
+ root.setProperty("--star-size",Math.round(cfg.starSize*scale)+"px");
+ root.setProperty("--gap",Math.round(cfg.gap*scale)+"px");
  root.setProperty("--speed",cfg.speed+"ms");
- root.setProperty("--rail-gap",Math.max(25,cfg.starSize*2+17)+"px");
+ root.setProperty("--rail-gap",Math.max(25,Math.round((cfg.starSize*2+17)*scale))+"px");
  timeline.style.setProperty("--line-width",cfg.lineWidth+"px");
  // A line-width control changes only the rail, not the star.
  for(const item of timeline.children){
@@ -85,11 +86,12 @@ function apply(){
  }
  let rule=document.getElementById("dynamicRail");
  if(!rule){rule=document.createElement("style");rule.id="dynamicRail";document.head.append(rule)}
- rule.textContent=".item::before{width:"+cfg.lineWidth+"px}";
+ rule.textContent=".item::before{width:"+Math.max(1,Math.round(cfg.lineWidth*scale))+"px}";
  trim();
 }
 function roleFor(d){return d.isBroadcaster||d.isOwner?"owner":d.isModerator?"moderator":d.isSubscriber||d.isMember?"subscriber":"normal"}
 function setColors(el,role,p){
+ const platformColors={tiktok:cfg.tiktokColor,twitch:cfg.twitchColor,kick:cfg.kickColor,youtube:cfg.youtubeColor,starvios:cfg.starviosColor};
  const color=cfg.colorMode==="platform"?platformColors[p]||cfg.normalColor:role==="owner"?cfg.ownerColor:role==="moderator"?cfg.moderatorColor:role==="subscriber"?cfg.subscriberColor:cfg.normalColor;
  el.style.setProperty("--accent",color);
  el.style.setProperty("--pill",color);
@@ -164,6 +166,7 @@ function add(d){
  }
  const content=document.createElement("div");content.className="content";paintContent(content,d);
  el.append(star,header,content);timeline.append(el);trim();
+ if(timeline.children.length>cfg.maxMessages+8){for(const old of [...timeline.children].slice(0,timeline.children.length-(cfg.maxMessages+8))){if(old.dataset.key)nodes.delete(old.dataset.key);old.remove()}}
  if(key)nodes.set(key,el);
  const duration=Math.round(cfg.duration*1000);
  setTimeout(()=>removeItem(el),duration);
