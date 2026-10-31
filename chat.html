@@ -3849,9 +3849,17 @@ function fishRetryDelay(retryCount = 1, errorText = ''){
 
 function isFishPermanentError(errorText = ''){
   const text = String(errorText || '').toLowerCase();
-  return text.includes('rechazó la credencial') ||
-    text.includes('no está configurado en esta instalación') ||
-    text.includes('no hay ninguna voz fish audio configurada');
+  // Match ACTUAL responses from our Fish gateway, including the plural
+  // "una de las credenciales" form. Never retry invalid keys or inaccessible
+  // voice models until the user explicitly changes settings or tests again.
+  return text.includes('rechazó una de las credenciales') ||
+    text.includes('rechazó la credencial') ||
+    text.includes('el acceso a esa voz') ||
+    text.includes('no encontró ese id de modelo') ||
+    text.includes('requiere créditos o permisos de pago') ||
+    text.includes('no hay ninguna voz fish audio configurada') ||
+    text.includes('configura tu propia api fish audio') ||
+    text.includes('no está configurado en esta instalación');
 }
 
 function scheduleFishResume(delayMs){
@@ -4030,6 +4038,14 @@ async function speakFishMessage(message, spokenText){
         return;
       }
 
+      // A manual "Probar voz" must show its first real error and NEVER
+      // disappear after 1.2 seconds or enter an automatic retry loop.
+      if(message.__voiceTest){
+        fishBlockedError='';
+        fishTransientError='Prueba de voz: '+failure;
+        updateVoiceStatus();
+        return;
+      }
       fishBlockedError = '';
       const retryCount = Math.max(0,Number(message.__fishRetryCount)||0) + 1;
       message.__fishRetryCount = retryCount;
@@ -4046,15 +4062,13 @@ async function speakFishMessage(message, spokenText){
       // Si un comentario concreto falla repetidamente, lo saltamos y seguimos
       // con la cola. Así un mensaje malo nunca vuelve a matar el chat de voz.
       delete message.__fishRetryCount;
-      fishTransientError = message.__voiceTest
-        ? failure
-        : `${failure} · comentario omitido; continuando con la cola.`;
+      fishTransientError = `${failure} · comentario omitido; continuando con la cola.`;
       updateVoiceStatus();
       setTimeout(() => {
         fishTransientError = '';
         updateVoiceStatus();
         if($('voiceEnabled')?.checked && !voiceNeedsUnlock) speakNext();
-      },message.__voiceTest ? 1200 : 450);
+      },450);
       return;
     }
 
