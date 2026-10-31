@@ -60,7 +60,7 @@ if(layout==='horizontal')live.classList.add('wide');
 const colors={tiktok:['#4be9ff','rgba(75,233,255,.40)'],twitch:['#c49aff','rgba(196,154,255,.35)'],kick:['#caff5f','rgba(202,255,95,.40)'],starvios:['#ff8bc6','rgba(255,139,198,.37)'],youtube:['#ff5269','rgba(255,82,105,.40)']};
 const platformName={tiktok:'TIKTOK',twitch:'TWITCH',kick:'KICK',starvios:'STARVIOS',youtube:'YOUTUBE'};
 const events=['follow','gift','sub','raid','share','likes'];
-const defaults={streamerNames:{},theme:'minecraft',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
+const defaults={mascotCharacter:'zp',streamerNames:{},theme:'minecraft',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
 let socialOwnerNames={},cfg={...defaults},platform='tiktok',activeTimer=null,retryTimer=null,socket=null,working=false,backoff=1500;
 const pending=[],MAX_PENDING=14,recentIds=new Map();
 // OBS Browser Source keeps its JS alive when deployed pages change.
@@ -169,7 +169,7 @@ function mapAlert(a={}){
 function normalizedSettings(src={}){
  const color=v=>/^#[0-9a-f]{6}$/i.test(String(v||''))?v:'#ffffff';
  const sounds=Object.fromEntries(events.map(e=>[e,src.sounds?.[e]!==false]));
- return {streamerNames:Object.fromEntries(Object.entries(src.streamerNames||{}).filter(([k])=>['tiktok','twitch','kick','starvios','youtube'].includes(k)).map(([k,v])=>[k,String(v||'').trim().slice(0,64)])),theme:['minecraft','domino','ascension','grena_catalog','grena_fullscreen','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(src.theme)?src.theme:'minecraft',intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
+ return {streamerNames:Object.fromEntries(Object.entries(src.streamerNames||{}).filter(([k])=>['tiktok','twitch','kick','starvios','youtube'].includes(k)).map(([k,v])=>[k,String(v||'').trim().slice(0,64)])),theme:['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(src.theme)?src.theme:'minecraft',mascotCharacter:['zp','pg','bm','sk','dg'].includes(src.mascotCharacter)?src.mascotCharacter:'zp',intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
  soundEnabled:src.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(src.audioRoute)?src.audioRoute:'both',sounds,fontFamily:['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(src.fontFamily)?src.fontFamily:'Inter',
  textColor:color(src.textColor),accentMode:src.accentMode==='custom'?'custom':'platform',accent:color(src.accent||'#caff5f')};
 }
@@ -200,7 +200,30 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
     root,layout,platform:platformName[platform],ownerName:ownerFor(platform),volume:cfg.volume,soundEnabled:canSound
   }):null;
   if(!packed){
-    if(cfg.theme==='grena_catalog'||cfg.theme==='grena_fullscreen'){
+    if(cfg.theme==='grena_mascots'){
+      // Original five-character SVG player. It shares the existing OBS source and queue.
+      const sourceEvent=String(next.event||next.eventKind||'').toLowerCase();
+      const sourceKind=String(next.eventKind||next.giftKind||'').toLowerCase();
+      let mascotType=event;
+      if(['cheer','bits'].includes(sourceEvent))mascotType='bits';
+      else if(['donation','donate','superchat','supersticker'].includes(sourceEvent)||['superchat','supersticker'].includes(sourceKind))mascotType='donate';
+      else if(platform==='youtube'&&event==='sub')mascotType='yt';
+      const scene=document.createElement('iframe');
+      scene.className='grena-premium-scene-frame';
+      scene.setAttribute('aria-hidden','true');
+      scene.setAttribute('tabindex','-1');
+      scene.setAttribute('allow','autoplay');
+      const mascotUrl=new URL('/assets/grena-mascot-alerts.html',location.origin);
+      mascotUrl.searchParams.set('obs','1');
+      mascotUrl.searchParams.set('char',cfg.mascotCharacter);
+      mascotUrl.searchParams.set('volume',canSound?String(cfg.volume):'0');
+      scene.src=mascotUrl.toString();
+      scene.addEventListener('load',()=>{
+        scene.contentWindow?.postMessage({type:mascotType,user:data.name,amount:data.amount,
+          gift:data.gift,platform:platform==='starvios'?'tiktok':platform},location.origin);
+      },{once:true});
+      root.replaceChildren(scene);
+    }else if(cfg.theme==='grena_catalog'||cfg.theme==='grena_fullscreen'){
       const isCatalog=cfg.theme==='grena_catalog';
       const scene=document.createElement('iframe');
       scene.className='grena-premium-scene-frame';
@@ -229,7 +252,7 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
     }
   }
   personalizeLegacy(root,ownerFor(platform));
-   const ms=packed?.durationMs||(cfg.theme==='ascension'?7200:cfg.theme==='grena_catalog'?6000:cfg.theme==='grena_fullscreen'?7000:duration(event));
+   const ms=packed?.durationMs||(cfg.theme==='ascension'?7200:cfg.theme==='grena_catalog'?6000:cfg.theme==='grena_fullscreen'?7000:cfg.theme==='grena_mascots'?5500:duration(event));
   const fx=root.firstElementChild;
   const endTimer=packed?null:setTimeout(()=>{fx?.classList.add('outro')},ms-650);
   activeTimer=setTimeout(()=>{if(endTimer)clearTimeout(endTimer);root.replaceChildren();working=false;if(!refreshWhenIdle())drain()},ms);
