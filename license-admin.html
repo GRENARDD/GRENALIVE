@@ -24,6 +24,16 @@
 <p class="help">BETA ofrece acceso indefinido mientras no revoques la licencia o suspendas la cuenta. El primer inicio de sesión vincula la licencia al equipo. Los días de las licencias normales se cuentan aunque la app esté cerrada.</p>
 </section>
 <section class="panel"><h2>Generar códigos de activación</h2><div class="line"><label for="quantity">Cantidad</label><input id="quantity" type="number" min="1" max="25" value="1" style="max-width:115px;min-width:80px"><label for="duration">Duración</label><select id="duration" aria-label="Duración de cada licencia"><option value="30">30 días</option><option value="60">60 días</option><option value="90">90 días</option><option value="180">180 días</option><option value="365">365 días</option><option value="custom">Personalizada</option></select><label id="customLabel" for="customDays" class="hidden">Días</label><input class="hidden" id="customDays" type="number" min="1" max="3650" value="45" style="max-width:115px;min-width:80px"><button id="generate">Generar códigos</button></div><p>La duración elegida se guarda dentro de cada licencia. El plazo empieza en la primera activación; si se renueva antes del vencimiento, los nuevos días se suman al tiempo restante. Copia los códigos antes de cerrar esta sección.</p><pre id="codes" class="hidden"></pre><button id="copy" class="secondary hidden">Copiar códigos</button></section>
+<section class="panel" id="fishOwnerLocalKeys" style="border-color:#537f91">
+<h2>Mis dos API Fish Audio · Propietario</h2>
+<p class="help">Estas API son exclusivamente tuyas y se guardan cifradas mediante Windows DPAPI en esta computadora. No se envían a Cloudflare ni se comparten con otros GREÑA ID. Puedes reemplazar una sola API sin modificar la otra.</p>
+<p id="fishOwnerSlotStatus" class="help">Consultando las dos API locales…</p>
+<form id="fishOwnerSlotForm" autocomplete="off">
+<div class="line"><label for="fishOwnerSlot">Elegir API</label><select id="fishOwnerSlot"><option value="1">API 1</option><option value="2">API 2</option></select><label for="fishOwnerNewKey">Clave nueva</label><input id="fishOwnerNewKey" type="password" minlength="20" maxlength="512" placeholder="Pega tu API de Fish Audio" required autocomplete="new-password" autocapitalize="off" spellcheck="false"><button id="fishOwnerSaveKey" type="submit">Guardar API cifrada</button></div>
+</form>
+<p id="fishOwnerSlotMessage" class="message" role="status" aria-live="polite"></p>
+<small>«Configurada» solo confirma que hay una clave guardada, no que Fish Audio la acepte. Después de guardar pulsa Probar voz en el chat. Nunca compartas aquí una API de otro usuario.</small>
+</section>
 <section class="panel" id="fishOwnerAssignment"><h2>Fish Audio · Asignar API a un usuario</h2>
 <p class="help">Puedes vincular una API que la persona te haya autorizado a configurar. Se cifra en Cloudflare para su GREÑA ID y no se comparte con otras cuentas. Nunca se muestra después de guardarla y no modifica tus dos API personales.</p>
 <form id="assignFishForm" autocomplete="off">
@@ -33,6 +43,44 @@
 <section class="panel"><h2>Usuarios GREÑA ID</h2><p class="help">Aquí solo se muestran cuentas registradas en el servicio central. Una persona puede iniciar sesión en su aplicación local y todavía no aparecer aquí si la sincronización con Cloudflare falló. Las cuentas identificadas como pruebas de GitHub Actions quedan ocultas; no se borran ni cuentan como licencias de usuarios reales.</p><div class="line"><input id="filter" placeholder="Buscar usuario o correo"><small id="last"></small></div><div class="scroll"><table><thead><tr><th>Usuario</th><th>Correo</th><th>Registrado</th><th>Conexión</th><th>Licencia</th><th>Administrar</th></tr></thead><tbody id="users"></tbody></table></div><div class="message" id="error"></div></section>
 </div></main><script>
 const $=id=>document.getElementById(id);let all=[],created='';
+async function loadOwnerFishSlots(){
+ const status=$('fishOwnerSlotStatus');
+ try{
+   const r=await fetch('/api/owner/fish-keys',{cache:'no-store'});
+   const d=await r.json().catch(()=>({}));
+   if(!r.ok||!d.ok)throw Error(d.error||'La bóveda del propietario no está disponible.');
+   status.textContent='API 1: '+(d.configured?.[0]?'✓ Configurada':'Sin configurar')+' · API 2: '+(d.configured?.[1]?'✓ Configurada':'Sin configurar');
+   $('fishOwnerSaveKey').disabled=d.windows!==true;
+   if(d.windows!==true)status.textContent+=' · Solo disponible en GREÑA Desktop para Windows.';
+ }catch(err){
+   status.textContent=String(err.message||err);
+   $('fishOwnerSaveKey').disabled=true;
+ }
+}
+$('fishOwnerSlotForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const index=Number($('fishOwnerSlot').value),key=$('fishOwnerNewKey').value.trim();
+ const msg=$('fishOwnerSlotMessage'),button=$('fishOwnerSaveKey');
+ msg.classList.remove('good');
+ if(![1,2].includes(index)||key.length<20||key.length>512||/\\s/.test(key)){
+   msg.textContent='Comprueba el espacio y la clave Fish Audio (20–512 caracteres, sin espacios).';return;
+ }
+ button.disabled=true;msg.textContent='Guardando API '+index+' con cifrado local de Windows…';
+ try{
+   const r=await fetch('/api/owner/fish-keys',{
+     method:'POST',headers:{'content-type':'application/json'},
+     body:JSON.stringify({index,apiKey:key}),cache:'no-store'
+   });
+   const d=await r.json().catch(()=>({}));
+   if(!r.ok||!d.ok)throw Error(d.error||'No se pudo guardar la API.');
+   $('fishOwnerNewKey').value='';
+   msg.classList.add('good');
+   msg.textContent='✓ API '+index+' guardada en la bóveda de esta PC. Prueba ahora la voz; la otra API permanece intacta.';
+   await loadOwnerFishSlots();
+ }catch(err){msg.textContent=String(err.message||err)}
+ finally{button.disabled=false}
+});
+void loadOwnerFishSlots();
 $('assignFishForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const username=$('assignFishUser').value.trim().replace(/^@/,'').toLowerCase();
