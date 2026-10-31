@@ -288,7 +288,7 @@ function sanitizeMultichatSettings(input,defaults){
     else if(typeof def==='boolean'){out[k]=typeof v==='boolean'?v:def}
     else if(k==='readability'){out[k]=['none','shadow','outline','both'].includes(v)?v:def}
     else if(k==='direction'){out[k]=v==='right'?'right':'left'}
-    else if(k==='theme'){out[k]=['clean','blossom','comicpop'].includes(v)?v:'clean'}
+    else if(k==='theme'){out[k]=['clean','blossom','comicpop','timeline'].includes(v)?v:'clean'}
     else{out[k]=typeof v==='string'?v.slice(0,64):def}
   }
   return out;
