@@ -26,6 +26,16 @@ test('Configuración permite vincular, cambiar y quitar la API propia sin mostra
  assert.match(ui,/syncStatus\.textContent=/);
  assert.match(ui,/fishPanel\.hidden=owner/);
 });
+test('Fish Audio ofrece siempre el botón de sincronización y verifica la cuenta correcta',()=>{
+ const ui=src('grena-avatar.js');
+ assert.match(ui,/<button data-s="fish-sync" type="button">Sincronizar con Cloudflare<\/button>/);
+ assert.match(ui,/fishSync\.hidden=false/);
+ assert.doesNotMatch(ui,/fishSync\.hidden=!fishConfigured\|\|!fishNeedsSync/);
+ assert.match(ui,/state\.source==='cloud'&&state\.verified===true/);
+ assert.match(ui,/state\.source==='device'&&state\.needsSync===true/);
+ assert.match(ui,/fishRequest\('POST',undefined,'\/api\/license\/fish-credentials\/sync'\)/);
+ assert.match(ui,/No hay API vinculada ni copia local recuperable/);
+});
 test('Compilación estable publica instalador 5.1.10',()=>{
  const update=src('desktop-build/fix_official_updates.py');
  assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '5\.1\.10'/);
