@@ -108,7 +108,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v5.1.13 -> v5.1.13 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v5.1.12 -> v5.1.13 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
