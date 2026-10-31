@@ -265,7 +265,34 @@ jobs:
       - name: Probe public Kick authorization broker
         run: node desktop-build/probe-kick-auth.mjs
       - name: Build Windows installer safely (publication happens in verified release workflow)
+        # Pull requests never receive publisher secrets. Official builds can
+        # Authenticode-sign using a verified PFX stored in GitHub Secrets.
+        env:
+          WIN_CSC_LINK: ${{ github.event_name == 'push' && secrets.GRENA_WINDOWS_CERT_BASE64 || '' }}
+          WIN_CSC_KEY_PASSWORD: ${{ github.event_name == 'push' && secrets.GRENA_WINDOWS_CERT_PASSWORD || '' }}
         run: npx electron-builder --win nsis --x64 --publish never
+      - name: Verify Windows Authenticode signature and installer integrity
+        shell: pwsh
+        env:
+          GRENA_SIGNING_EXPECTED: ${{ github.event_name == 'push' && secrets.GRENA_WINDOWS_CERT_BASE64 != '' && 'true' || 'false' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installers = @(Get-ChildItem dist -File -Filter '*.exe' | Where-Object { $_.Name -match 'Setup' })
+          if ($installers.Count -ne 1) { throw "Expected exactly one GREÑA installer, found $($installers.Count)." }
+          $installer = $installers[0]
+          $hash = Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+          Write-Host "Installer: $($installer.Name)"
+          Write-Host "SHA256: $($hash.Hash)"
+          Write-Host "Authenticode status: $($signature.Status)"
+          if ($signature.Status -eq 'Valid') {
+            Write-Host "Verified publisher: $($signature.SignerCertificate.Subject)"
+          } else {
+            Write-Host '::warning title=GREÑA installer not Authenticode verified::Unsigned or invalidly signed installers can be blocked by Windows SmartScreen. Do not disable antivirus; configure trusted signing before wide distribution.'
+            if ($env:GRENA_SIGNING_EXPECTED -eq 'true') {
+              throw 'A publisher signing certificate was provided, but the installer signature is invalid or missing.'
+            }
+          }
       - name: Assert updater dependencies exist in packaged Windows application
         shell: pwsh
         run: |
