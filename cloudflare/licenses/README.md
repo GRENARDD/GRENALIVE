@@ -20,7 +20,7 @@ Configura los *secrets* `CLOUDFLARE_API_TOKEN` (permiso Workers Scripts Edit y D
 ### Protecciones y límites
 
 - Código aleatorio de un solo uso; se guarda solo SHA-256 del código. Duraciones aceptadas: de 1 a 3650 días.
-- Un GREÑA ID, una computadora por licencia vigente; al renovar en el mismo dispositivo se amplía el plazo, sin resetear las configuraciones locales.
+- Un GREÑA ID puede iniciar sesión desde varias computadoras; la licencia y los días activos pertenecen a la cuenta central, sin duplicar el período de prueba. Cada PC mantiene sus perfiles locales y la misma cuenta puede usar su API Fish cifrada en Cloudflare.
 - Las claves de sesión central se guardan hasheadas en D1; las contraseñas centrales con PBKDF2-SHA256 y sal individual.
 - Sin conexión a internet no se pueden activar ni renovar códigos. Una licencia validada puede tener hasta 24 horas de gracia local. La revocación requiere una actualización de estado y no será instantánea mientras el equipo esté desconectado.
 - El panel indica *en línea* cuando recibió señal reciente (menos de ~135 segundos), no una transmisión en directo.
