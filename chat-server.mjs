@@ -2787,8 +2787,9 @@ const server =
                 }else{
                   const upstream=String(await fish.text().catch(()=>''));
                   let friendly=`Fish Audio respondió HTTP ${fish.status}.`;
-                  if(fish.status===401||fish.status===403) friendly='Fish Audio rechazó una de las credenciales o el acceso a esa voz.';
-                  else if(fish.status===404) friendly='Fish Audio no encontró ese ID de modelo.';
+                  if(fish.status===401) friendly='Fish Audio rechazó la credencial de esta cuenta (HTTP 401). Comprueba la API vinculada a este GREÑA ID.';
+                  else if(fish.status===403) friendly='Fish Audio rechazó el acceso a esa voz o a ese modelo (HTTP 403). Comprueba en Fish Audio que esta cuenta tenga permiso para utilizarlo.';
+                  else if(fish.status===404) friendly='Fish Audio no encontró ese ID de modelo (HTTP 404). Comprueba el ID de voz.';
                   else if(fish.status===402) friendly='Este modelo PRO requiere créditos o permisos de pago en Fish Audio. Selecciona el modelo gratuito para continuar.';
                   else if(fish.status===429) friendly='Fish Audio está limitando temporalmente una de las cuentas.';
                   else if(upstream && upstream.length<220) friendly += ` ${upstream}`;
