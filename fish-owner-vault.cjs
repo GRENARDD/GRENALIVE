@@ -33,15 +33,19 @@ async function crypt(operation,keys){
  if(process.platform!=='win32')throw Error('La bóveda local Fish Audio requiere Windows DPAPI.');
  return new Promise((resolve,reject)=>{
   const child=spawn('powershell.exe',['-NoProfile','-NonInteractive','-Command',PS_SCRIPT],{windowsHide:true,stdio:['pipe','pipe','pipe']});
-  let output='',error='',finished=false;
-  const timer=setTimeout(()=>{child.kill();},12000);
+  let output='',error='',finished=false,timeoutHit=false;
+  // GitHub Actions windows-latest may delay fresh PowerShell processes under
+  // parallel Node tests. Keep the owner's desktop timeout unchanged (12 s).
+  // Never bypass DPAPI or store either Fish key in plaintext.
+  const timeoutMs=process.env.CI==='true'?45000:12000;
+  const timer=setTimeout(()=>{timeoutHit=true;child.kill();},timeoutMs);
   child.stdout.on('data',b=>{output+=b.toString('utf8');if(output.length>15000)child.kill()});
   child.stderr.on('data',b=>{error+=b.toString('utf8').slice(0,300)});
   child.on('error',finishError);
   child.on('close',code=>{
    clearTimeout(timer);
    if(finished)return;finished=true;
-   if(code!==0)return reject(Error('No se pudo abrir la bóveda protegida de Windows.'+(process.env.CI==='true'?' Diagnóstico CI: '+String(error).slice(0,800).replace(/sk-fish-[A-Za-z0-9_-]+/gi,'[redacted]'):'')));
+   if(code!==0)return reject(Error('No se pudo abrir la bóveda protegida de Windows.'+(process.env.CI==='true'?' Diagnóstico CI: '+(timeoutHit?'PowerShell excedió '+timeoutMs+' ms. ':'')+String(error).slice(0,800).replace(/sk-fish-[A-Za-z0-9_-]+/gi,'[redacted]'):'')));
    try{
     const parsed=JSON.parse(output);
     if(!Array.isArray(parsed.keys)||parsed.keys.length!==keys.length)throw Error('bad response');
