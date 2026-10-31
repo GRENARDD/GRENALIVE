@@ -45,3 +45,13 @@ test('Catalog removes its dark rectangle while keeping the gift and labels visib
   assert.match(overlay, /\/assets\/grena-premium-catalog-obs\.html\?obs=1&layout=/);
   assert.match(overlay, /\/assets\/grena-fullscreen-gift-obs\.html\?obs=1&layout=/);
 });
+
+test('nested OBS renderer has explicit transparent backing layers', () => {
+  for(const html of [fullscreen,catalog]){
+    assert.match(html, /id="grena-obs-alpha-hardening"/);
+    assert.match(html, /html\.grena-obs-mode \.main>div/);
+    assert.match(html, /background-color:rgba\(0,0,0,0\)!important/);
+    assert.match(html, /html\.grena-obs-mode \.stage\{isolation:auto!important\}/);
+  }
+  assert.match(overlay, /scene\.className='grena-premium-scene-frame'/);
+});
