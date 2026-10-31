@@ -31,31 +31,38 @@
  <button aria-expanded="false" class="widget-module-head" type="button"><span class="widget-module-icon">✦</span><span class="widget-module-copy"><b>Timeline Premium · Multichat</b><small>Estrellas, cápsulas y emotes grandes como el video. Independiente del chat clásico.</small></span><span class="widget-module-action">CONFIGURAR ＋</span></button>
  <div class="widget-module-quick"><span class="overlay-label">ENLACE PRIVADO OBS · TIMELINE</span><div class="row"><input class="url" id="timelineUrl" readonly/><button class="btn" type="button" onclick="copyField('timelineUrl',this)">COPIAR LINK OBS</button></div></div>
  <div class="widget-module-body"><div class="widget-module-body-inner">
-  <div class="preview chat" style="height:250px"><iframe id="timelinePreview" title="Vista previa Timeline Premium" style="background:transparent"></iframe></div>
+  <div class="preview chat" style="height:330px"><iframe id="timelinePreview" title="Vista previa Timeline Premium" style="background:transparent"></iframe></div>
   <div class="custom"><h3>✦ Timeline Premium · diseño del video</h3><p class="note">Una plantilla adicional. Mantiene intacto el Multichat anterior y utiliza los mensajes que GREÑA LIVE ya recibe. Este enlace de OBS es independiente y no cambia cuando guardas.</p>
    <div class="setting"><label>Ubicación</label><select id="tlDirection"><option value="left">Izquierda</option><option value="right">Derecha</option></select></div>
    <div class="setting"><label>Modo de colores</label><select id="tlColorMode"><option value="role">Por rol: dueño, moderador, sub y normal</option><option value="platform">Por plataforma: TikTok, Twitch, Kick, YouTube y Starvios</option></select></div>
-   <div class="setting"><label>Margen lateral</label><input id="tlEdgeOffset" type="range" min="0" max="120" value="12"/><output id="tlEdgeOffsetO">12px</output></div>
-   <div class="setting"><label>Ancho máximo del chat</label><input id="tlWidth" type="range" min="160" max="1200" value="680"/><output id="tlWidthO">680px</output></div>
+   <div class="setting"><label>Margen lateral</label><input id="tlEdgeOffset" type="range" min="0" max="200" value="24"/><output id="tlEdgeOffsetO">12px</output></div>
+   <div class="setting"><label>Margen inferior (OBS)</label><input id="tlBottomOffset" type="range" min="0" max="200" value="24"/><output id="tlBottomOffsetO">24px</output></div>
+   <div class="setting"><label>Ancho máximo del chat</label><input id="tlWidth" type="range" min="160" max="1200" value="560"/><output id="tlWidthO">680px</output></div>
    <div class="setting"><label>Escala general</label><input id="tlScale" type="range" min="50" max="200" value="100"/><output id="tlScaleO">100%</output></div>
-   <div class="setting"><label>Tamaño de mensajes</label><input id="tlFontSize" type="range" min="10" max="72" value="20"/><output id="tlFontSizeO">20px</output></div>
-   <div class="setting"><label>Tamaño de nombres</label><input id="tlNameSize" type="range" min="9" max="60" value="17"/><output id="tlNameSizeO">17px</output></div>
-   <div class="setting"><label>Tamaño de estrellas</label><input id="tlStarSize" type="range" min="5" max="22" value="10"/><output id="tlStarSizeO">10px</output></div>
+   <div class="setting"><label>Tamaño de mensajes</label><input id="tlFontSize" type="range" min="10" max="72" value="18"/><output id="tlFontSizeO">20px</output></div>
+   <div class="setting"><label>Tamaño de nombres</label><input id="tlNameSize" type="range" min="9" max="60" value="18"/><output id="tlNameSizeO">17px</output></div>
+   <div class="setting"><label>Ancho máximo de cápsulas</label><input id="tlCapWidth" type="range" min="100" max="900" value="300"/><output id="tlCapWidthO">300px</output></div>
+   <div class="setting"><label>Tamaño de emotes</label><input id="tlEmoteSize" type="range" min="16" max="96" value="40"/><output id="tlEmoteSizeO">40px</output></div>
+   <div class="setting"><label>Tamaño de estrellas</label><input id="tlStarSize" type="range" min="8" max="40" value="17"/><output id="tlStarSizeO">10px</output></div>
    <div class="setting"><label>Grosor de línea vertical</label><input id="tlLineWidth" type="range" min="1" max="8" value="3"/><output id="tlLineWidthO">3px</output></div>
-   <div class="setting"><label>Separación entre mensajes</label><input id="tlGap" type="range" min="0" max="48" value="13"/><output id="tlGapO">13px</output></div>
-   <div class="setting"><label>Mensajes visibles</label><input id="tlMaxMessages" type="range" min="1" max="20" value="6"/><output id="tlMaxMessagesO">6</output></div>
-   <div class="setting"><label>Duración de mensaje</label><input id="tlDuration" type="range" min="2" max="120" value="14"/><output id="tlDurationO">14s</output></div>
-   <div class="setting"><label>Velocidad de animación</label><input id="tlSpeed" type="range" min="0" max="1200" step="50" value="300"/><output id="tlSpeedO">300ms</output></div>
+   <div class="setting"><label>Separación entre mensajes</label><input id="tlGap" type="range" min="0" max="80" value="30"/><output id="tlGapO">13px</output></div>
+   <div class="setting"><label>Mensajes visibles</label><input id="tlMaxMessages" type="range" min="1" max="30" value="12"/><output id="tlMaxMessagesO">6</output></div>
+   <div class="setting"><label>Duración de mensaje</label><input id="tlDuration" type="range" min="2" max="120" value="30"/><output id="tlDurationO">14s</output></div>
+   <div class="setting"><label>Velocidad de animación</label><input id="tlSpeed" type="range" min="100" max="1500" step="20" value="520"/><output id="tlSpeedO">300ms</output></div>
    <div class="checks"><label><input type="checkbox" id="tlShowBadges" checked/> Insignias y roles</label><label><input type="checkbox" id="tlShowPlatform" checked/> Icono de plataforma</label></div>
-   <div class="setting"><label>Normal</label><input id="tlNormalColor" type="color" value="#6b3971"/></div>
-   <div class="setting"><label>Moderador</label><input id="tlModeratorColor" type="color" value="#2483b3"/></div>
-   <div class="setting"><label>Dueño</label><input id="tlOwnerColor" type="color" value="#b78035"/></div>
-   <div class="setting"><label>Suscriptor</label><input id="tlSubscriberColor" type="color" value="#8055a7"/></div>
-   <div class="setting"><label>TikTok</label><input id="tlTiktokColor" type="color" value="#57a1c4"/></div>
-   <div class="setting"><label>Twitch</label><input id="tlTwitchColor" type="color" value="#8f53cb"/></div>
-   <div class="setting"><label>Kick</label><input id="tlKickColor" type="color" value="#58a64e"/></div>
-   <div class="setting"><label>YouTube</label><input id="tlYoutubeColor" type="color" value="#c45773"/></div>
-   <div class="setting"><label>Starvios</label><input id="tlStarviosColor" type="color" value="#dd6d9a"/></div>
+   <div class="setting"><label>Normal</label><input id="tlNormalColor" type="color" value="#7c4680"/></div>
+   <div class="setting"><label>Moderador</label><input id="tlModeratorColor" type="color" value="#3480b8"/></div>
+   <div class="setting"><label>Dueño</label><input id="tlOwnerColor" type="color" value="#b9801f"/></div>
+   <div class="setting"><label>Suscriptor</label><input id="tlSubscriberColor" type="color" value="#a054d6"/></div>
+   <div class="setting"><label>Estrella usuario normal</label><input id="tlNormalStarColor" type="color" value="#d6d6d6"/></div>
+   <div class="setting"><label>Estrella suscriptor</label><input id="tlSubscriberStarColor" type="color" value="#d9a8f5"/></div>
+   <div class="setting"><label>Estrella moderador</label><input id="tlModeratorStarColor" type="color" value="#58b4ea"/></div>
+   <div class="setting"><label>Estrella dueño</label><input id="tlOwnerStarColor" type="color" value="#ffd36a"/></div>
+   <div class="setting"><label>TikTok</label><input id="tlTiktokColor" type="color" value="#ff3b6b"/></div>
+   <div class="setting"><label>Twitch</label><input id="tlTwitchColor" type="color" value="#9146ff"/></div>
+   <div class="setting"><label>Kick</label><input id="tlKickColor" type="color" value="#53fc18"/></div>
+   <div class="setting"><label>YouTube</label><input id="tlYoutubeColor" type="color" value="#ff3030"/></div>
+   <div class="setting"><label>Starvios</label><input id="tlStarviosColor" type="color" value="#ff88c8"/></div>
    <div class="actions"><button class="btn" id="tlApply" type="button">✓ APLICAR CAMBIOS</button><button class="btn alt" id="tlDemo" type="button">💬 PROBAR CHAT</button><button class="btn stop" id="tlReset" type="button">RESTABLECER</button></div>
    <p class="note" id="tlStatus">Los cambios en la vista previa no alteran OBS hasta pulsar APLICAR. OBS recomendado: 1920 × 1080 o 1080 × 1920, fondo transparente.</p>
   </div>
@@ -169,12 +176,12 @@ async function counterConnect(platform){const id=platform==='tiktok'?'ttLink':pl
 <script>
 /* Timeline Premium: controles separados; no toca mcRead, mcApply ni el overlay original. */
 (()=>{
- const defaults={direction:'left',edgeOffset:12,width:680,scale:100,fontSize:20,nameSize:17,starSize:10,lineWidth:3,gap:13,maxMessages:6,duration:14,speed:300,showBadges:true,showPlatform:true,colorMode:'role',normalColor:'#6b3971',moderatorColor:'#2483b3',ownerColor:'#b78035',subscriberColor:'#8055a7',tiktokColor:'#57a1c4',twitchColor:'#8f53cb',kickColor:'#58a64e',youtubeColor:'#c45773',starviosColor:'#dd6d9a'};
- const field={direction:'tlDirection',edgeOffset:'tlEdgeOffset',width:'tlWidth',scale:'tlScale',fontSize:'tlFontSize',nameSize:'tlNameSize',starSize:'tlStarSize',lineWidth:'tlLineWidth',gap:'tlGap',maxMessages:'tlMaxMessages',duration:'tlDuration',speed:'tlSpeed',showBadges:'tlShowBadges',showPlatform:'tlShowPlatform',colorMode:'tlColorMode',normalColor:'tlNormalColor',moderatorColor:'tlModeratorColor',ownerColor:'tlOwnerColor',subscriberColor:'tlSubscriberColor',tiktokColor:'tlTiktokColor',twitchColor:'tlTwitchColor',kickColor:'tlKickColor',youtubeColor:'tlYoutubeColor',starviosColor:'tlStarviosColor'};
+ const defaults={direction:'left',edgeOffset:24,bottomOffset:24,width:560,scale:100,fontSize:18,nameSize:18,capWidth:300,emoteSize:40,starSize:17,lineWidth:3,gap:30,maxMessages:12,duration:30,speed:520,showBadges:true,showPlatform:true,colorMode:'role',normalColor:'#7c4680',moderatorColor:'#3480b8',ownerColor:'#b9801f',subscriberColor:'#a054d6',normalStarColor:'#d6d6d6',subscriberStarColor:'#d9a8f5',moderatorStarColor:'#58b4ea',ownerStarColor:'#ffd36a',tiktokColor:'#ff3b6b',twitchColor:'#9146ff',kickColor:'#53fc18',youtubeColor:'#ff3030',starviosColor:'#ff88c8'};
+ const field={direction:'tlDirection',edgeOffset:'tlEdgeOffset',bottomOffset:'tlBottomOffset',width:'tlWidth',scale:'tlScale',fontSize:'tlFontSize',nameSize:'tlNameSize',capWidth:'tlCapWidth',emoteSize:'tlEmoteSize',starSize:'tlStarSize',lineWidth:'tlLineWidth',gap:'tlGap',maxMessages:'tlMaxMessages',duration:'tlDuration',speed:'tlSpeed',showBadges:'tlShowBadges',showPlatform:'tlShowPlatform',colorMode:'tlColorMode',normalColor:'tlNormalColor',moderatorColor:'tlModeratorColor',ownerColor:'tlOwnerColor',subscriberColor:'tlSubscriberColor',normalStarColor:'tlNormalStarColor',subscriberStarColor:'tlSubscriberStarColor',moderatorStarColor:'tlModeratorStarColor',ownerStarColor:'tlOwnerStarColor',tiktokColor:'tlTiktokColor',twitchColor:'tlTwitchColor',kickColor:'tlKickColor',youtubeColor:'tlYoutubeColor',starviosColor:'tlStarviosColor'};
  const frame=document.getElementById('timelinePreview');
  const status=document.getElementById('tlStatus');
  const read=()=>Object.fromEntries(Object.entries(field).map(([key,id])=>{const el=document.getElementById(id);return [key,typeof defaults[key]==='boolean'?el.checked:typeof defaults[key]==='number'?Number(el.value):el.value]}));
- const labels=()=>{for(const [k,id] of Object.entries(field)){const out=document.getElementById(id+'O');if(out)out.textContent=document.getElementById(id).value+({edgeOffset:'px',width:'px',scale:'%',fontSize:'px',nameSize:'px',starSize:'px',lineWidth:'px',gap:'px',duration:'s',speed:'ms'}[k]||'')}};
+ const labels=()=>{for(const [k,id] of Object.entries(field)){const out=document.getElementById(id+'O');if(out)out.textContent=document.getElementById(id).value+({edgeOffset:'px',bottomOffset:'px',width:'px',scale:'%',fontSize:'px',nameSize:'px',capWidth:'px',emoteSize:'px',starSize:'px',lineWidth:'px',gap:'px',duration:'s',speed:'ms'}[k]||'')}};
  const draft=()=>{labels();frame.contentWindow?.postMessage({type:'grena-timeline-settings',settings:read()},location.origin)};
  function set(settings){const v={...defaults,...settings};for(const [k,id] of Object.entries(field)){const el=document.getElementById(id);if(typeof defaults[k]==='boolean')el.checked=v[k]===true;else el.value=v[k]}draft()}
  document.querySelectorAll('[id^="tl"]').forEach(el=>{if(el.matches('input,select'))el.addEventListener('input',draft)});
