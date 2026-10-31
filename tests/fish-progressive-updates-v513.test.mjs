@@ -27,7 +27,7 @@ test('Fish streaming never exposes API secrets or shares generated audio between
   assert.match(bridge,/activeProfileId,\s*fishContext\.accounts\.map\(a=>a\.key\)\.sort\(\)/);
   assert.doesNotMatch(chat.slice(chat.indexOf('async function startFishProgressivePlayback('),chat.indexOf('async function speakFishMessage(')),/fishAccount\.key|Authorization:.*Bearer/);
 });
-test('v5.1.13 update download displays progress, uses published full NSIS, preserves owner release gate',()=>{
+test('v5.1.14 update download displays progress, uses published full NSIS, preserves owner release gate',()=>{
   assert.match(upd,/disableDifferentialDownload=true/);
   assert.match(upd,/autoUpdater\.on\('download-progress'/);
   assert.match(upd,/setTitle\('GREÑA Live PRO · Descargando v'/);
@@ -35,6 +35,6 @@ test('v5.1.13 update download displays progress, uses published full NSIS, prese
   assert.match(upd,/autoUpdater\.on\('error'/);
   assert.match(upd,/\/api\/updates\/latest/);
   assert.match(upd,/state\?\.published===true/);
-  assert.match(upd,/tag\[1:\] if tag else '5\.1\.13'/);
+  assert.match(upd,/tag\[1:\] if tag else '5\.1\.14'/);
   assert.doesNotMatch(upd,/autoUpdater\.allowDowngrade=true/);
 });
