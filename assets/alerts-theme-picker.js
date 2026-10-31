@@ -8,7 +8,7 @@
  const characterPanel=document.getElementById('mascotCharacterPanel'),characterSelect=document.getElementById('mascotCharacterSelect');
  const chars=['zp','pg','bm','sk','dg'];
  function show(value){
-   theme=['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(value)?value:'minecraft';
+   theme=['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','grena_grenito','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(value)?value:'minecraft';
    if(characterPanel)characterPanel.hidden=theme!=='grena_mascots';
    if(characterSelect&&document.activeElement!==characterSelect)characterSelect.value=chars.includes(settings.mascotCharacter)?settings.mascotCharacter:'zp';
    for(const btn of buttons){
@@ -44,7 +44,7 @@
      const result=await response.json();
      if(!response.ok)throw Error(result.error||'No se pudo cambiar el estilo');
      settings=result.settings||{...values,theme:next};show(settings.theme);
-     status.textContent=(theme==='minecraft'?'Minecraft activado':theme==='domino'?'Dominó activado':theme==='ascension'?'Ascensión Premium activada':theme==='grena_catalog'?'Premium de Catálogo activada':theme==='grena_fullscreen'?'Pantalla Completa activada':theme==='grena_mascots'?'Mascot Alerts activada':'Alerta básica '+theme+' activada')+' · Ambos enlaces OBS se actualizaron.';
+     status.textContent=(theme==='minecraft'?'Minecraft activado':theme==='domino'?'Dominó activado':theme==='ascension'?'Ascensión Premium activada':theme==='grena_catalog'?'Premium de Catálogo activada':theme==='grena_fullscreen'?'Pantalla Completa activada':theme==='grena_mascots'?'Mascot Alerts activada':theme==='grena_grenito'?'GREÑITO original activado':'Alerta básica '+theme+' activada')+' · Ambos enlaces OBS se actualizaron.';
    }catch(e){show(previous);status.classList.add('style-select-error');status.textContent=e.message||'No se pudo guardar'}
    finally{buttons.forEach(b=>b.disabled=false);busy=false}
  }
