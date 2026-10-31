@@ -47,6 +47,8 @@ const PC={tiktok:'#25f4ee',twitch:'#b98cff',kick:'#53fc18',youtube:'#ff6a5f'},PL
 const DEF={dur:5,size:100,vol:60,avatar:false,avUrl:'',qc:'#ff7ad9',oc:'#1a0f33',special:true,maxQ:4,text:{},on:{},anim:{},th:{sub:[3,12],gift:[10,100],bits:[100,1000],donate:[10,100],likes:[50,300],raid:[10,100],yt:[5,50]}};
 let cfg=JSON.parse(JSON.stringify(DEF));try{Object.assign(cfg,JSON.parse(localStorage.getItem('grenito')||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem('grenito',JSON.stringify(cfg))}catch(e){}};
+// In the embedded OBS player, parent GREÑA settings control audio volume.
+if(OBS){const requested=new URLSearchParams(location.search).get('volume');if(requested!==null)cfg.vol=Math.max(0,Math.min(100,Number(requested)||0));}
 const cl=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)),st=(t,a,b)=>cl((t-a)/(b-a)),eo=x=>1-Math.pow(1-x,3),eb=x=>1+2.70158*Math.pow(x-1,3)+1.70158*Math.pow(x-1,2),lerp=(a,b,k)=>a+(b-a)*k,R=Math.random,pk=a=>a[R()*a.length|0],sn=Math.sin;
 const EXP={smile:{m:'M-28 52 Q0 84 28 52 Q0 64 -28 52Z',b:-4,e:1},grin:{m:'M-46 44 Q0 112 46 44Z',b:-8,e:.9},wow:{m:'M-22 48 Q0 112 22 48 Q0 36 -22 48Z',b:-14,e:1.12},laugh:{m:'M-50 40 Q0 132 50 40Z',b:-6,e:.4},cry:{m:'M-28 80 Q0 50 28 80 Q0 62 -28 80Z',b:-16,e:.85,tr:1},angry:{m:'M-32 72 L-16 56 L0 66 L16 56 L32 72 L0 80Z',b:20,e:.78}};
 // rays
@@ -106,7 +108,7 @@ every('s',t,1.6,5.3,.12-T*.03,()=>emit('spark',300+(R()-.5)*300,420+R()*80,{vy:-
 function fmt(tpl,d){const e=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));return tpl.replace(/\{(usuario|cantidad|regalo)\}/g,(m,k)=>k=='usuario'?`<b style="color:${PC[d.platform]||'#fff'}">${e(d.user)}</b>`:k=='cantidad'?`<b class="q">${e(d.type=='donate'?'$'+d.amount:d.amount)}</b>`:`<b class="g">${e(d.gift||'regalo')}</b>`)}
 const isOn=(k,pl)=>cfg.on[k+'_'+pl]??EV[k].pl.includes(pl),thr=k=>cfg.th[k]||DEF.th[k];
 function tierOf(d){const t=thr(d.type);return t?(d.amount>=t[1]?2:d.amount>=t[0]?1:0):0}
-function trigger(d){d=Object.assign({user:'anon',amount:1,platform:'twitch'},d);d.type=AL[d.type]||d.type;if(!EV[d.type])return;if(!d.platform||!PLS.includes(d.platform))d.platform=EV[d.type].pl[0];d.amount=+d.amount||1;if(!isOn(d.type,d.platform))return;d.tier=tierOf(d);
+function trigger(d){d=Object.assign({user:'anon',amount:1,platform:'twitch'},d);d.type=AL[d.type]||d.type;if(!EV[d.type])return;if(!d.platform||!PLS.includes(d.platform))d.platform=EV[d.type].pl[0];d.amount=+d.amount||1;if(!OBS&&!isOn(d.type,d.platform))return;d.tier=tierOf(d);
 const l=Q[Q.length-1];if(l&&l.type==d.type&&l.user==d.user){l.amount+=d.amount;l.tier=tierOf(l);return}
 if(Q.length>=cfg.maxQ){let i=Q.findIndex(x=>x.tier<d.tier);if(i<0)return;Q.splice(i,1)}Q.push(d);if(!cur)next()}
 function next(){if(cur||!Q.length)return;const d=Q.shift();let D=cfg.dur*(Q.length>2?.75:1)*(d.tier==2&&cfg.special?1.5:1);D=Math.max(3,D);
