@@ -43,7 +43,7 @@ const broadcast=data=>{for(const ws of sockets)if(ws.readyState===1)ws.send(JSON
    assert.ok(connected,'El overlay no abrió su conexión real WebSocket.');
    let state=await page.evaluate(()=>{
      const html=getComputedStyle(document.documentElement),body=getComputedStyle(document.body);
-     const name=document.querySelector('.nick'),rail=getComputedStyle(document.querySelector('.item'),'::before');
+     const name=document.querySelector('.nick'),rail=getComputedStyle(document.querySelector('.sg.sa'));
      return {htmlBg:html.backgroundColor,bodyBg:body.backgroundColor,name:name?.textContent,text:document.querySelector('.content')?.textContent,star:!!document.querySelector('.marker svg'),rail:rail.width};
    });
    assert.equal(state.name,'GON_PNG');assert.equal(state.text,'AJA');
