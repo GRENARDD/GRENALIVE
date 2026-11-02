@@ -35,6 +35,8 @@ on:
       - 'assets/grena-fullscreen-gift-obs.html'
       - 'assets/grena-premium-catalog-obs.html'
       - 'desktop-build/verify-premium-alpha.cjs'
+      - 'desktop-build/verify-upgrade-5114-to-5115.ps1'
+      - '.github/workflows/grena-release-v5115.yml'
       - 'tests/premium-transparent-overlay.test.mjs'
       - '.github/workflows/grena-desktop-from-kit.yml'
   push:
@@ -100,7 +102,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5112-to-5114.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5114-to-5115.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -108,7 +110,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v5.1.12 -> v5.1.14 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v5.1.14 -> v5.1.15 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -218,9 +220,9 @@ jobs:
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "5.1.14-beta.1"
+          $pkg.version = "5.1.15-beta.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 5.1.14-beta.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 5.1.15-beta.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -233,16 +235,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify complete Node suite before building installer
         run: npm test
-      - name: Set official 5.1.14 version on main (never on pull requests)
+      - name: Set official 5.1.15 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ($pkg.version -ne "5.1.14") { throw "Versión base inesperada; se cancela publicación estable." }
-          $pkg.version = "5.1.14"
+          if ($pkg.version -ne "5.1.15") { throw "Versión base inesperada; se cancela publicación estable." }
+          $pkg.version = "5.1.15"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Versión oficial verificada: 5.1.14"
+          Write-Host "Versión oficial verificada: 5.1.15"
       - name: Verify pack logic
         shell: pwsh
         run: |
@@ -303,16 +305,30 @@ jobs:
           $env:GRENA_PACKAGED_APP = (Resolve-Path $appRoot).Path
           node -e "const {createRequire}=require('node:module');const path=require('node:path');const req=createRequire(path.join(process.env.GRENA_PACKAGED_APP,'package.json'));for(const id of ['universalify','fs-extra','electron-updater']){console.log('packaged',id,req.resolve(id));req(id)}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify all four transparent premium themes are packaged in installer
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $appRoot = 'dist/win-unpacked/resources/app'
+          foreach ($relative in @('afterglow-overlay.html', 'assets/grena-premium-catalog-obs.html', 'assets/grena-fullscreen-gift-obs.html', 'assets/grena-mascot-alerts.html', 'assets/grenito-original-alerts.html')) {
+            $target = Join-Path $appRoot $relative
+            if (!(Test-Path -LiteralPath $target)) { throw "Falta alerta en instalador: $relative" }
+            $html = Get-Content -LiteralPath $target -Raw -Encoding UTF8
+            if (!$html.Contains('color-scheme:normal!important')) { throw "Falta transparencia real en alerta empaquetada: $relative" }
+          }
+          $overlayHtml = Get-Content -LiteralPath (Join-Path $appRoot 'afterglow-overlay.html') -Raw -Encoding UTF8
+          if (!$overlayHtml.Contains("scene.setAttribute('allowtransparency','true')")) { throw 'El instalador perdió la transparencia de los iframes.' }
+          Write-Host 'OK: cuatro alertas transparentes incluidas en EXE de GREÑA Live.'
       - name: Smoke test compiled Windows backend
         shell: pwsh
         run: ./desktop-build/smoke.ps1
-      - name: Verify installed upgrade from GREÑA 5.1.11 preserves user data
+      - name: Verify installed upgrade from GREÑA 5.1.14 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
-        run: ./desktop-build/verify-upgrade-5112-to-5114.ps1
+        run: ./desktop-build/verify-upgrade-5114-to-5115.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: GRENA-LIVE-Installer-Windows-v5.1.14
+          name: GRENA-LIVE-Installer-Windows-v5.1.15
           path: dist/*.exe
           if-no-files-found: error
