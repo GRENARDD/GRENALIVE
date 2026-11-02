@@ -139,6 +139,9 @@ html.grena-obs-mode #stage,html.grena-obs-mode #fx{
  background-color:rgba(0,0,0,0)!important;
  background-image:none!important;
 }
+/* An opaque dark iframe canvas can remain even with transparent stage CSS in OBS.
+   Use normal canvas compositing only when embedded as an OBS source. */
+html.grena-obs-mode{color-scheme:normal!important}
 html.grena-obs-mode .stage{isolation:auto!important}
 html.grena-obs-mode .side,html.grena-obs-mode .hills,
 html.grena-obs-mode .dim,html.grena-obs-mode .bar{display:none!important}

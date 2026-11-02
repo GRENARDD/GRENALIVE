@@ -1,4 +1,5 @@
 <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>GREÑITO — Mascot Alerts</title><meta name="color-scheme" content="dark">
+<script>if(new URLSearchParams(location.search).has('obs'))document.documentElement.classList.add('grena-obs-mode')</script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
 *{box-sizing:inherit}html,body{height:100%;margin:0}
@@ -19,6 +20,22 @@ input[type=text]{width:100%}.row{display:flex;align-items:center;gap:6px;margin:
 table{border-collapse:collapse;width:100%}td,th{padding:2px 4px;text-align:center;font-size:12px}td:first-child{text-align:left}
 small{color:#9d90c8}code{background:#120e22;padding:2px 5px;border-radius:4px;word-break:break-all}
 body.obs,body.obs #stw{background:none;overflow:hidden}body.obs #pn{display:none}body.obs #stw{width:100vw}
+/* OBS only: the player, its parent iframe and the Chromium canvas must have real alpha.
+   Preserve the original editor checkerboard, mascot artwork, text and animations. */
+html.grena-obs-mode{color-scheme:normal!important}
+html.grena-obs-mode,html.grena-obs-mode body,
+html.grena-obs-mode #app,html.grena-obs-mode #stw,
+html.grena-obs-mode #st,html.grena-obs-mode #sv,
+html.grena-obs-mode #cv{
+ background:transparent!important;
+ background-color:rgba(0,0,0,0)!important;
+ background-image:none!important;
+}
+html.grena-obs-mode body{overflow:hidden!important}
+html.grena-obs-mode #app{width:100vw!important;height:100vh!important}
+html.grena-obs-mode #stw{flex:1 1 auto!important;width:100vw!important;height:100vh!important;min-width:0!important}
+html.grena-obs-mode #pn{display:none!important}
+
 </style></head><body><div id="app"><div id="stw"><div id="st">
 <svg viewBox="0 0 600 700" id="sv"><defs>
 <radialGradient id="ag"><stop offset="0" style="stop-color:var(--au,#b57bff)" stop-opacity=".85"/><stop offset="1" style="stop-color:var(--au,#b57bff)" stop-opacity="0"/></radialGradient>

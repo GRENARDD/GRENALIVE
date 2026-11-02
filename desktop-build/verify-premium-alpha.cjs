@@ -9,7 +9,9 @@ const assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
 const files={
  '/assets/grena-fullscreen-gift-obs.html':path.join(root,'assets','grena-fullscreen-gift-obs.html'),
- '/assets/grena-premium-catalog-obs.html':path.join(root,'assets','grena-premium-catalog-obs.html')
+ '/assets/grena-premium-catalog-obs.html':path.join(root,'assets','grena-premium-catalog-obs.html'),
+ '/assets/grena-mascot-alerts.html':path.join(root,'assets','grena-mascot-alerts.html'),
+ '/assets/grenito-original-alerts.html':path.join(root,'assets','grenito-original-alerts.html')
 };
 const executable=[
  process.env.CHROME_PATH,
@@ -29,6 +31,32 @@ const server=http.createServer((req,res)=>{
 });
 const gif='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 
+// Unlike computed CSS checks, PNG alpha from a real browser catches an opaque
+// iframe document canvas, even if its body and stage report "transparent".
+async function screenshotCornerAlpha(page){
+ const png=(await page.screenshot({omitBackground:true})).toString('base64');
+ return page.evaluate(async b64=>{
+  const img=new Image();
+  img.src='data:image/png;base64,'+b64;
+  await img.decode();
+  const canvas=document.createElement('canvas');
+  canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(img,0,0);
+  return [[.025,.025],[.975,.025],[.025,.975],[.975,.975]].map(([nx,ny])=>{
+   const x=Math.min(canvas.width-1,Math.floor(nx*canvas.width));
+   const y=Math.min(canvas.height-1,Math.floor(ny*canvas.height));
+   return ctx.getImageData(x,y,1,1).data[3];
+  });
+ },png);
+}
+function checkCorners(alpha,name){
+ assert.ok(alpha.every(n=>n<=2),name+' paints an opaque OBS background: alpha '+JSON.stringify(alpha));
+}
+const embeddedCss=fs.readFileSync(path.join(root,'afterglow-overlay.html'),'utf8')
+ .match(/<style id="grena-premium-scene-frame">([\s\S]*?)<\/style>/)?.[1];
+assert.ok(embeddedCss,'Missing real embedded OBS frame CSS');
+
 (async()=>{
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const base='http://127.0.0.1:'+server.address().port;
@@ -43,6 +71,7 @@ const gif='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=
     const url=base+'/assets/grena-'+(theme==='full'?'fullscreen-gift':'premium-catalog')+'-obs.html?obs=1&layout='+layout;
     await page.goto(url,{waitUntil:'load'});
     await page.waitForFunction(()=>!!window.GrenaAlert&&!!window.GrenaAlert.show,{timeout:12000});
+    checkCorners(await screenshotCornerAlpha(page),theme+' '+layout+' standalone');
     // Simulates the real OBS parent message using the same-origin bridge.
     await page.evaluate(({theme,gif})=>{
       window.postMessage({type:'GRENA_OBS_ALERT',theme:theme==='full'?'full':'premium',payload:{
@@ -101,6 +130,57 @@ const gif='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=
         'Rising particles must cover every screen quadrant: '+JSON.stringify(state.quadrants));
     }
     console.log('PASS transparent OBS '+theme+' '+layout+' '+JSON.stringify(state.quadrants));
+    await page.close();
+   }
+
+   // Verify both mascot scenes also have real transparent pixels.
+   for(const theme of ['mascots','grenito']){
+    const page=await browser.newPage({viewport});
+    const file=theme==='mascots'?'grena-mascot-alerts':'grenito-original-alerts';
+    const url=base+'/assets/'+file+'.html?obs=1&layout='+layout;
+    await page.goto(url,{waitUntil:'load'});
+    await page.waitForFunction(()=>!!window.GRENITO?.trigger,{timeout:12000});
+    const styles=await page.evaluate(()=>{
+     const ids=['html','body','app','stw','st','cv'];
+     return ids.map(id=>{
+      const el=id==='html'?document.documentElement:id==='body'?document.body:document.getElementById(id);
+      const cs=getComputedStyle(el);
+      return {id,color:cs.backgroundColor,image:cs.backgroundImage};
+     });
+    });
+    for(const b of styles){
+     assert.ok(['rgba(0, 0, 0, 0)','transparent'].includes(b.color),
+      theme+' '+layout+' '+b.id+' opaque: '+b.color);
+     assert.equal(b.image,'none',theme+' '+layout+' '+b.id+' background-image');
+    }
+    checkCorners(await screenshotCornerAlpha(page),theme+' '+layout+' standalone');
+    await page.evaluate(()=>window.GRENITO.trigger({type:'follow',platform:'twitch',user:'TestFan'}));
+    await page.waitForTimeout(800);
+    const label=await page.locator('#tx').textContent();
+    assert.ok(label.includes('TestFan'),theme+' original follow message missing: '+label);
+    console.log('PASS transparent OBS '+theme+' '+layout);
+    await page.close();
+   }
+
+   // Nested iframes use the actual CSS selector from afterglow-overlay.html.
+   for(const [theme,file] of [
+    ['full','grena-fullscreen-gift-obs'],
+    ['catalog','grena-premium-catalog-obs'],
+    ['mascots','grena-mascot-alerts'],
+    ['grenito','grenito-original-alerts']
+   ]){
+    const page=await browser.newPage({viewport});
+    const url=base+'/assets/'+file+'.html?obs=1&layout='+layout;
+    await page.goto(url,{waitUntil:'load'});
+    await page.setContent('<!doctype html><html><head><style>'+
+      'html,body,.live,.effects{margin:0;width:100%;height:100%;background:transparent!important;color-scheme:normal}'+
+      '.live,.effects{position:absolute;inset:0}'+embeddedCss+
+      '</style></head><body><div class="live"><div class="effects">'+
+      '<iframe class="grena-premium-scene-frame" allowtransparency="true" src="'+url+'"></iframe>'+
+      '</div></div></body></html>');
+    await page.waitForFunction(()=>document.querySelector('iframe')?.contentDocument?.readyState==='complete',{timeout:12000});
+    checkCorners(await screenshotCornerAlpha(page),theme+' '+layout+' nested iframe');
+    console.log('PASS transparent OBS nested '+theme+' '+layout);
     await page.close();
    }
   }

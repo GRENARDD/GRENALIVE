@@ -43,14 +43,14 @@ footer{max-width:1830px;margin:12px auto 30px;padding:14px clamp(15px,2.4vw,40px
 @media(max-width:730px){header{height:68px;padding:0 13px}.brand strong{font-size:17px}.top-id{display:none}.status{font-size:9px}.studio{display:block;padding:13px}.left-panel .intro{padding:6px 2px 12px;border-bottom:0}.left-panel .intro h1{font-size:28px}.left-panel .intro p,.left-foot,.section-label{display:none}.events{display:flex;overflow:auto;gap:7px;padding-bottom:8px;margin:0 0 13px}.event{flex:none;width:auto;min-height:48px;padding:8px 11px;gap:7px}.event__glyph{height:29px;width:29px;font-size:15px}.event__copy small,.event__number{display:none}.event__copy strong{font-size:10px}.workspace-head h2{font-size:14px}.workspace-head p{font-size:10px}.stage-frame{padding:8px}.stage-board{height:60vh;min-height:390px}.live{height:100%}.beats{gap:4px}.beat{padding:7px}.beat b{font-size:9px}.control-panel{margin-top:18px;padding:19px;position:static}.follow-piece{gap:8px}.follow-sigil{width:28px}.follow-copy .headline{font-size:clamp(30px,8vmin,70px)}.likes-wave{gap:8px}footer{margin:5px 13px 30px;padding:12px 0}}
 @media(prefers-reduced-motion:reduce){.fx *:not(.particle){animation-duration:.01ms!important;animation-iteration-count:1!important}}
 
-html,body{width:100%;height:100%;background:transparent!important;margin:0!important;overflow:hidden!important}
+html,body{width:100%;height:100%;background:transparent!important;margin:0!important;overflow:hidden!important;color-scheme:normal!important}
 body{min-height:0!important;background:transparent!important;user-select:none;pointer-events:none}
 .live,.live.wide{container-type:inline-size;position:absolute;inset:0!important;width:100%!important;height:100%!important;max-width:none!important;aspect-ratio:auto!important;background:transparent!important;box-shadow:none!important;overflow:hidden!important;isolation:isolate;--accent:#4be9ff;--glow:rgba(75,233,255,.40)}
 .effects{position:absolute;inset:0;overflow:hidden}
 .fx{font-family:var(--after-font,'Segoe UI',Arial,sans-serif);color:var(--after-text,#fff)}
 .fx .headline{color:var(--after-text,#fff)}
 :root{--safe:38px} .fx .overline,.fx .meta{word-break:break-word}
-</style><link rel="stylesheet" href="/assets/afterglow-pro.css?v=21"><link rel="stylesheet" href="/assets/afterglow-minecraft.css?v=2"><link rel="stylesheet" href="/assets/grena-basic-alerts.css?v=1"><link rel="stylesheet" href="/assets/custom-alert-renderer.css?v=1"><style id="grena-premium-scene-frame">.grena-premium-scene-frame{position:absolute;inset:0;width:100%;height:100%;display:block;border:0;background:transparent;pointer-events:none}.grena-premium-scene-frame.outro{opacity:0;transition:opacity .65s ease}</style></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script src="/assets/afterglow-minecraft.js?v=2"></script><script src="/assets/afterglow-minecraft-sound.js?v=2"></script><script src="/assets/grena-basic-alerts.js?v=1"></script><script src="/assets/ascension-alerts.js?v=1"></script><script src="/assets/custom-alert-renderer.js?v=1"></script><script>
+</style><link rel="stylesheet" href="/assets/afterglow-pro.css?v=21"><link rel="stylesheet" href="/assets/afterglow-minecraft.css?v=2"><link rel="stylesheet" href="/assets/grena-basic-alerts.css?v=1"><link rel="stylesheet" href="/assets/custom-alert-renderer.css?v=1"><style id="grena-premium-scene-frame">.grena-premium-scene-frame{position:absolute;inset:0;width:100%;height:100%;display:block;border:0;background:transparent!important;color-scheme:normal!important;pointer-events:none}.grena-premium-scene-frame.outro{opacity:0;transition:opacity .65s ease}</style></head><body><div class="live" id="live"><div id="effects" class="effects"></div></div><script src="/assets/afterglow-sound.js"></script><script src="/assets/afterglow-minecraft.js?v=2"></script><script src="/assets/afterglow-minecraft-sound.js?v=2"></script><script src="/assets/grena-basic-alerts.js?v=1"></script><script src="/assets/ascension-alerts.js?v=1"></script><script src="/assets/custom-alert-renderer.js?v=1"></script><script>
 (()=>{
 'use strict';
 const root=document.getElementById('effects'),live=document.getElementById('live');
@@ -213,6 +213,8 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
       scene.setAttribute('aria-hidden','true');
       scene.setAttribute('tabindex','-1');
       scene.setAttribute('allow','autoplay');
+       scene.setAttribute('allowtransparency','true');
+       scene.style.background='transparent';
       const mascotUrl=new URL(cfg.theme==='grena_mascots'?'/assets/grena-mascot-alerts.html':'/assets/grenito-original-alerts.html',location.origin);
       mascotUrl.searchParams.set('obs','1');
       mascotUrl.searchParams.set('char',cfg.mascotCharacter);
@@ -230,6 +232,8 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
       scene.setAttribute('aria-hidden','true');
       scene.setAttribute('tabindex','-1');
       scene.setAttribute('allow','autoplay');
+       scene.setAttribute('allowtransparency','true');
+       scene.style.background='transparent';
       scene.src=isCatalog?'/assets/grena-premium-catalog-obs.html?obs=1&layout='+layout:'/assets/grena-fullscreen-gift-obs.html?obs=1&layout='+layout;
       const payload={
         event,platform:platformName[platform],name:data.name,amount:data.amount,
