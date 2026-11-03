@@ -271,6 +271,17 @@ public final class OverlayService extends Service {
         if(content.isEmpty())return;
         if(history.size()>=MAX_MESSAGES)history.removeFirst();
         history.addLast(new ChatItem(platform,username,content));
+        try{
+            JSONArray messages=new JSONArray();
+            for(ChatItem item:history){
+                JSONObject event=new JSONObject();
+                event.put("platform",item.platform);event.put("user",item.username);
+                event.put("message",item.content);
+                messages.put(event);
+            }
+            JSONObject preview=new JSONObject().put("messages",messages);
+            MobileSettingsCache.write(this,SecureSession.get(this),"chat-preview",preview,0,false);
+        }catch(Exception ignored){}
         renderChat();
     }
     private void renderChat(){
