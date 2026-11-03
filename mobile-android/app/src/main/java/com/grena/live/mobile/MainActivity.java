@@ -38,14 +38,12 @@ public final class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private LinearLayout content;
     private TextView feedback;
-    private TextView communityView;
     private TextView connectionView;
     private TextView linkedTikTokView;
     private TextView relayStatusView;
     private TextView chatPreview;
     private String token="";
-    private int liveCount=0;
-    private boolean dashboard=false, visible=false, loading=false;
+    private boolean dashboard=false, visible=false;
     private final Runnable refreshLoop=new Runnable(){
         @Override public void run() {
             if(visible&&dashboard){
@@ -141,7 +139,7 @@ public final class MainActivity extends Activity {
         dashboard=true;base("Widgets y herramientas para transmisiones móviles");
         content.addView(text("WIDGETS DE TIKTOK",21,true));
         content.addView(text("Solo TikTok LIVE: chat flotante y alertas originales de GREÑA Live PC. Los demás widgets no están disponibles en esta versión.",14,false));
-        button("Activar chat y alertas flotantes",this::startOverlay);
+        button("Activar chat y alertas TikTok flotantes",this::startOverlay);
         button("Configurar alertas",()->openSettings("alerts"));
         button("← Inicio",this::showDashboard);
     }
@@ -333,51 +331,6 @@ public final class MainActivity extends Activity {
             });
         });
     }
-    private void refreshCommunity(){
-        if(!dashboard||loading||token.isEmpty())return;
-        updateLocalStatus();
-        loading=true;
-        final String myToken=token;
-        executor.execute(()->{
-            try{
-                JSONObject data=GrenaApi.community(myToken);
-                JSONArray users=data.optJSONArray("users");
-                if(users==null)users=new JSONArray();
-                int count=data.optInt("liveCount",users.length());
-                StringBuilder sb=new StringBuilder();
-                sb.append("COMUNIDAD EN VIVO (").append(count).append(")\n")
-                    .append("Usuarios conectados a GREÑA: ").append(data.optInt("usersOnline",0)).append("\n")
-                    .append("Espectadores de transmisiones compartidas: ").append(data.optInt("totalViewers",0)).append("\n\n");
-                if(users.length()==0)sb.append("Nadie comparte un LIVE en la comunidad. Esto NO indica si tu TikTok vinculado está en directo.");
-                for(int i=0;i<users.length();i++){
-                    JSONObject u=users.optJSONObject(i);if(u==null)continue;
-                    sb.append("🔴 ").append(u.optString("name","Streamer"))
-                        .append("  ·  👁 ").append(u.optInt("viewers",0));
-                    JSONArray pl=u.optJSONArray("platforms");
-                    if(pl!=null){sb.append("  · ");for(int j=0;j<pl.length();j++){
-                        if(j>0)sb.append(" + ");sb.append(pl.optString(j));}}
-                    sb.append("\n");
-                }
-                String output=sb.toString();
-                runOnUiThread(()->{
-                    loading=false;if(!dashboard||!myToken.equals(token))return;
-                    liveCount=count; if(communityView!=null)communityView.setText(output);
-                    if(Settings.canDrawOverlays(this)){
-                        // Update an existing overlay only; do not start one unexpectedly.
-                        // The user must explicitly enable it first.
-                    }
-                });
-            }catch(Exception e){
-                runOnUiThread(()->{
-                    loading=false;if(!dashboard)return;
-                    say("Lista sin conexión: "+e.getMessage());
-                    if(e instanceof GrenaApi.ApiException && ((GrenaApi.ApiException)e).status==401){
-                        SecureSession.clear(this);token="";showLogin();
-                    }
-                });
-            }
-        });
-    }
     private void connectTikTok(){
         JSONObject cached=MobileSettingsCache.read(this,token,"channels");
         JSONObject stored=cached==null?null:cached.optJSONObject("settings");
@@ -435,7 +388,7 @@ public final class MainActivity extends Activity {
             startActivity(intent);return;
         }
         Intent intent=new Intent(this,OverlayService.class);
-        intent.setAction(OverlayService.ACTION_UPDATE);intent.putExtra("count",liveCount);
+        intent.setAction(OverlayService.ACTION_UPDATE);
         startForegroundService(intent);
         say("Ventana flotante de prueba activada. Regresa al juego: no intercepta los toques.");
     }
