@@ -30,6 +30,6 @@ test('original PC theme assets remain packaged, not replaced with mock alerts',(
   for(const file of [
     'afterglow-overlay.html','assets/grena-mascot-alerts.html',
     'assets/grenito-original-alerts.html','assets/afterglow-minecraft.js',
-    'assets/grena-theme-packs.js'])
+    'assets/grena-basic-alerts.js'])
     assert.ok(fs.statSync(assets+file).size>500,'Missing original asset: '+file);
 });
