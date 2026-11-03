@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/grena-android-v0-3-icon-draggable-chat-server-safe-20261103
+      - feature/android-cloudflare-multiplatform-20261103
     paths:
       - "mobile-relay/**"
       - "cloudflare/licenses/src/worker.mjs"
@@ -42,4 +43,6 @@ jobs:
           done
           node -e "const x=require('/tmp/health.json');if(!x.ok||x.pcServerModified!==false)process.exit(1)"
           STATUS=$(curl -s -o /tmp/unauthorized.json -w '%{http_code}' 'http://127.0.0.1:9800/api/mobile/events')
+          test "$STATUS" = "401"
+          STATUS=$(curl -s -o /tmp/unauthorized2.json -w '%{http_code}' 'http://127.0.0.1:9800/api/mobile/capabilities')
           test "$STATUS" = "401"
