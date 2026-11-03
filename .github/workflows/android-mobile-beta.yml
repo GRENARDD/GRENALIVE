@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/grena-live-mobile-android-v0-1-20261103
+      - feature/grena-live-mobile-android-v0-2-settings-20261103
     paths:
       - "mobile-android/**"
       - ".github/workflows/android-mobile-beta.yml"
@@ -40,7 +41,7 @@ jobs:
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
-          name: GRENA_Live_Mobile_v0.1_DEBUG_APK
+          name: GRENA_Live_Mobile_v0.2_DEBUG_APK
           path: mobile-android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
           if-no-files-found: error

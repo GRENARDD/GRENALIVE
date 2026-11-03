@@ -21,6 +21,17 @@ final class GrenaApi {
     static JSONObject community(String token) throws Exception {
         return call("GET", "/api/license/community", token, null);
     }
+    static JSONObject readMobileSettings(String token, String section) throws Exception {
+        if(!"alerts".equals(section)&&!"channels".equals(section))throw new Exception("Sección inválida.");
+        return call("GET", "/api/license/mobile-settings?section=" + section, token, null);
+    }
+    static JSONObject writeMobileSettings(String token, String section, int revision, JSONObject settings) throws Exception {
+        if(!"alerts".equals(section)&&!"channels".equals(section))throw new Exception("Sección inválida.");
+        JSONObject payload=new JSONObject();
+        payload.put("revision",revision);
+        payload.put("settings",settings);
+        return call("POST", "/api/license/mobile-settings?section=" + section, token, payload);
+    }
     private static JSONObject call(String method, String path, String token, JSONObject body) throws Exception {
         HttpURLConnection conn = (HttpURLConnection)new URL(BASE + path).openConnection();
         conn.setRequestMethod(method);

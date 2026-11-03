@@ -109,11 +109,17 @@ public final class MainActivity extends Activity {
         communityView.setPadding(dp(10),dp(10),dp(10),dp(10));
         communityView.setBackgroundColor(Color.rgb(28,33,57));content.addView(communityView);
         button("Actualizar transmisiones",this::refreshCommunity);
+        button("✨ Configurar alertas",()->openSettings("alerts"));
+        button("🔗 Vincular y configurar canales",()->openSettings("channels"));
         button("Activar ventana flotante",this::startOverlay);
         button("Probar alerta flotante (DEMO)",()->{
             if(!Settings.canDrawOverlays(this)){say("Primero concede el permiso de superposición.");return;}
             Intent i=new Intent(this,OverlayService.class);i.setAction(OverlayService.ACTION_UPDATE);
-            i.putExtra("count",liveCount);i.putExtra("test",true);startForegroundService(i);
+            i.putExtra("count",liveCount);i.putExtra("test",true);
+            JSONObject cache=MobileSettingsCache.read(this,token,"alerts");
+            JSONObject settings=cache==null?null:cache.optJSONObject("settings");
+            i.putExtra("theme",settings==null?"minecraft":settings.optString("theme","minecraft"));
+            startForegroundService(i);
             say("Alerta de prueba enviada. No representa un evento real del LIVE.");
         });
         button("Detener ventana flotante",()->{
@@ -123,7 +129,7 @@ public final class MainActivity extends Activity {
         button("Cerrar sesión en este teléfono",()->{
             SecureSession.clear(this);token="";stopService(new Intent(this,OverlayService.class));showLogin();
         });
-        TextView note=text("BETA 0.1: lista real de Canales en vivo y overlay de demostración. El chat y las alertas reales se conectarán después al servicio de eventos multi-dispositivo. La app aún NO publica tu LIVE ni modifica presencia de tu cuenta.",12,false);
+        TextView note=text("BETA 0.2: incluye configuración Android de alertas y enlaces de canales guardada en GREÑA ID. Un enlace público no autoriza la cuenta; chat y alertas reales siguen pendientes del motor de eventos móvil. El overlay continúa en modo DEMO. Esta app no publica tu LIVE ni modifica la presencia de tu cuenta.",12,false);
         note.setTextColor(Color.LTGRAY);content.addView(note);
         if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=getPackageManager().PERMISSION_GRANTED)
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},3);
@@ -172,6 +178,11 @@ public final class MainActivity extends Activity {
                 });
             }
         });
+    }
+    private void openSettings(String section){
+        Intent settings=new Intent(this,SettingsActivity.class);
+        settings.putExtra("section",section);
+        startActivity(settings);
     }
     private void startOverlay(){
         if(!Settings.canDrawOverlays(this)){

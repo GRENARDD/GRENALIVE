@@ -50,7 +50,9 @@ public final class OverlayService extends Service {
             status.setText("● GREÑA LIVE  ·  " + intent.getIntExtra("count",0) + " canales en directo");
         }
         if (alert != null && intent != null && intent.getBooleanExtra("test", false)) {
-            alert.setText("🎁 ALERTA DE PRUEBA\nEsta no es una alerta real del LIVE");
+            String selected=intent.getStringExtra("theme");
+            if(selected==null||selected.isEmpty())selected="minecraft";
+            alert.setText("🎁 ALERTA DEMO · Tema: "+selected+"\nNo es un evento real ni una animación renderizada.");
         }
         return START_STICKY;
     }

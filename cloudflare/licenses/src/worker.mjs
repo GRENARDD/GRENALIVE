@@ -139,6 +139,52 @@ async function communitySnapshot(env){
  const users=live.map(row=>({name:row.display_name||row.username,viewers:row.viewers,avatar:row.avatar||'',platforms:JSON.parse(row.platforms||'[]')}));
  return {ok:true,usersOnline:Number(usersOnline?.n||0),liveCount:users.length,totalViewers:users.reduce((sum,x)=>sum+x.viewers,0),users};
 }
+
+/* Configuración central GREÑA Mobile.
+ * Solo configuraciones no secretas. No confundir URL pública de canal con OAuth.
+ * Secciones independientes con revisión para evitar que el móvil sobrescriba cambios de otro cliente.
+ */
+async function mobileSettingsTable(env){
+ await env.DB.prepare('CREATE TABLE IF NOT EXISTS mobile_settings (user_id TEXT NOT NULL, section TEXT NOT NULL, payload TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id,section))').run();
+}
+const mobileSections=new Set(['alerts','channels']);
+function mobileSection(req){
+ const section=new URL(req.url).searchParams.get('section')||'';
+ return mobileSections.has(section)?section:null;
+}
+function normalizedMobileSettings(section, raw){
+ if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Configuración inválida.');
+ if(section==='alerts'){
+  const themes=['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','grena_grenito','celestial','sakura','comic','hologram','inferno','arcade','royal','void'];
+  const theme=themes.includes(raw.theme)?raw.theme:'minecraft';
+  const bounded=(k,base)=>Number.isFinite(Number(raw[k]))?Math.min(100,Math.max(0,Math.round(Number(raw[k])))):base;
+  const sounds={};for(const k of ['follow','gift','sub','raid','share','likes'])sounds[k]=raw.sounds?.[k]!==false;
+  const audioRoute=['both','vertical','horizontal','muted'].includes(raw.audioRoute)?raw.audioRoute:'both';
+  const textColor=/^#[0-9a-f]{6}$/i.test(String(raw.textColor||''))?raw.textColor:'#ffffff';
+  const accent=/^#[0-9a-f]{6}$/i.test(String(raw.accent||''))?raw.accent:'#caff5f';
+  return {theme,intensity:bounded('intensity',65),volume:bounded('volume',54),
+   mascotCharacter:['zp','pg','bm','sk','dg'].includes(raw.mascotCharacter)?raw.mascotCharacter:'zp',
+   soundEnabled:raw.soundEnabled!==false,sounds,audioRoute,
+   fontFamily:['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(raw.fontFamily)?raw.fontFamily:'Inter',
+   accentMode:raw.accentMode==='custom'?'custom':'platform',textColor,accent};
+ }
+ const result={};
+ const domains={tiktok:['tiktok.com'],twitch:['twitch.tv'],kick:['kick.com'],youtube:['youtube.com','youtu.be'],starvios:['starvios.com']};
+ for(const [platform,allowed]of Object.entries(domains)){
+  const entry=raw[platform];if(!entry)continue;
+  if(typeof entry!=='object'||Array.isArray(entry))throw Error('El canal debe tener un enlace público.');
+  const input=String(entry.url||'').trim();if(!input)continue;
+  if(input.length>350)throw Error('Enlace de canal demasiado largo.');
+  let parsed;try{parsed=new URL(input)}catch{throw Error('El enlace público de '+platform+' no es válido.')}
+  if(parsed.protocol!=='https:'||parsed.username||parsed.password||parsed.port||!allowed.some(d=>parsed.hostname===d||parsed.hostname.endsWith('.'+d)))
+   throw Error('El enlace debe pertenecer a la plataforma '+platform+'.');
+  if(parsed.pathname==='/'&&!parsed.search)throw Error('Falta el canal o LIVE en '+platform+'.');
+  parsed.hash=''; // Never store secret fragments.
+  result[platform]={url:parsed.toString().slice(0,350),enabled:entry.enabled!==false,connection:'public-link-only'};
+ }
+ return result;
+}
+
 async function handle(req,env){
  if(!env.DB)return fail('Falta configurar la base de datos D1.',503);
  const path=new URL(req.url).pathname;
@@ -165,6 +211,14 @@ async function handle(req,env){
    const u=await sessionUser(env,req);
    if(!u)return fail('Cuenta GREÑA ID requerida.',401);
    return json(await communitySnapshot(env));
+ }
+ if(path==='/api/license/mobile-settings'&&req.method==='GET'){
+   const user=await sessionUser(env,req);
+   if(!user)return fail('Sesión GREÑA ID requerida.',401);
+   const section=mobileSection(req);if(!section)return fail('Sección no válida.',400);
+   await mobileSettingsTable(env);
+   const row=await env.DB.prepare('SELECT payload,revision,updated_at FROM mobile_settings WHERE user_id=? AND section=?').bind(user.id,section).first();
+   return json({ok:true,section,settings:row?JSON.parse(row.payload):{},revision:Number(row?.revision||0),updatedAt:row?.updated_at||null});
  }
  if(path==='/api/license/owner/status'&&req.method==='GET'){
    const u=await sessionUser(env,req);
@@ -354,6 +408,24 @@ async function handle(req,env){
  }
  const u=await sessionUser(env,req);
  if(!u)return fail('La sesión central venció o está suspendida.',401);
+ if(path==='/api/license/mobile-settings'&&req.method==='POST'){
+   const section=mobileSection(req);if(!section)return fail('Sección no válida.',400);
+   if(await limiter(env,req,'mobile-settings',60))return fail('Demasiados cambios de configuración.',429);
+   const input=await body(req);
+   if(!Number.isInteger(input.revision)||input.revision<0)return fail('Falta la revisión del servidor.',400);
+   let settings;
+   try{settings=normalizedMobileSettings(section,input.settings)}catch(e){return fail(e.message||'Configuración inválida.',400)}
+   await mobileSettingsTable(env);
+   const payload=JSON.stringify(settings),time=now();
+   if(payload.length>12000)return fail('Configuración demasiado grande.',413);
+   const current=await env.DB.prepare('SELECT revision FROM mobile_settings WHERE user_id=? AND section=?').bind(u.id,section).first();
+   if(Number(current?.revision||0)!==input.revision)return fail('Los ajustes cambiaron en otro dispositivo. Actualiza y vuelve a guardar.',409);
+   const result=current
+     ?await env.DB.prepare('UPDATE mobile_settings SET payload=?,revision=revision+1,updated_at=? WHERE user_id=? AND section=? AND revision=?').bind(payload,time,u.id,section,input.revision).run()
+     :await env.DB.prepare('INSERT OR IGNORE INTO mobile_settings(user_id,section,payload,revision,updated_at) VALUES(?,?,?,1,?)').bind(u.id,section,payload,time).run();
+   if(Number(result?.meta?.changes||0)!==1)return fail('Los ajustes cambiaron en otro dispositivo. Actualiza de nuevo.',409);
+   return json({ok:true,section,settings,revision:input.revision+1,updatedAt:time});
+ }
  if(path==='/api/license/presence'){
    const b=await body(req);
    await communityTable(env);
