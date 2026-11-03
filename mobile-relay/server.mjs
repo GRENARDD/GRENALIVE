@@ -79,7 +79,7 @@ async function stop(session,reason='Desconectado') {
 }
 function info(session) {
   return {ok:true,platform:'tiktok',watching:session.watching===true,
-    connected:session.connected===true,state:session.state,username:session.username,
+    connected:confirmedLive(session),state:session.state,username:session.username,
     roomId:session.roomId||'',viewers:session.viewers||0,lastSeq:session.seq};
 }
 /**
@@ -104,7 +104,8 @@ async function attemptConnection(session) {
   const accept=()=>session.conn===connection&&session.watching;
   connection.on(WebcastEvent.CHAT,e=>{
     if(!accept()||!session.connected)return;
-    const msg=text(e?.content,240);
+    // Connector v2.5 uses WebcastChatMessage.comment, not only content.
+    const msg=text(e?.comment??e?.content,240);
     if(msg)add(session,{kind:'chat',platform:'tiktok',
       user:text(e?.user?.displayId||e?.user?.uniqueId||'Usuario',45),message:msg});
   });
@@ -138,6 +139,14 @@ async function attemptConnection(session) {
     const count=Number(e?.totalUser??e?.viewerCount??e?.totalUserCount);
     if(Number.isFinite(count))session.viewers=Math.max(0,Math.floor(count));
   });
+  connection.on(ControlEvent.DISCONNECTED,()=>{
+    if(!accept())return;
+    const wasConnected=session.connected;
+    session.connected=false;
+    session.state='TikTok desconectado · esperando reconexión';
+    session.retryAt=Date.now()+WATCH_RETRY_MS;
+    if(wasConnected)add(session,{kind:'status',state:'retry',message:'TikTok perdió conexión; sigue en vigilancia'});
+  });
   connection.on(WebcastEvent.STREAM_END,()=>{
     if(!accept())return;
     session.connected=false;
@@ -153,9 +162,16 @@ async function attemptConnection(session) {
     add(session,{kind:'status',state:'retry',message:text(e?.info||'Reintentando con TikTok',160)});
   });
   try{
-    const state=await connection.connect();
+    let timer=null;
+    const state=await Promise.race([
+      connection.connect(),
+      new Promise((_,reject)=>{
+        timer=setTimeout(()=>reject(new Error('TikTok tardó demasiado en responder')),25_000);
+      })
+    ]).finally(()=>{if(timer)clearTimeout(timer);});
     if(!accept()){try{await connection.disconnect();}catch{}return;}
-    session.roomId=String(state?.roomId||'');
+    session.roomId=String(state?.roomId||connection?.roomId||'');
+    if(!session.roomId)throw new Error('No se recibió identificador de LIVE.');
     session.connected=true;
     session.state='Conectado a TikTok LIVE';
     session.retryAt=0;
