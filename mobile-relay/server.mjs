@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { createHash } from 'node:crypto';
 import { TikTokLiveConnection, WebcastEvent, ControlEvent } from 'tiktok-live-connector';
+import { normalizeTikTokUsername, safeEventText } from './protocol.mjs';
 
 const PORT = Number(process.env.PORT || 8080);
 const LICENSE_BASE = 'https://grena-live-licenses.omelicolon18.workers.dev';
@@ -23,23 +24,8 @@ function json(res, status, body) {
   });
   res.end(payload);
 }
-function text(v, size=160) {
-  return String(v ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, size);
-}
-function publicUsername(raw) {
-  let value = String(raw ?? '').trim();
-  if (/^https:\/\//i.test(value)) {
-    const parsed = new URL(value);
-    if (!['tiktok.com', 'www.tiktok.com', 'm.tiktok.com'].includes(parsed.hostname.toLowerCase())) {
-      throw new Error('El enlace no pertenece a TikTok.');
-    }
-    const match = /^\/@([A-Za-z0-9._]{2,30})(?:\/|$)/.exec(parsed.pathname);
-    if (!match) throw new Error('Enlace de perfil o LIVE de TikTok inválido.');
-    value = match[1];
-  } else value = value.replace(/^@/, '');
-  if (!/^[A-Za-z0-9._]{2,30}$/.test(value)) throw new Error('Introduce un @usuario válido de TikTok.');
-  return value;
-}
+const text=safeEventText;
+const publicUsername=normalizeTikTokUsername;
 function digest(token) { return createHash('sha256').update(token).digest('hex'); }
 function bearer(req) {
   const raw = req.headers.authorization || '';
@@ -117,7 +103,7 @@ async function connect(key,username) {
     const amount=Math.min(Math.max(Number(e?.repeatCount||1)||1,1),9999);
     // For streakable gifts, avoid emitting each intermediate rolling count as a new completed gift.
     if(e?.gift?.streakable && e?.repeatEnd!==true && e?.repeatEnd!==1)return;
-    add(session,{kind:'alert',action:'gift',platform:'tiktok',user,message:'envió '+gift+' x'+amount});
+    add(session,{kind:'alert',action:'gift',platform:'tiktok',user,message:'envió '+gift+' x'+amount,amount,giftName:gift});
   });
   connection.on(WebcastEvent.SHARE,e=>{
     add(session,{kind:'alert',action:'share',platform:'tiktok',user:text(e?.user?.displayId||'Usuario',45),message:'compartió el LIVE'});
