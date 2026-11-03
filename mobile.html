@@ -301,7 +301,13 @@ $('linkSubmit').onclick=async()=>{
  $('linkSubmit').disabled=true;linkNotice('Conectando '+platformNames[p]+'...');
  try{
   if(p==='starvios'){
-   const username=value.replace(/^@/,'').trim();
+   let username=value.replace(/^@/,'').trim();
+   if(username.includes('/')||/^https?:/i.test(username)){
+    let u;try{u=new URL(/^https?:\/\//i.test(username)?username:'https://'+username)}catch{throw Error('Enlace Starvios no válido.')}
+    if(!/^(www\.)?starvios\.com$/i.test(u.hostname))throw Error('Utiliza un enlace de starvios.com.');
+    username=(u.pathname.split('/').filter(Boolean).pop()||'').replace(/^@/,'');
+   }
+   if(!/^[a-zA-Z0-9_.-]{2,40}$/.test(username))throw Error('Escribe un usuario de Starvios válido.');
    const r=await fetch('/api/connection-prefs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({autoConnect:true,starviosUrl:username,starviosEnabled:true})});
    const d=await r.json().catch(()=>({}));if(!r.ok||d.ok===false)throw Error(d.error||'No se pudo guardar Starvios.');
    mobileStarviosChannel=username;
