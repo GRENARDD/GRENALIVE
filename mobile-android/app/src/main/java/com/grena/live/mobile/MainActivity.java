@@ -23,6 +23,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -41,6 +43,7 @@ public final class MainActivity extends Activity {
     private TextView communityView;
     private TextView connectionView;
     private TextView linkedTikTokView;
+    private final Map<String,TextView> platformRows=new LinkedHashMap<>();
     private TextView relayStatusView;
     private TextView chatPreview;
     private String token="";
@@ -146,9 +149,85 @@ public final class MainActivity extends Activity {
         dashboard=true;base("Cuenta y conexiones de GREÑA ID");
         content.addView(text("MÁS",21,true));
         button("Vincular y configurar canales",()->openSettings("channels"));
+        button("Diagnóstico de las cinco plataformas",this::showPlatformsPanel);
         button("Configurar alertas",()->openSettings("alerts"));
         button("Volver al inicio",this::showDashboard);
         button("Cerrar sesión en este teléfono",this::logout);
+    }
+    private void showPlatformsPanel(){
+        dashboard=true;
+        base("Verificación real de cinco plataformas · Cloudflare + GREÑA ID");
+        platformRows.clear();
+        content.addView(text("CONEXIONES DE GREÑA LIVE MOBILE",21,true));
+        TextView explanation=text("Enlace guardado NO significa LIVE conectado. Cada plataforma necesita su propio receptor, autorización y confirmación de eventos.",13,false);
+        explanation.setTextColor(Color.rgb(220,194,163));
+        content.addView(explanation);
+        String[] platforms={"tiktok","twitch","kick","youtube","starvios"};
+        String[] names={"TikTok","Twitch","Kick","YouTube","Starvios"};
+        JSONObject cache=MobileSettingsCache.read(this,token,"channels");
+        JSONObject settings=cache==null?null:cache.optJSONObject("settings");
+        for(int i=0;i<platforms.length;i++){
+            String platform=platforms[i];
+            JSONObject channel=settings==null?null:settings.optJSONObject(platform);
+            String url=channel==null?"":channel.optString("url","");
+            boolean enabled=channel!=null&&channel.optBoolean("enabled",false);
+            String label=names[i]+"\n"+
+                (url.isEmpty()?"No vinculado":url)+"\n"+
+                (url.isEmpty()?"Estado: falta canal":enabled?
+                "Estado: enlace guardado · LIVE sin verificar":"Estado: canal desactivado");
+            TextView card=text(label,14,true);
+            card.setPadding(dp(13),dp(11),dp(13),dp(11));
+            card.setBackground(pill(Color.rgb(19,26,52),Color.rgb(90,75,169),16));
+            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
+            lp.topMargin=dp(9);
+            content.addView(card,lp);
+            platformRows.put(platform,card);
+        }
+        button("Comprobar receptores y permisos",this::checkPlatformEngines);
+        button("Vincular / editar canales",()->openSettings("channels"));
+        button("Conectar TikTok (cuando el servidor esté activo)",this::connectTikTok);
+        button("← Inicio",this::showDashboard);
+        checkPlatformEngines();
+    }
+    private void checkPlatformEngines(){
+        if(token.isEmpty())return;
+        final String activeToken=token;
+        say("Comprobando servicios de eventos móviles...");
+        executor.execute(()->{
+            try{
+                JSONObject data=MobileRelayApi.capabilities(activeToken);
+                JSONObject all=data.optJSONObject("platforms");
+                runOnUiThread(()->{
+                    if(!activeToken.equals(token))return;
+                    for(Map.Entry<String,TextView> entry:platformRows.entrySet()){
+                        JSONObject config=all==null?null:all.optJSONObject(entry.getKey());
+                        boolean hasAdapter=config!=null&&config.optBoolean("adapterImplemented",false);
+                        boolean confirmed=config!=null&&config.optBoolean("liveConfirmed",false);
+                        String next=confirmed?"LIVE confirmado por el receptor":
+                            hasAdapter?"Receptor instalado; LIVE todavía no confirmado":
+                            "RECEPTOR NO IMPLEMENTADO · falta integración real";
+                        TextView card=entry.getValue();
+                        String original=card.getText().toString();
+                        int idx=original.indexOf("\nReceptor:");
+                        if(idx>=0)original=original.substring(0,idx);
+                        card.setText(original+"\nReceptor: "+next);
+                        card.setTextColor(confirmed?Color.rgb(77,237,184):Color.WHITE);
+                    }
+                    say("Estado del servidor actualizado. Solo LIVE confirmado es conexión real.");
+                });
+            }catch(Exception e){
+                runOnUiThread(()->{
+                    if(!activeToken.equals(token))return;
+                    say("Sin receptor central activo. Configurar canales NO detecta un LIVE.");
+                    for(TextView card:platformRows.values()){
+                        String original=card.getText().toString();
+                        int idx=original.indexOf("\nReceptor:");
+                        if(idx>=0)original=original.substring(0,idx);
+                        card.setText(original+"\nReceptor: NO DISPONIBLE en Cloudflare");
+                    }
+                });
+            }
+        });
     }
     private void stopOverlay(){
         Intent stop=new Intent(this,OverlayService.class);
@@ -239,6 +318,7 @@ public final class MainActivity extends Activity {
         button("✨ Configurar alertas",()->openSettings("alerts"));
         button("🔗 Vincular y configurar canales",()->openSettings("channels"));
         button("🔴 Conectar TikTok LIVE",this::connectTikTok);
+        button("Ver estado de TikTok, Twitch, Kick, YouTube y Starvios",this::showPlatformsPanel);
         button("⏹ Desconectar TikTok LIVE",this::disconnectTikTok);
         connectionView=text("TikTok LIVE: "+
             getSharedPreferences("grena_mobile_connection_v1",MODE_PRIVATE)
