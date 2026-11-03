@@ -24,6 +24,11 @@ import android.widget.TextView;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import org.json.JSONObject;
+import org.json.JSONArray;
+import android.os.Handler;
+import android.os.Looper;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * GREÑA mobile native overlays:
@@ -38,6 +43,8 @@ public final class OverlayService extends Service {
     static final String ACTION_STOP="com.grena.live.mobile.STOP";
     static final String ACTION_CHAT_EVENT="com.grena.live.mobile.CHAT_EVENT";
     static final String ACTION_ALERT_EVENT="com.grena.live.mobile.ALERT_EVENT";
+    static final String ACTION_CONNECT_TIKTOK="com.grena.live.mobile.CONNECT_TIKTOK";
+    static final String ACTION_DISCONNECT_TIKTOK="com.grena.live.mobile.DISCONNECT_TIKTOK";
     private static final String CHANNEL="grena_overlay";
     private static final String PREFS="grena_overlay_position_v2";
     private static final int MAX_MESSAGES=4;
@@ -46,6 +53,13 @@ public final class OverlayService extends Service {
     private LinearLayout chatRoot;
     private LinearLayout chatItems;
     private TextView toggleButton;
+    private TextView connectionLabel;
+    private final Handler ui=new Handler(Looper.getMainLooper());
+    private final ExecutorService remote=Executors.newSingleThreadExecutor();
+    private boolean remoteActive=false,remotePolling=false;
+    private String remoteToken="",remoteUsername="";
+    private long lastRemoteSeq=0;
+    private final Runnable pollLoop=()->pollRemote();
     private TextView alert;
     private PcAlertsView pcAlerts;
     private WindowManager.LayoutParams buttonParams;
@@ -75,10 +89,23 @@ public final class OverlayService extends Service {
     }
 
     @Override public int onStartCommand(Intent intent,int flags,int startId){
-        if(intent!=null&&ACTION_STOP.equals(intent.getAction())){stopSelf();return START_NOT_STICKY;}
+        if(intent!=null&&ACTION_STOP.equals(intent.getAction())){
+            cancelRemote();
+            stopSelf();
+            return START_NOT_STICKY;
+        }
         if(!Settings.canDrawOverlays(this)){stopSelf();return START_NOT_STICKY;}
         if(buttonParams==null)createWindows();
         if(intent==null)return START_STICKY;
+        if(ACTION_CONNECT_TIKTOK.equals(intent.getAction())){
+            startRemote(safe(intent.getStringExtra("username"),350));
+            return START_STICKY;
+        }
+        if(ACTION_DISCONNECT_TIKTOK.equals(intent.getAction())){
+            cancelRemote();
+            setConnectionStatus("TikTok desconectado");
+            return START_STICKY;
+        }
         if(intent.getBooleanExtra("test",false)){
             showAlert("GREÑA DEMO","Esta es una prueba visual",true,"follow","tiktok",1,"");
         }
@@ -123,6 +150,9 @@ public final class OverlayService extends Service {
         chatRoot=new LinearLayout(this);chatRoot.setOrientation(LinearLayout.VERTICAL);
         chatRoot.setPadding(dp(3),dp(3),dp(3),dp(3));
         chatItems=new LinearLayout(this);chatItems.setOrientation(LinearLayout.VERTICAL);
+        connectionLabel=t("TikTok LIVE · desconectado",12,Color.rgb(177,198,233),true);
+        connectionLabel.setPadding(dp(10),dp(5),dp(8),dp(7));
+        chatRoot.addView(connectionLabel);
         chatRoot.addView(chatItems);
         WindowManager.LayoutParams chatParams=overlayParams(dp(302),-2,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
@@ -268,6 +298,99 @@ public final class OverlayService extends Service {
             chatItems.addView(card,lp);
         }
     }
+    private void setConnectionStatus(String value){
+        if(connectionLabel!=null)connectionLabel.setText("● "+value);
+        getSharedPreferences("grena_mobile_connection_v1",MODE_PRIVATE).edit()
+            .putString("status",value).apply();
+    }
+    private void startRemote(String username){
+        final String token=SecureSession.get(this);
+        if(token.isEmpty()||username.isEmpty()){
+            setConnectionStatus("GREÑA ID o enlace TikTok faltante");
+            return;
+        }
+        cancelRemote();
+        remoteToken=token;remoteUsername=username;lastRemoteSeq=0;remoteActive=true;
+        setConnectionStatus("Conectando a TikTok LIVE...");
+        remote.execute(()->{
+            try{
+                JSONObject response=MobileRelayApi.connect(token,username);
+                ui.post(()->{
+                    if(!remoteActive||!remoteToken.equals(token))return;
+                    if(response.optBoolean("connected",false)){
+                        setConnectionStatus("TikTok LIVE conectado · "+response.optString("username",""));
+                        ui.removeCallbacks(pollLoop);
+                        ui.post(pollLoop);
+                    }else{
+                        remoteActive=false;
+                        setConnectionStatus("LIVE desconectado · "+response.optString("error","Sin señal"));
+                    }
+                });
+            }catch(Exception e){
+                ui.post(()->{
+                    if(!remoteActive||!remoteToken.equals(token))return;
+                    remoteActive=false;
+                    setConnectionStatus("Servidor móvil pendiente: "+safe(e.getMessage(),90));
+                });
+            }
+        });
+    }
+    private void cancelRemote(){
+        ui.removeCallbacks(pollLoop);
+        if(remoteActive&&!remoteToken.isEmpty()){
+            final String token=remoteToken;
+            remote.execute(()->{try{MobileRelayApi.disconnect(token);}catch(Exception ignored){}});
+        }
+        remoteActive=false;remoteToken="";remoteUsername="";lastRemoteSeq=0;
+        MobileRelayApi.clear();
+    }
+    private void pollRemote(){
+        if(!remoteActive||remotePolling||remoteToken.isEmpty())return;
+        remotePolling=true;
+        final String token=remoteToken;
+        final long cursor=lastRemoteSeq;
+        remote.execute(()->{
+            try{
+                JSONObject result=MobileRelayApi.events(token,cursor);
+                ui.post(()->{
+                    remotePolling=false;
+                    if(!remoteActive||!remoteToken.equals(token))return;
+                    JSONArray batch=result.optJSONArray("events");
+                    if(batch!=null)for(int i=0;i<batch.length();i++){
+                        JSONObject event=batch.optJSONObject(i);
+                        if(event==null)continue;
+                        long seq=event.optLong("seq",0);
+                        if(seq<=lastRemoteSeq)continue;
+                        lastRemoteSeq=seq;
+                        String kind=event.optString("kind","");
+                        if("chat".equals(kind))appendChat("tiktok",
+                            safe(event.optString("user"),45),safe(event.optString("message"),240));
+                        else if("alert".equals(kind))showAlert(
+                            safe(event.optString("user"),45),safe(event.optString("message"),120),
+                            false,safe(event.optString("action"),20),"tiktok",
+                            Math.max(1,event.optInt("amount",1)),safe(event.optString("giftName"),52));
+                        else if("status".equals(kind))setConnectionStatus(
+                            "TikTok · "+safe(event.optString("message"),90));
+                    }
+                    if(!result.optBoolean("connected",false)){
+                        remoteActive=false;
+                        setConnectionStatus("TikTok LIVE terminó o se desconectó");
+                        return;
+                    }
+                    setConnectionStatus("TikTok LIVE conectado · "+safe(remoteUsername,40));
+                    ui.postDelayed(pollLoop,2300);
+                });
+            }catch(Exception e){
+                ui.post(()->{
+                    remotePolling=false;
+                    if(!remoteActive||!remoteToken.equals(token))return;
+                    setConnectionStatus("TikTok: reconectando lectura · "+safe(e.getMessage(),55));
+                    ui.postDelayed(pollLoop,6000);
+                });
+            }
+        });
+    }
+
     private void showAlert(String username,String message,boolean demo,
                            String event,String platform,int amount,String giftName){
         if(pcAlerts==null)return;
@@ -307,6 +430,8 @@ public final class OverlayService extends Service {
         }
     }
     @Override public void onDestroy(){
+        cancelRemote();
+        remote.shutdownNow();
         if(alert!=null)alert.removeCallbacks(hideAlert);
         if(pcAlerts!=null)pcAlerts.removeCallbacks(hidePcAlert);
         for(View v:new View[]{toggleButton,alert,chatRoot,pcAlerts}){
