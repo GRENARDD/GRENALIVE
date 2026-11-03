@@ -30,6 +30,13 @@ test('original PC theme assets remain packaged, not replaced with mock alerts',(
   for(const file of [
     'afterglow-overlay.html','assets/grena-mascot-alerts.html',
     'assets/grenito-original-alerts.html','assets/afterglow-minecraft.js',
-    'assets/grena-basic-alerts.js'])
+    'assets/grena-basic-alerts.js',
+    'assets/afterglow-domino.js','assets/afterglow-domino.css'])
     assert.ok(fs.statSync(assets+file).size>500,'Missing original asset: '+file);
+});
+
+test('mobile AFTERGLOW preserves the actual animated Domino fallback',()=>{
+  const html=fs.readFileSync(base+'assets/pc-alerts/afterglow-overlay.html','utf8');
+  assert.match(html,/window\.AfterglowDomino\.render/);
+  assert.match(html,/afterglow-domino\.css/);
 });
