@@ -2,7 +2,7 @@ import http from 'node:http';
 import { createHash } from 'node:crypto';
 import { TikTokLiveConnection, WebcastEvent, ControlEvent } from 'tiktok-live-connector';
 import { normalizeTikTokUsername, safeEventText } from './protocol.mjs';
-import { PLATFORM_IDS, PLATFORM_INFO, platformId } from './platforms.mjs';
+
 import { WATCH_RETRY_MS, retryDelay, canRetry, confirmedLive } from './tiktok-watch-policy.mjs';
 
 const PORT = Number(process.env.PORT || 8080);
@@ -235,9 +235,9 @@ const server=http.createServer(async(req,res)=>{
   if(pathname==='/api/mobile/connect'&&req.method==='POST'){
     try {
       const body=await readBody(req);
-      const platform=platformId(body.platform||'tiktok');
+      const platform=String(body.platform||'tiktok').trim().toLowerCase();
       if(platform!=='tiktok')return json(res,501,{ok:false,connected:false,
-        platform,error:'GREÑA Mobile está en modo solo TikTok por ahora.'});
+        platform:'tiktok',error:'GREÑA Mobile está en modo solo TikTok por ahora.'});
       const name=publicUsername(body.username||body.url);
       if(session?.lastConnectAt&&Date.now()-session.lastConnectAt<10_000&&session.username!==name)
         return json(res,429,{ok:false,error:'Espera antes de cambiar de canal.'});
