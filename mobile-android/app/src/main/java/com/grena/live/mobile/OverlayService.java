@@ -48,6 +48,19 @@ public final class OverlayService extends Service {
     private static final String CHANNEL="grena_overlay";
     private static final String PREFS="grena_overlay_position_v2";
     private static final int MAX_MESSAGES=4;
+    private static OverlayService currentInstance;
+    private boolean smallAlertActive=false,animatedAlertActive=false;
+    static void refreshForActivityVisibility(){
+        OverlayService service=currentInstance;
+        if(service!=null)service.refreshWindowVisibility();
+    }
+    private void refreshWindowVisibility(){
+        boolean outside=!GrenaMobileApplication.isScreenVisible();
+        if(toggleButton!=null)toggleButton.setVisibility(outside?View.VISIBLE:View.GONE);
+        if(chatRoot!=null)chatRoot.setVisibility(outside&&chatVisible?View.VISIBLE:View.GONE);
+        if(alert!=null)alert.setVisibility(outside&&smallAlertActive?View.VISIBLE:View.GONE);
+        if(pcAlerts!=null)pcAlerts.setVisibility(outside&&animatedAlertActive?View.VISIBLE:View.GONE);
+    }
     private final Deque<ChatItem> history=new ArrayDeque<>();
     private WindowManager wm;
     private LinearLayout chatRoot;
@@ -74,6 +87,7 @@ public final class OverlayService extends Service {
 
     @Override public void onCreate(){
         super.onCreate();
+        currentInstance=this;
         NotificationManager nm=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);
         nm.createNotificationChannel(new NotificationChannel(CHANNEL,"GREÑA · Ventana flotante",NotificationManager.IMPORTANCE_LOW));
         PendingIntent open=PendingIntent.getActivity(this,0,new Intent(this,MainActivity.class),
@@ -96,6 +110,7 @@ public final class OverlayService extends Service {
         }
         if(!Settings.canDrawOverlays(this)){stopSelf();return START_NOT_STICKY;}
         if(buttonParams==null)createWindows();
+        refreshWindowVisibility();
         if(intent==null)return START_STICKY;
         if(ACTION_CONNECT_TIKTOK.equals(intent.getAction())){
             startRemote(safe(intent.getStringExtra("username"),350));
@@ -235,6 +250,7 @@ public final class OverlayService extends Service {
         });
         wm.addView(toggleButton,buttonParams);
         updateToggleLabel();
+        refreshWindowVisibility();
     }
     private int screenWidth(){
         DisplayMetrics metrics=new DisplayMetrics();
@@ -258,7 +274,7 @@ public final class OverlayService extends Service {
     private void toggleChat(){
         chatVisible=!chatVisible;
         getSharedPreferences(PREFS,MODE_PRIVATE).edit().putBoolean("chatVisible",chatVisible).apply();
-        if(chatRoot!=null)chatRoot.setVisibility(chatVisible?View.VISIBLE:View.GONE);
+        refreshWindowVisibility();
         updateToggleLabel();
     }
     private void updateToggleLabel(){
@@ -419,19 +435,21 @@ public final class OverlayService extends Service {
             payload.put("eventId","android-"+System.nanoTime());
         }catch(Exception ignored){}
         pcAlerts.play(payload);
-        pcAlerts.setVisibility(View.VISIBLE);
+        animatedAlertActive=true;
+        refreshWindowVisibility();
         pcAlerts.removeCallbacks(hidePcAlert);
         pcAlerts.postDelayed(hidePcAlert,7700);
         // No fake "received from LIVE" label in demo.
         if(demo&&alert!=null){
             alert.setText("● DEMOSTRACIÓN\nNo es un evento real");
-            alert.setVisibility(View.VISIBLE);
+            smallAlertActive=true;
+            refreshWindowVisibility();
             alert.removeCallbacks(hideAlert);
             alert.postDelayed(hideAlert,3500);
         }
     }
-    private final Runnable hideAlert=()->{if(alert!=null)alert.setVisibility(View.GONE);};
-    private final Runnable hidePcAlert=()->{if(pcAlerts!=null)pcAlerts.setVisibility(View.GONE);};
+    private final Runnable hideAlert=()->{smallAlertActive=false;refreshWindowVisibility();};
+    private final Runnable hidePcAlert=()->{animatedAlertActive=false;refreshWindowVisibility();};
     @Override public void onConfigurationChanged(Configuration newConfig){
         super.onConfigurationChanged(newConfig);
         if(buttonParams!=null&&toggleButton!=null){
@@ -441,6 +459,7 @@ public final class OverlayService extends Service {
         }
     }
     @Override public void onDestroy(){
+        if(currentInstance==this)currentInstance=null;
         cancelRemote();
         remote.shutdownNow();
         if(alert!=null)alert.removeCallbacks(hideAlert);
