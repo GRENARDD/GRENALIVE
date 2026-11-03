@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { TikTokLiveConnection, WebcastEvent, ControlEvent } from 'tiktok-live-connector';
 import { normalizeTikTokUsername, safeEventText } from './protocol.mjs';
 import { PLATFORM_IDS, PLATFORM_INFO, platformId } from './platforms.mjs';
+import { WATCH_RETRY_MS, retryDelay, canRetry, confirmedLive } from './tiktok-watch-policy.mjs';
 
 const PORT = Number(process.env.PORT || 8080);
 const LICENSE_BASE = 'https://grena-live-licenses.omelicolon18.workers.dev';
@@ -66,7 +67,6 @@ function add(session,record) {
   if(session.events.length>MAX_QUEUE)session.events.shift();
   return event;
 }
-const WATCH_RETRY_MS=30_000;
 async function stop(session,reason='Desconectado') {
   if(!session)return;
   session.watching=false;
@@ -165,7 +165,7 @@ async function attemptConnection(session) {
     if(!accept())return;
     session.connected=false;
     session.failures=Math.min(10,(session.failures||0)+1);
-    session.retryAt=Date.now()+Math.min(120_000,WATCH_RETRY_MS*session.failures);
+    session.retryAt=Date.now()+retryDelay(session.failures);
     const message=text(error?.message||'Todavía no se pudo conectar con el LIVE.',160);
     session.state='Esperando LIVE · próxima comprobación automática';
     // Report this as an unavailable LIVE, never as connected.
@@ -202,8 +202,7 @@ setInterval(async()=>{
     if(Date.now()-session.activeAt>IDLE_MS){
       sessions.delete(key);
       await stop(session,'Sesión móvil inactiva');
-    }else if(session.watching&&!session.connected&&!session.connecting&&
-             Date.now()>=(session.retryAt||0)){
+    }else if(canRetry(session)){
       // Do not block other users on a slow TikTok handshake.
       void attemptConnection(session).catch(()=>{session.retryAt=Date.now()+WATCH_RETRY_MS;});
     }
@@ -228,8 +227,8 @@ const server=http.createServer(async(req,res)=>{
       name:'TikTok',auth:'public-live-connector',
       expectedEvents:['chat','follow','gift','share','likes','viewers'],
       adapterImplemented:true,serverRunning:true,
-      liveConfirmed:session?.connected===true,
-      state:session?.connected===true?'live':session?.watching===true?'watching':'not_connected'
+      liveConfirmed:confirmedLive(session),
+      state:confirmedLive(session)?'live':session?.watching===true?'watching':'not_connected'
     }};
     return json(res,200,{ok:true,platforms,server:'independent-node',usesRailway:false});
   }
