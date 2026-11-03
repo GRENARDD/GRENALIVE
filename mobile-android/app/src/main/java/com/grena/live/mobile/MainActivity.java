@@ -5,6 +5,9 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.widget.ImageView;
+import android.widget.HorizontalScrollView;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -36,6 +39,8 @@ public final class MainActivity extends Activity {
     private LinearLayout content;
     private TextView feedback;
     private TextView communityView;
+    private TextView connectionView;
+    private TextView chatPreview;
     private String token="";
     private int liveCount=0;
     private boolean dashboard=false, visible=false, loading=false;
@@ -58,17 +63,107 @@ public final class MainActivity extends Activity {
         TextView t=new TextView(this); t.setText(s);t.setTextSize(size);t.setTextColor(Color.WHITE);
         if(bold)t.setTypeface(null,Typeface.BOLD);t.setPadding(0,dp(4),0,dp(7));return t;
     }
+    private GradientDrawable pill(int fill,int edge,int radius){
+        GradientDrawable b=new GradientDrawable();b.setColor(fill);
+        b.setStroke(dp(1),edge);b.setCornerRadius(dp(radius));return b;
+    }
     private Button button(String label, Runnable act){
         Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setOnClickListener(v->act.run());
-        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(51));lp.topMargin=dp(8);content.addView(b,lp);return b;
+        b.setTextColor(Color.WHITE);b.setTextSize(15);
+        b.setBackground(pill(Color.rgb(29,25,66),Color.rgb(95,75,187),15));
+        LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,dp(51));lp.topMargin=dp(9);content.addView(b,lp);return b;
     }
     private void base(String subtitle){
-        ScrollView scroll=new ScrollView(this); scroll.setFillViewport(true);scroll.setBackgroundColor(Color.rgb(12,15,27));
-        content=new LinearLayout(this);content.setPadding(dp(18),dp(28),dp(18),dp(30));content.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(content);setContentView(scroll);
-        TextView brand=text("GREÑA LIVE  ·  MOBILE",23,true); brand.setTextColor(PURPLE);content.addView(brand);
-        content.addView(text(subtitle,14,false));
-        feedback=text("",13,false);feedback.setTextColor(Color.rgb(162,216,250));content.addView(feedback);
+        LinearLayout screen=new LinearLayout(this);screen.setOrientation(LinearLayout.VERTICAL);
+        screen.setBackgroundColor(Color.rgb(12,9,33));
+        ScrollView scroll=new ScrollView(this); scroll.setFillViewport(true);
+        content=new LinearLayout(this);content.setPadding(dp(18),dp(19),dp(18),dp(26));
+        content.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(content);
+        screen.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+        LinearLayout top=new LinearLayout(this);top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView logo=new ImageView(this);logo.setImageResource(R.drawable.grena_app_icon);
+        top.addView(logo,new LinearLayout.LayoutParams(dp(53),dp(53)));
+        LinearLayout names=new LinearLayout(this);names.setOrientation(LinearLayout.VERTICAL);
+        names.setPadding(dp(12),0,0,0);
+        names.addView(text("GREÑA LIVE PRO",21,true));
+        TextView small=text("CREATOR CONTROL · ANDROID",11,true);
+        small.setTextColor(Color.rgb(178,162,230));names.addView(small);
+        top.addView(names,new LinearLayout.LayoutParams(0,-2,1));
+        if(dashboard){
+            TextView light=text("● BETA",12,true);
+            light.setTextColor(Color.rgb(50,236,186));
+            light.setBackground(pill(Color.rgb(12,48,43),Color.rgb(25,150,127),30));
+            light.setPadding(dp(10),dp(9),dp(10),dp(9));top.addView(light);
+        }
+        content.addView(top);
+        TextView subtitleView=text(subtitle,13,false);
+        subtitleView.setTextColor(Color.rgb(189,187,218));content.addView(subtitleView);
+        feedback=text("",13,false);feedback.setTextColor(Color.rgb(123,224,244));
+        content.addView(feedback);
+        if(dashboard)addNavigation(screen);
+        setContentView(screen);
+    }
+    private void addNavigation(LinearLayout screen){
+        LinearLayout nav=new LinearLayout(this);nav.setOrientation(LinearLayout.HORIZONTAL);
+        nav.setBackgroundColor(Color.rgb(17,13,47));
+        String[] labels={"⌂\nInicio","▣\nFlotante","♧\nAlertas","▦\nWidgets","···\nMás"};
+        Runnable[] actions={
+            this::showDashboard,this::showFloatingPanel,
+            ()->openSettings("alerts"),this::showWidgetsPanel,this::showMorePanel
+        };
+        for(int i=0;i<labels.length;i++){
+            final int index=i;
+            TextView item=text(labels[i],12,index==0);
+            item.setGravity(Gravity.CENTER);
+            item.setTextColor(index==0?Color.WHITE:Color.rgb(165,151,212));
+            item.setOnClickListener(v->actions[index].run());
+            nav.addView(item,new LinearLayout.LayoutParams(0,dp(65),1));
+        }
+        screen.addView(nav,new LinearLayout.LayoutParams(-1,dp(67)));
+    }
+    private void showFloatingPanel(){
+        dashboard=true;base("Control de superposiciones sobre juegos");
+        content.addView(text("VENTANA FLOTANTE",21,true));
+        content.addView(text("El botón circular se puede arrastrar a cualquier lugar. Tócalo para ocultar o mostrar el chat; las alertas son independientes.",14,false));
+        button("Activar ventana flotante",this::startOverlay);
+        button("Probar alerta original de GREÑA (DEMO)",this::testAlert);
+        button("Detener ventana flotante",this::stopOverlay);
+        button("← Inicio",this::showDashboard);
+    }
+    private void showWidgetsPanel(){
+        dashboard=true;base("Widgets y herramientas para transmisiones móviles");
+        content.addView(text("WIDGETS",21,true));
+        content.addView(text("El chat y las alertas están disponibles como capas transparentes sobre el juego. Los demás widgets de PC necesitan adaptación por separado.",14,false));
+        button("Activar chat y alertas flotantes",this::startOverlay);
+        button("Configurar alertas",()->openSettings("alerts"));
+        button("← Inicio",this::showDashboard);
+    }
+    private void showMorePanel(){
+        dashboard=true;base("Cuenta y conexiones de GREÑA ID");
+        content.addView(text("MÁS",21,true));
+        button("Vincular y configurar canales",()->openSettings("channels"));
+        button("Configurar alertas",()->openSettings("alerts"));
+        button("Volver al inicio",this::showDashboard);
+        button("Cerrar sesión en este teléfono",this::logout);
+    }
+    private void stopOverlay(){
+        Intent stop=new Intent(this,OverlayService.class);
+        stop.setAction(OverlayService.ACTION_STOP);
+        startService(stop);
+        say("Ventana flotante detenida.");
+    }
+    private void testAlert(){
+        if(!Settings.canDrawOverlays(this)){startOverlay();return;}
+        Intent i=new Intent(this,OverlayService.class);
+        i.setAction(OverlayService.ACTION_UPDATE);
+        i.putExtra("test",true);startForegroundService(i);
+        say("Alerta de demostración de la plantilla GREÑA seleccionada.");
+    }
+    private void logout(){
+        stopOverlay();
+        SecureSession.clear(this);MobileRelayApi.clear();token="";showLogin();
     }
     private void say(String message){if(feedback!=null)feedback.setText(message);}
     private EditText field(String label, boolean password){
@@ -107,44 +202,70 @@ public final class MainActivity extends Activity {
         base("Panel independiente · sincronizado con la comunidad central de GREÑA Live.");
         communityView=text("Conectando a Canales en vivo...",14,false);
         communityView.setPadding(dp(10),dp(10),dp(10),dp(10));
-        communityView.setBackgroundColor(Color.rgb(28,33,57));content.addView(communityView);
+        communityView.setTextSize(18);
+        communityView.setBackground(pill(Color.rgb(34,31,94),Color.rgb(100,76,225),23));
+        content.addView(communityView);
+        content.addView(text("CANALES Y ESTADO DE TRANSMISIÓN",14,true));
+        LinearLayout platforms=new LinearLayout(this);platforms.setOrientation(LinearLayout.HORIZONTAL);
+        for(String name:new String[]{"TikTok","Twitch","Kick","YouTube"}){
+            TextView chip=text("● "+name,13,true);
+            chip.setTextColor(name.equals("TikTok")?Color.rgb(61,231,219):Color.rgb(196,179,249));
+            chip.setBackground(pill(Color.rgb(27,19,67),Color.rgb(82,68,151),30));
+            chip.setPadding(dp(10),dp(9),dp(10),dp(9));
+            LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,-2);cp.rightMargin=dp(7);
+            platforms.addView(chip,cp);
+        }
+        HorizontalScrollView strip=new HorizontalScrollView(this);
+        strip.setHorizontalScrollBarEnabled(false);strip.addView(platforms);
+        content.addView(strip);
+        content.addView(text("CHAT EN VIVO",17,true));
+        chatPreview=text("Aún no se han recibido comentarios del LIVE.",14,false);
+        chatPreview.setBackground(pill(Color.rgb(15,31,51),Color.rgb(20,166,164),16));
+        chatPreview.setPadding(dp(12),dp(12),dp(12),dp(12));content.addView(chatPreview);
         button("Actualizar transmisiones",this::refreshCommunity);
         button("✨ Configurar alertas",()->openSettings("alerts"));
         button("🔗 Vincular y configurar canales",()->openSettings("channels"));
         button("🔴 Conectar TikTok LIVE",this::connectTikTok);
         button("⏹ Desconectar TikTok LIVE",this::disconnectTikTok);
-        TextView connection=text("TikTok LIVE: "+
+        connectionView=text("TikTok LIVE: "+
             getSharedPreferences("grena_mobile_connection_v1",MODE_PRIVATE)
                 .getString("status","Sin conexión confirmada"),13,true);
-        connection.setTextColor(Color.rgb(115,229,207));content.addView(connection);
+        connectionView.setTextColor(Color.rgb(115,229,207));content.addView(connectionView);
+        updateLocalStatus();
         button("Activar ventana flotante",this::startOverlay);
-        button("Probar alerta flotante (DEMO)",()->{
-            if(!Settings.canDrawOverlays(this)){say("Primero concede el permiso de superposición.");return;}
-            Intent i=new Intent(this,OverlayService.class);i.setAction(OverlayService.ACTION_UPDATE);
-            i.putExtra("count",liveCount);i.putExtra("test",true);
-            JSONObject cache=MobileSettingsCache.read(this,token,"alerts");
-            JSONObject settings=cache==null?null:cache.optJSONObject("settings");
-            i.putExtra("theme",settings==null?"minecraft":settings.optString("theme","minecraft"));
-            startForegroundService(i);
-            say("Alerta de prueba enviada. No representa un evento real del LIVE.");
-        });
-        button("Detener ventana flotante",()->{
-            Intent stop=new Intent(this,OverlayService.class);stop.setAction(OverlayService.ACTION_STOP);startService(stop);
-            say("Ventana flotante detenida.");
-        });
-        button("Cerrar sesión en este teléfono",()->{
-            Intent stop=new Intent(this,OverlayService.class);stop.setAction(OverlayService.ACTION_STOP);
-            startService(stop);
-            SecureSession.clear(this);MobileRelayApi.clear();token="";showLogin();
-        });
+        button("Probar alerta flotante (DEMO)",this::testAlert);
+        button("Detener ventana flotante",this::stopOverlay);
+        button("Cerrar sesión en este teléfono",this::logout);
         TextView note=text("BETA 0.3: alertas AFTERGLOW originales de PC incluidas en el APK. El chat flotante puede ocultarse y su botón moverse. Los eventos reales de TikTok requieren que GREÑA ID active el servidor móvil independiente; si está apagado, verás un error claro. Esta app no cambia la presencia ni las conexiones de PC.",12,false);
         note.setTextColor(Color.LTGRAY);content.addView(note);
         if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=getPackageManager().PERMISSION_GRANTED)
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},3);
         handler.removeCallbacks(refreshLoop);if(visible)handler.post(refreshLoop);
     }
+    private void updateLocalStatus(){
+        if(connectionView!=null)connectionView.setText("TikTok LIVE: "+
+            getSharedPreferences("grena_mobile_connection_v1",MODE_PRIVATE)
+                .getString("status","Sin conexión confirmada"));
+        if(chatPreview!=null){
+            JSONObject saved=MobileSettingsCache.read(this,token,"chat-preview");
+            JSONObject data=saved==null?null:saved.optJSONObject("settings");
+            JSONArray messages=data==null?null:data.optJSONArray("messages");
+            if(messages!=null&&messages.length()>0){
+                StringBuilder out=new StringBuilder();
+                for(int i=Math.max(0,messages.length()-3);i<messages.length();i++){
+                    JSONObject msg=messages.optJSONObject(i);
+                    if(msg==null)continue;
+                    if(out.length()>0)out.append("\n\n");
+                    out.append(msg.optString("user","Usuario")).append(" · ")
+                        .append(msg.optString("message",""));
+                }
+                chatPreview.setText(out.toString());
+            }
+        }
+    }
     private void refreshCommunity(){
         if(!dashboard||loading||token.isEmpty())return;
+        updateLocalStatus();
         loading=true;
         final String myToken=token;
         executor.execute(()->{
