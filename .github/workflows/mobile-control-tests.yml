@@ -1,0 +1,27 @@
+name: GREÑA · Panel móvil alertas y canales
+on:
+  pull_request:
+    paths:
+      - 'mobile.html'
+      - 'mobile-control.js'
+      - 'mobile-control.css'
+      - 'mode.html'
+      - 'tests/mobile-control.test.mjs'
+      - '.github/workflows/mobile-control-tests.yml'
+  push:
+    branches:
+      - 'feature/mobile-alerts-channels-20261103'
+permissions:
+  contents: read
+jobs:
+  mobile-control:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Revisar sintaxis del panel móvil
+        run: node --check mobile-control.js
+      - name: Validar controles móviles sin alterar los módulos de PC
+        run: node --test tests/mobile-control.test.mjs
