@@ -111,6 +111,12 @@ public final class MainActivity extends Activity {
         button("Actualizar transmisiones",this::refreshCommunity);
         button("✨ Configurar alertas",()->openSettings("alerts"));
         button("🔗 Vincular y configurar canales",()->openSettings("channels"));
+        button("🔴 Conectar TikTok LIVE",this::connectTikTok);
+        button("⏹ Desconectar TikTok LIVE",this::disconnectTikTok);
+        TextView connection=text("TikTok LIVE: "+
+            getSharedPreferences("grena_mobile_connection_v1",MODE_PRIVATE)
+                .getString("status","Sin conexión confirmada"),13,true);
+        connection.setTextColor(Color.rgb(115,229,207));content.addView(connection);
         button("Activar ventana flotante",this::startOverlay);
         button("Probar alerta flotante (DEMO)",()->{
             if(!Settings.canDrawOverlays(this)){say("Primero concede el permiso de superposición.");return;}
@@ -127,9 +133,11 @@ public final class MainActivity extends Activity {
             say("Ventana flotante detenida.");
         });
         button("Cerrar sesión en este teléfono",()->{
-            SecureSession.clear(this);token="";stopService(new Intent(this,OverlayService.class));showLogin();
+            Intent stop=new Intent(this,OverlayService.class);stop.setAction(OverlayService.ACTION_STOP);
+            startService(stop);
+            SecureSession.clear(this);MobileRelayApi.clear();token="";showLogin();
         });
-        TextView note=text("BETA 0.2: incluye configuración Android de alertas y enlaces de canales guardada en GREÑA ID. Un enlace público no autoriza la cuenta; chat y alertas reales siguen pendientes del motor de eventos móvil. El overlay continúa en modo DEMO. Esta app no publica tu LIVE ni modifica la presencia de tu cuenta.",12,false);
+        TextView note=text("BETA 0.3: alertas AFTERGLOW originales de PC incluidas en el APK. El chat flotante puede ocultarse y su botón moverse. Los eventos reales de TikTok requieren que GREÑA ID active el servidor móvil independiente; si está apagado, verás un error claro. Esta app no cambia la presencia ni las conexiones de PC.",12,false);
         note.setTextColor(Color.LTGRAY);content.addView(note);
         if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=getPackageManager().PERMISSION_GRANTED)
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},3);
@@ -178,6 +186,31 @@ public final class MainActivity extends Activity {
                 });
             }
         });
+    }
+    private void connectTikTok(){
+        if(!Settings.canDrawOverlays(this)){
+            say("Necesitas el permiso Mostrar sobre otras apps. Actívalo en Ventana flotante.");
+            startOverlay();return;
+        }
+        JSONObject cached=MobileSettingsCache.read(this,token,"channels");
+        JSONObject stored=cached==null?null:cached.optJSONObject("settings");
+        JSONObject tiktok=stored==null?null:stored.optJSONObject("tiktok");
+        String url=tiktok==null?"":tiktok.optString("url","");
+        if(url.isEmpty()||tiktok==null||!tiktok.optBoolean("enabled",false)){
+            say("Primero añade y habilita tu enlace de TikTok en Canales.");
+            openSettings("channels");return;
+        }
+        Intent connect=new Intent(this,OverlayService.class);
+        connect.setAction(OverlayService.ACTION_CONNECT_TIKTOK);
+        connect.putExtra("username",url);
+        startForegroundService(connect);
+        say("Solicitando conexión real a TikTok LIVE. La ventana flotante mostrará si el servidor la confirmó.");
+    }
+    private void disconnectTikTok(){
+        Intent disconnect=new Intent(this,OverlayService.class);
+        disconnect.setAction(OverlayService.ACTION_DISCONNECT_TIKTOK);
+        startService(disconnect);
+        say("Solicitud de desconexión enviada. El botón flotante sigue disponible.");
     }
     private void openSettings(String section){
         Intent settings=new Intent(this,SettingsActivity.class);
