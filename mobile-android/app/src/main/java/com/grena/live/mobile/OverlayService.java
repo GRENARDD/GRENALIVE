@@ -92,7 +92,8 @@ public final class OverlayService extends Service {
 
     private static String safe(String value,int max){
         if(value==null)return "";
-        return value.replaceAll("[\\p{Cntrl}&&[^\\n]]","").trim().substring(0,Math.min(max,value.trim().length()));
+        String cleaned=value.replaceAll("[\\p{Cntrl}&&[^\\n]]","").trim();
+        return cleaned.substring(0,Math.min(max,cleaned.length()));
     }
     private int dp(float value){return(int)(value*getResources().getDisplayMetrics().density+0.5f);}
     private GradientDrawable rounded(int color,int stroke,int radius){
