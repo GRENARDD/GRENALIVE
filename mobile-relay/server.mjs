@@ -2,6 +2,7 @@ import http from 'node:http';
 import { createHash } from 'node:crypto';
 import { TikTokLiveConnection, WebcastEvent, ControlEvent } from 'tiktok-live-connector';
 import { normalizeTikTokUsername, safeEventText } from './protocol.mjs';
+import { PLATFORM_IDS, PLATFORM_INFO, platformId } from './platforms.mjs';
 
 const PORT = Number(process.env.PORT || 8080);
 const LICENSE_BASE = 'https://grena-live-licenses.omelicolon18.workers.dev';
@@ -73,7 +74,7 @@ async function stop(session,reason='Desconectado') {
   session.conn=null;
 }
 function info(session) {
-  return {ok:true,connected:session.connected,state:session.state,username:session.username,
+  return {ok:true,platform:'tiktok',connected:session.connected,state:session.state,username:session.username,
     roomId:session.roomId||'',viewers:session.viewers||0,lastSeq:session.seq};
 }
 async function connect(key,username) {
@@ -148,7 +149,7 @@ const server=http.createServer(async(req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
   if(pathname==='/health'&&req.method==='GET'){
     return json(res,200,{ok:true,service:'GREÑA Mobile Relay BETA',activeSessions:sessions.size,
-      platform:'tiktok',pcServerModified:false});
+      platform:'tiktok',platforms:PLATFORM_IDS,pcServerModified:false});
   }
   if(!pathname.startsWith('/api/mobile/'))return json(res,404,{ok:false,error:'Ruta no encontrada'});
   const token=bearer(req);
@@ -157,9 +158,24 @@ const server=http.createServer(async(req,res)=>{
   try{key=await verify(token);}
   catch(error){return json(res,error.status||503,{ok:false,error:error.status===401?'GREÑA ID inválido o vencido.':'No se pudo comprobar GREÑA ID.'});}
   const session=sessions.get(key);
+  if(pathname==='/api/mobile/capabilities'&&req.method==='GET'){
+    const platforms=Object.fromEntries(PLATFORM_IDS.map(id=>[id,{
+      name:PLATFORM_INFO[id].name,
+      auth:PLATFORM_INFO[id].auth,
+      expectedEvents:PLATFORM_INFO[id].events,
+      adapterImplemented:id==='tiktok',
+      serverRunning:true,
+      liveConfirmed:id==='tiktok'&&session?.connected===true,
+      state:id==='tiktok'?(session?.connected===true?'live':'not_connected'):'adapter_unavailable'
+    }]));
+    return json(res,200,{ok:true,platforms,server:'independent-node',usesRailway:false});
+  }
   if(pathname==='/api/mobile/connect'&&req.method==='POST'){
     try {
       const body=await readBody(req);
+      const platform=platformId(body.platform||'tiktok');
+      if(platform!=='tiktok')return json(res,501,{ok:false,connected:false,
+        platform,error:'El adaptador móvil de '+PLATFORM_INFO[platform].name+' requiere autorización e implementación. El enlace guardado no es una conexión real.'});
       const name=publicUsername(body.username||body.url);
       if(session?.lastConnectAt&&Date.now()-session.lastConnectAt<10_000&&session.username!==name)
         return json(res,429,{ok:false,error:'Espera antes de cambiar de canal.'});
