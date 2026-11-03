@@ -1,65 +1,40 @@
-# GREÑA Live Mobile 0.2 BETA — aplicación Android independiente
+# GREÑA LIVE PRO — Android v0.3 BETA
 
-**Esta es la app Android instalable**, no la interfaz web móvil de GREÑA Live. El código en \`mobile-android/\` se compila en GitHub Actions como APK de prueba. No se integra ni sustituye aún al instalador Windows.
+**Estado: APK de pruebas compilado; NO ES UNA VERSIÓN COMPLETA NI ESTABLE.**
+Este código es una aplicación Android Java dentro de `mobile-android/`. No es la web móvil.
 
-## Nuevo en 0.2: configuración desde el teléfono
+## Implementado en el APK
 
-Tras entrar con GREÑA ID, el panel nativo tiene dos botones:
+- **Identidad e ícono:** el mismo símbolo «G» de `favicon.svg` en GREÑA Live de PC.
+- **Diseño móvil:** encabezado GREÑA LIVE PRO, controles de canal, chat en vivo, pestañas Inicio / Flotante / Alertas / Widgets / Más, colores morados y paneles redondeados siguiendo el PDF del usuario.
+- **Ventana flotante:** chat no interactivo, botón independiente de 53dp que se puede **arrastrar** a cualquier posición; tocarlo oculta / muestra solo el chat. La posición y visibilidad se recuerdan. Las alertas no dependen de que el chat esté visible.
+- **ALERTAS PC:** copia íntegra de la carpeta `assets/` del proyecto PC, plantillas de ajolote, Mascot Alerts, catálogo premium y pantalla completa, junto con `afterglow-overlay.html` adaptado para funcionar **sin conexión al WebSocket local del PC**. Se muestran mediante WebView transparente, con controles de sonido y tema locales. Las personalizaciones privadas de cada PC no están sincronizadas todavía.
+- **GREÑA ID:** autenticación con token protegido en Android Keystore; consulta central de comunidad en modo lectura.
+- **TikTok relay Android:** botones Conectar / Desconectar y cliente HTTPS que consulta una ruta confiable de GREÑA ID para descubrir el servidor, nunca un host ingresado arbitrariamente. Una conexión solo se marca como real si el servidor confirma el LIVE.
+- **Sin regresiones PC:** no escribe presencia de usuario, no modifica backend ni licencia de producción. Fuente de eventos desarrollada bajo `mobile-relay/`, separada del servidor de PC.
 
-- **✨ Configurar alertas**: elegir los temas Minecraft Pixelcraft, Dominó, GREÑITO, Personajes Pixel y otras plantillas existentes de GREÑA; volumen, intensidad, sonidos por tipo de evento, fuente y colores; guardar en la sección \`alerts\` de tu GREÑA ID.
-- **🔗 Vincular y configurar canales**: guardar enlaces públicos de TikTok, Twitch, Kick, YouTube y Starvios (incluido escribir \`@usuario\`); activar/desactivar cada fuente para una integración futura, en la sección \`channels\` de GREÑA ID.
+## Lo que falta antes de poder usarlo como producto terminado
 
-Las pantallas son nativas Android (Java) y usan HTTPS con Bearer GREÑA ID. La cuenta usa ajustes separados por sección y revisionado para detectar cambios simultáneos y no sobrescribir a otro dispositivo por accidente.
+1. **El servicio móvil aún NO está desplegado.** La cuenta Railway conectada contestó «Your trial has expired. Please select a plan to continue using Railway» al intentar crear un proyecto independiente. NO se inició ningún servicio ni se creó un cargo.
+2. **Cloudflare:** la nueva ruta de descubrimiento `/api/license/mobile-relay` y `/api/license/mobile-settings` solo están en la rama de desarrollo. No se han desplegado ni migrado a producción.
+3. **Eventos reales:** el código del relay usa `tiktok-live-connector` 2.5.0 (API no oficial). Hasta activar Railway y probar con un LIVE público en curso, las alertas de TikTok son visualización de DEMO, no eventos comprobados. El conector depende de proveedor de firmas, sus límites y cambios de TikTok.
+4. **Twitch, Kick, YouTube y Starvios:** se pueden guardar enlaces, pero **no** hay conexiones de eventos móviles reales ni OAuth.
+5. **Widgets avanzados y TTS Fish Audio:** no se han adaptado todos a Android. Los ajustes del escritorio siguen siendo locales y no se han migrado a nube. Los efectos de sonido pueden depender de permisos de audio del dispositivo y de reproducción de WebView.
+6. **Verificación real de dispositivo:** no se han hecho pruebas en teléfono Android físico, diferentes juegos y versiones Android. Compilar no garantiza superposición o sonido en todos los modelos.
 
-**Requisito para usar Guardar y Cargar:** desplegar primero el endpoint \`GET/POST /api/license/mobile-settings?section=alerts|channels\` del Worker \`cloudflare/licenses/src/worker.mjs\` de esta rama tras revisar sus pruebas. Esta rama NO despliega ni altera la producción por sí sola.
+## Cómo probar la beta
 
-**Alcance actual:** guardar un enlace público NO es OAuth ni autentica la cuenta de Twitch/Kick/YouTube, y NO conecta automáticamente chat ni alertas del LIVE. El overlay flotante sigue siendo DEMO y está identificado como tal. El PC todavía no sincroniza automáticamente sus ajustes AFTERGLOW locales con las nuevas secciones Cloudflare; esa integración es el siguiente paso. No afirmar que los estilos se reflejan ya en la PC.
+1. Instala el APK `app-debug.apk` que genera GitHub Actions (solo en Android de pruebas).
+2. Accede con GREÑA ID.
+3. En **Flotante**, acepta `Mostrar sobre otras apps`, activa el overlay y prueba una alerta **DEMO**.
+4. Abre un juego y **arrastra el botón circular** a donde quieras; tócala para ocultar o recuperar el chat. Confirma que no obstaculiza controles fuera del botón.
+5. En **Alertas** selecciona las plantillas originales, guarda, vuelve y prueba. Si Cloudflare no dispone de ruta de settings, queda guardado **solo en ese teléfono**, con aviso.
+6. En **Canales**, guarda el enlace público de TikTok. La opción «Conectar TikTok LIVE» mostrará el error del servicio hasta que Railway y Cloudflare estén habilitados; ese estado es esperado y explícito, no un falso éxito.
 
-## Base Android anterior
+## Copias de seguridad antes del trabajo
 
-## Qué funciona en esta primera base
+- Código Windows / Worker publicado en GitHub main: `backup/2026-11-03-pc-production-before-mobile-integration` desde commit `b992fcaf5aeb6f612175499ef47bf9a0bba4f7b4`.
+- Código Android 0.2: `backup/2026-11-03-android-v0-2-before-floating-chat` desde commit `c2dc5adfa6f54fa8cf9528d0d527d6f197027552`.
+- **Estos respaldos son Git, no un dump de Cloudflare D1 ni Railway volumen.** No se realizaron mutaciones sobre esos datos de producción.
 
-- Inicio de sesión con el mismo GREÑA ID utilizado por GREÑA Live de escritorio (Cloudflare Worker existente).
-- Consulta a `GET /api/license/community` con Bearer token para mostrar **la misma lista central de streamers activos** que consulta el PC. Recarga cuando la app está visible (cada 15 segundos).
-- Sesión protegida mediante Android Keystore con AES-GCM; contraseña no persistida y copia de seguridad de app desactivada.
-- Interfaz para activar el permiso Android de **Mostrar sobre otras apps**, iniciar/detener una ventana flotante y mostrar una alerta marcada como **DEMO**.
-- La ventana lleva `FLAG_NOT_TOUCHABLE|FLAG_NOT_FOCUSABLE` y opacidad efectiva reducida para minimizar la interferencia de toques del juego. La garantía depende de versión Android, fabricante y sistema de seguridad.
-- Servicio en primer plano con notificación: permite saber cuándo el overlay está activo. Detener desde la app.
-- **No modifica los registros de comunidad**, para no provocar que una sesión móvil borre la transmisión activa de escritorio.
-
-## Cómo compilar APK de prueba
-
-Requiere **Android Studio** con Android SDK API 35, Java/JDK 17 y Gradle 8.9+ (por ejemplo 8.10.2).
-
-1. Descomprime y abre esta carpeta como proyecto de Android Studio.
-2. Espera a que Gradle sincronice, con Internet para resolver el Android Gradle Plugin.
-3. En **Build → Build APK(s)** genera el APK de depuración, o ejecuta `gradle assembleDebug` desde la raíz si tienes Gradle instalado.
-4. El APK se generará en `app/build/outputs/apk/debug/app-debug.apk`.
-5. Instálalo únicamente en un teléfono Android de pruebas. Si Android solicita permiso de instalación de esta fuente, consiéntelo en el dispositivo de pruebas.
-
-## Configuración en el teléfono
-
-1. Abre **GREÑA Live Mobile** y entra con tu **GREÑA ID existente**.
-2. En **Canales en vivo** aparecerán las transmisiones que los usuarios han autorizado publicar y que el backend considere activas.
-3. Pulsa **Activar ventana flotante**, acepta **Mostrar sobre otras apps** y vuelve a la aplicación para pulsarlo de nuevo.
-4. Activa la notificación si Android lo solicita. Abre tu juego: la ventana flotante informativa se mostrará sin capturar toques.
-5. Usa **Probar alerta (DEMO)** para comprobar cómo se ve y **Detener ventana flotante** para apagarla.
-
-## Importante: trabajo pendiente antes de una beta con chat real
-
-- Añadir la fuente **central de eventos** (chat, follows, regalos y alertas) autorizada por usuario y por LIVE, con reanudación, deduplicación y filtros. El WebSocket de escritorio en `127.0.0.1:8787` **no es accesible desde otro teléfono**, y tampoco sirve cuando el PC está apagado.
-- Migrar presencia `community_presence` de una fila por usuario a **varias fuentes por usuario**, con heartbeat/TTL, para que desconectar móvil no oculte un PC que sigue en directo. Se encuentra documentado en `SINCRONIZACION.md`.
-- Guardar la opción de compartir transmisión y configuraciones de usuario en el mismo backend central, con configuraciones locales específicas para el overlay de cada dispositivo.
-- Probar compatibilidad/consumo/batería con juegos reales Android 12 a 15+ y ajustes de ahorro de batería de fabricantes.
-- Empaquetar release firmada con certificado propio cuando la app esté lista; **un APK debug no es distribución oficial**.
-- Añadir su descarga a la sección «Versión móvil» **solo después** de probar la app de manera independiente, según lo acordado.
-
-## Seguridad y límites
-
-- No registra contraseñas, tokens, ni datos privados en logs.
-- No coloca el token en URLs ni lo comparte con los widgets; se envía por `Authorization: Bearer` exclusivamente al servicio central HTTPS.
-- No envía estado de transmisión hasta que el backend gestione correctamente varios dispositivos.
-- Los eventos/alertas de ejemplo están marcados explícitamente como demostración.
-- Android puede bloquear algunos toques a través de superposiciones por seguridad; no se deben prometer excepciones universales.
-
-Proyecto independiente, **no cambia la aplicación de escritorio ni el Worker de producción**.
+La nueva infraestructura exige activar un plan de Railway (o conectar un alojamiento compatible) y desplegar el Worker con pruebas. Hasta entonces **no se puede afirmar que la aplicación esté lista para disfrutar con eventos reales**.
