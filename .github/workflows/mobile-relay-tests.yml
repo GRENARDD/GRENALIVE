@@ -4,6 +4,7 @@ on:
     branches:
       - feature/grena-android-v0-3-icon-draggable-chat-server-safe-20261103
       - feature/android-cloudflare-multiplatform-20261103
+      - feature/android-tiktok-only-v0-5-20261103
     paths:
       - "mobile-relay/**"
       - "cloudflare/licenses/src/worker.mjs"
