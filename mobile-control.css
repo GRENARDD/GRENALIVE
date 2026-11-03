@@ -1,0 +1,36 @@
+
+/* GREÑA LIVE · controles táctiles móviles · aislados del escritorio */
+.mobile-lead{margin:0 0 14px;color:#b7c7df;line-height:1.5;font-size:13px}
+.mobile-group{padding:12px;background:#101726;border:1px solid #364359;border-radius:13px;margin:10px 0}
+.mobile-group h3{font-size:14px;margin:0 0 11px;color:#f5f1ff}
+.mobile-stack{display:grid;gap:12px}
+.mobile-field{display:flex;flex-direction:column;gap:7px;color:#d2dcf1;font-size:13px}
+.mobile-field input:not([type=checkbox]):not([type=range]),.mobile-field select{width:100%;min-height:46px;background:#202b42;color:#fff;border:1px solid #465776;border-radius:11px;padding:10px 12px}
+.mobile-field input[type=color]{width:100%;height:46px;cursor:pointer;padding:3px;background:#202b42;border-radius:10px;border:1px solid #465776}
+.mobile-field input[type=range]{width:100%;accent-color:#ae82fe}
+.mobile-check{display:flex;align-items:center;gap:11px;min-height:44px;font-size:13px;color:#e2e9f9}
+.mobile-check input{width:22px;height:22px;accent-color:#aa86ff;flex-shrink:0}
+.mobile-2col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.mobile-2col>div{min-width:0}
+.mobile-preview{margin:12px 0;border:1px dashed #65749b;border-radius:15px;background:transparent;min-height:100px;display:grid;place-items:center;padding:18px 8px;text-align:center}
+.mobile-preview-card{border-radius:15px;display:flex;align-items:center;gap:11px;padding:12px 15px;background:linear-gradient(105deg,#2d204b,#192c42);border:1px solid #9d80e9;max-width:100%;text-align:left}
+.mobile-preview-avatar{border-radius:50%;width:38px;height:38px;display:grid;place-items:center;background:#7a4fbc;font-weight:900;flex-shrink:0}
+.mobile-preview-copy{min-width:0}.mobile-preview-copy b{font-size:13px}.mobile-preview-copy small{display:block;margin-top:3px;font-size:12px}
+.mobile-notice{font-size:12px;min-height:17px;line-height:1.4;color:#b7c7df}
+.mobile-notice.error{color:#ffaaa9}.mobile-notice.success{color:#81e9bb}
+.mobile-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.mobile-actions button{min-height:46px}
+.mobile-actions a,.mobile-quicklink{padding:12px;border-radius:10px;border:1px solid #465776;background:#202b42;color:#f0edff;text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;min-height:46px;font-weight:650}
+.mobile-actions .wide{grid-column:1/-1}
+.mobile-statusline{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.mobile-statusline b{font-size:14px}.mobile-statusline small{font-size:11px}
+.mobile-tip{font-size:12px;color:#9aabc6;line-height:1.5}
+.mobile-divider{border:0;border-top:1px solid #34415b;margin:13px 0}
+.mobile-channel-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mobile-channel-head h2{margin:0}
+.mobile-channel-list{margin-top:13px}
+.mobile-link-helpers{display:grid;gap:10px}
+.mobile-link-helpers button{width:100%}
+nav button.active-tab{background:#6c4ac4;border-color:#a48aff;font-weight:850}
+nav button{min-width:0;white-space:nowrap}
+@media(max-width:420px){nav{gap:4px;padding-left:6px;padding-right:6px}nav button{font-size:11px;padding:11px 2px}.mobile-2col{grid-template-columns:1fr 1fr}}
