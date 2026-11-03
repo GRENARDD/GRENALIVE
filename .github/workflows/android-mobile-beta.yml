@@ -7,6 +7,7 @@ on:
       - feature/grena-android-v0-3-icon-draggable-chat-server-safe-20261103
       - fix/android-v0-3-1-live-status-overlay-20261103
       - feature/android-cloudflare-multiplatform-20261103
+      - feature/android-tiktok-only-v0-5-20261103
     paths:
       - "mobile-android/**"
       - ".github/workflows/android-mobile-beta.yml"
@@ -44,7 +45,7 @@ jobs:
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
-          name: GRENA_Live_Mobile_v0.4_DEV_APK
+          name: GRENA_Live_Mobile_v0.5_TIKTOK_BETA_APK
           path: mobile-android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
           if-no-files-found: error
