@@ -164,7 +164,10 @@ public final class SettingsActivity extends Activity {
         button("↻ Recargar desde GREÑA ID",v->new AlertDialog.Builder(this)
             .setMessage("¿Descartar cambios sin guardar y cargar la configuración del servidor?")
             .setNegativeButton("Cancelar",null)
-            .setPositiveButton("Recargar",(dialog,which)->refresh()).show());
+            .setPositiveButton("Recargar",(dialog,which)->{
+                MobileSettingsCache.write(this,token,section,new JSONObject(),0,false);
+                refresh();
+            }).show());
         button("← Regresar al panel",v->finish());
     }
     private void buildAlerts(){
@@ -236,20 +239,37 @@ public final class SettingsActivity extends Activity {
         if(requestBusy)return;
         setBusy(true);showMessage("Leyendo ajustes compartidos...");
         final String requestToken=token;
+        final JSONObject local=MobileSettingsCache.read(this,requestToken,section);
         executor.execute(()->{
             try{
                 JSONObject response=GrenaApi.readMobileSettings(requestToken,section);
                 JSONObject data=response.optJSONObject("settings");
                 if(data==null)data=new JSONObject();
                 final JSONObject result=data;
-                final int rev=response.optInt("revision",0);
+                final int remoteRevision=response.optInt("revision",0);
                 runOnUiThread(()->{
                     if(isFinishing()||!token.equals(requestToken))return;
-                    revision=rev;populate(result);setBusy(false);
-                    showMessage("✓ Ajustes cargados · revisión "+revision);
+                    if(local!=null&&local.optBoolean("pending",false)){
+                        JSONObject pending=local.optJSONObject("settings");
+                        revision=local.optInt("revision",0);
+                        populate(pending==null?new JSONObject():pending);
+                        showMessage(revision==remoteRevision?
+                            "Cambios locales pendientes de sincronizar. Pulsa Guardar.":
+                            "Conflicto: también cambió la nube. Tus ajustes locales siguen a salvo. Recargar descarta los locales.");
+                    }else{
+                        revision=remoteRevision;populate(result);
+                        MobileSettingsCache.write(this,requestToken,section,result,revision,false);
+                        showMessage("✓ Ajustes compartidos cargados · revisión "+revision);
+                    }
+                    setBusy(false);
                 });
             }catch(Exception e){runOnUiThread(()->{
-                setBusy(false);showMessage("No se pudo leer del servidor: "+e.getMessage());
+                if(isFinishing()||!token.equals(requestToken))return;
+                JSONObject cached=local==null?new JSONObject():local.optJSONObject("settings");
+                revision=local==null?0:local.optInt("revision",0);
+                populate(cached==null?new JSONObject():cached);
+                setBusy(false);
+                showMessage("Modo local: puedes configurar y guardar. Sin sincronizar con Cloudflare ("+e.getMessage()+").");
             });}
         });
     }
@@ -309,7 +329,8 @@ public final class SettingsActivity extends Activity {
         catch(Exception e){showMessage("Corrige los datos: "+e.getMessage());return;}
         final int expectedRevision=revision;
         final String requestToken=token;
-        setBusy(true);showMessage("Guardando ajustes en GREÑA ID...");
+        MobileSettingsCache.write(this,requestToken,section,outgoing,expectedRevision,true);
+        setBusy(true);showMessage("Guardado local; sincronizando con GREÑA ID...");
         executor.execute(()->{
             try{
                 JSONObject response=GrenaApi.writeMobileSettings(requestToken,section,expectedRevision,outgoing);
@@ -319,10 +340,12 @@ public final class SettingsActivity extends Activity {
                 runOnUiThread(()->{
                     if(isFinishing()||!token.equals(requestToken))return;
                     revision=nextRevision;populate(result);setBusy(false);
-                    showMessage("✓ Guardado en GREÑA ID · revisión "+nextRevision);
+                    MobileSettingsCache.write(this,requestToken,section,result,revision,false);
+                    showMessage("✓ Guardado en este teléfono y en GREÑA ID · revisión "+nextRevision);
                 });
             }catch(Exception e){runOnUiThread(()->{
-                setBusy(false);showMessage("No se guardó: "+e.getMessage()+". Recarga si hubo cambios en otro dispositivo.");
+                setBusy(false);
+                showMessage("✓ Guardado SOLO en este teléfono. Nube pendiente: "+e.getMessage()+". No modifica las alertas de PC.");
             });}
         });
     }
