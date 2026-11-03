@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <application android:label="GREÑA Live Mobile" android:icon="@drawable/grena_app_icon"
+    <application android:name=".GrenaMobileApplication" android:label="GREÑA Live Mobile" android:icon="@drawable/grena_app_icon"
         android:theme="@android:style/Theme.Material.NoActionBar" android:usesCleartextTraffic="false"
         android:allowBackup="false" android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize">
