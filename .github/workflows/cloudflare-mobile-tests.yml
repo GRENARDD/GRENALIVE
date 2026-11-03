@@ -1,0 +1,47 @@
+name: GREÑA Mobile · Cloudflare container checks (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feature/android-cloudflare-multiplatform-20261103
+    paths:
+      - "mobile-relay/**"
+      - "cloudflare/mobile-container/**"
+      - ".github/workflows/cloudflare-mobile-tests.yml"
+  pull_request:
+    paths:
+      - "mobile-relay/**"
+      - "cloudflare/mobile-container/**"
+      - ".github/workflows/cloudflare-mobile-tests.yml"
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check isolated mobile JavaScript
+        run: |
+          node --check mobile-relay/server.mjs
+          node --check mobile-relay/platforms.mjs
+          node --check cloudflare/mobile-container/src/worker.mjs
+          node --test mobile-relay/test/*.test.mjs
+      - name: Check Cloudflare-only isolated configuration, no PC changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f mobile-relay/Dockerfile
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config=JSON.parse(fs.readFileSync('cloudflare/mobile-container/wrangler.jsonc','utf8'));
+          if(config.name!=='grena-live-mobile-relay-beta')throw Error('The mobile worker must not replace desktop or license worker');
+          if(config.containers.length!==1||config.containers[0].max_instances!==1)throw Error('Check container capacity');
+          if(config.durable_objects.bindings[0].class_name!=='GrenaMobileContainer')throw Error('DO binding mismatch');
+          if(!config.exports.GrenaMobileContainer)throw Error('Missing DO export');
+          if(!fs.existsSync('mobile-relay/Dockerfile'))throw Error('Missing mobile-only Dockerfile');
+          console.log('Independent Cloudflare Mobile worker configuration OK; no deployment performed.');
+          NODE
+      - name: Validate container helper package
+        run: npm --prefix cloudflare/mobile-container install --omit=dev --no-audit --no-fund
