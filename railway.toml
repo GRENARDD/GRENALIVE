@@ -1,10 +1,11 @@
+# Isolated Android TikTok event relay branch. Desktop Railway main remains on its own Dockerfile.
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "NIXPACKS"
+buildCommand = "npm --prefix mobile-relay install --omit=dev"
 
 [deploy]
-startCommand = "node server.mjs"
+startCommand = "npm --prefix mobile-relay start"
 healthcheckPath = "/health"
-healthcheckTimeout = 20
+healthcheckTimeout = 60
 restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
+restartPolicyMaxRetries = 5

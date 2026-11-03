@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-label="50000 KICKs">
+<defs>
+  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#86ff62"/><stop offset="1" stop-color="#53FC18"/></linearGradient>
+  <radialGradient id="bg"><stop stop-color="#163311"/><stop offset="1" stop-color="#080d08"/></radialGradient>
+  <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs>
+<rect x="8" y="8" width="224" height="224" rx="44" fill="url(#bg)" stroke="#2b4d24" stroke-width="3"/>
+<circle cx="120" cy="91" r="58" fill="#0d160d" stroke="#53FC18" stroke-width="4" filter="url(#glow)"/>
+<circle cx="120" cy="91" r="45" fill="#122511" stroke="#93ff73" stroke-width="2" opacity=".96"/>
+<path d="M92 60h17v22l21-22h22l-26 26 29 34h-23l-23-27v27H92z" fill="url(#g)"/>
+<circle cx="42" cy="48" r="5" fill="#53FC18" opacity=".65"/><circle cx="199" cy="59" r="4" fill="#9CFF7A" opacity=".72"/><path d="M30 126l10-6 10 6-10 6zM204 126l8-5 8 5-8 5z" fill="#53FC18" opacity=".65"/><circle cx="54" cy="194" r="3" fill="#fff" opacity=".75"/><circle cx="189" cy="190" r="3" fill="#fff" opacity=".75"/>
+<rect x="42" y="157" width="156" height="48" rx="24" fill="#53FC18"/>
+<text x="120" y="190" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="34" font-weight="900" fill="#081007">50K</text>
+<text x="120" y="221" text-anchor="middle" font-family="Segoe UI,Arial,sans-serif" font-size="14" font-weight="800" letter-spacing="2" fill="#94a58f">KICKS</text>
+</svg>

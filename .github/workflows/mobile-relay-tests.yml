@@ -1,0 +1,45 @@
+name: GREÑA Mobile · relay isolated CI
+on:
+  push:
+    branches:
+      - feature/grena-android-v0-3-icon-draggable-chat-server-safe-20261103
+    paths:
+      - "mobile-relay/**"
+      - "cloudflare/licenses/src/worker.mjs"
+      - ".github/workflows/mobile-relay-tests.yml"
+  pull_request:
+    paths:
+      - "mobile-relay/**"
+      - "cloudflare/licenses/src/worker.mjs"
+      - ".github/workflows/mobile-relay-tests.yml"
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Syntax / independent unit tests
+        run: |
+          node --check cloudflare/licenses/src/worker.mjs
+          node --check mobile-relay/server.mjs
+          node --test mobile-relay/test/*.test.mjs
+      - name: Install isolated connector only
+        run: npm --prefix mobile-relay install --omit=dev --no-audit --no-fund
+      - name: Verify the standalone relay starts and denies anonymous requests
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT=9800 node mobile-relay/server.mjs > /tmp/grena_mobile_ci.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 20); do
+            if curl -sSf "http://127.0.0.1:9800/health" > /tmp/health.json; then break; fi
+            sleep 1
+          done
+          node -e "const x=require('/tmp/health.json');if(!x.ok||x.pcServerModified!==false)process.exit(1)"
+          STATUS=$(curl -s -o /tmp/unauthorized.json -w '%{http_code}' 'http://127.0.0.1:9800/api/mobile/events')
+          test "$STATUS" = "401"

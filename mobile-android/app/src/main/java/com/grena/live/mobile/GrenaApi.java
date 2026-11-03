@@ -21,6 +21,9 @@ final class GrenaApi {
     static JSONObject community(String token) throws Exception {
         return call("GET", "/api/license/community", token, null);
     }
+    static JSONObject mobileRelay(String token) throws Exception {
+        return call("GET", "/api/license/mobile-relay", token, null);
+    }
     static JSONObject readMobileSettings(String token, String section) throws Exception {
         if(!"alerts".equals(section)&&!"channels".equals(section))throw new Exception("Sección inválida.");
         return call("GET", "/api/license/mobile-settings?section=" + section, token, null);

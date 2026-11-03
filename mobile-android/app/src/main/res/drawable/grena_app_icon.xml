@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="64" android:viewportHeight="64">
+    <!-- Exact GREÑA Live desktop favicon G mark, enlarged for Android. -->
+    <path android:fillColor="#0A1020"
+        android:pathData="M17,0 L47,0 C56.4,0 64,7.6 64,17 L64,47 C64,56.4 56.4,64 47,64 L17,64 C7.6,64 0,56.4 0,47 L0,17 C0,7.6 7.6,0 17,0 Z"/>
+    <path android:fillColor="#25F4EE"
+        android:pathData="M45,20 a22,22 0,1 0,2 25 V31 H32 v8 h7 a12,12 0,1 1,-1 -15 Z"/>
+    <path android:fillColor="#FF0033"
+        android:pathData="M38,17 a22,22 0,0 1,7 3 l-5,6 a12,12 0,0 0,-5 -2 Z"/>
+</vector>
