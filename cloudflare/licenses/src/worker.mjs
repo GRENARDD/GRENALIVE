@@ -207,6 +207,19 @@ async function handle(req,env){
    return json({ok:failed.length===0,service:'GREÑA Licencias Cloudflare D1',
      databaseReady:failed.length===0,fishCredentialsReady,failedChecks:failed},failed.length?503:200);
  }
+ // Mobile relay discovery is READ-ONLY. PC community/presence remains untouched.
+ if(path==='/api/license/mobile-relay'&&req.method==='GET'){
+   const user=await sessionUser(env,req);
+   if(!user)return fail('Cuenta GREÑA ID requerida.',401);
+   const value=String(env.MOBILE_RELAY_URL||'').trim();
+   if(!value)return json({ok:true,enabled:false,reason:'Servicio Android de eventos no desplegado.'});
+   try {
+     const url=new URL(value);
+     if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/')
+       return json({ok:true,enabled:false,reason:'La URL del relay requiere HTTPS y origen limpio.'});
+     return json({ok:true,enabled:true,baseUrl:url.origin});
+   }catch{return json({ok:true,enabled:false,reason:'Configuración del servidor móvil inválida.'})}
+ }
  if(path==='/api/license/community'&&req.method==='GET'){
    const u=await sessionUser(env,req);
    if(!u)return fail('Cuenta GREÑA ID requerida.',401);
