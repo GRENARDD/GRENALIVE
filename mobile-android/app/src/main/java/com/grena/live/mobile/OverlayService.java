@@ -23,6 +23,7 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import org.json.JSONObject;
 
 /**
  * GREÑA mobile native overlays:
@@ -46,6 +47,7 @@ public final class OverlayService extends Service {
     private LinearLayout chatItems;
     private TextView toggleButton;
     private TextView alert;
+    private PcAlertsView pcAlerts;
     private WindowManager.LayoutParams buttonParams;
     private boolean chatVisible=true;
 
@@ -78,14 +80,18 @@ public final class OverlayService extends Service {
         if(buttonParams==null)createWindows();
         if(intent==null)return START_STICKY;
         if(intent.getBooleanExtra("test",false)){
-            showAlert("DEMO · "+safe(intent.getStringExtra("theme"),24),"Alerta de prueba, no es un evento del LIVE",true);
+            showAlert("GREÑA DEMO","Esta es una prueba visual",true,"follow","tiktok",1,"");
         }
         if(ACTION_CHAT_EVENT.equals(intent.getAction())){
             appendChat(safe(intent.getStringExtra("platform"),12),
                 safe(intent.getStringExtra("user"),45),safe(intent.getStringExtra("message"),240));
         }else if(ACTION_ALERT_EVENT.equals(intent.getAction())){
             showAlert(safe(intent.getStringExtra("user"),45),
-                safe(intent.getStringExtra("message"),130),false);
+                safe(intent.getStringExtra("message"),130),false,
+                safe(intent.getStringExtra("event"),20),
+                safe(intent.getStringExtra("platform"),15),
+                Math.max(1,intent.getIntExtra("amount",1)),
+                safe(intent.getStringExtra("giftName"),50));
         }
         return START_STICKY;
     }
@@ -141,6 +147,17 @@ public final class OverlayService extends Service {
         alertParams.x=dp(12);alertParams.y=dp(40);alertParams.alpha=0.65f;
         wm.addView(alert,alertParams);
         alert.setVisibility(View.GONE);
+
+        // Actual GREÑA PC AFTERGLOW markup, SVGs, audio, pixel and domino themes.
+        pcAlerts=new PcAlertsView(this);
+        WindowManager.LayoutParams visual=overlayParams(dp(344),dp(355),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN);
+        visual.gravity=Gravity.TOP|Gravity.END;
+        visual.x=0;visual.y=dp(12);visual.alpha=0.67f;
+        wm.addView(pcAlerts,visual);
+        pcAlerts.setVisibility(View.GONE);
 
         // Exactly this small circular handle receives touch. It can be moved anywhere.
         toggleButton=t("",24,Color.rgb(207,249,251),true);
@@ -251,15 +268,36 @@ public final class OverlayService extends Service {
             chatItems.addView(card,lp);
         }
     }
-    private void showAlert(String username,String message,boolean demo){
-        if(alert==null)return;
-        String prefix=demo?"● DEMO":"♥ ALERTA";
-        alert.setText(prefix+"\n"+username+"\n"+message);
-        alert.setVisibility(View.VISIBLE);
-        alert.removeCallbacks(hideAlert);
-        alert.postDelayed(hideAlert,5500);
+    private void showAlert(String username,String message,boolean demo,
+                           String event,String platform,int amount,String giftName){
+        if(pcAlerts==null)return;
+        JSONObject cached=MobileSettingsCache.read(this,SecureSession.get(this),"alerts");
+        JSONObject settings=cached==null?new JSONObject():cached.optJSONObject("settings");
+        if(settings==null)settings=new JSONObject();
+        pcAlerts.configure(settings);
+        JSONObject payload=new JSONObject();
+        try {
+            payload.put("event",event.isEmpty()?"follow":event);
+            payload.put("platform",platform.isEmpty()?"tiktok":platform);
+            payload.put("name",username.isEmpty()?"Usuario":username);
+            payload.put("count",Math.max(1,amount));
+            payload.put("giftName",giftName.isEmpty()?"Regalo":giftName);
+            payload.put("eventId","android-"+System.nanoTime());
+        }catch(Exception ignored){}
+        pcAlerts.play(payload);
+        pcAlerts.setVisibility(View.VISIBLE);
+        pcAlerts.removeCallbacks(hidePcAlert);
+        pcAlerts.postDelayed(hidePcAlert,7700);
+        // No fake "received from LIVE" label in demo.
+        if(demo&&alert!=null){
+            alert.setText("● DEMOSTRACIÓN\nNo es un evento real");
+            alert.setVisibility(View.VISIBLE);
+            alert.removeCallbacks(hideAlert);
+            alert.postDelayed(hideAlert,3500);
+        }
     }
     private final Runnable hideAlert=()->{if(alert!=null)alert.setVisibility(View.GONE);};
+    private final Runnable hidePcAlert=()->{if(pcAlerts!=null)pcAlerts.setVisibility(View.GONE);};
     @Override public void onConfigurationChanged(Configuration newConfig){
         super.onConfigurationChanged(newConfig);
         if(buttonParams!=null&&toggleButton!=null){
@@ -270,10 +308,12 @@ public final class OverlayService extends Service {
     }
     @Override public void onDestroy(){
         if(alert!=null)alert.removeCallbacks(hideAlert);
-        for(View v:new View[]{toggleButton,alert,chatRoot}){
+        if(pcAlerts!=null)pcAlerts.removeCallbacks(hidePcAlert);
+        for(View v:new View[]{toggleButton,alert,chatRoot,pcAlerts}){
             if(v!=null&&wm!=null)try{wm.removeView(v);}catch(Exception ignored){}
         }
-        buttonParams=null;toggleButton=null;alert=null;chatRoot=null;chatItems=null;
+        if(pcAlerts!=null)pcAlerts.destroy();
+        pcAlerts=null;buttonParams=null;toggleButton=null;alert=null;chatRoot=null;chatItems=null;
         super.onDestroy();
     }
     @Override public IBinder onBind(Intent intent){return null;}
