@@ -20,7 +20,7 @@
 #openLinks{width:100%;margin-top:8px}
 .link-form.hidden,.settings-grid .hidden{display:none!important}
 @media(max-width:390px){.row{flex-wrap:wrap}.row select{flex-basis:45%}.settings-grid{grid-template-columns:1fr}}
-</style></head><body><header><b>⚡ GREÑA <span style="color:#b4a0fc">MÓVIL</span></b><div><small id="connection">Conectando…</small> <button id="switch" type="button">⇄ Versión</button></div></header><main>
+</style><link rel="stylesheet" href="/mobile-control.css"></head><body><header><b>⚡ GREÑA <span style="color:#b4a0fc">MÓVIL</span></b><div><small id="connection">Conectando…</small> <button id="switch" type="button">⇄ Versión</button></div></header><main>
 <section class="panel" id="home"><h2>Plataformas <small id="total"></small></h2><div class="platforms" id="platforms"></div><p class="hint">El celular puede manejar GREÑA Chat y reproducir la voz sin ejecutar la interfaz completa de escritorio.</p><button id="openLinks" type="button">🔗 Vincular plataformas</button></section>
 <section class="panel" id="chatPanel"><h2>💬 Multichat en vivo</h2><div class="chat" id="messages" role="log" aria-live="off"><p class="muted">Esperando mensajes del LIVE…</p></div><div class="row"><label><input type="checkbox" id="voice"> 🔊 Leer</label><select id="voicePlatform" aria-label="Plataforma para voz"><option value="all">Todas las plataformas</option><option value="tiktok">TikTok</option><option value="twitch">Twitch</option><option value="kick">Kick</option><option value="youtube">YouTube</option><option value="starvios">Starvios</option></select><button id="testVoice">Probar voz</button></div>
 <details class="voice-settings" open><summary>🎙️ Configuración de voz · Fish Audio</summary>
@@ -31,18 +31,94 @@
 <label for="voiceVolume">Volumen <span id="volumeValue">100%</span><input id="voiceVolume" type="range" min="0" max="1" step="0.1" value="1"></label>
 </div><p id="voiceInfo" role="status" aria-live="polite">Selecciona una voz y toca «Probar voz».</p>
 </details><p class="hint">Toca «Leer» para activar el sonido. La voz sale por los altavoces o audífonos del teléfono, no por su micrófono. Para que OBS en otra PC la capture, necesitas conectar el audio del móvil a la PC.</p></section>
-<section class="panel hidden" id="toolsPanel"><h2>🛠️ Controles</h2><div class="actions"><button id="alerts">Alertas</button><button id="widgets">Widgets OBS</button><button id="catalog">Catálogo</button></div><p class="hint">Estas herramientas reutilizan tu cuenta y la configuración de GREÑA. Algunas pantallas avanzadas pueden requerir más espacio.</p><iframe class="hidden" id="toolFrame" title="Herramienta GREÑA" loading="lazy"></iframe></section>
+
+<section class="panel hidden" id="alertPanel">
+ <h2>✨ Configurar alertas</h2>
+ <p class="mobile-lead">Las mismas alertas de AFTERGLOW que utilizas en PC, con controles cómodos para tocar desde el móvil. Los cambios se aplican al guardar.</p>
+ <div class="mobile-preview" aria-label="Vista ilustrativa, no reproducción del overlay">
+   <div class="mobile-preview-card" id="mobPreviewCard"><span class="mobile-preview-avatar">G</span><span class="mobile-preview-copy"><b>GREÑA_FAN · Nuevo seguidor</b><small id="mobPreviewTitle">Minecraft Pixelcraft</small></span></div>
+ </div>
+ <p class="mobile-tip">Vista ilustrativa del editor. La animación definitiva se reproduce en el overlay transparente.</p>
+ <div class="mobile-group mobile-stack">
+   <h3>🎨 Tema de alerta</h3>
+   <label class="mobile-field">Plantilla
+     <select id="mobTheme">
+       <option value="minecraft">Minecraft Pixelcraft</option><option value="domino">Dominó</option>
+       <option value="grena_grenito">GREÑITO · Ajolote Mágico</option><option value="grena_mascots">Personajes Pixel</option>
+       <option value="grena_catalog">Catálogo Premium</option><option value="grena_fullscreen">Pantalla completa</option>
+       <option value="ascension">Ascensión Premium</option><option value="celestial">Celestial</option>
+       <option value="sakura">Sakura</option><option value="comic">Cómic</option>
+       <option value="hologram">Holográfico</option><option value="inferno">Inferno</option>
+       <option value="arcade">Arcade</option><option value="royal">Royal</option><option value="void">Void</option>
+     </select>
+   </label>
+   <label class="mobile-field" id="mobMascotField" hidden>Personaje Pixel
+     <select id="mobMascot"><option value="zp">Zorro Pixel</option><option value="pg">Cerdito Cúbico</option><option value="bm">Verdecito</option><option value="sk">Esqueleto</option><option value="dg">Dragón</option></select>
+   </label>
+   <div class="mobile-2col">
+     <div><label class="mobile-field">Intensidad <b id="mobIntensityOut">65%</b><input id="mobIntensity" type="range" min="0" max="100" value="65"></label></div>
+     <div><label class="mobile-field">Volumen <b id="mobVolumeOut">54%</b><input id="mobVolume" type="range" min="0" max="100" value="54"></label></div>
+   </div>
+   <label class="mobile-field">Salida de audio
+     <select id="mobAudioRoute"><option value="both">Vertical y horizontal</option><option value="vertical">Solo vertical</option><option value="horizontal">Solo horizontal</option><option value="muted">Sin audio en OBS</option></select>
+   </label>
+   <label class="mobile-check"><input id="mobSoundOn" type="checkbox" checked> Reproducir sonidos de alerta</label>
+ </div>
+ <div class="mobile-group">
+   <h3>🔔 Sonidos por tipo de evento</h3>
+   <div class="mobile-2col">
+     <label class="mobile-check"><input id="mobSound-follow" type="checkbox" checked> Seguidores</label>
+     <label class="mobile-check"><input id="mobSound-gift" type="checkbox" checked> Regalos</label>
+     <label class="mobile-check"><input id="mobSound-sub" type="checkbox" checked> Suscripciones</label>
+     <label class="mobile-check"><input id="mobSound-raid" type="checkbox" checked> Raids</label>
+     <label class="mobile-check"><input id="mobSound-share" type="checkbox" checked> Compartidos</label>
+     <label class="mobile-check"><input id="mobSound-likes" type="checkbox" checked> Tap Tap</label>
+   </div>
+ </div>
+ <div class="mobile-group mobile-stack">
+   <h3>✍️ Tipografía y colores</h3>
+   <label class="mobile-field">Fuente <select id="mobFont"><option>Inter</option><option>Segoe UI</option><option>Arial</option><option>Impact</option><option>Trebuchet MS</option></select></label>
+   <div class="mobile-2col">
+     <div><label class="mobile-field">Color del texto <input id="mobTextColor" type="color" value="#ffffff"></label></div>
+     <div><label class="mobile-field">Color principal <select id="mobAccentMode"><option value="platform">Según plataforma</option><option value="custom">Personalizado</option></select></label></div>
+   </div>
+   <label class="mobile-field" id="mobAccentField" hidden>Color personalizado <input id="mobAccent" type="color" value="#caff5f"></label>
+ </div>
+ <div class="mobile-actions"><button class="primary" id="mobSaveAlert">💾 Guardar alertas</button><button id="mobReloadAlert">↻ Recargar</button></div>
+ <p class="mobile-notice" id="mobAlertInfo" role="status" aria-live="polite"></p>
+ <hr class="mobile-divider">
+ <div class="mobile-group mobile-stack">
+   <h3>▶ Probar una alerta real</h3>
+   <div class="mobile-2col">
+     <div><label class="mobile-field">Plataforma <select id="mobTestPlatform"><option>TikTok</option><option>Twitch</option><option>Kick</option><option>Starvios</option><option>YouTube</option></select></label></div>
+     <div><label class="mobile-field">Evento <select id="mobTestEvent"><option value="follow">Seguidor</option><option value="gift">Regalo</option><option value="sub">Suscripción</option><option value="raid">Raid</option><option value="share">Compartir</option><option value="like">Tap Tap</option></select></label></div>
+   </div>
+   <button id="mobTestAlert" type="button">▶ Enviar prueba al overlay</button>
+ </div>
+ <div class="mobile-actions">
+  <a href="/afterglow-studio.html">Editor completo AFTERGLOW</a>
+  <a href="/custom-alerts.html">Alertas personalizadas</a>
+ </div>
+</section>
+
+<section class="panel hidden" id="channelsPanel">
+ <div class="mobile-channel-head"><h2>🔗 Mis canales</h2><button type="button" id="mobRefreshChannels">↻ Actualizar</button></div>
+ <p class="mobile-lead">Vincula TikTok, Twitch, Kick, YouTube o Starvios desde aquí. Los canales se gestionan con el mismo motor de tu cuenta GREÑA.</p>
+ <label class="mobile-check mobile-group"><input id="mobAutoConnect" type="checkbox" checked> Reconectar automáticamente mis canales</label>
+ <div class="mobile-channel-list link-list" id="linkedPlatforms" aria-label="Canales vinculados"></div>
+ <div class="link-form hidden" id="linkForm">
+  <label id="linkLabel" for="linkValue">Enlace de la plataforma</label>
+  <input id="linkValue" type="url" autocapitalize="none" spellcheck="false" autocomplete="off">
+  <div class="actions"><button type="button" id="linkCancel">Cancelar</button><button type="button" class="primary" id="linkSubmit">Vincular</button></div>
+ </div>
+ <p class="mobile-notice" id="linkInfo" role="status" aria-live="polite"></p>
+ <p class="mobile-notice" id="mobChannelInfo" role="status" aria-live="polite"></p>
+ <p class="mobile-tip">TikTok se conecta por enlace del LIVE, Twitch/Kick/YouTube usan autorización cuando está disponible, y Starvios utiliza un canal público. Vinculado no significa necesariamente que el directo esté activo.</p>
+</section>
+<section class="panel hidden" id="toolsPanel"><h2>🛠️ Más herramientas</h2><p class="mobile-lead">Accede a widgets, sonidos y el resto de tu cuenta.</p><div class="mobile-link-helpers"><button id="widgets">Widgets OBS</button><button id="catalog">Catálogo de regalos</button><button id="alerts">Editor clásico de alertas</button><button id="accountMobile">👤 Mi cuenta GREÑA</button><a class="mobile-quicklink" href="/cam-room.html">📷 Cam Room</a><a class="mobile-quicklink" href="/afterglow-studio.html">🎨 AFTERGLOW completo</a></div><p class="hint">Estas herramientas reutilizan tu cuenta y la configuración de GREÑA. Algunas pantallas avanzadas pueden requerir más espacio.</p><iframe class="hidden" id="toolFrame" title="Herramienta GREÑA" loading="lazy"></iframe></section>
 <section class="panel hidden" id="accountPanel"><h2>👤 Tu cuenta</h2><p id="accountName"></p>
-<h2>🔗 Vincular redes y plataformas</h2><p class="hint">Gestiona las conexiones de tu cuenta GREÑA sin salir de la versión móvil.</p>
-<div id="linkedPlatforms" class="link-list" aria-label="Plataformas vinculadas"></div>
-<div class="link-form hidden" id="linkForm">
-<label id="linkLabel" for="linkValue">Enlace de la plataforma</label>
-<input id="linkValue" type="url" autocapitalize="none" spellcheck="false" autocomplete="off">
-<div class="actions"><button type="button" id="linkCancel">Cancelar</button><button type="button" class="primary" id="linkSubmit">Vincular</button></div>
-</div>
-<p id="linkInfo" role="status" aria-live="polite"></p>
 <div class="actions"><button id="web">🖥 Versión web</button><button id="logout">Salir</button></div></section>
-</main><nav><button data-tab="chatPanel" class="primary">💬 Chat</button><button data-tab="home">📡 Estado</button><button data-tab="toolsPanel">🛠 Herramientas</button><button data-tab="accountPanel">👤 Cuenta</button></nav>
+</main><nav aria-label="Secciones móviles"><button data-tab="home">🏠 Inicio</button><button data-tab="chatPanel">💬 Chat</button><button data-tab="alertPanel">✨ Alertas</button><button data-tab="channelsPanel">🔗 Canales</button><button data-tab="toolsPanel">⚙ Más</button></nav>
 <script>
 const $=id=>document.getElementById(id),platforms=['tiktok','twitch','kick','youtube','starvios'],logos={tiktok:'/assets/platforms/tiktok.webp',twitch:'/assets/platforms/twitch.webp',kick:'/assets/platforms/kick.svg',youtube:'/assets/youtube-logo.svg',starvios:'/assets/platforms/starvios.svg'};
 
@@ -67,16 +143,16 @@ function unlockFishAudioFromTap(){
  }catch{}
 }
 const platformNames={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube',starvios:'Starvios'};
-let platformStatus={},platformOAuth={},linkingPlatform='';
+let platformStatus={},platformOAuth={},linkingPlatform='',mobileStarviosChannel='';
 function text(el,value){if(el)el.textContent=String(value??'')}
-function changeTab(id){for(const x of ['home','chatPanel','toolsPanel','accountPanel'])$(x).classList.toggle('hidden',id!==x)}
+function changeTab(id){for(const x of ['home','chatPanel','alertPanel','channelsPanel','toolsPanel','accountPanel'])$(x).classList.toggle('hidden',id!==x);document.querySelectorAll('nav [data-tab]').forEach(b=>{b.classList.toggle('active-tab',b.dataset.tab===id);if(b.dataset.tab===id)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});if(id==='alertPanel')window.grenaMobileAlertsOpen?.();if(id==='channelsPanel')window.grenaMobileChannelsOpen?.();window.scrollTo({top:0,behavior:'instant'})}
 document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>changeTab(b.dataset.tab));
 $('switch').onclick=()=>location.assign('/mode.html');$('web').onclick=()=>location.assign('/');
 $('logout').onclick=async()=>{stopVoice(true);try{await fetch('/api/account/logout',{method:'POST'})}catch{}location.replace('/login.html')};
-$('openLinks').onclick=()=>{changeTab('accountPanel');$('linkedPlatforms').scrollIntoView({behavior:'smooth',block:'start'})};
+$('openLinks').onclick=()=>changeTab('channelsPanel');$('accountMobile').onclick=()=>changeTab('accountPanel');window.grenaMobileRefresh=()=>refresh();
 $('platforms').replaceChildren(...platforms.map(p=>{const d=document.createElement('div');d.className='platform '+p;d.innerHTML='<img alt=""><span><b></b><br><small class="number">—</small></span><i class="dot"></i>';d.querySelector('img').src=logos[p];text(d.querySelector('b'),platformNames[p]);d.dataset.platform=p;return d}));
 function updateState(data){if(!data)return;for(const p of platforms){const row=document.querySelector('.platform[data-platform="'+p+'"]');if(!row)continue;const st=data.status?.[p]||{},views=data.viewers?.[p];row.querySelector('.dot').classList.toggle('on',p==='starvios'?st.live===true:!!(st.runtimeConnected||st.connected));text(row.querySelector('.number'),(p==='starvios'&&st.live===false?'OFFLINE':p==='starvios'&&st.live===true?'LIVE · ':'')+(Number.isFinite(+views)&&views!==undefined?Number(views).toLocaleString('es-DO')+' viendo':(st.label||'Esperando')))}if(data.viewers){const n=Object.values(data.viewers).reduce((a,b)=>a+(Number(b)||0),0);text($('total'),'· '+n.toLocaleString('es-DO')+' espectadores')}}
-async function refresh(){try{const [a,b]=await Promise.all([fetch('/api/status',{cache:'no-store'}).then(r=>r.json()),fetch('/api/viewers',{cache:'no-store'}).then(r=>r.json())]);platformStatus=a.status||{};platformOAuth=a.oauthConfigured||{};updateState({status:platformStatus,viewers:b.viewers});renderLinks()}catch{}}
+async function refresh(){try{const [a,b,c]=await Promise.all([fetch('/api/status',{cache:'no-store'}).then(r=>r.json()),fetch('/api/viewers',{cache:'no-store'}).then(r=>r.json()),fetch('/api/connection-prefs',{cache:'no-store'}).then(r=>r.ok?r.json():{}).catch(()=>({}))]);platformStatus=a.status||{};platformOAuth=a.oauthConfigured||{};mobileStarviosChannel=String(c.prefs?.starviosEnabled?c.prefs?.starviosUrl||'':'');updateState({status:platformStatus,viewers:b.viewers});renderLinks()}catch{}}
 function setVoiceInfo(message){text($('voiceInfo'),message)}
 function engineIsFish(){return $('voiceEngine').value==='fish'}
 function validFishId(){return /^[A-Za-z0-9_-]{8,160}$/.test($('fishModelId').value.trim())}
@@ -189,12 +265,12 @@ function linked(st){return !!(st.authenticated||st.runtimeConnected||st.account|
 function renderLinks(){
  const host=$('linkedPlatforms');host.replaceChildren();
  for(const p of platforms){
-  const st=platformStatus[p]||{},on=linked(st);
+  const st=platformStatus[p]||{},on=p==='starvios'?!!mobileStarviosChannel:linked(st);
   const row=document.createElement('div');row.className='link-item';
   const img=document.createElement('img');img.src=logos[p];img.alt='';
   const details=document.createElement('div');details.className='details';
   const name=document.createElement('b');text(name,platformNames[p]);
-  const hint=document.createElement('small');text(hint,on?(st.account?'@'+String(st.account).replace(/^@/,'')+' · ':'')+'Vinculada':'Sin vincular');
+  const hint=document.createElement('small');const account=p==='starvios'?mobileStarviosChannel:st.account;text(hint,on?(account?'@'+String(account).replace(/^@/,'')+' · ':'')+'Vinculada':'Sin vincular');
   details.append(name,hint);
   const button=document.createElement('button');button.type='button';button.textContent=on?'Desvincular':'Vincular';
   button.onclick=()=>on?unlinkPlatform(p):beginLink(p);
@@ -204,14 +280,14 @@ function renderLinks(){
 function linkNotice(message){text($('linkInfo'),message)}
 function beginLink(platform){
  linkingPlatform=platform;changeTab('accountPanel');$('linkForm').classList.add('hidden');
- if(platform==='twitch'||platform==='kick'){
+ if(platform==='twitch'||platform==='kick'||platform==='youtube'){
   if(platformOAuth[platform]===false){linkNotice(platformNames[platform]+' necesita autorización configurada en GREÑA.');return}
   linkNotice('Autoriza '+platformNames[platform]+' en la pestaña que se abrirá y vuelve aquí.');
   const windowRef=window.open('/oauth/'+platform+'/start','_blank');
-  if(!windowRef){linkNotice('Tu navegador bloqueó la ventana. Revisa los permisos de ventanas emergentes.')}
+  if(!windowRef){linkNotice('El navegador bloqueó la nueva ventana. Abriendo autorización en esta pestaña.');location.assign('/oauth/'+platform+'/start')}
   return;
  }
- const sample=platform==='tiktok'?'https://www.tiktok.com/@usuario/live':platform==='youtube'?'https://www.youtube.com/live/ID-del-directo':'usuario o enlace de Starvios';
+ const sample=platform==='tiktok'?'https://www.tiktok.com/@usuario/live':'usuario o enlace de Starvios';
  $('linkLabel').textContent=platformNames[platform]+' · usuario/enlace del LIVE';
  $('linkValue').type=platform==='starvios'?'text':'url';$('linkValue').value='';
  $('linkValue').placeholder=sample;
@@ -224,7 +300,12 @@ $('linkSubmit').onclick=async()=>{
  if(!p||!value){linkNotice('Escribe un enlace o usuario válido.');return}
  $('linkSubmit').disabled=true;linkNotice('Conectando '+platformNames[p]+'...');
  try{
-  if(p==='tiktok'){
+  if(p==='starvios'){
+   const username=value.replace(/^@/,'').trim();
+   const r=await fetch('/api/connection-prefs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({autoConnect:true,starviosUrl:username,starviosEnabled:true})});
+   const d=await r.json().catch(()=>({}));if(!r.ok||d.ok===false)throw Error(d.error||'No se pudo guardar Starvios.');
+   mobileStarviosChannel=username;
+  }else if(p==='tiktok'){
    const r=await fetch('/api/tiktok/live-link',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:value})});
    const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'No se pudo conectar TikTok.');
   }else{
@@ -242,7 +323,7 @@ async function unlinkPlatform(platform){
  try{
   const r=await fetch('/api/disconnect/'+platform,{method:'POST'});
   const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||'No se pudo desvincular.');
-  if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'disconnect-platform',platform}));
+  if(platform==='starvios'){const r2=await fetch('/api/connection-prefs',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({starviosUrl:'',starviosEnabled:false})});if(!r2.ok)throw Error('No se pudo borrar la vinculación guardada de Starvios.')}if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'disconnect-platform',platform}));
   linkNotice(platformNames[platform]+' desvinculada.');await refresh();
  }catch(e){linkNotice(e.message||'No se pudo desvincular.')}
 }
@@ -252,4 +333,4 @@ function addChat(m){const p=String(m.platform||'').toLowerCase();if(!platforms.i
 function chatConnect(){if(!sessionReady)return;clearTimeout(retry);let url;const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);url=cloud?(location.protocol==='https:'?'wss://':'ws://')+location.host+'/chat-ws':'ws://'+location.hostname+':8788/ws';try{ws=new WebSocket(url);ws.onopen=()=>text($('connection'),'Chat conectado');ws.onmessage=e=>{try{addChat(JSON.parse(e.data))}catch{}};ws.onerror=()=>{try{ws.close()}catch{}};ws.onclose=()=>{text($('connection'),'Reconectando…');retry=setTimeout(chatConnect,2500)}}catch{retry=setTimeout(chatConnect,2500)}}
 for(const [id,url]of [['alerts','/alerts.html?embed=1'],['widgets','/widgets.html?embed=1'],['catalog','/gift-catalog.html?embed=1']])$(id).onclick=()=>{$('toolFrame').classList.remove('hidden');$('toolFrame').src=url};
 async function init(){try{const a=await fetch('/api/account/me',{cache:'no-store'}).then(r=>r.json());if(!a.authenticated||!a.active||!a.user){location.replace('/login.html');return}if(!a.user.email){location.replace('/login.html#recovery-email');return}text($('accountName'),a.user.displayName||a.user.username);restoreMobileVoice(a.user);sessionReady=true;chatConnect();await refresh();setInterval(refresh,10000);changeTab('chatPanel')}catch{location.replace('/login.html')}}init();
-</script></body></html>
+</script><script src="/mobile-control.js" defer></script></body></html>
