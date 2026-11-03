@@ -33,6 +33,11 @@ final class MobileRelayApi {
         return baseUrl;
     }
 
+    static JSONObject capabilities(String token) throws Exception {
+        discover(token);
+        return request("GET","/api/mobile/capabilities",token,null);
+    }
+
     static JSONObject connect(String token,String username) throws Exception {
         if(baseUrl.isEmpty())discover(token);
         JSONObject body=new JSONObject();

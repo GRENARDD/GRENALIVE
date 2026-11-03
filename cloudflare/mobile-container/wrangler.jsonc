@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "grena-live-mobile-relay-beta",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-11-03",
+  "containers": [
+    {
+      "class_name": "GrenaMobileContainer",
+      "image": "../../mobile-relay/Dockerfile",
+      "max_instances": 1,
+      "instance_type": "basic"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "MOBILE_CONTAINER", "class_name": "GrenaMobileContainer" }
+    ]
+  },
+  "exports": {
+    "GrenaMobileContainer": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  }
+}

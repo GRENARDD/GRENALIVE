@@ -1,0 +1,14 @@
+{
+  "name": "grena-mobile-cloudflare-container",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/worker.mjs"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "^0.3.7"
+  },
+  "devDependencies": {
+    "wrangler": "^4.46.0"
+  }
+}
