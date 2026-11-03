@@ -115,7 +115,11 @@ public final class MainActivity extends Activity {
         button("Probar alerta flotante (DEMO)",()->{
             if(!Settings.canDrawOverlays(this)){say("Primero concede el permiso de superposición.");return;}
             Intent i=new Intent(this,OverlayService.class);i.setAction(OverlayService.ACTION_UPDATE);
-            i.putExtra("count",liveCount);i.putExtra("test",true);startForegroundService(i);
+            i.putExtra("count",liveCount);i.putExtra("test",true);
+            JSONObject cache=MobileSettingsCache.read(this,token,"alerts");
+            JSONObject settings=cache==null?null:cache.optJSONObject("settings");
+            i.putExtra("theme",settings==null?"minecraft":settings.optString("theme","minecraft"));
+            startForegroundService(i);
             say("Alerta de prueba enviada. No representa un evento real del LIVE.");
         });
         button("Detener ventana flotante",()->{
