@@ -344,13 +344,16 @@ public final class OverlayService extends Service {
                 JSONObject response=MobileRelayApi.connect(token,username);
                 ui.post(()->{
                     if(!remoteActive||!remoteToken.equals(token))return;
-                    if(response.optBoolean("connected",false)){
-                        setConnectionStatus("TikTok LIVE conectado · "+response.optString("username",""));
+                    if(response.optBoolean("watching",false)){
+                        if(response.optBoolean("connected",false))
+                            setConnectionStatus("LIVE confirmado · "+safe(response.optString("username",""),40));
+                        else
+                            setConnectionStatus("Esperando a que inicie TikTok LIVE · vigilancia activa");
                         ui.removeCallbacks(pollLoop);
                         ui.post(pollLoop);
                     }else{
                         remoteActive=false;
-                        setConnectionStatus("LIVE desconectado · "+response.optString("error","Sin señal"));
+                        setConnectionStatus("TikTok no conectado · "+safe(response.optString("error","No se inició vigilancia"),70));
                     }
                 });
             }catch(Exception e){
@@ -400,11 +403,18 @@ public final class OverlayService extends Service {
                             "TikTok · "+safe(event.optString("message"),90));
                     }
                     if(!result.optBoolean("connected",false)){
-                        remoteActive=false;
-                        setConnectionStatus("TikTok LIVE terminó o se desconectó");
+                        if(result.optBoolean("watching",false)){
+                            setConnectionStatus("Vigilando TikTok · LIVE todavía no confirmado");
+                            ui.postDelayed(pollLoop,4000);
+                        }else{
+                            remoteActive=false;
+                            setConnectionStatus("Vigilancia detenida · TikTok desconectado");
+                        }
                         return;
                     }
-                    setConnectionStatus("TikTok LIVE conectado · "+safe(remoteUsername,40));
+                    setConnectionStatus("EN DIRECTO · TikTok LIVE confirmado");
+                    getSharedPreferences("grena_mobile_connection_v1",MODE_PRIVATE).edit()
+                        .putInt("viewers",result.optInt("viewers",0)).apply();
                     ui.postDelayed(pollLoop,2300);
                 });
             }catch(Exception e){

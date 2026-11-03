@@ -34,8 +34,8 @@ public final class SettingsActivity extends Activity {
     private static final int BACKGROUND=Color.rgb(12,15,27);
     private static final int PURPLE=Color.rgb(188,164,255);
     private static final int PANEL=Color.rgb(28,33,54);
-    private static final String[] PLATFORMS={"tiktok","twitch","kick","youtube","starvios"};
-    private static final String[] PLATFORM_NAMES={"TikTok","Twitch","Kick","YouTube","Starvios"};
+    private static final String[] PLATFORMS={"tiktok"};
+    private static final String[] PLATFORM_NAMES={"TikTok LIVE"};
     private static final String[] EVENTS={"follow","gift","sub","raid","share","likes"};
     private static final String[] EVENT_NAMES={"Seguidores","Regalos","Suscripciones","Raids","Compartidos","Tap Tap"};
 
@@ -152,8 +152,8 @@ public final class SettingsActivity extends Activity {
         setContentView(scroll);
         TextView header=title("GREÑA LIVE · ANDROID",23,true);
         header.setTextColor(PURPLE);body.addView(header);
-        body.addView(title("channels".equals(section)?"🔗 Vincular y configurar canales":"✨ Configurar alertas",21,true));
-        TextView info=title("Tus cambios se guardan en GREÑA ID. Los enlaces públicos no conceden acceso OAuth ni activan eventos automáticamente.",12,false);
+        body.addView(title("channels".equals(section)?"🔗 Vincular TikTok LIVE":"✨ Configurar alertas TikTok",21,true));
+        TextView info=title("En esta versión Android solo trabajamos con TikTok LIVE. Los cambios se guardan localmente y se sincronizan con GREÑA ID cuando el servidor lo permita.",12,false);
         info.setTextColor(Color.LTGRAY);body.addView(info);
         message=title("Conectando...",13,false);
         message.setTextColor(Color.rgb(144,220,241));body.addView(message);
@@ -187,15 +187,15 @@ public final class SettingsActivity extends Activity {
         note.setTextColor(Color.LTGRAY);body.addView(note);
     }
     private void buildChannels(){
-        TextView explanation=title("Introduce el usuario o el enlace público del canal. GREÑA lo guardará en tu cuenta. Para leer chat, seguidores y regalos reales todavía se necesita la conexión autorizada de cada plataforma.",13,false);
+        TextView explanation=title("Pega el enlace de una transmisión TikTok o escribe @usuario. GREÑA guardará el canal. Al conectar, el receptor buscará el LIVE y seguirá comprobando si todavía no está transmitiendo. El motor TikTok debe estar activo en el servidor.",13,false);
         explanation.setTextColor(Color.rgb(206,207,225));body.addView(explanation);
         for(int i=0;i<PLATFORMS.length;i++){
             String platform=PLATFORMS[i];
             addSpace(10);
             TextView platformName=title(PLATFORM_NAMES[i],17,true);
             platformName.setTextColor(PURPLE);body.addView(platformName);
-            EditText url=input("Canal o enlace de "+PLATFORM_NAMES[i],"@usuario o https://...");
-            CheckBox enabled=toggle("Usar este canal cuando el conector esté disponible");
+            EditText url=input("Canal TikTok o enlace LIVE","@usuario o https://www.tiktok.com/@usuario/live");
+            CheckBox enabled=toggle("Activar vigilancia de este TikTok LIVE");
             channelFields.put(platform,url);
             channelChecks.put(platform,enabled);
         }
@@ -279,24 +279,29 @@ public final class SettingsActivity extends Activity {
     }
     private static String channelUrl(String platform,String input) throws Exception{
         if(input.isEmpty())return "";
-        String value=input;
-        if(!input.contains("://")&&!input.contains("/")){
-            String handle=input.replaceFirst("^@","");
-            if(!handle.matches("[A-Za-z0-9_.-]{2,64}"))throw new Exception("Usuario inválido para "+platform+".");
-            switch(platform){
-                case "tiktok":value="https://www.tiktok.com/@"+handle+"/live";break;
-                case "twitch":value="https://www.twitch.tv/"+handle;break;
-                case "kick":value="https://kick.com/"+handle;break;
-                case "youtube":value="https://www.youtube.com/@"+handle+"/live";break;
-                case "starvios":value="https://www.starvios.com/"+handle;break;
-                default:throw new Exception("Plataforma desconocida.");
-            }
+        if(!"tiktok".equals(platform))throw new Exception("Android solo permite TikTok LIVE.");
+        String value=input.trim();
+        if(!value.contains("://")&&!value.contains("/")){
+            String handle=value.replaceFirst("^@","");
+            if(!handle.matches("[A-Za-z0-9._]{2,30}"))
+                throw new Exception("Escribe un usuario válido de TikTok.");
+            value="https://www.tiktok.com/@"+handle+"/live";
         }
-        if(!value.startsWith("https://"))throw new Exception("Usa enlaces HTTPS para "+platform+".");
-        return value;
+        java.net.URI url;
+        try{url=new java.net.URI(value);}catch(Exception e){throw new Exception("El enlace de TikTok no es válido.");}
+        String host=url.getHost()==null?"":url.getHost().toLowerCase(java.util.Locale.ROOT);
+        if(!"https".equalsIgnoreCase(url.getScheme())||
+           !("www.tiktok.com".equals(host)||"tiktok.com".equals(host)||"m.tiktok.com".equals(host))||
+           url.getUserInfo()!=null||url.getPort()!=-1||
+           !url.getPath().matches("/@[A-Za-z0-9._]{2,30}(/live)?/?")){
+            throw new Exception("Usa https://www.tiktok.com/@usuario/live.");
+        }
+        String handle=url.getPath().split("/")[1];
+        return "https://www.tiktok.com/"+handle+"/live";
     }
     private JSONObject collect() throws Exception{
-        JSONObject data=new JSONObject();
+        JSONObject data="channels".equals(section)
+            ?new JSONObject(snapshot.toString()):new JSONObject();
         if("alerts".equals(section)){
             data.put("theme",THEMES[theme.getSelectedItemPosition()]);
             data.put("mascotCharacter",CHARACTERS[character.getSelectedItemPosition()]);
@@ -314,7 +319,7 @@ public final class SettingsActivity extends Activity {
         }else{
             for(String platform:PLATFORMS){
                 String url=channelUrl(platform,trimmed(channelFields.get(platform)));
-                if(url.isEmpty())continue;
+                if(url.isEmpty()){data.remove(platform);continue;}
                 JSONObject entry=new JSONObject();
                 entry.put("url",url);entry.put("enabled",channelChecks.get(platform).isChecked());
                 data.put(platform,entry);

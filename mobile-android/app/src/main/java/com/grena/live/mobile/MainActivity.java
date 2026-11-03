@@ -23,8 +23,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,18 +38,18 @@ public final class MainActivity extends Activity {
     private final Handler handler=new Handler(Looper.getMainLooper());
     private LinearLayout content;
     private TextView feedback;
-    private TextView communityView;
     private TextView connectionView;
     private TextView linkedTikTokView;
-    private final Map<String,TextView> platformRows=new LinkedHashMap<>();
     private TextView relayStatusView;
     private TextView chatPreview;
     private String token="";
-    private int liveCount=0;
-    private boolean dashboard=false, visible=false, loading=false;
+    private boolean dashboard=false, visible=false;
     private final Runnable refreshLoop=new Runnable(){
         @Override public void run() {
-            if(visible&&dashboard) { refreshCommunity(); handler.postDelayed(this,15000); }
+            if(visible&&dashboard){
+                updateLocalStatus();
+                handler.postDelayed(this,3500);
+            }
         }
     };
 
@@ -139,95 +137,44 @@ public final class MainActivity extends Activity {
     }
     private void showWidgetsPanel(){
         dashboard=true;base("Widgets y herramientas para transmisiones móviles");
-        content.addView(text("WIDGETS",21,true));
-        content.addView(text("El chat y las alertas están disponibles como capas transparentes sobre el juego. Los demás widgets de PC necesitan adaptación por separado.",14,false));
-        button("Activar chat y alertas flotantes",this::startOverlay);
+        content.addView(text("WIDGETS DE TIKTOK",21,true));
+        content.addView(text("Solo TikTok LIVE: chat flotante y alertas originales de GREÑA Live PC. Los demás widgets no están disponibles en esta versión.",14,false));
+        button("Activar chat y alertas TikTok flotantes",this::startOverlay);
         button("Configurar alertas",()->openSettings("alerts"));
         button("← Inicio",this::showDashboard);
     }
     private void showMorePanel(){
         dashboard=true;base("Cuenta y conexiones de GREÑA ID");
         content.addView(text("MÁS",21,true));
-        button("Vincular y configurar canales",()->openSettings("channels"));
-        button("Diagnóstico de las cinco plataformas",this::showPlatformsPanel);
+        button("Vincular mi TikTok LIVE",()->openSettings("channels"));
+        button("Diagnóstico TikTok LIVE",this::showTikTokPanel);
         button("Configurar alertas",()->openSettings("alerts"));
         button("Volver al inicio",this::showDashboard);
         button("Cerrar sesión en este teléfono",this::logout);
     }
-    private void showPlatformsPanel(){
+    private void showTikTokPanel(){
         dashboard=true;
-        base("Verificación real de cinco plataformas · Cloudflare + GREÑA ID");
-        platformRows.clear();
-        content.addView(text("CONEXIONES DE GREÑA LIVE MOBILE",21,true));
-        TextView explanation=text("Enlace guardado NO significa LIVE conectado. Cada plataforma necesita su propio receptor, autorización y confirmación de eventos.",13,false);
-        explanation.setTextColor(Color.rgb(220,194,163));
-        content.addView(explanation);
-        String[] platforms={"tiktok","twitch","kick","youtube","starvios"};
-        String[] names={"TikTok","Twitch","Kick","YouTube","Starvios"};
-        JSONObject cache=MobileSettingsCache.read(this,token,"channels");
-        JSONObject settings=cache==null?null:cache.optJSONObject("settings");
-        for(int i=0;i<platforms.length;i++){
-            String platform=platforms[i];
-            JSONObject channel=settings==null?null:settings.optJSONObject(platform);
-            String url=channel==null?"":channel.optString("url","");
-            boolean enabled=channel!=null&&channel.optBoolean("enabled",false);
-            String label=names[i]+"\n"+
-                (url.isEmpty()?"No vinculado":url)+"\n"+
-                (url.isEmpty()?"Estado: falta canal":enabled?
-                "Estado: enlace guardado · LIVE sin verificar":"Estado: canal desactivado");
-            TextView card=text(label,14,true);
-            card.setPadding(dp(13),dp(11),dp(13),dp(11));
-            card.setBackground(pill(Color.rgb(19,26,52),Color.rgb(90,75,169),16));
-            LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);
-            lp.topMargin=dp(9);
-            content.addView(card,lp);
-            platformRows.put(platform,card);
-        }
-        button("Comprobar receptores y permisos",this::checkPlatformEngines);
-        button("Vincular / editar canales",()->openSettings("channels"));
-        button("Conectar TikTok (cuando el servidor esté activo)",this::connectTikTok);
+        base("Modo solo TikTok · conexión y alertas");
+        content.addView(text("MI TIKTOK LIVE",21,true));
+        linkedTikTokView=text("Leyendo TikTok guardado...",16,true);
+        linkedTikTokView.setPadding(dp(13),dp(11),dp(13),dp(11));
+        linkedTikTokView.setTextColor(Color.rgb(55,232,213));
+        linkedTikTokView.setBackground(pill(Color.rgb(14,32,54),Color.rgb(30,182,182),16));
+        content.addView(linkedTikTokView);
+        connectionView=text("TikTok LIVE · sin conexión confirmada",14,true);
+        connectionView.setTextColor(Color.rgb(255,199,143));
+        content.addView(connectionView);
+        relayStatusView=text("Comprobando receptor TikTok...",13,false);
+        relayStatusView.setTextColor(Color.rgb(255,199,143));
+        content.addView(relayStatusView);
+        content.addView(text("Guardado no significa conectado. El motor confirmará el LIVE cuando pueda acceder a TikTok; si el canal está apagado, podrá permanecer vigilándolo.",13,false));
+        button("Vincular o editar TikTok",()->openSettings("channels"));
+        button("Comprobar disponibilidad del motor",()->checkRelayStatus(true));
+        button("Activar y vigilar mi TikTok LIVE",this::connectTikTok);
+        button("Detener vigilancia TikTok",this::disconnectTikTok);
         button("← Inicio",this::showDashboard);
-        checkPlatformEngines();
-    }
-    private void checkPlatformEngines(){
-        if(token.isEmpty())return;
-        final String activeToken=token;
-        say("Comprobando servicios de eventos móviles...");
-        executor.execute(()->{
-            try{
-                JSONObject data=MobileRelayApi.capabilities(activeToken);
-                JSONObject all=data.optJSONObject("platforms");
-                runOnUiThread(()->{
-                    if(!activeToken.equals(token))return;
-                    for(Map.Entry<String,TextView> entry:platformRows.entrySet()){
-                        JSONObject config=all==null?null:all.optJSONObject(entry.getKey());
-                        boolean hasAdapter=config!=null&&config.optBoolean("adapterImplemented",false);
-                        boolean confirmed=config!=null&&config.optBoolean("liveConfirmed",false);
-                        String next=confirmed?"LIVE confirmado por el receptor":
-                            hasAdapter?"Receptor instalado; LIVE todavía no confirmado":
-                            "RECEPTOR NO IMPLEMENTADO · falta integración real";
-                        TextView card=entry.getValue();
-                        String original=card.getText().toString();
-                        int idx=original.indexOf("\nReceptor:");
-                        if(idx>=0)original=original.substring(0,idx);
-                        card.setText(original+"\nReceptor: "+next);
-                        card.setTextColor(confirmed?Color.rgb(77,237,184):Color.WHITE);
-                    }
-                    say("Estado del servidor actualizado. Solo LIVE confirmado es conexión real.");
-                });
-            }catch(Exception e){
-                runOnUiThread(()->{
-                    if(!activeToken.equals(token))return;
-                    say("Sin receptor central activo. Configurar canales NO detecta un LIVE.");
-                    for(TextView card:platformRows.values()){
-                        String original=card.getText().toString();
-                        int idx=original.indexOf("\nReceptor:");
-                        if(idx>=0)original=original.substring(0,idx);
-                        card.setText(original+"\nReceptor: NO DISPONIBLE en Cloudflare");
-                    }
-                });
-            }
-        });
+        updateLocalStatus();
+        checkRelayStatus(false);
     }
     private void stopOverlay(){
         Intent stop=new Intent(this,OverlayService.class);
@@ -258,7 +205,7 @@ public final class MainActivity extends Activity {
     }
     private void showLogin(){
         dashboard=false;handler.removeCallbacks(refreshLoop);
-        base("Accede con tu cuenta GREÑA ID. Mismas transmisiones en PC y Android.");
+        base("Accede con GREÑA ID para usar TikTok LIVE y las alertas GREÑA.");
         EditText user=field("Usuario GREÑA ID",false);
         EditText pass=field("Contraseña",true);
         button("Entrar a GREÑA",()->{
@@ -280,66 +227,55 @@ public final class MainActivity extends Activity {
     }
     private void showDashboard(){
         dashboard=true;
-        base("Panel Android · transmisiones propias y comunidad se consultan por separado.");
-        content.addView(text("MI TIKTOK VINCULADO",16,true));
-        linkedTikTokView=text("Leyendo canal guardado...",15,true);
-        linkedTikTokView.setTextColor(Color.rgb(64,224,210));
-        linkedTikTokView.setPadding(dp(12),dp(10),dp(12),dp(10));
-        linkedTikTokView.setBackground(pill(Color.rgb(15,31,51),Color.rgb(24,147,163),15));
+        base("Solo TikTok LIVE · chat flotante y alertas GREÑA");
+        content.addView(text("MI TIKTOK LIVE",19,true));
+        linkedTikTokView=text("Leyendo tu TikTok vinculado...",16,true);
+        linkedTikTokView.setTextColor(Color.rgb(55,235,220));
+        linkedTikTokView.setPadding(dp(13),dp(12),dp(13),dp(12));
+        linkedTikTokView.setBackground(pill(Color.rgb(17,36,56),Color.rgb(17,176,188),19));
         content.addView(linkedTikTokView);
-        relayStatusView=text("Servidor TikTok LIVE: verificando disponibilidad...",13,false);
-        relayStatusView.setTextColor(Color.rgb(245,184,132));
+
+        relayStatusView=text("Servidor de eventos TikTok: comprobando...",13,false);
+        relayStatusView.setTextColor(Color.rgb(255,190,140));
         content.addView(relayStatusView);
-        content.addView(text("COMUNIDAD GREÑA · transmisiones compartidas",16,true));
-        communityView=text("Consultando transmisiones de la comunidad...",14,false);
-        communityView.setPadding(dp(10),dp(10),dp(10),dp(10));
-        communityView.setTextSize(18);
-        communityView.setBackground(pill(Color.rgb(34,31,94),Color.rgb(100,76,225),23));
-        content.addView(communityView);
-        content.addView(text("CANALES Y ESTADO DE TRANSMISIÓN",14,true));
-        LinearLayout platforms=new LinearLayout(this);platforms.setOrientation(LinearLayout.HORIZONTAL);
-        for(String name:new String[]{"TikTok","Twitch","Kick","YouTube"}){
-            TextView chip=text("● "+name,13,true);
-            chip.setTextColor(name.equals("TikTok")?Color.rgb(61,231,219):Color.rgb(196,179,249));
-            chip.setBackground(pill(Color.rgb(27,19,67),Color.rgb(82,68,151),30));
-            chip.setPadding(dp(10),dp(9),dp(10),dp(9));
-            LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-2,-2);cp.rightMargin=dp(7);
-            platforms.addView(chip,cp);
-        }
-        HorizontalScrollView strip=new HorizontalScrollView(this);
-        strip.setHorizontalScrollBarEnabled(false);strip.addView(platforms);
-        content.addView(strip);
-        content.addView(text("CHAT EN VIVO",17,true));
-        chatPreview=text("Aún no se han recibido comentarios del LIVE.",14,false);
-        chatPreview.setBackground(pill(Color.rgb(15,31,51),Color.rgb(20,166,164),16));
-        chatPreview.setPadding(dp(12),dp(12),dp(12),dp(12));content.addView(chatPreview);
-        button("Actualizar transmisiones de la comunidad",this::refreshCommunity);
-        button("Comprobar conexión TikTok",()->checkRelayStatus(true));
-        button("✨ Configurar alertas",()->openSettings("alerts"));
-        button("🔗 Vincular y configurar canales",()->openSettings("channels"));
-        button("🔴 Conectar TikTok LIVE",this::connectTikTok);
-        button("Ver estado de TikTok, Twitch, Kick, YouTube y Starvios",this::showPlatformsPanel);
-        button("⏹ Desconectar TikTok LIVE",this::disconnectTikTok);
-        connectionView=text("TikTok LIVE: "+
-            getSharedPreferences("grena_mobile_connection_v1",MODE_PRIVATE)
-                .getString("status","Sin conexión confirmada"),13,true);
-        connectionView.setTextColor(Color.rgb(115,229,207));content.addView(connectionView);
+
+        connectionView=text("Estado LIVE: sin confirmar",16,true);
+        connectionView.setTextColor(Color.rgb(233,209,167));
+        connectionView.setPadding(dp(12),dp(11),dp(12),dp(11));
+        connectionView.setBackground(pill(Color.rgb(28,26,66),Color.rgb(109,82,196),15));
+        content.addView(connectionView);
+
+        button("🔗 Vincular o cambiar TikTok",()->openSettings("channels"));
+        button("🔴 Activar vigilancia TikTok LIVE",this::connectTikTok);
+        button("⏹ Desconectar TikTok",this::disconnectTikTok);
+        button("Comprobar conexión y receptor",this::showTikTokPanel);
+
+        content.addView(text("CHAT TIKTOK EN VIVO",17,true));
+        chatPreview=text("Todavía no se han recibido comentarios reales.",14,false);
+        chatPreview.setPadding(dp(12),dp(13),dp(12),dp(13));
+        chatPreview.setBackground(pill(Color.rgb(13,33,47),Color.rgb(15,180,182),16));
+        content.addView(chatPreview);
+
+        content.addView(text("ALERTAS Y VENTANAS FLOTANTES",17,true));
+        button("✨ Plantillas originales GREÑA Live",()->openSettings("alerts"));
+        button("Activar ventana flotante",this::startOverlay);
+        button("Probar alerta GREÑA (DEMOSTRACIÓN)",this::testAlert);
+        button("Detener ventanas flotantes",this::stopOverlay);
+
+        TextView note=text("La app Android se limita a TikTok. Para recibir mensajes y regalos reales, el receptor TikTok debe estar publicado y confirmar un LIVE. No cambia las conexiones de PC.",12,false);
+        note.setTextColor(Color.LTGRAY);
+        content.addView(note);
         updateLocalStatus();
         checkRelayStatus(false);
-        button("Activar ventana flotante",this::startOverlay);
-        button("Probar alerta flotante (DEMO)",this::testAlert);
-        button("Detener ventana flotante",this::stopOverlay);
-        button("Cerrar sesión en este teléfono",this::logout);
-        TextView note=text("BETA 0.3: alertas AFTERGLOW originales de PC incluidas en el APK. El chat flotante puede ocultarse y su botón moverse. Los eventos reales de TikTok requieren que GREÑA ID active el servidor móvil independiente; si está apagado, verás un error claro. Esta app no cambia la presencia ni las conexiones de PC.",12,false);
-        note.setTextColor(Color.LTGRAY);content.addView(note);
         if(Build.VERSION.SDK_INT>=33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=getPackageManager().PERMISSION_GRANTED)
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},3);
-        handler.removeCallbacks(refreshLoop);if(visible)handler.post(refreshLoop);
+        handler.removeCallbacks(refreshLoop);
+        if(visible)handler.post(refreshLoop);
     }
     private void updateLocalStatus(){
-        if(connectionView!=null)connectionView.setText("TikTok LIVE: "+
+        if(connectionView!=null)connectionView.setText("Estado LIVE: "+
             getSharedPreferences("grena_mobile_connection_v1",MODE_PRIVATE)
-                .getString("status","Sin conexión confirmada"));
+                .getString("status","Todavía no confirmado"));
         if(linkedTikTokView!=null){
             JSONObject cache=MobileSettingsCache.read(this,token,"channels");
             JSONObject stored=cache==null?null:cache.optJSONObject("settings");
@@ -375,12 +311,17 @@ public final class MainActivity extends Activity {
             try{
                 JSONObject result=GrenaApi.mobileRelay(myToken);
                 if(result.optBoolean("enabled",false)){
-                    status="Servidor móvil configurado · pulsa Conectar TikTok LIVE";
+                    JSONObject actual=MobileRelayApi.capabilities(myToken);
+                    JSONObject tiktok=actual.optJSONObject("platforms")==null?null:
+                        actual.optJSONObject("platforms").optJSONObject("tiktok");
+                    boolean ready=tiktok!=null&&tiktok.optBoolean("adapterImplemented",false);
+                    status=ready?"Receptor TikTok disponible · puedes activar vigilancia":
+                        "Servidor accesible, pero el receptor TikTok no está instalado";
                 }else{
-                    status="Servidor móvil no activado · los LIVE vinculados no se detectan";
+                    status="Motor TikTok pendiente de activación · el canal solo está guardado";
                 }
             }catch(Exception e){
-                status="Servidor móvil no disponible · detector TikTok pendiente de activación";
+                status="Motor TikTok no disponible · no se pueden detectar transmisiones";
             }
             final String output=status;
             runOnUiThread(()->{
@@ -388,51 +329,6 @@ public final class MainActivity extends Activity {
                 if(relayStatusView!=null)relayStatusView.setText(output);
                 if(notify)say(output);
             });
-        });
-    }
-    private void refreshCommunity(){
-        if(!dashboard||loading||token.isEmpty())return;
-        updateLocalStatus();
-        loading=true;
-        final String myToken=token;
-        executor.execute(()->{
-            try{
-                JSONObject data=GrenaApi.community(myToken);
-                JSONArray users=data.optJSONArray("users");
-                if(users==null)users=new JSONArray();
-                int count=data.optInt("liveCount",users.length());
-                StringBuilder sb=new StringBuilder();
-                sb.append("COMUNIDAD EN VIVO (").append(count).append(")\n")
-                    .append("Usuarios conectados a GREÑA: ").append(data.optInt("usersOnline",0)).append("\n")
-                    .append("Espectadores de transmisiones compartidas: ").append(data.optInt("totalViewers",0)).append("\n\n");
-                if(users.length()==0)sb.append("Nadie comparte un LIVE en la comunidad. Esto NO indica si tu TikTok vinculado está en directo.");
-                for(int i=0;i<users.length();i++){
-                    JSONObject u=users.optJSONObject(i);if(u==null)continue;
-                    sb.append("🔴 ").append(u.optString("name","Streamer"))
-                        .append("  ·  👁 ").append(u.optInt("viewers",0));
-                    JSONArray pl=u.optJSONArray("platforms");
-                    if(pl!=null){sb.append("  · ");for(int j=0;j<pl.length();j++){
-                        if(j>0)sb.append(" + ");sb.append(pl.optString(j));}}
-                    sb.append("\n");
-                }
-                String output=sb.toString();
-                runOnUiThread(()->{
-                    loading=false;if(!dashboard||!myToken.equals(token))return;
-                    liveCount=count; if(communityView!=null)communityView.setText(output);
-                    if(Settings.canDrawOverlays(this)){
-                        // Update an existing overlay only; do not start one unexpectedly.
-                        // The user must explicitly enable it first.
-                    }
-                });
-            }catch(Exception e){
-                runOnUiThread(()->{
-                    loading=false;if(!dashboard)return;
-                    say("Lista sin conexión: "+e.getMessage());
-                    if(e instanceof GrenaApi.ApiException && ((GrenaApi.ApiException)e).status==401){
-                        SecureSession.clear(this);token="";showLogin();
-                    }
-                });
-            }
         });
     }
     private void connectTikTok(){
@@ -463,7 +359,7 @@ public final class MainActivity extends Activity {
                     connectIntent.setAction(OverlayService.ACTION_CONNECT_TIKTOK);
                     connectIntent.putExtra("username",url);
                     startForegroundService(connectIntent);
-                    say("Solicitando conexión TikTok. Se confirmará solamente cuando el LIVE se conecte realmente.");
+                    say("Solicitando vigilancia TikTok LIVE. Solo se mostrará EN DIRECTO tras confirmar la transmisión.");
                 });
             }catch(Exception e){
                 runOnUiThread(()->{
@@ -477,7 +373,7 @@ public final class MainActivity extends Activity {
         Intent disconnect=new Intent(this,OverlayService.class);
         disconnect.setAction(OverlayService.ACTION_DISCONNECT_TIKTOK);
         startService(disconnect);
-        say("Solicitud de desconexión enviada. El botón flotante sigue disponible.");
+        say("Vigilancia TikTok detenida. El botón flotante sigue disponible.");
     }
     private void openSettings(String section){
         Intent settings=new Intent(this,SettingsActivity.class);
@@ -492,7 +388,7 @@ public final class MainActivity extends Activity {
             startActivity(intent);return;
         }
         Intent intent=new Intent(this,OverlayService.class);
-        intent.setAction(OverlayService.ACTION_UPDATE);intent.putExtra("count",liveCount);
+        intent.setAction(OverlayService.ACTION_UPDATE);
         startForegroundService(intent);
         say("Ventana flotante de prueba activada. Regresa al juego: no intercepta los toques.");
     }
