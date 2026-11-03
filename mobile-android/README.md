@@ -1,6 +1,21 @@
-# GREÑA Live Mobile 0.1 BETA — base Android independiente
+# GREÑA Live Mobile 0.2 BETA — aplicación Android independiente
 
-**Estado real:** código fuente Android preparado, pero este paquete no es un APK compilado ni una versión estable. La autenticación GREÑA ID y la lista de **Canales en vivo** usan los endpoints ya existentes del servicio central de GREÑA Live. La ventana flotante muestra un **overlay de demostración**, no mensajes de chat ni regalos reales.
+**Esta es la app Android instalable**, no la interfaz web móvil de GREÑA Live. El código en \`mobile-android/\` se compila en GitHub Actions como APK de prueba. No se integra ni sustituye aún al instalador Windows.
+
+## Nuevo en 0.2: configuración desde el teléfono
+
+Tras entrar con GREÑA ID, el panel nativo tiene dos botones:
+
+- **✨ Configurar alertas**: elegir los temas Minecraft Pixelcraft, Dominó, GREÑITO, Personajes Pixel y otras plantillas existentes de GREÑA; volumen, intensidad, sonidos por tipo de evento, fuente y colores; guardar en la sección \`alerts\` de tu GREÑA ID.
+- **🔗 Vincular y configurar canales**: guardar enlaces públicos de TikTok, Twitch, Kick, YouTube y Starvios (incluido escribir \`@usuario\`); activar/desactivar cada fuente para una integración futura, en la sección \`channels\` de GREÑA ID.
+
+Las pantallas son nativas Android (Java) y usan HTTPS con Bearer GREÑA ID. La cuenta usa ajustes separados por sección y revisionado para detectar cambios simultáneos y no sobrescribir a otro dispositivo por accidente.
+
+**Requisito para usar Guardar y Cargar:** desplegar primero el endpoint \`GET/POST /api/license/mobile-settings?section=alerts|channels\` del Worker \`cloudflare/licenses/src/worker.mjs\` de esta rama tras revisar sus pruebas. Esta rama NO despliega ni altera la producción por sí sola.
+
+**Alcance actual:** guardar un enlace público NO es OAuth ni autentica la cuenta de Twitch/Kick/YouTube, y NO conecta automáticamente chat ni alertas del LIVE. El overlay flotante sigue siendo DEMO y está identificado como tal. El PC todavía no sincroniza automáticamente sus ajustes AFTERGLOW locales con las nuevas secciones Cloudflare; esa integración es el siguiente paso. No afirmar que los estilos se reflejan ya en la PC.
+
+## Base Android anterior
 
 ## Qué funciona en esta primera base
 
