@@ -3580,6 +3580,7 @@ function voiceUserRateKey(m={}){
 function userVoiceRateLimited(m={}){
   if(m.__voiceTest) return false;
   const key=voiceUserRateKey(m), now=Date.now();
+  if(speaking && activeVoiceMessage && voiceUserRateKey(activeVoiceMessage)===key)return true;
   const last=Number(voiceUserLastQueuedAt.get(key)||0);
   // Consultar NO reinicia el turno: un comentario rechazado no castiga al usuario.
   return !!last && now-last < VOICE_USER_COOLDOWN_MS;
@@ -3888,8 +3889,6 @@ function queueVoice(m){
     text
   });
   if(!queued){updateVoiceStatus();return;}
-  // El intervalo de 7 s comienza sólo cuando un comentario obtiene turno.
-  markUserVoiceQueued(m);
 
   updateVoiceStatus();
 
@@ -4161,6 +4160,7 @@ async function speakFishMessage(message, spokenText){
     lastSpokenMessage = message.text;
     lastSpokenUser = fishUserKey(message);
     lastSpokenTime = Date.now();
+    markUserVoiceQueued(message);
   }
 
   updateVoiceStatus();
@@ -4472,6 +4472,7 @@ function speakNext(){
     lastSpokenMessage = message.text;
     lastSpokenUser = fishUserKey(message);
     lastSpokenTime = Date.now();
+    markUserVoiceQueued(message);
   }
 
   updateVoiceStatus();
