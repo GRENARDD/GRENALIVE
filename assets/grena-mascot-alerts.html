@@ -1,5 +1,13 @@
 <!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>GREÑA Live — Mascot Alerts</title><meta name="color-scheme" content="dark">
-<script>if(new URLSearchParams(location.search).has('obs'))document.documentElement.classList.add('grena-obs-mode')</script>
+<script>
+if(new URLSearchParams(location.search).has('obs')){
+  // OBS embeds this page inside another Chromium surface. Force alpha before the first paint.
+  document.documentElement.classList.add('grena-obs-mode');
+  document.querySelector('meta[name="color-scheme"]')?.setAttribute('content','light');
+  document.documentElement.style.setProperty('color-scheme','normal','important');
+  document.documentElement.style.setProperty('background','transparent','important');
+}
+</script>
 <style>
 :root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
 *{box-sizing:inherit}html,body{height:100%;margin:0}
@@ -71,7 +79,7 @@ const EXP={smile:{m:'M-28 52 Q0 84 28 52 Q0 64 -28 52Z',b:-4,e:1},grin:{m:'M-46 
 // rays
 $('#rays').innerHTML=Array.from({length:12},(_,i)=>`<polygon points="-18,-90 18,-90 0,-340" transform="rotate(${i*30})"/>`).join('');
 // particles
-const cv=$('#cv'),cx=cv.getContext('2d'),PA=[],COL=['#ff5fa8','#ffe066','#6fd3ff','#b57bff','#fff','#7dff9a'];
+const cv=$('#cv'),cx=cv.getContext('2d',{alpha:true}),PA=[],COL=['#ff5fa8','#ffe066','#6fd3ff','#b57bff','#fff','#7dff9a'];
 function emit(type,x,y,o){PA.push(Object.assign({type,x,y,vx:0,vy:0,g:0,l:0,m:1.5,s:16,r:0,vr:0,c:'#fff'},o));if(PA.length>420)PA.shift()}
 function burst(type,x,y,n,sp,o){for(let i=0;i<n;i++){const a=R()*6.283,v=sp*(.35+R()*.65);emit(type,x,y,Object.assign({vx:Math.cos(a)*v,vy:Math.sin(a)*v-80,g:380,m:1+R()*.9,s:10+R()*14,vr:(R()-.5)*8,c:pk(COL)},o))}}
 const SH={heart(s){cx.beginPath();cx.moveTo(0,.35);cx.bezierCurveTo(-.7,-.1,-.5,-.75,0,-.35);cx.bezierCurveTo(.5,-.75,.7,-.1,0,.35);cx.fill()},
