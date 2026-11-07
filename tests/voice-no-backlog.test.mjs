@@ -140,7 +140,9 @@ test('Fish credential warmup and per-account security stay intact',()=>{
 
 test('Twitch chat no longer waits for a user avatar, Kick fallback dedupe is short',()=>{
   const server=readFileSync(new URL('../chat-server.mjs',import.meta.url),'utf8');
-  const twitch=server.slice(server.indexOf("  client.on(\n    'message',"),server.indexOf("  // =================================\n  // ALERTAS DE TWITCH",server.indexOf("  client.on(\n    'message',")));
+  const twitchStart=server.indexOf("  client.on(\n    'message',");
+  assert.ok(twitchStart>=0,'Twitch message handler must exist');
+  const twitch=server.slice(twitchStart,twitchStart+4200);
   assert.doesNotMatch(twitch,/await twitchChatUserMeta\(userId\)/);
   assert.match(twitch,/void twitchChatUserMeta\(userId\)/);
   assert.doesNotMatch(twitch,/if \(self\) \{\s*return;/);
