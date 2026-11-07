@@ -242,19 +242,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify complete Node suite before building installer
         run: npm test
-      - name: Verify HTTP voice fallback and mascot alpha in test browser
+      - name: Verify voice HTTP fallback and mascot alpha source (pixel CI runs independently)
         shell: pwsh
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:CHROME_BIN = (Get-Command chrome.exe -ErrorAction SilentlyContinue).Source
-          if (!$env:CHROME_BIN) {
-            foreach ($candidate in @("$env:ProgramFiles/Google/Chrome/Application/chrome.exe","$env:ProgramFiles (x86)/Microsoft/Edge/Application/msedge.exe")) {
-              if (Test-Path $candidate) { $env:CHROME_BIN = $candidate; break }
-            }
-          }
-          if (!$env:CHROME_BIN) { throw 'Chrome/Edge no encontrado para verificar transparencia.' }
-          node --test tests/obs-mascot-alpha-pixels.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Set official 5.1.16 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
