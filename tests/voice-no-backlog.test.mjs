@@ -95,6 +95,7 @@ test('Per-user cooldown is 7 seconds and rejected checks cannot reset it',()=>{
   let now=1000;
   const ctx={
     VOICE_USER_COOLDOWN_MS:7000,
+    speaking:false,activeVoiceMessage:null,
     voiceUserLastQueuedAt:new Map(),
     voiceUserRateKey:userKey,
     Date:{now:()=>now}
