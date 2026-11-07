@@ -336,6 +336,13 @@ test('Actualizaciones: nadie recibe aviso hasta que el propietario publica ofici
    const privateState=await request(env,'/api/license-admin/updates',null,{token:owner.token});
    assert.equal(privateState.data.draft.version,'5.1.0');
    assert.equal(privateState.data.published,null);
+   // La prueba de versión ausente debe ser determinista: no depender
+   // de GitHub en vivo ni de posibles errores de red/ratelimit.
+   globalThis.fetch=async url=>{
+     if(String(url).startsWith('https://api.github.com'))
+       return new Response(JSON.stringify({message:'Not Found'}),{status:404});
+     throw Error('unexpected URL: '+url);
+   };
    const missing=await request(env,'/api/license-admin/updates/publish',{}, {token:owner.token});
    assert.equal(missing.status,409);
    assert.equal((await request(env,'/api/updates/latest')).data.published,false);
