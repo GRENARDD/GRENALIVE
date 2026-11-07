@@ -1119,7 +1119,7 @@ async function deliverKickChat(msg){
   const sameId=idKey?kickSeenMessages.get(idKey):null;
   const sameText=kickSeenMessages.get(contentKey);
   if((sameId&&now-sameId.at<120000)||
-     (sameText&&now-sameText.at<6500&&(!messageId||!sameText.id||sameText.id===messageId)))return false;
+     (sameText&&now-sameText.at<1500&&(!messageId||!sameText.id||sameText.id===messageId)))return false;
   const record={at:now,id:messageId};
   kickSeenMessages.set(contentKey,record);
   if(idKey)kickSeenMessages.set(idKey,record);
@@ -2337,10 +2337,8 @@ async function connectTwitch(input) {
       message,
       self
     ) => {
-      if (self) {
-        return;
-      }
-
+      // Los mensajes del propio streamer también cuentan para el multichat
+      // y para la prioridad de dueño (self=true en clientes autenticados).
       const username =
         firstString(
           tags?.username,
@@ -2356,7 +2354,18 @@ async function connectTwitch(input) {
         );
 
       const userId=String(tags?.['user-id'] || '');
-      const meta=await twitchChatUserMeta(userId);
+      // Nunca bloquear la entrega de comentarios por obtener una foto/perfil.
+      // La lectura de followers/avatar se completa de fondo para mensajes futuros.
+      const cachedMeta=twitchMetaCache.get(userId);
+      const meta=cachedMeta?.value||{avatar:'',isFollower:null};
+      if(userId&&!cachedMeta){
+        void twitchChatUserMeta(userId).then(fresh=>{
+          const key=username.toLowerCase();
+          const current=twitchUsers.get(key);
+          if(current&&current.userId===userId)
+            twitchUsers.set(key,{...current,avatar:fresh.avatar||current.avatar,isFollower:fresh.isFollower});
+        }).catch(()=>{});
+      }
       const isFollower=meta.isFollower;
 
       twitchUsers.set(

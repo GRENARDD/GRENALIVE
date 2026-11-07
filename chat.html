@@ -1404,16 +1404,14 @@ let lastVoiceSpamCleanupAt = 0;
 const VOICE_SPAM_HISTORY_MAX = 1500;
 const VOICE_SPAM_HISTORY_TTL_MS = 2 * 60 * 1000;
 
-// GREÑA LIVE VOICE GUARD · protección para chats masivos.
-// La voz debe sonar "ahora", no leer minutos de atraso.
-// SIN ACUMULACION: mientras se habla, conservar como máximo UN comentario
-// reciente pendiente. Los demás se descartan/reemplazan, nunca se reproduce
-// una lista de mensajes atrasados.
-const VOICE_QUEUE_SOFT_LIMIT = 1;
-const VOICE_QUEUE_HARD_LIMIT = 1;
-const VOICE_STALE_MS = 2500;
-const VOICE_STALE_OVERLOAD_MS = 1800;
-const VOICE_USER_COOLDOWN_MS = 2200;
+// GREÑA LIVE VOICE GUARD · cola limitada con turnos justos por usuario.
+// El chat visual no depende del estado de la voz. Evitamos esperas infinitas
+// en LIVE masivos y conservamos los comentarios más antiguos de cada prioridad.
+const VOICE_QUEUE_SOFT_LIMIT = 8;
+const VOICE_QUEUE_HARD_LIMIT = 16;
+const VOICE_STALE_MS = 15000;
+const VOICE_STALE_OVERLOAD_MS = 8000;
+const VOICE_USER_COOLDOWN_MS = 7000;
 const voiceUserLastQueuedAt = new Map();
 let voiceDroppedOverload = 0;
 
@@ -3582,10 +3580,22 @@ function voiceUserRateKey(m={}){
 function userVoiceRateLimited(m={}){
   if(m.__voiceTest) return false;
   const key=voiceUserRateKey(m), now=Date.now();
+  if(speaking && activeVoiceMessage && voiceUserRateKey(activeVoiceMessage)===key)return true;
   const last=Number(voiceUserLastQueuedAt.get(key)||0);
+  // Consultar NO reinicia el turno: un comentario rechazado no castiga al usuario.
+  return !!last && now-last < VOICE_USER_COOLDOWN_MS;
+}
+function markUserVoiceQueued(m={}){
+  if(m.__voiceTest)return;
+  const now=Date.now(),key=voiceUserRateKey(m);
   voiceUserLastQueuedAt.set(key,now);
-  // Evita que una sola persona monopolice Fish cuando el chat está explotado.
-  return last && now-last < VOICE_USER_COOLDOWN_MS;
+  // Una sala grande no debe dejar IDs de participantes antiguos sin límite.
+  if(voiceUserLastQueuedAt.size>3000){
+    for(const [id,at] of voiceUserLastQueuedAt){
+      if(now-Number(at||0)>120000)voiceUserLastQueuedAt.delete(id);
+    }
+    while(voiceUserLastQueuedAt.size>3000)voiceUserLastQueuedAt.delete(voiceUserLastQueuedAt.keys().next().value);
+  }
 }
 
 function dropStaleVoiceMessages(){
@@ -3638,7 +3648,7 @@ function shouldIgnoreVoice(m){
     return true;
   }
 
-  const username=String(m.user || m.nickname || '').toLowerCase().trim();
+  const username=fishUserKey(m);
 
   if(
     $('ignoreRepeated').checked &&
@@ -3693,42 +3703,45 @@ function voicePriority(message = {}){
 }
 
 function insertVoiceByPriority(message){
-  const priority = voicePriority(message);
-  message.__voicePriority = priority;
-  message.__voiceQueuedAt = Date.now();
-
-  // Live / sin cola: solo cabe un comentario pendiente, no una lista FIFO.
-  // El último del mismo rango reemplaza al anterior; las prioridades altas
-  // (dueño y moderadores) no son desplazadas por mensajes normales.
-  if(voiceQueue.length){
-    const pending=voiceQueue[0];
-    if(voicePriority(pending)>priority && !message.__voiceTest){
-      voiceDroppedOverload++;
-      return false;
-    }
-    voiceQueue.length=0;
-    cleanupFishPreparedMessage(pending,true);
-    voiceDroppedOverload++;
+  const priority=voicePriority(message);
+  message.__voicePriority=priority;
+  message.__voiceQueuedAt=Date.now();
+  // Una persona no puede ocupar varios puestos esperando voz.
+  const key=voiceUserRateKey(message);
+  if(!message.__voiceTest && voiceQueue.some(item=>!item.__voiceTest&&voiceUserRateKey(item)===key)){
+    return false;
   }
-  voiceQueue.push(message);
+  if(voiceQueue.length>=VOICE_QUEUE_HARD_LIMIT){
+    // Conserva el turno de los primeros usuarios de igual prioridad.
+    // Sólo un rango superior puede desplazar al último rango inferior.
+    const lowest=Math.min(...voiceQueue.map(voicePriority));
+    if(priority<=lowest){voiceDroppedOverload++;return false}
+    const victim=dropLowestPriorityVoice();
+    if(victim){cleanupFishPreparedMessage(victim,true);voiceDroppedOverload++}
+  }
+  // Más prioridad primero; orden de llegada estable dentro del mismo rango.
+  const index=voiceQueue.findIndex(item=>voicePriority(item)<priority);
+  if(index<0)voiceQueue.push(message);
+  else voiceQueue.splice(index,0,message);
   return true;
 }
 
-// A failed Fish request must never turn a one-item live queue back into a
-// FIFO backlog. Retry only a fresh comment when no newer/equal priority item
-// has arrived, preserving the original arrival timestamp.
+// Los reintentos de Fish no alteran la fecha original ni bloquean usuarios nuevos.
 function requeueFreshFishMessage(message){
-  if(!message || message.__voiceTest) return false;
-  const queuedAt = Number(message.__voiceQueuedAt || 0);
-  if(!queuedAt || Date.now()-queuedAt>VOICE_STALE_MS) return false;
-  if(voiceQueue.length){
-    const pending = voiceQueue[0];
-    if(voicePriority(pending)>=voicePriority(message)) return false;
-    cleanupFishPreparedMessage(pending,true);
-    voiceQueue.length = 0;
-    voiceDroppedOverload++;
+  if(!message || message.__voiceTest)return false;
+  const queuedAt=Number(message.__voiceQueuedAt||0);
+  if(!queuedAt||Date.now()-queuedAt>VOICE_STALE_MS)return false;
+  const key=voiceUserRateKey(message);
+  if(voiceQueue.some(item=>!item.__voiceTest&&voiceUserRateKey(item)===key))return false;
+  const priority=voicePriority(message);
+  if(voiceQueue.length>=VOICE_QUEUE_HARD_LIMIT){
+    const lowest=Math.min(...voiceQueue.map(voicePriority));
+    if(priority<=lowest)return false;
+    const victim=dropLowestPriorityVoice();
+    if(victim){cleanupFishPreparedMessage(victim,true);voiceDroppedOverload++}
   }
-  voiceQueue.push(message);
+  const index=voiceQueue.findIndex(item=>voicePriority(item)<priority);
+  if(index<0)voiceQueue.push(message);else voiceQueue.splice(index,0,message);
   return true;
 }
 
@@ -4145,8 +4158,9 @@ async function speakFishMessage(message, spokenText){
 
   if(!message.__voiceTest){
     lastSpokenMessage = message.text;
-    lastSpokenUser = String(message.user || '').toLowerCase();
+    lastSpokenUser = fishUserKey(message);
     lastSpokenTime = Date.now();
+    markUserVoiceQueued(message);
   }
 
   updateVoiceStatus();
@@ -4456,8 +4470,9 @@ function speakNext(){
 
   if(!message.__voiceTest){
     lastSpokenMessage = message.text;
-    lastSpokenUser = String(message.user || '').toLowerCase();
+    lastSpokenUser = fishUserKey(message);
     lastSpokenTime = Date.now();
+    markUserVoiceQueued(message);
   }
 
   updateVoiceStatus();
@@ -4635,8 +4650,8 @@ function updateVoiceStatus(){
   if(speaking){
 
     $('voiceStatus').textContent = isFishVoiceSelected() && activeFishVoiceSlot
-      ? `🔊 Voz ${activeFishVoiceSlot} hablando · sin cola acumulada · ${voiceQueue.length?'1 próximo':'sin pendiente'}`
-      : `🔊 Hablando · sin cola acumulada · ${voiceQueue.length?'1 próximo':'sin pendiente'}`;
+      ? `🔊 Voz ${activeFishVoiceSlot} hablando · cola inteligente · ${voiceQueue.length} pendientes`
+      : `🔊 Hablando · cola inteligente · ${voiceQueue.length} pendientes`;
 
     return;
 
@@ -4645,7 +4660,7 @@ function updateVoiceStatus(){
   if(voiceQueue.length){
 
     $('voiceStatus').textContent =
-      `⏳ Preparando el último mensaje · sin cola acumulada.`;
+      `⏳ Preparando voz · ${voiceQueue.length} comentarios pendientes · turno cada 7 s por usuario.`;
 
     return;
 
@@ -4654,8 +4669,8 @@ function updateVoiceStatus(){
   if(isFishVoiceSelected()){
     const count = getConfiguredFishModels().length;
     $('voiceStatus').textContent = count === 5
-      ? '🟢 Fish Audio: 5 voces naturales · tiempo real sin cola · solo el mensaje más reciente pendiente.'
-      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · sin cola acumulada.`;
+      ? '🟢 Fish Audio: 5 voces naturales · cola inteligente · 7 s por usuario.'
+      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · 7 s por usuario.`;
     return;
   }
 
