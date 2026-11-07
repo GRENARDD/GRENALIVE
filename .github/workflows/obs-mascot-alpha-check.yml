@@ -6,6 +6,7 @@ on:
       - 'assets/grena-mascot-alerts.html'
       - 'assets/grenito-original-alerts.html'
       - 'tests/obs-mascot-alpha-hardening.test.mjs'
+      - 'tests/obs-mascot-alpha-pixels.test.mjs'
       - '.github/workflows/obs-mascot-alpha-check.yml'
 permissions:
   contents: read
@@ -17,5 +18,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Install test dependencies
+        run: npm ci --ignore-scripts
       - name: Validate both mascot OBS scenes and existing animations
         run: node --test tests/obs-mascot-alpha-hardening.test.mjs tests/mascot-alerts-integration.test.mjs tests/obs-four-premium-alpha.test.mjs tests/obs-premium-regression.test.mjs
+      - name: Check browser compositor alpha pixels
+        run: |
+          which google-chrome || which google-chrome-stable || which chromium
+          node --test tests/obs-mascot-alpha-pixels.test.mjs
