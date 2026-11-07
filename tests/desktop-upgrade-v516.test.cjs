@@ -2,13 +2,13 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {readFileSync}=require('node:fs'),{join}=require('node:path');
 const src=file=>readFileSync(join(__dirname,'..',file),'utf8');
-test('5.1.15 uses a unique artifact and does not silently publish a tag build',()=>{
+test('5.1.16 uses a unique artifact and does not silently publish a tag build',()=>{
  const flow=src('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(flow,/Set official 5\.1\.15 version on main/);
- assert.match(flow,/GRENA-LIVE-Installer-Windows-v5\.1\.15/);
+ assert.match(flow,/Set official 5\.1\.16 version on main/);
+ assert.match(flow,/GRENA-LIVE-Installer-Windows-v5\.1\.16/);
  assert.match(flow,/electron-builder --win nsis --x64 --publish never/);
  assert.doesNotMatch(flow,/electron-builder --win nsis --x64 --publish always/);
- assert.match(flow,/verify-upgrade-5114-to-5115\.ps1/);
+ assert.match(flow,/verify-upgrade-5115-to-5116\.ps1/);
  assert.match(flow,/Language\.Parser\]::ParseFile/);
  assert.match(src('desktop-build/verify-upgrade-5112-to-5113.ps1'),/OK \$\{stage\}: perfil/);
 });
@@ -27,17 +27,17 @@ test('upgrade gate installs 5.1.12 and 5.1.13 in same location and preserves has
  assert.ok(flow.indexOf('Smoke test compiled Windows backend')<flow.indexOf('Verify installed upgrade'));
  assert.ok(flow.indexOf('Verify installed upgrade')<flow.indexOf('Upload the Windows installer'));
 });
-test('release 5.1.15 requires successful build at current commit and owner still approves rollout',()=>{
- const flow=src('.github/workflows/grena-release-v5115.yml');
+test('release 5.1.16 requires successful build at current commit and owner still approves rollout',()=>{
+ const flow=src('.github/workflows/grena-release-v5116.yml');
  const up=src('desktop-build/fix_official_updates.py');
  const worker=src('cloudflare/licenses/src/updates.mjs');
- assert.match(flow,/VERSION: '5\.1\.15'/);
+ assert.match(flow,/VERSION: '5\.1\.16'/);
  assert.match(flow,/git rev-parse HEAD/);
  assert.match(flow,/\$TESTED_SHA/);
  assert.match(flow,/gh run download/);
  assert.match(flow,/sha512/);
  assert.match(flow,/gh release create/);
- assert.match(up,/tag\[1:\] if tag else '5\.1\.15'/);
+ assert.match(up,/tag\[1:\] if tag else '5\.1\.16'/);
  assert.match(up,/const releaseBase='https:\/\/grena-live-licenses/);
  assert.match(up,/autoUpdater\.autoDownload=false/);
  assert.match(up,/autoUpdater\.checkForUpdates\(\)/);
@@ -59,4 +59,16 @@ test('v5.1.15 gate upgrades 5.1.14 without losing private account and Fish data'
  assert.match(flow,/desktop-build\/verify-premium-alpha\.cjs/);
  assert.match(flow,/assets\/grena-mascot-alerts\.html/);
  assert.match(flow,/assets\/grenito-original-alerts\.html/);
+});
+
+test('v5.1.16 upgrade gate installs over v5.1.15 and protects account and Fish data',()=>{
+ const script=src('desktop-build/verify-upgrade-5115-to-5116.ps1');
+ const flow=src('.github/workflows/grena-desktop-from-kit.yml');
+ assert.match(script,/\$oldVersion='5\.1\.15'/);
+ assert.match(script,/\$newVersion='5\.1\.16'/);
+ assert.match(script,/Get-FileHash -Algorithm SHA256/);
+ assert.match(script,/Assert-ProfilePreserved '5\.1\.15'/);
+ assert.match(script,/Assert-ProfilePreserved '5\.1\.16'/);
+ assert.match(flow,/verify-upgrade-5115-to-5116\.ps1/);
+ assert.match(flow,/Set official 5\.1\.16 version on main/);
 });

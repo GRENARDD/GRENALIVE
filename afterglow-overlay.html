@@ -175,6 +175,24 @@ function normalizedSettings(src={}){
 }
 function applySettings(src){cfg=normalizedSettings(src);live.dataset.theme=cfg.theme;live.style.setProperty('--after-font',cfg.fontFamily);live.style.setProperty('--after-text',cfg.textColor)}
 function duration(event){return event==='raid'?6000:event==='likes'?4800:5500}
+// The mascot source is a same-origin nested Chromium page. Make every backing
+// surface transparent before triggering the original SVG/Canvas animation.
+function forceMascotTransparentSurface(frame){
+ try{
+  const doc=frame.contentDocument;
+  if(!doc)return;
+  for(const selector of ['html','body','#app','#stw','#st','#sv','#cv']){
+   const element=doc.querySelector(selector);
+   if(!element)continue;
+   element.style.setProperty('background','transparent','important');
+   element.style.setProperty('background-color','rgba(0, 0, 0, 0)','important');
+   element.style.setProperty('background-image','none','important');
+  }
+  doc.documentElement.style.setProperty('color-scheme','normal','important');
+ }catch(error){
+  console.warn('[GREÑA OBS] Mascot alpha surface unavailable:',error?.message||error);
+ }
+}
 function drain(){if(working||!pending.length)return;working=true;const next=pending.shift();
    // Las alertas personales usan la MISMA cola y los MISMOS enlaces de OBS.
    // Un diseño dirigido solo a vertical/horizontal cae al tema normal en la otra fuente.
@@ -217,10 +235,12 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
        scene.style.background='transparent';
       const mascotUrl=new URL(cfg.theme==='grena_mascots'?'/assets/grena-mascot-alerts.html':'/assets/grenito-original-alerts.html',location.origin);
       mascotUrl.searchParams.set('obs','1');
+      mascotUrl.searchParams.set('grenaAlpha','2');
       mascotUrl.searchParams.set('char',cfg.mascotCharacter);
       mascotUrl.searchParams.set('volume',canSound?String(cfg.volume):'0');
       scene.src=mascotUrl.toString();
       scene.addEventListener('load',()=>{
+        forceMascotTransparentSurface(scene);
         scene.contentWindow?.postMessage({type:mascotType,user:data.name,amount:data.amount,
           gift:data.gift,platform:platform==='starvios'?'tiktok':platform},location.origin);
       },{once:true});
