@@ -3114,6 +3114,29 @@ function convertEmojisAndLimit(text){
 }
 
 
+// GRENA_VOICE_SHORT_LAUGHS_BEGIN
+// Solo cambia la COPIA de voz, no el comentario mostrado en chat.
+// Fish Audio puede convertir un "jajajajajaja" en una carcajada larguísima.
+// Conservar la risa, pero limitarla a dos sílabas habladas, sin cambiar voces,
+// velocidad ni el resto de las palabras del usuario.
+function shortenRepeatedLaughsForVoice(input=''){
+  const original=String(input??'');
+  const compact=/(^|[^\p{L}\p{N}_@#])((?:j[aeiou]+|h[aeiou]+){3,}|(?:xd){3,}|xd{4,}|k{5,})(?=$|[^\p{L}\p{N}_])/giu;
+  const spaced=/(^|[^\p{L}\p{N}_@#])((?:(?:j[aeiou]|h[aeiou])[\s,!?;.:]+){3,}(?:j[aeiou]|h[aeiou]))(?=$|[^\p{L}\p{N}_])/giu;
+  const shortLaugh=sequence=>{
+    const sound=sequence.match(/^[jh][aeiou]/i)?.[0]?.toLowerCase()||'ja';
+    return sound+', '+sound;
+  };
+  const replaceLaugh=(whole,prefix,sequence,offset,full)=>{
+    // No cambiar menciones, hashtags, nombres ni fragmentos de enlaces.
+    const sinceSpace=full.slice(Math.max(0,offset-250),offset+prefix.length).split(/\s/).pop()||'';
+    if(/(?:https?:\/\/|www\.)[^\s]*$/i.test(sinceSpace))return whole;
+    return prefix+shortLaugh(sequence);
+  };
+  return original.replace(compact,replaceLaugh).replace(spaced,replaceLaugh);
+}
+// GRENA_VOICE_SHORT_LAUGHS_END
+
 /* =====================================================
    LIMITAR LETRAS REPETIDAS
 ===================================================== */
@@ -3812,6 +3835,9 @@ function queueVoice(m){
   let text=isFishVoiceSelected()
     ? humanText
     : cleanTextForVoice(humanText);
+  // Acorta únicamente las risas exageradas antes de enviar la COPIA al TTS.
+  // También funciona con las voces de Windows; nunca modifica m.text.
+  text=shortenRepeatedLaughsForVoice(text);
 
   if(!text){
 
