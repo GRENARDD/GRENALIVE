@@ -40,9 +40,10 @@ on:
       - 'assets/grena-fullscreen-gift-obs.html'
       - 'assets/grena-premium-catalog-obs.html'
       - 'desktop-build/verify-premium-alpha.cjs'
-      - 'desktop-build/verify-upgrade-5115-to-5116.ps1'
+      - 'desktop-build/verify-upgrade-5116-to-5117.ps1'
       - '.github/workflows/grena-release-v5115.yml'
       - '.github/workflows/grena-release-v5116.yml'
+      - '.github/workflows/grena-release-v5117.yml'
       - 'tests/premium-transparent-overlay.test.mjs'
       - '.github/workflows/grena-desktop-from-kit.yml'
   push:
@@ -86,6 +87,7 @@ on:
       - 'tests/**'
       - 'desktop-build/**'
       - '.github/workflows/grena-release-v5116.yml'
+      - '.github/workflows/grena-release-v5117.yml'
       - '.github/workflows/grena-desktop-from-kit.yml'
       - '.github/workflows/grena-release-v517.yml'
       - '.github/workflows/grena-release-v518.yml'
@@ -109,7 +111,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5115-to-5116.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5116-to-5117.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -117,7 +119,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v5.1.15 -> v5.1.16 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v5.1.16 -> v5.1.17 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -222,14 +224,14 @@ jobs:
           if (-not $preview.Contains('social-overlay.html?preview=1')) {
             throw "La vista previa del widget no tiene activado el modo oscuro."
           }
-      - name: Set distinct v5.1.16 beta version for preview installer
+      - name: Set distinct v5.1.17 beta version for preview installer
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "5.1.16-beta.1"
+          $pkg.version = "5.1.17-beta.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 5.1.16-beta.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 5.1.17-beta.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -247,16 +249,16 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Set official 5.1.16 version on main (never on pull requests)
+      - name: Set official 5.1.17 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ($pkg.version -ne "5.1.16") { throw "Versión base inesperada; se cancela publicación estable." }
-          $pkg.version = "5.1.16"
+          if ($pkg.version -ne "5.1.17") { throw "Versión base inesperada; se cancela publicación estable." }
+          $pkg.version = "5.1.17"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Versión oficial verificada: 5.1.16"
+          Write-Host "Versión oficial verificada: 5.1.17"
       - name: Verify pack logic
         shell: pwsh
         run: |
@@ -334,13 +336,13 @@ jobs:
       - name: Smoke test compiled Windows backend
         shell: pwsh
         run: ./desktop-build/smoke.ps1
-      - name: Verify installed upgrade from GREÑA 5.1.15 preserves user data
+      - name: Verify installed upgrade from GREÑA 5.1.16 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
-        run: ./desktop-build/verify-upgrade-5115-to-5116.ps1
+        run: ./desktop-build/verify-upgrade-5116-to-5117.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.16-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.16' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.17-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.17' }}
           path: dist/*.exe
           if-no-files-found: error
