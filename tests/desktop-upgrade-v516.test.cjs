@@ -61,16 +61,16 @@ test('v5.1.15 gate upgrades 5.1.14 without losing private account and Fish data'
  assert.match(flow,/assets\/grenito-original-alerts\.html/);
 });
 
-test('v5.1.16 upgrade gate installs over v5.1.15 and protects account and Fish data',()=>{
+test('v5.1.16 historical upgrade gate installed over v5.1.15 and preserved account and Fish data',()=>{
  const script=src('desktop-build/verify-upgrade-5115-to-5116.ps1');
- const flow=src('.github/workflows/grena-desktop-from-kit.yml');
+ const historicalRelease=src('.github/workflows/grena-release-v5116.yml');
  assert.match(script,/\$oldVersion='5\.1\.15'/);
  assert.match(script,/\$newVersion='5\.1\.16'/);
  assert.match(script,/Get-FileHash -Algorithm SHA256/);
  assert.match(script,/Assert-ProfilePreserved '5\.1\.15'/);
  assert.match(script,/Assert-ProfilePreserved '5\.1\.16'/);
- assert.match(flow,/verify-upgrade-5115-to-5116\.ps1/);
- assert.match(flow,/Set official 5\.1\.16 version on main/);
+ assert.match(historicalRelease,/VERSION: '5\.1\.16'/);
+ assert.match(historicalRelease,/git rev-parse HEAD/);
 });
 
 test('v5.1.17 upgrade gate installs over v5.1.16 without losing account, Fish or connection data',()=>{
