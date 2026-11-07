@@ -6,7 +6,13 @@ import {inflateSync} from 'node:zlib';
 import {chromium} from 'playwright-core';
 
 const ASSETS=['grena-mascot-alerts.html','grenito-original-alerts.html'];
-const BIN=[process.env.CHROME_BIN,'/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'].find(p=>p&&existsSync(p));
+const BIN=[
+ process.env.CHROME_BIN,
+ process.env.PROGRAMFILES&&process.env.PROGRAMFILES+'/Google/Chrome/Application/chrome.exe',
+ process.env.PROGRAMFILES&&process.env.PROGRAMFILES+'/Microsoft/Edge/Application/msedge.exe',
+ process.env['PROGRAMFILES(X86)']&&process.env['PROGRAMFILES(X86)']+'/Microsoft/Edge/Application/msedge.exe',
+ '/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'
+].find(p=>p&&existsSync(p));
 const PNG_SIGNATURE=Buffer.from([137,80,78,71,13,10,26,10]);
 
 // Decode lossless screenshot pixels (including alpha) without adding dependencies.
