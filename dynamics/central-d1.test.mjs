@@ -36,6 +36,10 @@ test('D1 room flow: authenticated invite, restricted votes, one vote per viewer 
  assert.equal((await call(db,'outsider','/api/dynamics/rooms/respond',{invitationId:invite.invitationId,accept:true})).status,404);
  assert.equal((await call(db,'friend','/api/dynamics/rooms/respond',{invitationId:invite.invitationId,accept:true})).status,200);
  assert.equal((await call(db,'friend','/api/dynamics/rooms/respond',{invitationId:invite.invitationId,accept:true})).status,409);
+ const tag=await call(db,'friend','/api/dynamics/rooms/players',{roomId,gamertag:'AngieBabeee'});
+ assert.equal(tag.status,200);
+ assert.equal((await call(db,'outsider','/api/dynamics/rooms/players',{roomId,gamertag:'Intruso'})).status,403);
+ assert.equal((await call(db,'friend','/api/dynamics/rooms/players',{roomId,gamertag:'invalid!'})).status,400);
  const challenge={roomId,platform:'tiktok',eventId:'follow-001',followerName:'Luna',questionId:1,optionA:'A',optionB:'B'};
  assert.equal((await call(db,'host','/api/dynamics/rooms/follow',challenge)).accepted,true);
  assert.equal((await call(db,'host','/api/dynamics/rooms/follow',challenge)).duplicate,true);
@@ -45,7 +49,9 @@ test('D1 room flow: authenticated invite, restricted votes, one vote per viewer 
  db.sqlite.prepare("UPDATE dynamics_challenges SET ends_at=? WHERE state='active'").run(Date.now()-1000);
  const snapshot=await call(db,'friend','/api/dynamics/rooms/'+roomId);
  assert.equal(snapshot.status,200);
- assert.equal(snapshot.challenges[0].winner,'B');
+ assert.equal(snapshot.challenges[0].votes_b,1);
+  assert.equal(snapshot.challenges[0].winner,'B');
+ assert.deepEqual(snapshot.events.find(e=>e.event_type==='voted_result').payload.players.map(p=>p.gamertag),['AngieBabeee']);
  assert.ok(snapshot.events.some(e=>e.event_type==='voted_result'&&e.payload.choice==='B'));
  db.sqlite.close();
 });
