@@ -6,7 +6,7 @@ export function createSharedDynamics({now=()=>Date.now(),notify=()=>{}}={}) {
   const rooms=new Map(), invites=new Map();
   const requireRoom=id=>{const r=rooms.get(id);if(!r)throw Error('Sala no encontrada');return r};
   const member=(r,id)=>{if(!r.members.has(id))throw Error('No perteneces a la sala')};
-  const publicRoom=r=>({id:r.id,ownerId:r.ownerId,members:[...r.members].map(([id,x])=>({id,...x})),active:r.active&&{id:r.active.id,ownerId:r.active.ownerId,questionId:r.active.questionId,optionA:r.active.a,optionB:r.active.b,endsAt:r.active.endsAt,votes:counts(r.active)},queue:r.queue.length});
+  const publicRoom=r=>({id:r.id,ownerId:r.ownerId,members:[...r.members].map(([id,x])=>({id,...x})),active:r.active&&{id:r.active.id,ownerId:r.active.ownerId,questionId:r.active.questionId,followerName:r.active.followerName,platform:r.active.platform,optionA:r.active.a,optionB:r.active.b,endsAt:r.active.endsAt,votes:counts(r.active)},queue:r.queue.length});
   const counts=q=>{const x=[...q.votes.values()];return {A:x.filter(v=>v==='A').length,B:x.filter(v=>v==='B').length}};
   const emit=(r,type,data={})=>notify({roomId:r.id,type,...data,room:publicRoom(r)});
   function startNext(r){if(r.active)return;const q=r.queue.shift();if(!q)return;q.endsAt=now()+r.voteSeconds*1000;r.active=q;emit(r,'vote-start');}
