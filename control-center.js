@@ -167,8 +167,15 @@ $('tiktokLinkModal')?.addEventListener('click',e=>{if(e.target===$('tiktokLinkMo
 async function connectPlatformAccount(platform,label){
  if(platform==='tiktok'){openTikTokLinkModal();return}
  try{
+  // YouTube: el diagnóstico actualiza la configuración del Worker antes de evaluar el botón.
+  // Así no bloqueamos Google OAuth por un estado leído antes de activar Cloudflare.
+  if(platform==='youtube'){
+   const r=await fetch('/api/youtube/diagnostic',{cache:'no-store'});
+   const d=await r.json().catch(()=>({}));
+   if(!r.ok||!d.brokerEnabled){toast(d.workerError||'YouTube OAuth no está disponible en GREÑA Auth. Comprueba que Cloudflare responda.');return}
+  }
   const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
-  if(st.oauthConfigured?.[platform]===false){
+  if(platform!=='youtube'&&st.oauthConfigured?.[platform]===false){
    const detail=st.authService?.configured?(st.authService?.lastError||'El servicio de autenticación aún no tiene esta plataforma activada.'):'GREÑA Auth todavía no está configurado por el administrador.';
    toast(detail);return;
   }
