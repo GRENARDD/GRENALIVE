@@ -373,6 +373,7 @@ const moduleMap={
   alerts:{path:'/alerts.html?embed=1',title:'Editor de alertas'},
   studio:{path:'/afterglow-studio.html?embed=1',title:'AFTERGLOW Studio · Editor de alertas'},
   widgets:{path:'/widgets.html?embed=1',title:'Widgets OBS'},
+  dynamics:{path:'/dynamics.html?embed=1',title:'Dinámicas · Minecraft con amigos'},
   cam:{path:'/cam-room.html?embed=1',title:'GREÑA Cam Room · Cámaras para OBS'},
   catalog:{path:'/gift-catalog.html?embed=1',title:'Catálogo universal de regalos'}
 };
@@ -425,7 +426,7 @@ function closeModule({updateHash=true}={}){
   // No descargamos chatFrame. El módulo secundario sí puede quedar cargado.
   if(updateHash&&location.hash)history.pushState({},'',location.pathname+location.search);
 }
-document.querySelectorAll('a[data-module]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();openModule(a.dataset.module)}));
+document.querySelectorAll('a[data-module]').forEach(a=>a.addEventListener('click',e=>{const key=a.dataset.module;if(!moduleMap[key]||!moduleLayer||!moduleFrame)return;e.preventDefault();openModule(key)}));
 document.querySelectorAll('a[data-home]').forEach(a=>a.addEventListener('click',e=>{
   e.preventDefault();
   closeModule();
