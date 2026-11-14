@@ -34,3 +34,21 @@ test('Super Chat and memberships are forwarded with real YouTube chat identifier
  assert.equal(member.event,'sub');
  assert.match(server,/\['TikTok','Twitch','Kick','YouTube'\]\.includes\(platform\)/);
 });
+
+test('YouTube Chat Reader uses the owner OAuth proxy without an independent API key',async()=>{
+ const {YouTubeLiveReader}=await import('../youtube-live.mjs');
+ let called=0;
+ const reader=new YouTubeLiveReader({apiKey:'',requestProxy:async(resource,params)=>{
+  called++;
+  assert.equal(resource,'videos');
+  assert.equal(params.id,'abcdefghijk');
+  return {items:[{id:'abcdefghijk',liveStreamingDetails:{concurrentViewers:'42'}}]};
+ }});
+ const result=await reader.request('videos',{id:'abcdefghijk'});
+ assert.equal(result.items[0].liveStreamingDetails.concurrentViewers,'42');
+ assert.equal(called,1);
+ assert.match(chat,/requestProxy:async\(resource,params\)=>/);
+ assert.match(server,/pathname==='\/api\/internal\/youtube\/data'/);
+ assert.match(server,/if\(!requireInternalBridge\(req,res\)\)return/);
+ assert.match(server,/Authorization:'Bearer '\+token/);
+});
