@@ -48,5 +48,5 @@ Se requiere un servicio central autenticado por GREÑA ID con almacenamiento tra
 - `cloudflare-d1-migration.sql`: nuevas tablas para salas, miembros, invitaciones, eventos y votos.
 - `cloudflare-rooms.js`: rutas de crear sala, invitar, bandeja de invitaciones, aceptar/rechazar y consultar miembros.
 - Debe llamarse desde el Worker de autenticación **solo después** de validar el Bearer de GREÑA ID y entregar su ID autenticado.
-- El Worker debe conectar `env.DB` y la consulta fiable `env.verifyGrenaUser(userId)`; nunca confiar en IDs enviados desde la ventana web.
+- El Worker debe conectar `env.DB` y proporcionar el callback fiable `verifyRecipient(userId)` desde su propia consulta de identidad; nunca confiar en IDs enviados desde la ventana web.
 - Todavía falta desplegar Worker, enlazar las PC y transmitir alertas/votos hacia este backend. Por eso no se ofrece como multistreamer operativo ni v5.1.26 estable.
