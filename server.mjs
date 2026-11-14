@@ -1632,7 +1632,7 @@ async function beginTwitchDeviceOAuth(res,ownerId,req){
   const id=b64url(randomBytes(24)),session={id,userId:ownerId,deviceCode:d.device_code,userCode:d.user_code||'',verificationUri:d.verification_uri||`https://www.twitch.tv/activate?public=true&device-code=${encodeURIComponent(d.user_code||'')}`,interval:Math.max(2,Number(d.interval||5)),expiresAt:Date.now()+Math.max(60,Number(d.expires_in||1800))*1000,status:'pending',message:'Esperando que autorices GREÑA en Twitch…'};
  twitchDeviceSessions.set(id,session);void pollTwitchDeviceSession(id);return twitchDevicePage(res,session);
 }
-async async function beginOAuth(platform,req,res){
+async function beginOAuth(platform,req,res){
  const currentOwner=sessionUser(req);if(!currentOwner||currentOwner.id!==activeUserId)return callbackPage(res,false,'Inicia sesión en tu propia cuenta GREÑA antes de vincular plataformas.');
  if(platform==='youtube'){
   // Comprobar la configuración REAL cada vez: evita un estado OAuth obsoleto si el Worker fue activado con GREÑA abierta.
