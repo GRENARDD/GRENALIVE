@@ -13,6 +13,7 @@ import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfi
 import { chromium } from 'playwright-core';
 import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
 import {createSharedDynamics} from './dynamics/shared-rooms.mjs';
+import {MINECRAFT_QUESTIONS} from './dynamics/questions.mjs';
 
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 import { makeLicensing } from './grena-licensing.mjs';
@@ -638,8 +639,9 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
    if(!activeUserId)return;
    const room=minecraftRoomFor(activeUserId);
    if(!minecraftSettings.get(activeUserId)?.enabled)return;
-   const questionId=1+Math.floor(Math.random()*100);
-   const accepted=minecraftDynamics.follow({roomId:room.id,streamerId:activeUserId,platform:String(platform||'').toLowerCase(),followerName:String(name||'Seguidor').slice(0,64),questionId,optionA:'Opción A',optionB:'Opción B',eventId:id});
+   const questionId=1+Math.floor(Math.random()*MINECRAFT_QUESTIONS.length);
+   const question=MINECRAFT_QUESTIONS[questionId-1];
+   const accepted=minecraftDynamics.follow({roomId:room.id,streamerId:activeUserId,platform:String(platform||'').toLowerCase(),followerName:String(name||'Seguidor').slice(0,64),questionId,optionA:question.optionA.replaceAll('{user}',String(name||'Seguidor').slice(0,64)),optionB:question.optionB.replaceAll('{user}',String(name||'Seguidor').slice(0,64)),eventId:id});
    if(accepted.accepted)broadcast({type:'dynamics-follow',streamerId:activeUserId,platform,name,questionId});
  }
  function minecraftVoteFromChat(data){
