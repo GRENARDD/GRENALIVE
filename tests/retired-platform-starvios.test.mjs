@@ -15,7 +15,7 @@ test('Starvios is not shown as a supported platform in chat, widgets, viewer cou
  const chat=src('chat.html'), widgets=src('widgets.html'), viewers=src('viewers.html'), catalog=src('gift-catalog.html');
  assert.doesNotMatch(chat,/> CONECTAR STARVIOS/);
  assert.doesNotMatch(chat,/data-chat-filter="starvios"/);
- assert.doesNotMatch(chat,/class="voice-box"[^>]*>\s*<h3[^>]*>[\s\S]*?Starvios/);
+ assert.doesNotMatch(chat,/<h3[^>]*class="platform-heading"[^>]*>[^\n]*Starvios/);
  assert.doesNotMatch(widgets,/grenaDemoPlatformIndex[^\n]*starvios/);
  assert.doesNotMatch(viewers,/class="counter sv/);
  assert.doesNotMatch(catalog,/Starvios añade tarjetas/);
