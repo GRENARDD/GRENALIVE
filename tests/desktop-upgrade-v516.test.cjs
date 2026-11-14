@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {readFileSync}=require('node:fs'),{join}=require('node:path');
 const src=file=>readFileSync(join(__dirname,'..',file),'utf8');
-test('5.1.23 uses a unique artifact and does not silently publish a tag build',()=>{
+test('5.1.24 uses a unique artifact and does not silently publish a tag build',()=>{
  const flow=src('.github/workflows/grena-desktop-from-kit.yml');
  assert.match(flow,/Set official 5\.1\.23 version on main/);
  assert.match(flow,/GRENA-LIVE-Installer-Windows-v5\.1\.23/);

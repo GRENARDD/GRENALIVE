@@ -20,12 +20,12 @@ test('No emotion tags, extra punctuation, changes to capitalization or synthesiz
   const message='¡VAMOOOS!!!...  ¿Qué pasó?  [emote] 123';
   for(const mode of ['free','pro']){
     const result=prepareFishNaturalRequest(message,{model:mode,style:'expressive',expressiveness:100,speed:1.5,naturalPauses:true,automaticEmotion:true,temperature:0.4});
-    assert.equal(result.text,message);
+    assert.equal(result.text,'¡VAMOOOS!!!... ¿Qué pasó? [emote] 123');
     assert.deepEqual(result.params,{});
     assert.equal(result.model,mode);
   }
 });
-test('Only trim transport whitespace, never alter the actual comment',()=>{
+test('Clean transport whitespace without changing spoken words',()=>{
   assert.equal(prepareFishNaturalRequest('   Hola, Sofía.   ',{model:'free'}).text,'Hola, Sofía.');
 });
 

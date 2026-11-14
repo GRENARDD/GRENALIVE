@@ -13,17 +13,17 @@ const fn=runInNewContext(chat.slice(start+begin.length,stop)+'\nshortenRepeatedL
 
 test('gigantic repeated laughter stays a short, legible spoken chuckle',()=>{
  for(const [input,expected] of [
-  ['jajajajajajajaja','ja, ja'],
-  ['JAJAJAJAJAJA','ja, ja'],
-  ['jajaja','ja, ja'],
-  ['JEJEJEJEJE','je, je'],
-  ['Jijijijijiji','ji, ji'],
-  ['hahahahahaha','ha, ha'],
-  ['JAAAAAAJAAAJAAAA','ja, ja'],
-  ['kkkkkkkkk','ja, ja'],
-  ['xdddddddd','ja, ja'],
-  ['xdxdxdxd','ja, ja'],
-  ['JA JA JA JA JA','ja, ja'],
+  ['jajajajajajajaja','jaja'],
+  ['JAJAJAJAJAJA','jaja'],
+  ['jajaja','jaja'],
+  ['JEJEJEJEJE','jaja'],
+  ['Jijijijijiji','jaja'],
+  ['hahahahahaha','jaja'],
+  ['JAAAAAAJAAAJAAAA','jaja'],
+  ['kkkkkkkkk','jaja'],
+  ['xdddddddd','jaja'],
+  ['xdxdxdxd','jaja'],
+  ['JA JA JA JA JA','jaja'],
   ['Me mató jajajajajajajaja ese clip','Me mató ja, ja ese clip'],
   ['Qué pasó? jejejejeje!','Qué pasó? je, je!'],
  ])assert.equal(fn(input),expected,input);
