@@ -30,6 +30,14 @@ test('YouTube broker is rechecked on login and diagnostics omit tokens',()=>{
  assert.doesNotMatch(diag,/access_token|refresh_token|client_secret/i);
 });
 
+test('YouTube OAuth uses async Cloudflare config and Chrome for Google consent',()=>{
+ const server=src('server.mjs'),patch=src('desktop-build/fix_oauth.py');
+ assert.match(server,/async function beginOAuth\(platform,req,res\)/);
+ assert.match(server,/browserYoutube=platform==='youtube'&&s\.mode==='grena-auth'&&s\.userId===activeUserId/);
+ assert.match(patch,/popup\.webContents\.on\('will-redirect',openProvider\)/);
+ assert.match(patch,/shell\.openExternal\(url\)/);
+});
+
 test('alert editor shows current sound and persists per-event audio',()=>{
  const alerts=src('alerts.html');
  for(const term of ['grenaSoundEditor','grenaSoundType','grenaSoundCurrent','grenaSoundUpload','grenaSoundPreview','grenaSoundSave','grenaSoundReset'])assert.ok(alerts.includes(term),term);
