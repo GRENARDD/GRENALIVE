@@ -2965,7 +2965,7 @@ const server =
           broadcast({type:'multichat-settings',settings:multichatSettings});
           broadcast({type:'moderation-list',muted:publicLocalMutedUsers()});
           broadcast({type:'profile-changed',profileId:activeProfileId});
-          if(connectionPrefs.autoConnect)setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube();autoConnectStarvios()},80);
+          if(connectionPrefs.autoConnect)setTimeout(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube()},80);
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
           response.end(JSON.stringify({ok:true,profileId:activeProfileId,prefs:connectionPrefs}));
           return;
@@ -2976,7 +2976,7 @@ const server =
           if(String(request.headers['x-grena-internal']||'')!==BRIDGE_TOKEN){response.writeHead(403);response.end('Forbidden');return;}
           let body='';body=await readBody(request);
           const platform=String((JSON.parse(body||'{}')).platform||'').toLowerCase();
-          if(!['tiktok','twitch','kick','youtube','starvios'].includes(platform)){response.writeHead(400,{'content-type':'application/json'});response.end(JSON.stringify({ok:false,error:'Plataforma no válida'}));return;}
+          if(!['tiktok','twitch','kick','youtube'].includes(platform)){response.writeHead(400,{'content-type':'application/json'});response.end(JSON.stringify({ok:false,error:'Plataforma no válida'}));return;}
           connectionPrefs[platform+'Enabled']=false;connectionPrefs[platform+'Url']='';await saveConnectionPrefs();
           if(platform==='tiktok'){tiktokRetry.failures=0;tiktokRetry.nextAt=0;tiktokRetry.kind='';await disconnectTikTok();}
           if(platform==='twitch')await disconnectTwitch();
@@ -3000,14 +3000,14 @@ const server =
             response.end(JSON.stringify({
               ok:true,
               prefs:connectionPrefs,
-              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running,starvios:starviosReader.connected},kickDiagnostics:{channel:currentKickChannel,enabled:connectionPrefs.kickEnabled,readerConnected:!!kickConnected,pusherSubscribed:!!kickPusherReady,browserSubscribed:!!kickBrowserChatReady,chatroomResolved:!!kickChatroomId,realtimeFrames:kickRealtimeFrames,lastChatAt:kickLastChatAt,provider:kickRealtimeProvider,lastError:kickRealtimeLastError},tiktokDiagnostics:tiktokConnectionDiagnostics(),starviosDiagnostics:starviosReader.getDiagnostics()
+              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running},kickDiagnostics:{channel:currentKickChannel,enabled:connectionPrefs.kickEnabled,readerConnected:!!kickConnected,pusherSubscribed:!!kickPusherReady,browserSubscribed:!!kickBrowserChatReady,chatroomResolved:!!kickChatroomId,realtimeFrames:kickRealtimeFrames,lastChatAt:kickLastChatAt,provider:kickRealtimeProvider,lastError:kickRealtimeLastError},tiktokDiagnostics:tiktokConnectionDiagnostics()
             }));
             return;
           }
           if(request.method==='POST'){
             let body='';body=await readBody(request);
             const incoming=JSON.parse(body||'{}');
-            const allowed=['autoConnect','tiktokUrl','twitchUrl','kickUrl','youtubeUrl','youtubeEnabled','tiktokEnabled','twitchEnabled','kickEnabled','starviosUrl','starviosEnabled'];
+            const allowed=['autoConnect','tiktokUrl','twitchUrl','kickUrl','youtubeUrl','youtubeEnabled','tiktokEnabled','twitchEnabled','kickEnabled'];
             const next={...connectionPrefs};
             for(const key of allowed){
               if(!(key in incoming))continue;
@@ -3017,13 +3017,8 @@ const server =
             connectionPrefs=next;
             await saveConnectionPrefs();
             if(connectionPrefs.autoConnect){
-              const explicitStarvios=Object.prototype.hasOwnProperty.call(incoming,'starviosUrl')
-                &&connectionPrefs.starviosEnabled&&!!normalizeStarviosChannel(connectionPrefs.starviosUrl);
               setTimeout(()=>{
-                autoConnectTwitch();autoConnectTikTok();autoConnectKick();
-                if(explicitStarvios)connectStarvios(connectionPrefs.starviosUrl,{force:true})
-                  .catch(error=>logChatFault('STARVIOS reconnect',error));
-                else autoConnectStarvios();
+                autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube();
               },50);
             }
             response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
@@ -3361,14 +3356,6 @@ wss.on(
             connectionPrefs.youtubeEnabled=true;connectionPrefs.autoConnect=true;
             await saveConnectionPrefs();
             try{await connectYouTube(message.url)}catch(error){broadcastPlatform('youtube',{type:'error',message:getError(error)})}
-          } else if (platform === 'starvios') {
-            const channel=normalizeStarviosChannel(message.url);
-            if(!channel){broadcastPlatform('starvios',{type:'error',message:'Usuario o enlace Starvios no válido.'});return;}
-            connectionPrefs.starviosUrl=channel;
-            connectionPrefs.starviosEnabled=true;
-            connectionPrefs.autoConnect=true;
-            await saveConnectionPrefs();
-            try{await connectStarvios(channel)}catch(error){broadcastPlatform('starvios',{type:'error',message:getError(error)})}
           } else if (platform === 'kick') {
             connectionPrefs.kickUrl=String(message.url||'').trim();
             connectionPrefs.kickEnabled=true;
@@ -3434,10 +3421,6 @@ wss.on(
           if (platform === 'kick') {
             connectionPrefs.kickEnabled=false;await saveConnectionPrefs();
             await disconnectKick();
-          }
-          if(platform==='starvios'){
-            connectionPrefs.starviosEnabled=false;await saveConnectionPrefs();
-            await disconnectStarvios();
           }
         }
       }
@@ -3518,7 +3501,7 @@ server.listen(
     console.log('[TikTok] Eulerstream API key:',EULERSTREAM_API_KEY?'CONFIGURADA':'NO CONFIGURADA');
     console.log('TikTok + Twitch + Kick preparados. Autoconexión:',connectionPrefs.autoConnect?'ACTIVA':'DESACTIVADA');
     console.log('Chat de voz preparado desde el navegador.');
-    await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick(),autoConnectYouTube(),autoConnectStarvios()]);
-    setInterval(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube();autoConnectStarvios()},30000);
+    await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick(),autoConnectYouTube()]);
+    setInterval(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube()},30000);
   }
 );
