@@ -1741,6 +1741,13 @@ async function connectYouTube(input){
     count:Math.max(1,Number(m.count)||1),months:Number(m.months)||0,
     membershipLevel:m.membershipLevel||'',isUpgrade:!!m.isUpgrade,tier:Number(m.tier)||0,
     messageId:m.id,bridgeEventId:stableId};
+   // El comentario escrito dentro de un Super Chat o un hito también es chat;
+   // la alerta económica continúa siendo un evento separado con el mismo ID real.
+   if(m.message&&(kind==='superchat'||kind==='membermilestone')){
+    broadcastPlatform('youtube',{type:'chat',videoId,user:m.user,nickname:m.nickname,userId:m.userId,
+     text:m.message,avatar:m.avatar,isModerator:m.isModerator,isBroadcaster:m.isOwner,isSubscriber:m.isMember,
+     messageId:m.id,isPaid:kind==='superchat',paidKind:kind,displayAmount:amountText});
+   }
    broadcastPlatform('youtube',{type:'event',...details});
    sendToAlerts('/api/internal/event',{platform:'youtube',...details},{reliable:true});
   },
