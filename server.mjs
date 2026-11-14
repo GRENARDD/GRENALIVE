@@ -2293,7 +2293,11 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
        minecraftDynamics.enable({roomId:room.id,userId:me.id,value:!!input.enabled});
        if(input.enabled){
          const sharedRoom=await minecraftCentralRoom(me.id,{create:true});
-         if(!sharedRoom)return json(res,503,{ok:false,error:'No se pudo conectar a GREÑA ID. Dinámicas central no activada.'});
+         if(!sharedRoom){
+           minecraftSettings.set(me.id,{enabled:false});
+           minecraftDynamics.enable({roomId:room.id,userId:me.id,value:false});
+           return json(res,503,{ok:false,error:'No se pudo conectar a GREÑA ID. Dinámicas central no activada.'});
+         }
        }
      }
      else if(action==='invite'){value=minecraftDynamics.invite({roomId:room.id,fromId:me.id,toId:String(input.friendId||'').trim()})}
