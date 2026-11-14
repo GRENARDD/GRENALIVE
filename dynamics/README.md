@@ -29,3 +29,17 @@ node --test dynamics/shared-rooms.test.mjs
 
 ### Restricciones conocidas
 El repositorio visible declara versión 5.1.19; la versión de escritorio mencionada por el usuario es posterior. No fusionar esta rama ni etiquetarla estable hasta integrarla con el código más reciente y realizar pruebas end-to-end con dos cuentas auténticas.
+
+## Estado de integración actualizado
+- Interfaz `/dynamics.html` enlazada en menú principal.
+- Ruta de control `/api/dynamics/minecraft` exige sesión GREÑA ID y pasa por los guardias de host/origen de GREÑA Live.
+- Alerta de follow real alimenta la cola local. El chat real pasa por `/api/internal/loyalty`; cada instancia atribuye los votos al perfil activo.
+- La sala y las invitaciones **solo viven en memoria en la instancia local**. Aún no sincronizan distintas computadoras. El botón de invitación local no puede entregarse a la PC del destinatario.
+- Actualmente se selecciona un ID de pregunta y se muestran etiquetas A/B genéricas. Hay un paquete de 200 preguntas separado, pero todavía no está instalado dentro de esta rama.
+- El resultado se emite a clientes WebSocket de GREÑA Live, pero **no está conectado a Minecraft Bedrock**. El addon de BDS no funciona como puente remoto en cualquier servidor Aternos o mundo local.
+- La protección de inventarios/construcciones requiere verificar y probar las reglas del addon antes de ejecutar retos en un mundo real.
+- Los ajustes están en RAM: tras reiniciar hay que reactivar. Esto es intencional para evitar activar eventos sin usuario.
+- La v5.1.25 es la última base confirmada; esta rama no debe etiquetarse ni publicarse como v5.1.26 estable.
+
+### Para interconectar dos computadoras
+Se requiere un servicio central autenticado por GREÑA ID con almacenamiento transaccional de `rooms`, `room_members`, `invites`, `events` y `votes`, y canales de notificación asociados a cada identidad. Antes de implementarlo en producción hay que revisar el Worker central de Cloudflare y sus rutas reales de identidad para evitar suplantación de cuentas. No enviar contraseñas ni tokens de conectores al otro streamer.
