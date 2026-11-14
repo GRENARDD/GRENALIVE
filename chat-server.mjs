@@ -475,7 +475,7 @@ const broadcast = data => {
   // Conservamos los mensajes recientes para que un overlay que se abra o recargue
   // no quede vacío hasta que llegue el siguiente mensaje. Esto es especialmente
   // útil para OBS, que puede recargar la Fuente de navegador en cualquier momento.
-  if (data?.type === 'chat' && ['tiktok','twitch','kick','youtube','starvios'].includes(String(data?.platform||'').toLowerCase())) {
+  if (data?.type === 'chat' && ['tiktok','twitch','kick','youtube'].includes(String(data?.platform||'').toLowerCase())) {
     const item = {...data, _historyId: data._historyId || `${Date.now()}-${Math.random().toString(36).slice(2,9)}`};
     recentChatHistory.push(item);
     if (recentChatHistory.length > CHAT_HISTORY_LIMIT) recentChatHistory.splice(0, recentChatHistory.length - CHAT_HISTORY_LIMIT);
@@ -2969,6 +2969,8 @@ const server =
               if(key==='autoConnect'||key.endsWith('Enabled')) next[key]=!!incoming[key];
               else next[key]=String(incoming[key]??'').trim();
             }
+            // Plataforma retirada: no admitir ni reactivar preferencias heredadas.
+            next.starviosEnabled=false;next.starviosUrl='';
             connectionPrefs=next;
             await saveConnectionPrefs();
             if(connectionPrefs.autoConnect){
@@ -3019,7 +3021,7 @@ const server =
           let body='';body=await readBody(request);
           try{
             const d=JSON.parse(body||'{}');const platform=String(d.platform||'').toLowerCase(),action=String(d.action||''),user=String(d.username||d.user||'');
-            if(!['tiktok','twitch','kick','starvios'].includes(platform))throw Error('Plataforma no válida.');
+            if(!['tiktok','twitch','kick','youtube'].includes(platform))throw Error('Plataforma no válida.');
             if(platform==='starvios'&&!['mute_local','unmute_local'].includes(action))throw Error('Starvios solo permite silenciar dentro de GREÑA por ahora.');
             if(action==='mute_local'||action==='unmute_local'){
               const key=moderationKey(user);if(!key)throw Error('Falta el usuario.');
