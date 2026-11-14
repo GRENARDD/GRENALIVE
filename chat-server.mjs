@@ -1719,10 +1719,30 @@ async function connectYouTube(input){
     broadcastPlatform('youtube',{type:'chat',videoId,user:m.user,nickname:m.nickname,userId:m.userId,text:m.message,avatar:m.avatar,isModerator:m.isModerator,isBroadcaster:m.isOwner,isSubscriber:m.isMember,messageId:m.id});
     return;
    }
-   const event=m.event||'gift';
-   const stableId=m.id?'youtube:'+videoId+':'+m.id:bridgeMessageId('youtube-'+m.kind);
-   broadcastPlatform('youtube',{type:'event',videoId,event,eventKind:m.kind,user:m.user,nickname:m.nickname,avatar:m.avatar,text:m.message||'',giftName:m.giftName||m.kind,amount:m.amount||0,currency:m.currency||'',displayAmount:m.displayAmount||'',count:m.count||0,messageId:m.id});
-   sendToAlerts('/api/internal/event',{platform:'youtube',event,user:m.user,nickname:m.nickname,avatar:m.avatar,giftName:m.giftName||m.kind,amount:m.amount||0,currency:m.currency||'',displayAmount:m.displayAmount||'',count:m.count||0,videoId,bridgeEventId:stableId},{reliable:true});
+   const event=m.event||'gift',kind=String(m.kind||'');
+   // No confundir los dos LIVE, ni duplicar un pago durante una reconexión.
+   // Los combos Jewels reutilizan el mismo ID: el contador acumulado diferencia incrementos.
+   const comboRevision=kind==='jewelgift'?':'+Math.max(1,Number(m.giftDetails?.comboCount)||1):'';
+   const stableId=m.id?'youtube:'+videoId+':'+m.id+comboRevision:bridgeMessageId('youtube-'+kind);
+   const labels={superchat:'Super Chat',supersticker:'Super Sticker',membership:'Nueva membresía',membermilestone:'Hito de membresía',membershipgift:'Membresías regaladas',membershipreceived:'Membresía recibida',jewelgift:'Regalo Jewels'};
+   const giftName=String(m.giftName||labels[kind]||'Evento YouTube');
+   const amountText=String(m.displayAmount||'').trim();
+   const detail=kind==='superchat'||kind==='supersticker'
+    ?'envió '+(labels[kind]||giftName)+(amountText?' · '+amountText:'')
+    :kind==='membershipgift'?'regaló '+Math.max(1,Number(m.count)||1)+' membresías'
+    :kind==='membermilestone'?'celebró '+Math.max(1,Number(m.months)||1)+' meses de membresía'
+    :kind==='membershipreceived'?'recibió una membresía de regalo'
+    :kind==='membership'?(m.isUpgrade?'mejoró su membresía':'se convirtió en miembro')
+    :kind==='jewelgift'?'envió '+giftName+' ×'+Math.max(1,Number(m.count)||1)
+    :'envió un evento YouTube';
+   const details={videoId,event,eventKind:kind,giftKind:kind,giftName,action:detail,
+    user:m.user,nickname:m.nickname,avatar:m.avatar,text:m.message||'',message:m.message||'',
+    amount:Number(m.amount)||0,currency:m.currency||'',displayAmount:amountText,
+    count:Math.max(1,Number(m.count)||1),months:Number(m.months)||0,
+    membershipLevel:m.membershipLevel||'',isUpgrade:!!m.isUpgrade,tier:Number(m.tier)||0,
+    messageId:m.id,bridgeEventId:stableId};
+   broadcastPlatform('youtube',{type:'event',...details});
+   sendToAlerts('/api/internal/event',{platform:'youtube',...details},{reliable:true});
   },
   onStatus:st=>{
    const waiting=!!st.waiting;
