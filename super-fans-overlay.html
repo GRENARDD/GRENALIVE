@@ -47,7 +47,7 @@ if(params.get('layout')==='vertical')document.body.classList.add('vertical');
 if(params.get('side')==='right')document.body.classList.add('right');
 if(demo)document.body.classList.add('demo');
 const SHOW_MS=demo?8000:30000,PERIOD_MS=demo?14000:300000,FIRST_MS=demo?800:3000;
-const platforms=['kick','twitch','tiktok'],palettes={kick:'#53fc18',twitch:'#a970ff',tiktok:'#ff2d55'};
+const platforms=['kick','tiktok','twitch'],palettes={kick:'#53fc18',twitch:'#a970ff',tiktok:'#25F4EE'};
 const display={kick:'KICK',twitch:'TWITCH',tiktok:'TIKTOK'};
 let dailyTops={},index=0,hideTimer,nextTimer,particlesActive=false,color='#fff',particles=[];
 const slot=document.getElementById('slot'),cv=document.getElementById('fx'),cx=cv.getContext('2d');
