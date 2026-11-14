@@ -1704,6 +1704,16 @@ async function connectYouTube(input){
  const existing=youtubeReaders.get(videoId);
  if(existing?.running)return {videoId,chatId:existing.chatId};
  const reader=new YouTubeLiveReader({
+  // Usa el OAuth real del GREÑA ID; la clave Google nunca sale al navegador.
+  requestProxy:async(resource,params)=>{
+   const u=new URL(MAIN_ORIGIN+'/api/internal/youtube/data');
+   u.searchParams.set('resource',resource);
+   for(const [k,v] of Object.entries(params||{}))if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v));
+   const response=await fetch(u,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(14000)});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)throw Error('YouTube '+response.status+': '+String(data.error||'Error al leer chat o espectadores'));
+   return data;
+  },
   onMessage:m=>{
    if(m.kind==='chat'){
     broadcastPlatform('youtube',{type:'chat',videoId,user:m.user,nickname:m.nickname,userId:m.userId,text:m.message,avatar:m.avatar,isModerator:m.isModerator,isBroadcaster:m.isOwner,isSubscriber:m.isMember,messageId:m.id});
