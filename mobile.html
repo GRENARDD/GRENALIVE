@@ -44,7 +44,7 @@
 <div class="actions"><button id="web">🖥 Versión web</button><button id="logout">Salir</button></div></section>
 </main><nav><button data-tab="chatPanel" class="primary">💬 Chat</button><button data-tab="home">📡 Estado</button><button data-tab="toolsPanel">🛠 Herramientas</button><button data-tab="accountPanel">👤 Cuenta</button></nav>
 <script>
-const $=id=>document.getElementById(id),platforms=['tiktok','twitch','kick','youtube','starvios'],logos={tiktok:'/assets/platforms/tiktok.webp',twitch:'/assets/platforms/twitch.webp',kick:'/assets/platforms/kick.svg',youtube:'/assets/youtube-logo.svg',starvios:'/assets/platforms/starvios.svg'};
+const $=id=>document.getElementById(id),platforms=['tiktok','twitch','kick','youtube'],logos={tiktok:'/assets/platforms/tiktok.webp',twitch:'/assets/platforms/twitch.webp',kick:'/assets/platforms/kick.svg',youtube:'/assets/youtube-logo.svg'};
 
 let ws,retry,sessionReady=false,voiceQueue=[],speaking=false,voiceOn=false;
 let voiceRun=0,fishRequest=null,fishObjectUrl='',needsAudioTap=false,profileVoiceKey='';
@@ -66,7 +66,7 @@ function unlockFishAudioFromTap(){
   setTimeout(()=>{if(mobileAudio.src===silent){mobileAudio.pause();mobileAudio.removeAttribute('src')}URL.revokeObjectURL(silent)},450);
  }catch{}
 }
-const platformNames={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube',starvios:'Starvios'};
+const platformNames={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube'};
 let platformStatus={},platformOAuth={},linkingPlatform='';
 function text(el,value){if(el)el.textContent=String(value??'')}
 function changeTab(id){for(const x of ['home','chatPanel','toolsPanel','accountPanel'])$(x).classList.toggle('hidden',id!==x)}
