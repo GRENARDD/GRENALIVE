@@ -2145,6 +2145,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     return proxyChatHttp(req,res,url);
   }
  
+
+ if(!panelGuard(req,res,pathname))return;
  if(pathname==='/api/dynamics/minecraft' && (req.method==='GET'||req.method==='POST')){
    const me=sessionUser(req);if(!me)return json(res,401,{ok:false,error:'Se requiere GREÑA ID'});
    const room=minecraftRoomFor(me.id);
@@ -2163,7 +2165,6 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    } catch(error){return json(res,400,{ok:false,error:String(error.message||error)})}
  }
 
- if(!panelGuard(req,res,pathname))return;
  // Re-sync an existing GREÑA ID without destroying the desktop session. Verify
  // the account password locally before sending it to the central identity service.
  if(pathname==='/api/license/identity/sync'&&req.method==='POST'&&!CLOUD_MODE){
