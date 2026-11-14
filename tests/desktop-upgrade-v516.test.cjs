@@ -4,8 +4,8 @@ const {readFileSync}=require('node:fs'),{join}=require('node:path');
 const src=file=>readFileSync(join(__dirname,'..',file),'utf8');
 test('5.1.23 uses a unique artifact and does not silently publish a tag build',()=>{
  const flow=src('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(flow,/Set official 5\.1\.22 version on main/);
- assert.match(flow,/GRENA-LIVE-Installer-Windows-v5\.1\.22/);
+ assert.match(flow,/Set official 5\.1\.23 version on main/);
+ assert.match(flow,/GRENA-LIVE-Installer-Windows-v5\.1\.23/);
  assert.match(flow,/electron-builder --win nsis --x64 --publish never/);
  assert.doesNotMatch(flow,/electron-builder --win nsis --x64 --publish always/);
  assert.match(flow,/verify-upgrade-5117-to-5123\.ps1/);
@@ -82,7 +82,7 @@ test('v5.1.17 upgrade gate installs over v5.1.16 without losing account, Fish or
  assert.match(script,/Assert-ProfilePreserved '5\.1\.16'/);
  assert.match(script,/Assert-ProfilePreserved '5\.1\.17'/);
  assert.match(flow,/verify-upgrade-5117-to-5123\.ps1/);
- assert.match(flow,/Set official 5\.1\.22 version on main/);
+ assert.match(flow,/Set official 5\.1\.23 version on main/);
 });
 
 
@@ -91,13 +91,13 @@ test('v5.1.23 installs over official v5.1.17 while preserving profiles, Fish and
  const script=src('desktop-build/verify-upgrade-5117-to-5123.ps1');
  const release=src('.github/workflows/grena-release-v5123.yml');
  assert.match(script,/\$oldVersion='5\.1\.17'/);
- assert.match(script,/\$newVersion='5\.1\.22'/);
+ assert.match(script,/\$newVersion='5\.1\.23'/);
  assert.match(script,/Assert-ProfilePreserved '5\.1\.17'/);
- assert.match(script,/Assert-ProfilePreserved '5\.1\.22'/);
+ assert.match(script,/Assert-ProfilePreserved '5\.1\.23'/);
  assert.match(script,/Get-FileHash -Algorithm SHA256/);
  assert.match(flow,/verify-upgrade-5117-to-5123\.ps1/);
- assert.match(flow,/Set official 5\.1\.22 version on main/);
- assert.match(release,/VERSION: '5\.1\.22'/);
+ assert.match(flow,/Set official 5\.1\.23 version on main/);
+ assert.match(release,/VERSION: '5\.1\.23'/);
  assert.match(release,/git rev-parse HEAD/);
  assert.match(release,/gh release create/);
 });
