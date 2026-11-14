@@ -11,7 +11,9 @@
     "ws": "^8.18.3",
     "tiktok-live-connector": "^2.5.0",
     "playwright-core": "^1.55.0",
-    "tmi.js": "^1.8.5"
+    "tmi.js": "^1.8.5",
+    "@grpc/grpc-js": "^1.14.0",
+    "@grpc/proto-loader": "^0.8.0"
   },
   "description": "GREÑA LIVE PRO WEB · FIX14 completo · TikTok, Twitch, Kick, chat de voz inteligente, alertas, widgets OBS, contador, fidelidad, Tap Tap, Radar y Cam Room."
 }
