@@ -12,6 +12,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfig } from 'tiktok-live-connector';
 import { chromium } from 'playwright-core';
 import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
+import {createSharedDynamics} from './dynamics/shared-rooms.mjs';
 
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 import { makeLicensing } from './grena-licensing.mjs';
@@ -603,6 +604,43 @@ function clearExpiredRecovery(){const now=Date.now();for(const [id,r] of Object.
 function invalidateUserSessions(userId){for(const [k,v] of Object.entries(sessionsStore.sessions||{}))if(v?.userId===userId)delete sessionsStore.sessions[k]}
 
 function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clients)if(ws.readyState===1)ws.send(m)}
+ // ===== GREÑA DINÁMICAS (experimental, en esta instancia de servidor) =====
+ const minecraftDynamics = createSharedDynamics({notify:event=>broadcast({type:'dynamics',event})});
+ const minecraftRoomsByUser=new Map();
+ const minecraftResults=[];
+ const minecraftSettings=new Map();
+ function minecraftRoomFor(userId){
+   if(!userId)return null;
+   const existing=minecraftRoomsByUser.get(userId);
+   if(existing){try{return minecraftDynamics.getRoom(existing)}catch{minecraftRoomsByUser.delete(userId)}}
+   const room=minecraftDynamics.create({ownerId:userId,voteSeconds:20});
+   minecraftRoomsByUser.set(userId,room.id);
+   return room;
+ }
+ function minecraftFollow(platform,name,id=''){
+   if(!activeUserId)return;
+   const room=minecraftRoomFor(activeUserId);
+   if(!minecraftSettings.get(activeUserId)?.enabled)return;
+   const questionId=1+Math.floor(Math.random()*100);
+   const accepted=minecraftDynamics.follow({roomId:room.id,streamerId:activeUserId,platform:String(platform||'').toLowerCase(),followerName:String(name||'Seguidor').slice(0,64),questionId,optionA:'Opción A',optionB:'Opción B',eventId:id});
+   if(accepted.accepted)broadcast({type:'dynamics-follow',streamerId:activeUserId,platform,name,questionId});
+ }
+ function minecraftVoteFromChat(data){
+   if(!activeUserId||!minecraftSettings.get(activeUserId)?.enabled)return;
+   const room=minecraftRoomsByUser.get(activeUserId);if(!room)return;
+   const platform=String(data.platform||'').toLowerCase();
+   if(!['tiktok','twitch','kick','youtube'].includes(platform))return;
+   minecraftDynamics.vote({roomId:room,streamerId:activeUserId,platform,userId:String(data.userId||data.user||'').slice(0,128),message:data.text||''});
+ }
+ const minecraftDynamicsTicker=setInterval(()=>{
+   for(const result of minecraftDynamics.tick()){
+     minecraftResults.push({...result,at:Date.now()});
+     if(minecraftResults.length>100)minecraftResults.shift();
+     broadcast({type:'dynamics-result',result});
+   }
+ },500);
+ minecraftDynamicsTicker.unref?.();
+ 
 
 // ===== GREÑA FIDELIDAD =====
 // Ranking separado por plataforma. El "tiempo" es tiempo activo estimado entre señales del usuario,
@@ -1070,6 +1108,7 @@ function alert(platform,event,name,message='',extra={}){
  if(event==='follow')followerGoalFollow(platform,platform==='Starvios'?extra.count:1);
  const custom=findCustomRule(customAlerts,a,Date.now(),customAlertCooldowns);
   if(custom){a.customRuleId=custom.id;a.customAction=custom.action}
+  if(event==='follow')minecraftFollow(platform,a.name,String(extra.eventId||extra.id||''));
   broadcast({type:'alert',alert:a});broadcast({type:'activity',activity:a})
 }
 function json(res,code,obj){res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj))}
@@ -2105,6 +2144,25 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     if(chatOverlay)assignObsCookie(req,res);
     return proxyChatHttp(req,res,url);
   }
+ 
+ if(pathname==='/api/dynamics/minecraft' && (req.method==='GET'||req.method==='POST')){
+   const me=sessionUser(req);if(!me)return json(res,401,{ok:false,error:'Se requiere GREÑA ID'});
+   const room=minecraftRoomFor(me.id);
+   if(req.method==='GET')return json(res,200,{ok:true,enabled:!!minecraftSettings.get(me.id)?.enabled,room,results:minecraftResults.filter(x=>x.streamerId===me.id).slice(-10)});
+   let input;try{input=JSON.parse(await readBody(req,8192)||'{}')}catch{return json(res,400,{ok:false,error:'JSON inválido'})}
+   try {
+     const action=String(input.action||'');
+     let value=null;
+     if(action==='enable'){minecraftSettings.set(me.id,{enabled:!!input.enabled});minecraftDynamics.enable({roomId:room.id,userId:me.id,value:!!input.enabled})}
+     else if(action==='invite'){value=minecraftDynamics.invite({roomId:room.id,fromId:me.id,toId:String(input.friendId||'').trim()})}
+     else if(action==='respond'){value=minecraftDynamics.respond({invitationId:String(input.invitationId||''),userId:me.id,accept:!!input.accept,gamertag:String(input.gamertag||'')})}
+     else if(action==='test-follow'){if(!minecraftSettings.get(me.id)?.enabled)return json(res,409,{ok:false,error:'Activa la dinámica'});minecraftFollow(String(input.platform||'TikTok'),String(input.name||'Prueba'),String(Date.now()))}
+     else if(action==='test-vote'){minecraftVoteFromChat({platform:String(input.platform||'TikTok'),userId:'test-'+String(input.userId||'1'),text:String(input.vote||'A')})}
+     else return json(res,400,{ok:false,error:'Acción desconocida'});
+     return json(res,200,{ok:true,value,room:minecraftDynamics.getRoom(room.id)});
+   } catch(error){return json(res,400,{ok:false,error:String(error.message||error)})}
+ }
+
  if(!panelGuard(req,res,pathname))return;
  // Re-sync an existing GREÑA ID without destroying the desktop session. Verify
  // the account password locally before sending it to the central identity service.
@@ -2557,6 +2615,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(bridgeMessageDuplicate(body.bridgeEventId))return json(res,200,{ok:true,duplicate:true});
   noteBridgeSignal(p,String(body.kind||body.event||'loyalty'),{user:body.user||'',amount:Number(body.amount||0)||0});
   if(p==='tiktok'&&String(body.kind||body.event||'').toLowerCase()==='like')recordTapTap(body);
+  if(String(body.kind||'').toLowerCase()==='chat')minecraftVoteFromChat(body);
   const result=recordLoyaltyEvent(body);return json(res,200,{ok:true,result,taptap:p==='tiktok'?publicTapTapState():undefined});
  }
  if(pathname==='/api/loyalty'&&req.method==='GET'){
