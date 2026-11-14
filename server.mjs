@@ -1636,11 +1636,13 @@ async function beginTwitchDeviceOAuth(res,ownerId,req){
   const id=b64url(randomBytes(24)),session={id,userId:ownerId,deviceCode:d.device_code,userCode:d.user_code||'',verificationUri:d.verification_uri||`https://www.twitch.tv/activate?public=true&device-code=${encodeURIComponent(d.user_code||'')}`,interval:Math.max(2,Number(d.interval||5)),expiresAt:Date.now()+Math.max(60,Number(d.expires_in||1800))*1000,status:'pending',message:'Esperando que autorices GREÑA en Twitch…'};
  twitchDeviceSessions.set(id,session);void pollTwitchDeviceSession(id);return twitchDevicePage(res,session);
 }
-function beginOAuth(platform,req,res){
+async function beginOAuth(platform,req,res){
  const currentOwner=sessionUser(req);if(!currentOwner||currentOwner.id!==activeUserId)return callbackPage(res,false,'Inicia sesión en tu propia cuenta GREÑA antes de vincular plataformas.');
  if(platform==='youtube'){
+  // Comprobar la configuración REAL cada vez: evita un estado OAuth obsoleto si el Worker fue activado con GREÑA abierta.
+  if(AUTH_SERVICE_URL)await loadAuthServiceConfig();
   if(isBrokerProvider('youtube'))return beginBrokerOAuth('youtube',req,res,currentOwner.id);
-  if(!configured('youtube'))return callbackPage(res,false,'YouTube no está habilitado en GREÑA Auth. Comprueba la configuración de Cloudflare.');
+  if(!configured('youtube'))return callbackPage(res,false,authService.lastError?'YouTube: no se pudo consultar GREÑA Auth ('+authService.lastError+').':'YouTube no está habilitado en GREÑA Auth. Comprueba la configuración de Cloudflare.');
   const owner=sessionUser(req);if(!owner)return callbackPage(res,false,'Inicia sesión en GREÑA primero.');
   const state=b64url(randomBytes(32));const redirect=oauthRedirectFor('youtube',req);
   oauthState.set(state,{platform:'youtube',created:Date.now(),userId:owner.id,redirect});
@@ -2204,7 +2206,12 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    await destroySession(req,res);return json(res,200,{ok:true});
  }
  if(pathname==='/api/account/me'&&req.method==='GET'){const u=sessionUser(req);res.setHeader('Cache-Control','no-store');return json(res,200,accountPayload(u));}
-  if(pathname==='/api/obs-token'&&req.method==='GET'){const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Sesión requerida.'});res.setHeader('Cache-Control','no-store');return json(res,200,{ok:true,token:obsToken});}
+  if(pathname==='/api/youtube/diagnostic'&&req.method==='GET'){
+  if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'});
+  await loadAuthServiceConfig();
+  return json(res,200,{ok:true,workerReachable:authService.reachable,brokerEnabled:isBrokerProvider('youtube'),linked:!!savedAuth.youtube?.channelId,channel:savedAuth.youtube?.displayName||'',callback:oauthRedirectFor('youtube',req),workerError:authService.lastError||''});
+ }
+ if(pathname==='/api/obs-token'&&req.method==='GET'){const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Sesión requerida.'});res.setHeader('Cache-Control','no-store');return json(res,200,{ok:true,token:obsToken});}
  if(pathname==='/api/soundboard'&&req.method==='GET'){
    const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
    const board=await soundboardState(u.id);
