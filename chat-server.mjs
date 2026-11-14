@@ -63,7 +63,7 @@ let activeProfileId=String((await readJson(ACTIVE_PROFILE_FILE,{})).userId||'');
 let CONNECTIONS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-connections.json'):LEGACY_CONNECTIONS_FILE;
 let MULTICHAT_SETTINGS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-settings.json'):LEGACY_MULTICHAT_SETTINGS_FILE;
 let MUTED_USERS_FILE=activeProfileId?join(PROFILES_DIR,activeProfileId,'chat-muted-users.json'):LEGACY_MUTED_USERS_FILE;
-const connectionDefaults={autoConnect:true,tiktokUrl:'',twitchUrl:'',kickUrl:'',youtubeUrl:'',starviosUrl:'',tiktokEnabled:false,twitchEnabled:false,kickEnabled:false,youtubeEnabled:false,starviosEnabled:false};
+const connectionDefaults={autoConnect:true,tiktokUrl:'',twitchUrl:'',kickUrl:'',youtubeUrl:'',tiktokEnabled:false,twitchEnabled:false,kickEnabled:false,youtubeEnabled:false};
 let connectionPrefs={...connectionDefaults,...await readJson(CONNECTIONS_FILE,{})};
 async function saveConnectionPrefs(){await safeWriteJson(CONNECTIONS_FILE,connectionPrefs).catch(()=>{})}
 
@@ -1772,6 +1772,8 @@ const starviosReader=new StarviosReader({
   onError:error=>logChatFault('STARVIOS',error)
 });
 async function connectStarvios(input,{force=false}={}){
+  // Retired: do not start the legacy Starvios client.
+  return;
   const channel=normalizeStarviosChannel(input);
   if(!channel)throw Error('Introduce el usuario o enlace válido de Starvios.');
   if(!force&&starviosReader.running && starviosReader.channel.toLowerCase()===channel.toLowerCase())return;
@@ -1779,6 +1781,7 @@ async function connectStarvios(input,{force=false}={}){
 }
 async function disconnectStarvios(){await starviosReader.disconnect()}
 async function autoConnectStarvios(){
+  return; // Starvios permanently disabled in this build.
   if(!connectionPrefs.autoConnect||!connectionPrefs.starviosEnabled||!connectionPrefs.starviosUrl||starviosReader.running)return;
   try{await connectStarvios(connectionPrefs.starviosUrl)}
   catch(e){console.warn('[AUTO Starvios]',String(e?.message||e).slice(0,150))}
