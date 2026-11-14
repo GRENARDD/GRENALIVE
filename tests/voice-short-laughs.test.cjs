@@ -24,8 +24,8 @@ test('gigantic repeated laughter stays a short, legible spoken chuckle',()=>{
   ['xdddddddd','jaja'],
   ['xdxdxdxd','jaja'],
   ['JA JA JA JA JA','jaja'],
-  ['Me mató jajajajajajajaja ese clip','Me mató ja, ja ese clip'],
-  ['Qué pasó? jejejejeje!','Qué pasó? je, je!'],
+  ['Me mató jajajajajajajaja ese clip','Me mató jaja ese clip'],
+  ['Qué pasó? jejejejeje!','Qué pasó? jaja!'],
  ])assert.equal(fn(input),expected,input);
 });
 
