@@ -55,7 +55,7 @@ function renderViewerSparkline(total){
  line.classList.remove('updated');dot.classList.remove('updated');void line.getBoundingClientRect();line.classList.add('updated');dot.classList.add('updated');
 }
 function renderViewers(){
- const v={tiktok:Math.max(0,Number(state.viewers.tiktok)||0),twitch:Math.max(0,Number(state.viewers.twitch)||0),kick:Math.max(0,Number(state.viewers.kick)||0),youtube:Math.max(0,Number(state.viewers.youtube)||0),starvios:Math.max(0,Number(state.viewers.starvios)||0)};
+ const v={tiktok:Math.max(0,Number(state.viewers.tiktok)||0),twitch:Math.max(0,Number(state.viewers.twitch)||0),kick:Math.max(0,Number(state.viewers.kick)||0),youtube:Math.max(0,Number(state.viewers.youtube)||0)};
  const total=Object.values(v).reduce((a,b)=>a+b,0);
  for(const p of Object.keys(v)){
   const el=$(p+'Viewers');
@@ -68,7 +68,7 @@ function renderViewers(){
   const card=document.querySelector('.viewer-grid .viewer-card.'+p);
   if(card)card.classList.toggle('is-hidden',p==='starvios'?!(v[p]>=1||(linked&&state.status.starvios?.live!==false)):v[p]<1);
  }
- document.querySelector('.viewer-grid')?.classList.toggle('is-empty',total<1&&!state.status.starvios?.authenticated&&!state.bridge.starvios);
+ document.querySelector('.viewer-grid')?.classList.toggle('is-empty',total<1);
  $('totalViewers').textContent=total.toLocaleString('es-DO');
  renderViewerSparkline(total);
 }
@@ -83,7 +83,7 @@ function platformAccount(p){
 function renderPlatforms(){
  const labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube',starvios:'Starvios'};
  const chipClass=status=>status==='ready'?' on':status==='degraded'||status==='connecting'?' warn':status==='fallback'?' fallback':status==='waiting'?' waiting':' off';
- for(const p of ['tiktok','twitch','kick','youtube','starvios']){
+ for(const p of ['tiktok','twitch','kick','youtube']){
   const s=state.status[p]||{},health=state.eventHealth[p]||{},auth=p==='starvios'?!!(state.starviosSavedChannel||s.configured):!!s.authenticated;
   const runtimeLive=p==='kick'?!!(s.runtimeConnected||state.bridge[p]):!!state.bridge[p];
   const chatState=String(health.chat||(runtimeLive?'ready':auth?'waiting':'off'));
@@ -114,11 +114,11 @@ function renderPlatforms(){
  maybeOnboarding();
 }
 function detailFor(a){if(a.event==='gift'&&a.giftName){const parts=[];parts.push(`${a.giftName}${Number(a.count||1)>1?' × '+a.count:''}`);if(Number(a.totalDiamonds)>0)parts.push(`${Number(a.totalDiamonds).toLocaleString('es-DO')} diamantes`);return parts.join(' · ')}if(a.event==='cheer'&&Number(a.bits)>0)return `${Number(a.bits).toLocaleString('es-DO')} Bits`;if(a.event==='raid'&&Number(a.viewers)>0)return `${Number(a.viewers).toLocaleString('es-DO')} espectadores`;return ''}
-function addActivity(a,fromHistory=false){if(!a||!['TikTok','Twitch','Kick','Starvios'].includes(a.platform))return;const id=[a.platform,a.event,a.name,a.receivedAt].join('|');if(state.activity.some(x=>x.__id===id))return;a.__id=id;state.activity.unshift(a);if(state.activity.length>80)state.activity.length=80;if(!fromHistory)renderActivity();}
+function addActivity(a,fromHistory=false){if(!a||!['TikTok','Twitch','Kick','YouTube'].includes(a.platform))return;const id=[a.platform,a.event,a.name,a.receivedAt].join('|');if(state.activity.some(x=>x.__id===id))return;a.__id=id;state.activity.unshift(a);if(state.activity.length>80)state.activity.length=80;if(!fromHistory)renderActivity();}
 function renderActivity(){const box=$('activityFeed');$('eventCount').textContent=state.activity.length;if(!state.activity.length){box.innerHTML='<div class="empty-state"><span>⚡</span><b>Esperando actividad</b><small>Follows, regalos, compartidos, subs, Bits y raids aparecerán aquí con el detalle exacto.</small></div>';return}box.innerHTML=state.activity.map(a=>{const p=a.platform==='TikTok'?'tt':a.platform==='Kick'?'kick':'tw',detail=detailFor(a),action=a.action||a.message||'realizó una acción';return `<div class="event-row"><div class="event-icon">${icons[a.event]||'•'}</div><div class="event-copy"><div class="event-top"><b>${esc(a.name||'Usuario')}</b><span class="event-platform ${p}">${esc(a.platform)}</span></div><div class="event-action">${esc(action)}</div>${detail&&!String(action).includes(detail)?`<div class="event-detail">${esc(detail)}</div>`:''}</div><span class="event-time">${clock(a.receivedAt)}</span></div>`}).join('')}
 async function loadInitial(){try{const [st,ac,v]=await Promise.all([fetch('/api/status',{cache:'no-store'}).then(r=>r.json()),fetch('/api/activity?limit=60',{cache:'no-store'}).then(r=>r.json()),fetch('/api/viewers',{cache:'no-store'}).then(r=>r.json())]);state.status=st.status||{};state.bridge={...state.bridge,...(st.bridgeRuntime||{})};state.eventHealth=st.eventHealth||state.eventHealth;state.viewers=v.viewers||state.viewers;state.viewerMeta=v.meta||state.viewerMeta;state.activity=[];(ac.activity||[]).slice().reverse().forEach(a=>addActivity(a,true));renderActivity();renderPlatforms();renderViewers();renderSystem(true)}catch{renderSystem(false)}}
 let coreWS,retryCore;function connectCore(){clearTimeout(retryCore);try{coreWS?.close()}catch{}const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);coreWS=ws;ws.onopen=()=>renderSystem(true);ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='hello'){state.status=d.status||state.status;state.bridge={...state.bridge,...(d.bridgeRuntime||{})};state.eventHealth=d.eventHealth||state.eventHealth;state.viewers=d.viewers||state.viewers;state.viewerMeta=d.meta||state.viewerMeta;renderPlatforms();renderViewers()}if(d.type==='platform-status'){state.status=d.status||state.status;renderPlatforms()}if(d.type==='event-health'){state.eventHealth=d.eventHealth||state.eventHealth;renderPlatforms()}if(d.type==='viewers'){state.viewers=d.viewers||state.viewers;state.viewerMeta=d.meta||state.viewerMeta;renderViewers()}if(d.type==='activity'){addActivity(d.activity);renderActivity()}if(d.type==='profile-changed'){if(!d.profile||d.profile.id!==state.profile?.id){location.replace('/login.html');return}state.profile=d.profile;$('profileName').textContent=d.profile.displayName||d.profile.username;$('profileUser').textContent='@'+d.profile.username;$('profileAvatar').textContent=String(d.profile.displayName||d.profile.username||'G').slice(0,1).toUpperCase()}}catch{}};ws.onclose=()=>{renderSystem(false);verifyOwnerSession().then(ok=>{if(ok)retryCore=setTimeout(connectCore,1500)})};ws.onerror=()=>{try{ws.close()}catch{}}}
-let chatWS,retryChat;function connectChatEngine(){clearTimeout(retryChat);try{chatWS?.close()}catch{}const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);const ws=new WebSocket(cloud?`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`:`ws://${location.hostname}:8788/ws`);chatWS=ws;ws.onopen=()=>{state.chatConnected=true;$('chatEngineDot').classList.add('on');$('chatEngineText').textContent='Motor de chat conectado'};ws.onmessage=e=>{try{const d=JSON.parse(e.data),p=String(d.platform||'').toLowerCase();if(['tiktok','twitch','kick','starvios'].includes(p)){if(d.type==='connected'){state.bridge[p]=true;renderPlatforms()}if(['disconnected','ended'].includes(d.type)){state.bridge[p]=false;renderPlatforms()}}}catch{}};ws.onclose=()=>{state.chatConnected=false;$('chatEngineDot').classList.remove('on');$('chatEngineText').textContent='Reconectando motor de chat…';retryChat=setTimeout(connectChatEngine,1500)};ws.onerror=()=>{try{ws.close()}catch{}}}
+let chatWS,retryChat;function connectChatEngine(){clearTimeout(retryChat);try{chatWS?.close()}catch{}const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);const ws=new WebSocket(cloud?`${location.protocol==='https:'?'wss':'ws'}://${location.host}/chat-ws`:`ws://${location.hostname}:8788/ws`);chatWS=ws;ws.onopen=()=>{state.chatConnected=true;$('chatEngineDot').classList.add('on');$('chatEngineText').textContent='Motor de chat conectado'};ws.onmessage=e=>{try{const d=JSON.parse(e.data),p=String(d.platform||'').toLowerCase();if(['tiktok','twitch','kick','youtube'].includes(p)){if(d.type==='connected'){state.bridge[p]=true;renderPlatforms()}if(['disconnected','ended'].includes(d.type)){state.bridge[p]=false;renderPlatforms()}}}catch{}};ws.onclose=()=>{state.chatConnected=false;$('chatEngineDot').classList.remove('on');$('chatEngineText').textContent='Reconectando motor de chat…';retryChat=setTimeout(connectChatEngine,1500)};ws.onerror=()=>{try{ws.close()}catch{}}}
 async function postAlert(payload){const r=await fetch('/api/alert',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw Error('No se pudo enviar la alerta')}
 const tests={
  'tt-follow':{platform:'TikTok',event:'follow',name:'USUARIO_PRUEBA',action:'te siguió'},
@@ -341,7 +341,7 @@ async function unlinkStarviosLink(){
     if(cancel)cancel.disabled=false;
   }
 }
-$('loginStarvios').addEventListener('click',openStarviosLinkModal);
+$('loginStarvios')?.addEventListener('click',openStarviosLinkModal);
 $('starviosLinkCancel')?.addEventListener('click',closeStarviosLinkModal);
 $('starviosLinkForm')?.addEventListener('submit',submitStarviosLink);
 $('starviosLinkDisconnect')?.addEventListener('click',unlinkStarviosLink);
