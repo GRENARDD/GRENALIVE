@@ -1682,6 +1682,7 @@ async function disconnectTwitch() {
 // YouTube: horizontal y vertical son emisiones independientes con lectores propios.
 const youtubeReaders=new Map();
 const youtubeViewers=new Map();
+const youtubeReaderHealth=new Map();
 let youtubeViewerTimer=null,youtubeDiscoveryBusy=false,youtubeDiscoveryLastError='';
 function youtubeActiveReaders(){return [...youtubeReaders.values()].filter(r=>r.running)}
 function publishYoutubeViewers(){
@@ -1695,8 +1696,9 @@ function publishYoutubeViewers(){
 }
 function youtubeStatus(label='YouTube LIVE conectado'){
  const active=youtubeActiveReaders().length;
- const title=active>1?'YouTube: '+active+' transmisiones conectadas':label;
- bridgeStatus('youtube',active>0,title,active+' LIVE',{liveCount:active,videoIds:[...youtubeReaders.keys()]});
+ const healthy=[...youtubeReaderHealth.values()].filter(Boolean).length;
+ const title=active>1?'YouTube: '+healthy+'/'+active+' transmisiones con chat conectado':label;
+ bridgeStatus('youtube',healthy>0,title,active+' LIVE',{liveCount:active,liveConnected:healthy,videoIds:[...youtubeReaders.keys()]});
 }
 async function connectYouTube(input){
  const videoId=youtubeVideoId(input);
@@ -1752,6 +1754,7 @@ async function connectYouTube(input){
    sendToAlerts('/api/internal/event',{platform:'youtube',...details},{reliable:true});
   },
   onStatus:st=>{
+   youtubeReaderHealth.set(videoId,!!st.connected);
    const waiting=!!st.waiting;
    const label=st.connected?'YouTube LIVE conectado':waiting?(st.error||'YouTube: esperando inicio desde OBS'):(st.error||'Reconectando YouTube');
    broadcastPlatform('youtube',{type:st.connected||waiting?'status':'error',videoId,message:label});
@@ -1775,7 +1778,7 @@ async function connectYouTube(input){
   youtubeStatus();
   return result;
  }catch(e){
-  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);
+  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);youtubeReaderHealth.delete(videoId);
   publishYoutubeViewers();youtubeStatus('YouTube desconectado');
   throw e;
  }
@@ -1784,10 +1787,10 @@ async function disconnectYouTube(videoId=''){
  if(videoId){
   const reader=youtubeReaders.get(videoId);
   if(reader)await reader.stop();
-  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);
+  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);youtubeReaderHealth.delete(videoId);
  }else{
   await Promise.allSettled([...youtubeReaders.values()].map(r=>r.stop()));
-  youtubeReaders.clear();youtubeViewers.clear();
+  youtubeReaders.clear();youtubeViewers.clear();youtubeReaderHealth.clear();
  }
  if(!youtubeReaders.size&&youtubeViewerTimer){clearInterval(youtubeViewerTimer);youtubeViewerTimer=null}
  publishYoutubeViewers();
