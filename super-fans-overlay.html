@@ -84,7 +84,20 @@ function show(){
  slot.innerHTML=markup;color=palettes[p];particlesActive=true;animateNums(slot.firstElementChild);
 }
 function hide(){particlesActive=false;const el=slot.firstElementChild;if(!el)return;el.classList.add('out');setTimeout(()=>{if(slot.firstElementChild===el)slot.replaceChildren()},800)}
-function cycle(){show();clearTimeout(hideTimer);hideTimer=setTimeout(hide,SHOW_MS);index=(index+1)%platforms.length;nextTimer=setTimeout(cycle,PERIOD_MS)}
+function cycle(){
+ // No dejar OBS vacío durante cinco minutos si el turno pertenece a una
+ // plataforma sin actividad, mientras otra sí tiene un Super Fan.
+ if(!demo){
+  const available=platforms.filter(p=>(dailyTops[p]||[]).length>0);
+  if(!available.length){slot.replaceChildren();nextTimer=setTimeout(cycle,15000);return}
+  for(let n=0;n<platforms.length;n++){
+   if((dailyTops[platforms[index]]||[]).length)break;
+   index=(index+1)%platforms.length;
+  }
+ }
+ show();clearTimeout(hideTimer);hideTimer=setTimeout(hide,SHOW_MS);
+ index=(index+1)%platforms.length;nextTimer=setTimeout(cycle,PERIOD_MS)
+}
 function use(data){if(data?.dailyTops)dailyTops=data.dailyTops}
 async function load(){try{const obs=params.get('obs');const r=await fetch('/api/loyalty?limit=1'+(obs?'&obs='+encodeURIComponent(obs):''),{cache:'no-store'});if(r.ok){const data=await r.json();use(data.loyalty)}}catch{}}
 function connect(){const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+(params.get('obs')?'/?obs='+encodeURIComponent(params.get('obs')):''));ws.onmessage=e=>{try{const d=JSON.parse(e.data);if((d.type==='hello'||d.type==='loyalty-update')&&d.loyalty)use(d.loyalty)}catch{}};ws.onclose=()=>setTimeout(connect,2500);ws.onerror=()=>ws.close()}
