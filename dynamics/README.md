@@ -1,62 +1,32 @@
-# GREÑA Live — Jugar con amigos (trabajo en progreso)
+# GREÑA Live 5.1.26 — Dinámicas Minecraft entre streamers
 
-Esta rama agrega el motor de salas compartidas de dinámicas. **No está integrado todavía al ejecutable ni al mundo local de Minecraft.**
+## Integración preparada
+- Menú principal: **Dinámicas / ¿Qué prefieres en Minecraft?**
+- Cada GREÑA ID autenticado puede activar sus retos, crear automáticamente su sala y enviar una invitación a otro GREÑA ID.
+- Solo el destinatario de la invitación puede aceptarla. Las invitaciones caducan a los cinco minutos.
+- Los followers reales de TikTok, Twitch, Kick y YouTube encolan preguntas del catálogo original de 200.
+- El chat A/B del streamer dueño del reto es el único que cuenta para esa pregunta. Un espectador puede corregir su voto; solo cuenta una vez por plataforma y cuenta.
+- Cloudflare D1 es la autoridad central: una pregunta activa por sala, hasta veinte pendientes, 20 segundos de votación, votos separados por streamer e historial de resultados.
+- Cada streamer puede registrar su gamertag de Minecraft en la sala y ver los resultados compartidos.
+- El Worker real de GREÑA ID maneja la autenticación con Bearer y las rutas `/api/dynamics/rooms/*`. Nunca se transmite el token de otra cuenta.
 
-## Comportamiento
-- Un streamer con GREÑA ID crea una sala e invita a otro GREÑA ID.
-- Solo el destinatario puede aceptar; invitaciones vencen a los cinco minutos.
-- Cada streamer puede activar/desactivar su participación sin cerrar la sala.
-- Al llegar un follow, se asocia la pregunta al GREÑA ID del streamer seguido.
-- Solo los mensajes provenientes de los chats de **ese streamer** cuentan en su votación. Los votos de otros streamers de la sala se ignoran.
-- Un usuario puede actualizar A/B; se registra su último voto por plataforma+identificador.
-- Una sola pregunta activa por sala; las demás esperan en una cola hasta 20.
-- Al terminar el conteo, el resultado incluye los gamertags de los jugadores participantes para que otro módulo lo entregue a Minecraft.
+## Minecraft Bedrock en Aternos: dos vías
+**Vía recomendada para Minecraft Bedrock en Windows y servidor Aternos:**
+1. Inicia GREÑA Live en Windows, entra con GREÑA ID y activa Dinámicas.
+2. Entra al mundo de Aternos con una cuenta de Minecraft que tenga permisos de operador y que permita trucos.
+3. En el chat del juego ejecuta `/connect ws://127.0.0.1:19135`.
+4. La pantalla Dinámicas debe indicar «Minecraft conectado». Mantén el cliente de Bedrock y GREÑA Live abiertos en ese PC.
+5. Vincula los gamertags de los jugadores en la sala. El resultado aplica mensajes y efectos de 6 segundos a los jugadores registrados.
 
-## Integración pendiente con el código principal
-- Usar la identidad autenticada de GREÑA ID en cada solicitud; no confiar en un streamerId enviado por un navegador.
-- Persistir salas/invitaciones de manera transaccional, con una única autoridad entre PCs distintas, por ejemplo en servicio de GREÑA ID.
-- Enlazar alertas reales de follow (sin disparar por alertas de prueba) con `follow(...)`.
-- Enlazar cada chat conectado con `vote(...)`; la cuenta de origen debe provenir del conector, no de texto proporcionado por el espectador.
-- Programar `tick()` con reloj del servidor, sin que el navegador controle el resultado.
-- Crear la pantalla Dinámicas / Jugar con amigos, notificaciones y confirmación de invitaciones.
-- Entregar el resultado al addon a través de un puente seguro y compatible con el hosting de Bedrock.
-- Evitar pérdida/duplicación de eventos y proteger inventarios y construcciones del mundo eterno antes de jugar en producción.
+**Límites reales:** el protocolo WebSocket del cliente Bedrock depende de su versión y permisos; no puede garantizarse su compatibilidad sin una sesión real. En esta entrega solo hay efectos seguros y temporales (A = velocidad; B = salto). Los 200 retos tienen preguntas completas, pero no implementan automáticamente 200 efectos distintos. No se envían comandos que cambien bloques, inventarios o posiciones. Si el servidor no permite trucos o la versión del juego rechaza /connect, esta vía no funciona.
 
-## Prueba
-```sh
-node --test dynamics/shared-rooms.test.mjs
-```
+**Vía alternativa en servidor BDS administrado:** `/mc/poll` está disponible con un token fuerte `GRENA_MINECRAFT_BRIDGE_TOKEN` para un addon BDS que tenga permiso de HTTP. No asumir que Aternos permite configurar `@minecraft/server-net`.
 
-### Restricciones conocidas
-El repositorio visible declara versión 5.1.19; la versión de escritorio mencionada por el usuario es posterior. No fusionar esta rama ni etiquetarla estable hasta integrarla con el código más reciente y realizar pruebas end-to-end con dos cuentas auténticas.
+## Pruebas de lanzamiento
+- `node --test dynamics/*.test.mjs` cubre catálogo, salas, D1 simulado con dos identidades, cola, autorización de gamertags y protocolo WebSocket (cliente simulado).
+- GitHub Actions compila el instalador, valida voz, OBS, chat, licencias, y comprueba que incluya los módulos.
+- El flujo de publicación oficial `grena-release-v5126.yml` exige commit probado de `main`, instalador válido y Worker de producción con ruta de salas protegida.
+- La comprobación automatizada **no equivale** a un ensayo de Minecraft real en Aternos. El usuario necesita ejecutar una vez el comando /connect y confirmar el estado de conexión.
+- La actualización automática de usuarios continúa bajo control del propietario del canal GREÑA, no por crear el release.
 
-## Estado de integración actualizado
-- Interfaz `/dynamics.html` enlazada en menú principal.
-- Ruta de control `/api/dynamics/minecraft` exige sesión GREÑA ID y pasa por los guardias de host/origen de GREÑA Live.
-- Alerta de follow real alimenta la cola local. El chat real pasa por `/api/internal/loyalty`; cada instancia atribuye los votos al perfil activo.
-- La sala y las invitaciones **solo viven en memoria en la instancia local**. Aún no sincronizan distintas computadoras. El botón de invitación local no puede entregarse a la PC del destinatario.
-- Actualmente se selecciona un ID de pregunta y se muestran etiquetas A/B genéricas. Hay un paquete de 200 preguntas separado, pero todavía no está instalado dentro de esta rama.
-- El resultado se emite a clientes WebSocket de GREÑA Live, pero **no está conectado a Minecraft Bedrock**. El addon de BDS no funciona como puente remoto en cualquier servidor Aternos o mundo local.
-- La protección de inventarios/construcciones requiere verificar y probar las reglas del addon antes de ejecutar retos en un mundo real.
-- Los ajustes están en RAM: tras reiniciar hay que reactivar. Esto es intencional para evitar activar eventos sin usuario.
-- La v5.1.25 es la última base confirmada; esta rama no debe etiquetarse ni publicarse como v5.1.26 estable.
-
-### Para interconectar dos computadoras
-Se requiere un servicio central autenticado por GREÑA ID con almacenamiento transaccional de `rooms`, `room_members`, `invites`, `events` y `votes`, y canales de notificación asociados a cada identidad. Antes de implementarlo en producción hay que revisar el Worker central de Cloudflare y sus rutas reales de identidad para evitar suplantación de cuentas. No enviar contraseñas ni tokens de conectores al otro streamer.
-
-### Backend central agregado (sin desplegar)
-- `cloudflare-d1-migration.sql`: nuevas tablas para salas, miembros, invitaciones, eventos y votos.
-- `cloudflare-rooms.js`: rutas de crear sala, invitar, bandeja de invitaciones, aceptar/rechazar y consultar miembros.
-- Debe llamarse desde el Worker de autenticación **solo después** de validar el Bearer de GREÑA ID y entregar su ID autenticado.
-- El Worker debe conectar `env.DB` y proporcionar el callback fiable `resolveRecipient(username)` desde su propia consulta de identidad que devuelva `{id}` canónico; nunca confiar en IDs enviados desde la ventana web.
-- Todavía falta desplegar Worker, enlazar las PC y transmitir alertas/votos hacia este backend. Por eso no se ofrece como multistreamer operativo ni v5.1.26 estable.
-
-## Comprobación obligatoria para declarar la 5.1.26 estable
-- Cloudflare Worker de GREÑA ID desplegado con identidad autenticada por token, `resolveRecipient(username)` y las rutas `/api/dynamics/rooms/*`.
-- Invitación recibida y aceptada con dos GREÑA ID auténticos desde **dos PC separadas**, no solo una simulación local.
-- Sala y votos compartidos en el backend central; actualmente los votos y la cola se administran en memoria local por instancia.
-- Seguimiento de followers reales de cada plataforma, sin incluir mensajes del otro streamer en su votación.
-- Puente HTTPS alcanzable desde Bedrock Dedicated Server con addon configurado, sin claves de prueba en el archivo distribuido.
-- Dos gamertags reciben y completan el mismo reto, sin pérdidas de inventario ni modificaciones permanentes.
-- Prueba de actualización con datos existentes de 5.1.25 y build firmado o advertencia explícita si no está firmado.
-- Solo después: etiqueta 5.1.26, publicación de Windows installer y pruebas finales.
+No fusionar un commit con pruebas fallidas. No cambiar credenciales, claves Fish Audio, licencias ni datos de cuentas.
