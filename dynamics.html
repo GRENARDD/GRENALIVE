@@ -34,6 +34,13 @@ code{color:#afd9ff}label{font-size:14px;color:#c5d4e7}
 <div class="stack"><button id="follow">Simular follow</button><button id="voteA">Voto A</button><button id="voteB">Voto B</button></div>
 <p>La prueba no publica un follow real en ninguna plataforma.</p>
 </section>
+<section><h2>Conectar Minecraft Bedrock PC</h2>
+<p>Sin instalar nada en Aternos: abre el chat de Minecraft en Windows con permisos de operador, pega este comando una vez por sesión y mantén GREÑA Live abierto.</p>
+<code id="bedrockCommand">/connect ws://127.0.0.1:19135</code>
+<div class="stack"><button id="copyBedrock" type="button">Copiar comando</button></div>
+<p id="bedrockStatus" aria-live="polite">Comprobando conexión…</p>
+<small>Este puente necesita permisos de operador y trucos habilitados. Las dos personas pueden recibir mensajes y efectos temporales desde el cliente conectado. La compatibilidad exacta se confirma conectando el Minecraft real.</small>
+</section>
 <section><h2>Jugar con amigos</h2>
 <p>Sala local de pruebas: <code id="room">—</code></p><p>Sala GREÑA ID central: <code id="centralRoom">Sin conectar</code></p>
 <label>Tu gamertag de Minecraft<input id="gamertag" maxlength="16" placeholder="Ejemplo: Sr Omi1524"></label>
@@ -116,7 +123,12 @@ async function refresh(){
  try{
   const r=await fetch('/api/dynamics/minecraft',{cache:'no-store',credentials:'same-origin'}),d=await r.json();
   if(!r.ok||!d.ok)throw Error(d.error||'No se puede consultar GREÑA Live');
-  snapshot=d;$('enabled').checked=!!d.enabled;$('state').textContent=d.enabled?'ACTIVADA':'DESACTIVADA';
+  snapshot=d;
+  if(d.bedrockBridge){
+    $('bedrockCommand').textContent=d.bedrockBridge.command||'/connect ws://127.0.0.1:19135';
+    $('bedrockStatus').textContent=d.bedrockBridge.error?'Puente no disponible: '+d.bedrockBridge.error:d.bedrockBridge.connected?'Minecraft conectado ('+d.bedrockBridge.connected+')':'Puente listo · todavía no conectado a Minecraft';
+  }
+  $('enabled').checked=!!d.enabled;$('state').textContent=d.enabled?'ACTIVADA':'DESACTIVADA';
   $('room').textContent=d.room.id;$('queue').textContent='Cola: '+d.room.queue;
 
   if(centralReady&&centralRoomId)return;
@@ -132,6 +144,10 @@ async function refresh(){
  }catch(e){$('error').textContent=e.message}finally{updating=false}
 }
 async function run(fn){try{await fn();await refresh()}catch(e){$('error').textContent=e.message}}
+$('copyBedrock').onclick=async()=>{
+ try{await navigator.clipboard.writeText($('bedrockCommand').textContent);$('bedrockStatus').textContent='Comando copiado. Pégalo en el chat de Minecraft.';}
+ catch(e){$('bedrockStatus').textContent='Copia el comando de arriba manualmente.';}
+};
 $('enabled').addEventListener('change',e=>run(()=>request('enable',{enabled:e.target.checked})));
 $('follow').onclick=()=>run(()=>request('test-follow',{name:$('name').value,platform:$('platform').value}));
 $('voteA').onclick=()=>run(()=>request('test-vote',{vote:'A',platform:$('platform').value,userId:++testing}));
