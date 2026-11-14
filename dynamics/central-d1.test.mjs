@@ -62,3 +62,25 @@ test('inviting an unknown GREÑA ID never creates a ghost account',async()=>{
  assert.equal(result.status,404);
  db.sqlite.close();
 });
+
+
+test('central follow queue is bounded to 20 waiting questions',async()=>{
+ const db=mockDb();
+ try{
+  const {roomId}=await call(db,'host','/api/dynamics/rooms',{});
+  for(let i=0;i<21;i++){
+   const r=await call(db,'host','/api/dynamics/rooms/follow',{
+    roomId,platform:'tiktok',eventId:'follow-'+i,followerName:'viewer'+i,
+    questionId:1,optionA:'A',optionB:'B'
+   });
+   assert.equal(r.status,200,'challenge '+i+' must be accepted');
+  }
+  const blocked=await call(db,'host','/api/dynamics/rooms/follow',{
+   roomId,platform:'tiktok',eventId:'follow-overflow',followerName:'Overflow',
+   questionId:1,optionA:'A',optionB:'B'
+  });
+  assert.equal(blocked.status,429);
+  const count=db.sqlite.prepare("SELECT COUNT(*) AS count FROM dynamics_challenges WHERE state='queued'").get().count;
+  assert.equal(count,20);
+ }finally{db.sqlite.close()}
+});
