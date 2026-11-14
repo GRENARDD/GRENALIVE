@@ -17,7 +17,7 @@ import {
 } from 'tiktok-live-connector';
 
 import tmi from 'tmi.js';
-import {YouTubeLiveReader} from './youtube-live.mjs';
+import {YouTubeLiveReader,youtubeVideoId} from './youtube-live.mjs';
 import { chromium } from 'playwright-core';
 import {kickRealtimeFrames as decodeKickRealtimeFrames,kickRealtimeSubscriptionRequest} from './kick-realtime.mjs';
 
@@ -1679,62 +1679,111 @@ async function disconnectTwitch() {
 }
 
 
-// YouTube LIVE: same WS transport used by GREÑA voice chat and multichat.
-const youtubeReader=new YouTubeLiveReader({
+// YouTube: horizontal y vertical son emisiones independientes con lectores propios.
+const youtubeReaders=new Map();
+const youtubeViewers=new Map();
+let youtubeViewerTimer=null,youtubeDiscoveryBusy=false,youtubeDiscoveryLastError='';
+function youtubeActiveReaders(){return [...youtubeReaders.values()].filter(r=>r.running)}
+function publishYoutubeViewers(){
+ const active=[...youtubeReaders.keys()];
+ if(!active.length){bridgeViewers('youtube',0);return}
+ // Si la API no publica concurrentViewers para alguna emisión, conservar
+ // la última cifra conocida; no interpretar la ausencia como 0 espectadores.
+ const known=active.filter(id=>Number.isFinite(youtubeViewers.get(id)));
+ if(!known.length)return;
+ bridgeViewers('youtube',known.reduce((total,id)=>total+youtubeViewers.get(id),0));
+}
+function youtubeStatus(label='YouTube LIVE conectado'){
+ const active=youtubeActiveReaders().length;
+ const title=active>1?'YouTube: '+active+' transmisiones conectadas':label;
+ bridgeStatus('youtube',active>0,title,active+' LIVE',{liveCount:active,videoIds:[...youtubeReaders.keys()]});
+}
+async function connectYouTube(input){
+ const videoId=youtubeVideoId(input);
+ if(!videoId)throw Error('URL YouTube LIVE inválida.');
+ const existing=youtubeReaders.get(videoId);
+ if(existing?.running)return {videoId,chatId:existing.chatId};
+ const reader=new YouTubeLiveReader({
   onMessage:m=>{
-    if(m.kind==='chat'){
-      console.log('[YouTube CHAT RECEIVED]',JSON.stringify({videoId:youtubeReader.videoId,hasText:!!m.message,userIdPresent:!!m.userId}));
-      broadcastPlatform('youtube',{type:'chat',user:m.user,nickname:m.nickname,userId:m.userId,text:m.message,avatar:m.avatar,isModerator:m.isModerator,isBroadcaster:m.isOwner,isSubscriber:m.isMember,messageId:m.id});
-    } else {
-      broadcastPlatform('youtube',{type:'event',event:m.event||'gift',eventKind:m.kind,user:m.user,nickname:m.nickname,avatar:m.avatar,text:m.message||'',giftName:m.giftName||m.kind,amount:m.amount||0,currency:m.currency||'',displayAmount:m.displayAmount||'',count:m.count||0});
-      sendToAlerts('/api/internal/event',{platform:'youtube',event:m.event||'gift',user:m.user,nickname:m.nickname,avatar:m.avatar,giftName:m.giftName||m.kind,amount:m.amount||0,currency:m.currency||'',displayAmount:m.displayAmount||'',count:m.count||0,bridgeEventId:bridgeMessageId('youtube-'+m.kind)},{reliable:true});
-    }
+   if(m.kind==='chat'){
+    broadcastPlatform('youtube',{type:'chat',videoId,user:m.user,nickname:m.nickname,userId:m.userId,text:m.message,avatar:m.avatar,isModerator:m.isModerator,isBroadcaster:m.isOwner,isSubscriber:m.isMember,messageId:m.id});
+    return;
+   }
+   const event=m.event||'gift';
+   const stableId=m.id?'youtube:'+videoId+':'+m.id:bridgeMessageId('youtube-'+m.kind);
+   broadcastPlatform('youtube',{type:'event',videoId,event,eventKind:m.kind,user:m.user,nickname:m.nickname,avatar:m.avatar,text:m.message||'',giftName:m.giftName||m.kind,amount:m.amount||0,currency:m.currency||'',displayAmount:m.displayAmount||'',count:m.count||0,messageId:m.id});
+   sendToAlerts('/api/internal/event',{platform:'youtube',event,user:m.user,nickname:m.nickname,avatar:m.avatar,giftName:m.giftName||m.kind,amount:m.amount||0,currency:m.currency||'',displayAmount:m.displayAmount||'',count:m.count||0,videoId,bridgeEventId:stableId},{reliable:true});
   },
   onStatus:st=>{
-    const waiting=!!st.waiting;
-    const label=st.connected?'YouTube LIVE conectado':waiting?(st.error||'YouTube: esperando inicio desde OBS'):(st.error||'Reconectando YouTube');
-    console.log('[YouTube LIVE]',JSON.stringify({connected:!!st.connected,waiting,videoId:youtubeReader.videoId||'',status:label.slice(0,180)}));
-    broadcastPlatform('youtube',{type:st.connected||waiting?'status':'error',message:label});
-    bridgeStatus('youtube',!!st.connected,label,youtubeReader.videoId,{waiting});
+   const waiting=!!st.waiting;
+   const label=st.connected?'YouTube LIVE conectado':waiting?(st.error||'YouTube: esperando inicio desde OBS'):(st.error||'Reconectando YouTube');
+   broadcastPlatform('youtube',{type:st.connected||waiting?'status':'error',videoId,message:label});
+   youtubeStatus(label);
   },
-  onViewers:n=>{if(n!==null)bridgeViewers('youtube',n)}
-});
-let youtubeViewerTimer=null;
-async function connectYouTube(input){
-  const result=await youtubeReader.start(input);
-  if(youtubeViewerTimer)clearInterval(youtubeViewerTimer);
-  youtubeReader.refreshViewers();
-  youtubeViewerTimer=setInterval(()=>youtubeReader.refreshViewers(),30000);
+  onViewers:n=>{
+   if(n!==null&&Number.isFinite(n)&&n>=0){
+    youtubeViewers.set(videoId,n);
+    publishYoutubeViewers();
+   }
+  }
+ });
+ youtubeReaders.set(videoId,reader);
+ try{
+  const result=await reader.start(input);
+  if(!youtubeViewerTimer){
+   youtubeViewerTimer=setInterval(()=>Promise.allSettled(youtubeActiveReaders().map(r=>r.refreshViewers())),30000);
+   youtubeViewerTimer.unref?.();
+  }
+  void reader.refreshViewers();
+  youtubeStatus();
   return result;
+ }catch(e){
+  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);
+  publishYoutubeViewers();youtubeStatus('YouTube desconectado');
+  throw e;
+ }
 }
-async function disconnectYouTube(){
-  if(youtubeViewerTimer)clearInterval(youtubeViewerTimer);
-  youtubeViewerTimer=null;await youtubeReader.stop();
-  bridgeViewers('youtube',0);
-  bridgeStatus('youtube',false,'YouTube desconectado','');
+async function disconnectYouTube(videoId=''){
+ if(videoId){
+  const reader=youtubeReaders.get(videoId);
+  if(reader)await reader.stop();
+  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);
+ }else{
+  await Promise.allSettled([...youtubeReaders.values()].map(r=>r.stop()));
+  youtubeReaders.clear();youtubeViewers.clear();
+ }
+ if(!youtubeReaders.size&&youtubeViewerTimer){clearInterval(youtubeViewerTimer);youtubeViewerTimer=null}
+ publishYoutubeViewers();
+ youtubeStatus(youtubeReaders.size?'YouTube LIVE conectado':'YouTube desconectado');
 }
-let youtubeDiscoveryBusy=false,youtubeDiscoveryLastError='';
 async function autoConnectYouTube(){
  if(!connectionPrefs.autoConnect||youtubeDiscoveryBusy)return;
  youtubeDiscoveryBusy=true;
  try{
   const response=await fetch(MAIN_ORIGIN+'/api/internal/youtube/live',{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(9000)});
   const result=await response.json();
-  if(!result.ok){const reason=String(result.error||'Error detectando YouTube');if(reason!==youtubeDiscoveryLastError){console.warn('[YouTube DISCOVERY]',reason);broadcastPlatform('youtube',{type:'error',message:reason})}youtubeDiscoveryLastError=reason;return}
+  if(!result.ok){
+   const reason=String(result.error||'Error detectando YouTube');
+   if(reason!==youtubeDiscoveryLastError){broadcastPlatform('youtube',{type:'error',message:reason});console.warn('[YouTube DISCOVERY]',reason)}
+   youtubeDiscoveryLastError=reason;return;
+  }
   youtubeDiscoveryLastError='';
-  if(result.live&&result.videoId){
-   const target='https://www.youtube.com/watch?v='+result.videoId;
-   if(youtubeReader.videoId!==result.videoId||!youtubeReader.running){
-    console.log('[YouTube DISCOVERY] LIVE detectado',result.videoId);
-    await connectYouTube(target);connectionPrefs.youtubeUrl=target;connectionPrefs.youtubeEnabled=true;await saveConnectionPrefs();
-   }
-  }else if(result.linked&&!youtubeReader.running){
+  const activeIds=new Set((result.lives||((result.live&&result.videoId)?[{videoId:result.videoId}]:[])).map(x=>String(x.videoId||'')).filter(Boolean));
+  for(const id of activeIds){
+   if(youtubeReaders.get(id)?.running)continue;
+   const target='https://www.youtube.com/watch?v='+id;
+   try{await connectYouTube(target)}catch(e){broadcastPlatform('youtube',{type:'error',videoId:id,message:String(e.message||e)})}
+  }
+  for(const id of [...youtubeReaders.keys()])if(!activeIds.has(id))await disconnectYouTube(id);
+  if(activeIds.size){
+   connectionPrefs.youtubeUrl='https://www.youtube.com/watch?v='+[...activeIds][0];
+   connectionPrefs.youtubeEnabled=true;await saveConnectionPrefs();
+  }else if(result.linked){
    bridgeStatus('youtube',false,'Canal vinculado · esperando transmisión en vivo',result.channel||'');
   }
  }catch(e){console.warn('[YouTube DISCOVERY]',String(e.message||e))}
  finally{youtubeDiscoveryBusy=false}
 }
-
 
 // Starvios retirado: compatibilidad con referencias heredadas, sin lector ni conexiones de red.
 const starviosReader={running:false,connected:false,channel:'',disconnect:async()=>{},getDiagnostics:()=>({retired:true})};
@@ -2955,7 +3004,7 @@ const server =
             response.end(JSON.stringify({
               ok:true,
               prefs:connectionPrefs,
-              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeReader.running},kickDiagnostics:{channel:currentKickChannel,enabled:connectionPrefs.kickEnabled,readerConnected:!!kickConnected,pusherSubscribed:!!kickPusherReady,browserSubscribed:!!kickBrowserChatReady,chatroomResolved:!!kickChatroomId,realtimeFrames:kickRealtimeFrames,lastChatAt:kickLastChatAt,provider:kickRealtimeProvider,lastError:kickRealtimeLastError},tiktokDiagnostics:tiktokConnectionDiagnostics()
+              runtime:{tiktok:tiktokConnectionReady&&!!tiktokConn,twitch:!!twitchClient,kick:!!kickConnected,youtube:youtubeActiveReaders().length>0},kickDiagnostics:{channel:currentKickChannel,enabled:connectionPrefs.kickEnabled,readerConnected:!!kickConnected,pusherSubscribed:!!kickPusherReady,browserSubscribed:!!kickBrowserChatReady,chatroomResolved:!!kickChatroomId,realtimeFrames:kickRealtimeFrames,lastChatAt:kickLastChatAt,provider:kickRealtimeProvider,lastError:kickRealtimeLastError},tiktokDiagnostics:tiktokConnectionDiagnostics()
             }));
             return;
           }
