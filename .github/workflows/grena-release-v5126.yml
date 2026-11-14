@@ -56,9 +56,20 @@ jobs:
           code="$(curl --max-time 15 -sS -o /tmp/grena-health.json -w '%{http_code}' "$worker/health")"
           test "$code" = 200 || { echo "GREÑA Worker health failed: $code"; exit 1; }
           grep -q '"ok":true' /tmp/grena-health.json
-          code="$(curl --max-time 15 -sS -o /tmp/grena-rooms.json -w '%{http_code}' "$worker/api/dynamics/rooms")"
-          test "$code" = 401 || { echo "Rooms API is not deployed or not protected: $code"; exit 1; }
-          grep -q '"ok":false' /tmp/grena-rooms.json
+          # Cloudflare may deploy after GitHub Windows CI finishes.
+          # Wait for the authenticated route rather than publishing an installer
+          # that points at a Worker without the new rooms backend.
+          ready=false
+          for attempt in $(seq 1 18); do
+            code="$(curl --max-time 15 -sS -o /tmp/grena-rooms.json -w '%{http_code}' "$worker/api/dynamics/rooms" || true)"
+            if test "$code" = 401 && grep -q '"ok":false' /tmp/grena-rooms.json; then
+              ready=true
+              break
+            fi
+            echo "Cloudflare rooms not ready (attempt $attempt/18, HTTP $code)."
+            sleep 10
+          done
+          test "$ready" = true || { echo "Rooms API is not deployed or not protected; refusing v5.1.26 stable release."; exit 1; }
       - name: Download and verify compiled 5.1.26 Windows installer
         if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
