@@ -43,3 +43,10 @@ El repositorio visible declara versión 5.1.19; la versión de escritorio mencio
 
 ### Para interconectar dos computadoras
 Se requiere un servicio central autenticado por GREÑA ID con almacenamiento transaccional de `rooms`, `room_members`, `invites`, `events` y `votes`, y canales de notificación asociados a cada identidad. Antes de implementarlo en producción hay que revisar el Worker central de Cloudflare y sus rutas reales de identidad para evitar suplantación de cuentas. No enviar contraseñas ni tokens de conectores al otro streamer.
+
+### Backend central agregado (sin desplegar)
+- `cloudflare-d1-migration.sql`: nuevas tablas para salas, miembros, invitaciones, eventos y votos.
+- `cloudflare-rooms.js`: rutas de crear sala, invitar, bandeja de invitaciones, aceptar/rechazar y consultar miembros.
+- Debe llamarse desde el Worker de autenticación **solo después** de validar el Bearer de GREÑA ID y entregar su ID autenticado.
+- El Worker debe conectar `env.DB` y la consulta fiable `env.verifyGrenaUser(userId)`; nunca confiar en IDs enviados desde la ventana web.
+- Todavía falta desplegar Worker, enlazar las PC y transmitir alertas/votos hacia este backend. Por eso no se ofrece como multistreamer operativo ni v5.1.26 estable.
