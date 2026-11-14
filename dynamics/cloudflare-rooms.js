@@ -9,7 +9,7 @@ const validId=x=>typeof x==='string'&&/^[a-zA-Z0-9_.-]{1,80}$/.test(x);
 async function payload(req){const text=await req.text();if(text.length>4096)throw Error('Solicitud demasiado grande');return JSON.parse(text||'{}')}
 async function member(db,roomId,userId){return db.prepare('SELECT 1 AS yes FROM dynamics_members WHERE room_id=? AND user_id=?').bind(roomId,userId).first()}
 async function owner(db,roomId,userId){return db.prepare("SELECT id FROM dynamics_rooms WHERE id=? AND host_user_id=? AND status='open'").bind(roomId,userId).first()}
-export async function handleDynamicsIdentityRequest(request,env,authUserId){
+export async function handleDynamicsIdentityRequest(request,env,authUserId,{verifyRecipient}={}){
  const path=new URL(request.url).pathname,method=request.method;
  if(!path.startsWith('/api/dynamics/rooms'))return null;
  if(!validId(authUserId))return response({ok:false,error:'GREÑA ID sin verificar'},401);
@@ -36,8 +36,8 @@ export async function handleDynamicsIdentityRequest(request,env,authUserId){
    if(await member(db,roomId,to))return response({ok:false,error:'Ya está en la sala'},409);
    // The identity Worker must provide a genuine username/id lookup before enabling this route in production.
    // A supplied recipient is NOT treated as registered merely because its format passes.
-   if(typeof env.verifyGrenaUser!=='function')return response({ok:false,error:'Falta conectar verificación de identidad GREÑA'},503);
-   if(!await env.verifyGrenaUser(to))return response({ok:false,error:'GREÑA ID no existe'},404);
+   if(typeof verifyRecipient!=='function')return response({ok:false,error:'Falta conectar verificación de identidad GREÑA'},503);
+   if(!await verifyRecipient(to))return response({ok:false,error:'GREÑA ID no existe'},404);
    const id=uid(),at=now();
    await db.prepare("INSERT INTO dynamics_invitations(id,room_id,sender_id,recipient_id,status,expires_at,created_at) VALUES(?,?,?,?,'pending',?,?)").bind(id,roomId,authUserId,to,at+300000,at).run();
    return response({ok:true,invitationId:id,expiresAt:at+300000},201);
