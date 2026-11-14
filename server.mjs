@@ -2150,7 +2150,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/dynamics/minecraft' && (req.method==='GET'||req.method==='POST')){
    const me=sessionUser(req);if(!me)return json(res,401,{ok:false,error:'Se requiere GREÑA ID'});
    const room=minecraftRoomFor(me.id);
-   if(req.method==='GET')return json(res,200,{ok:true,enabled:!!minecraftSettings.get(me.id)?.enabled,room,results:minecraftResults.filter(x=>x.streamerId===me.id).slice(-10)});
+   if(req.method==='GET')return json(res,200,{ok:true,enabled:!!minecraftSettings.get(me.id)?.enabled,room,invitations:minecraftDynamics.pendingInvitations(me.id),results:minecraftResults.filter(x=>x.streamerId===me.id).slice(-10)});
    let input;try{input=JSON.parse(await readBody(req,8192)||'{}')}catch{return json(res,400,{ok:false,error:'JSON inválido'})}
    try {
      const action=String(input.action||'');
