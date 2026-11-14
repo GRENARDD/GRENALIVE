@@ -54,7 +54,7 @@ on:
       - 'desktop-build/smoke-chat.mjs'
       - 'live-panel.html'
       - 'mobile.html'
-      - 'desktop-build/verify-upgrade-5117-to-5125.ps1'
+      - 'desktop-build/verify-upgrade-5117-to-5127.ps1'
       - '.github/workflows/grena-release-v5115.yml'
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
@@ -98,7 +98,7 @@ on:
       - 'tests/**'
       - 'desktop-build/**'
       - '.github/workflows/grena-release-v5125.yml'
-      - '.github/workflows/grena-release-v5126.yml'
+      - '.github/workflows/grena-release-v5127.yml'
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
       - '.github/workflows/grena-desktop-from-kit.yml'
@@ -124,7 +124,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5117-to-5125.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5117-to-5127.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -215,14 +215,14 @@ jobs:
             node --check $path
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Set distinct v5.1.26 beta version for preview installer
+      - name: Set distinct v5.1.27 beta version for preview installer
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "5.1.26-beta.1"
+          $pkg.version = "5.1.27-beta.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 5.1.26-beta.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 5.1.27-beta.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -242,16 +242,16 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Set official 5.1.26 version on main (never on pull requests)
+      - name: Set official 5.1.27 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
           if ($pkg.version -ne "5.1.19") { throw "Versión base inesperada; se cancela publicación estable." }
-          $pkg.version = "5.1.26"
+          $pkg.version = "5.1.27"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Versión oficial verificada: 5.1.26"
+          Write-Host "Versión oficial verificada: 5.1.27"
       - name: Verify pack logic
         shell: pwsh
         run: |
@@ -355,10 +355,10 @@ jobs:
       - name: Verify installed upgrade from GREÑA 5.1.17 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
-        run: ./desktop-build/verify-upgrade-5117-to-5125.ps1
+        run: ./desktop-build/verify-upgrade-5117-to-5127.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.26-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.26' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.27-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.27' }}
           path: dist/*.exe
           if-no-files-found: error
