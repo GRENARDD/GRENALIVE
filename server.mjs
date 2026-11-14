@@ -628,19 +628,33 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
  const minecraftResults=[];
  const minecraftSettings=new Map();
  const minecraftCentralRoomCache=new Map();
- async function minecraftCentralRoom(userId){
+ const minecraftCentralRoomPending=new Map();
+ async function minecraftCentralRoom(userId,{create=false}={}){
    const rec=minecraftCentralRoomCache.get(userId);
-   if(rec&&Date.now()-rec.at<10000)return rec.room;
-   try{
-     const answer=await licensing.requestDynamics(userId,'/api/dynamics/rooms');
-     const room=answer.rooms?.[0]?.id||null;
-     minecraftCentralRoomCache.set(userId,{room,at:Date.now()});
-     return room;
-   }catch{minecraftCentralRoomCache.set(userId,{room:null,at:Date.now()});return null}
+   if(rec?.room&&Date.now()-rec.at<10000)return rec.room;
+   if(minecraftCentralRoomPending.has(userId))return minecraftCentralRoomPending.get(userId);
+   const work=(async()=>{
+     try{
+       const answer=await licensing.requestDynamics(userId,'/api/dynamics/rooms');
+       let room=answer.rooms?.[0]?.id||null;
+       if(!room&&create){
+         const created=await licensing.requestDynamics(userId,'/api/dynamics/rooms','POST',{});
+         room=created.roomId;
+       }
+       minecraftCentralRoomCache.set(userId,{room,at:Date.now()});
+       return room;
+     }catch(e){
+       minecraftCentralRoomCache.delete(userId);
+       if(create)console.warn('[Dinámicas] No se pudo crear la sala compartida:',String(e.message||e).slice(0,120));
+       return null;
+     }
+   })();
+   minecraftCentralRoomPending.set(userId,work);
+   try{return await work}finally{minecraftCentralRoomPending.delete(userId)}
  }
  async function minecraftForwardFollow(userId,platform,followerName,eventId,question){
    if(!eventId)return; // No event identity: do not produce duplicate remote challenges.
-   const roomId=await minecraftCentralRoom(userId);if(!roomId)return;
+   const roomId=await minecraftCentralRoom(userId,{create:true});if(!roomId)return;
    try{
      await licensing.requestDynamics(userId,'/api/dynamics/rooms/follow','POST',{
        roomId,platform:String(platform||'').toLowerCase(),followerName,
@@ -2274,7 +2288,14 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    try {
      const action=String(input.action||'');
      let value=null;
-     if(action==='enable'){minecraftSettings.set(me.id,{enabled:!!input.enabled});minecraftDynamics.enable({roomId:room.id,userId:me.id,value:!!input.enabled})}
+     if(action==='enable'){
+       minecraftSettings.set(me.id,{enabled:!!input.enabled});
+       minecraftDynamics.enable({roomId:room.id,userId:me.id,value:!!input.enabled});
+       if(input.enabled){
+         const sharedRoom=await minecraftCentralRoom(me.id,{create:true});
+         if(!sharedRoom)return json(res,503,{ok:false,error:'No se pudo conectar a GREÑA ID. Dinámicas central no activada.'});
+       }
+     }
      else if(action==='invite'){value=minecraftDynamics.invite({roomId:room.id,fromId:me.id,toId:String(input.friendId||'').trim()})}
      else if(action==='respond'){value=minecraftDynamics.respond({invitationId:String(input.invitationId||''),userId:me.id,accept:!!input.accept,gamertag:String(input.gamertag||'')});if(input.accept)minecraftRoomsByUser.set(me.id,value.id)}
      else if(action==='test-follow'){if(!minecraftSettings.get(me.id)?.enabled)return json(res,409,{ok:false,error:'Activa la dinámica'});minecraftFollow(String(input.platform||'TikTok'),String(input.name||'Prueba'),String(Date.now()),true)}
