@@ -121,25 +121,121 @@ body>nav button{padding:8px 3px;font-size:11px;min-width:0}
  #chatPanel .row select,#chatPanel .row button{font-size:11px}
  body>nav button{font-size:10px}
 }
-</style></head><body><header><b>⚡ GREÑA <span style="color:#b4a0fc">MÓVIL</span></b><div><small id="connection">Conectando…</small> <button id="switch" type="button">⇄ Versión</button></div></header><main>
+
+/* GREÑA Mobile · interfaz fusionada con maqueta GREÑA MÓVIL
+   Notificaciones en carril horizontal, chat protagonista y viewport sin scroll global */
+:root{--mobile-bg:#0a0c16;--mobile-card:#151829;--mobile-line:#262a40;--mobile-tx:#f1f1fa;--mobile-mu:#9da3bd;--mobile-ac:#9b82ff;--mobile-tk:#25f4ee;--mobile-tw:#a970ff;--mobile-ki:#53fc18;--mobile-yt:#ff4e4e}
+body{background:var(--mobile-bg);color:var(--mobile-tx)}
+body>header{background:#101423;border-bottom:1px solid var(--mobile-line);padding:9px 12px}
+body>header b{font-size:15px;letter-spacing:.15px}
+.mobile-header-status{display:flex;align-items:center;gap:8px}
+.mobile-header-status small{max-width:105px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mobile-header-status button{padding:6px 10px;border-color:var(--mobile-line);background:var(--mobile-card);border-radius:10px;font-weight:750;font-size:16px}
+#chatPanel:not(.hidden){gap:6px;background:var(--mobile-bg);border:none;border-radius:0;padding:7px 10px}
+#chatPanel .mobile-viewers{margin:0;border:1px solid var(--mobile-line);background:var(--mobile-card);padding:7px 9px;border-radius:12px}
+#chatPanel .viewers-top{margin:0 0 5px}
+#chatPanel .viewers-top b{font-size:10.5px;letter-spacing:.25px;color:#b8b8d7}
+#chatPanel .total-viewers{font-size:19px;line-height:1.1;color:#ebe5ff}
+#chatPanel .total-viewers small{font-size:10px;color:var(--mobile-mu);font-weight:600}
+#chatPanel .viewer-breakdown{gap:5px}
+#chatPanel .viewer-tile{display:flex;justify-content:center;align-items:center;gap:5px;background:#0e1220;border:1px solid var(--mobile-line);border-radius:8px;padding:5px 3px;min-width:0}
+#chatPanel .viewer-tile small{font-size:10px;line-height:1.2;color:var(--mobile-mu);margin:0}
+#chatPanel .viewer-tile b{font-size:12px;line-height:1.2;color:var(--mobile-tx)}
+#chatPanel .viewer-tile.tiktok{border-bottom:2px solid var(--mobile-tk)}
+#chatPanel .viewer-tile.twitch{border-bottom:2px solid var(--mobile-tw)}
+#chatPanel .viewer-tile.kick{border-bottom:2px solid var(--mobile-ki)}
+#chatPanel .viewer-tile.youtube{border-bottom:2px solid var(--mobile-yt)}
+#chatPanel .activity-dock{flex:0 0 auto;display:flex;flex-direction:column;gap:0;margin:0;padding:0;background:transparent;border:none;border-radius:0;overflow:visible}
+#chatPanel .activity-heading{padding:2px 1px 4px}
+#chatPanel .activity-heading h2,#chatPanel .chat-heading h2{font-size:13px;font-weight:800}
+#chatPanel .activity-heading small{font-size:10.5px;color:var(--mobile-mu)}
+#chatPanel .activity-filters{display:flex;gap:6px;padding:0 1px 7px;overflow-x:auto;scrollbar-width:none}
+#chatPanel .activity-filters::-webkit-scrollbar{display:none}
+#chatPanel .activity-filters button{flex:0 0 auto;white-space:nowrap;padding:5px 10px;border:1px solid var(--mobile-line);border-radius:999px;background:var(--mobile-card);color:#b4b9d2;font-size:11px;font-weight:650}
+#chatPanel .activity-filters button.active{background:#8062db;border-color:#8062db;color:white}
+#chatPanel .activity-feed{height:78px;min-height:78px;max-height:78px;flex:none;display:flex;flex-direction:row;gap:7px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x proximity;scrollbar-width:thin;scrollbar-color:#4d426c transparent;padding:0 1px 3px}
+#chatPanel .activity-card{flex:0 0 min(205px,72vw);width:min(205px,72vw);height:74px;min-height:0;scroll-snap-align:start;background:var(--mobile-card);border:1px solid var(--mobile-line);border-left:4px solid #9b82ff;border-radius:11px;padding:7px 9px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
+#chatPanel .activity-card.follow{border-left-color:#a970ff}
+#chatPanel .activity-card.gift{border-left-color:#ffc24b}
+#chatPanel .activity-card.share{border-left-color:#4cc2ff}
+#chatPanel .activity-card.sub{border-left-color:#4fe5ae}
+#chatPanel .activity-card.cheer{border-left-color:#6ec9ff}
+#chatPanel .activity-card.raid{border-left-color:#ff8db9}
+#chatPanel .activity-card.like{border-left-color:#ff8db9}
+#chatPanel .activity-card.is-new{animation:mobile-pop .5s ease-out}
+@keyframes mobile-pop{0%{transform:scale(.94);opacity:.4}70%{transform:scale(1.01)}100%{transform:scale(1);opacity:1}}
+#chatPanel .activity-card-top{display:flex;gap:6px;align-items:center;justify-content:space-between;min-width:0}
+#chatPanel .activity-card-top b{font-size:12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#chatPanel .activity-card-top time{color:var(--mobile-mu);font-size:10px;flex:0 0 auto}
+#chatPanel .activity-card-user{font-size:12.5px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#chatPanel .activity-card-note{font-size:10px;color:var(--mobile-mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#chatPanel .activity-empty{padding:17px 3px;margin:0;font-size:11px;white-space:nowrap}
+#chatPanel .chat-heading{margin:0;padding:1px 1px 2px}
+#chatPanel .chat-heading small{font-size:11px;color:var(--mobile-mu)}
+#chatPanel .chat{flex:1 1 auto;min-height:0;height:auto;display:flex;flex-direction:column;gap:8px;overflow-y:auto;overscroll-behavior:contain;padding:7px 4px 7px 1px;border-top:1px solid var(--mobile-line);scrollbar-color:#4d426c transparent}
+#chatPanel .msg{flex:none;display:flex;gap:8px;align-items:flex-start;padding:0;background:none;border:0;border-radius:0;color:var(--mobile-tx);font-size:13.5px;line-height:1.35;overflow-wrap:anywhere}
+#chatPanel .msg .platform-tag{flex:none;min-width:53px;max-width:58px;text-align:center;margin-top:1px;padding:3px 4px;border-radius:5px;background:#75839a;color:#fff;text-transform:uppercase;font-size:9px;font-weight:850;letter-spacing:.1px}
+#chatPanel .msg.tiktok .platform-tag{background:#007e82;color:#fff}
+#chatPanel .msg.twitch .platform-tag{background:#743fc6}
+#chatPanel .msg.kick .platform-tag{background:#256d0b}
+#chatPanel .msg.youtube .platform-tag{background:#c52a32}
+#chatPanel .msg .message-copy{flex:1;min-width:0}
+#chatPanel .msg .message-user{font-weight:800;margin-right:4px}
+#chatPanel .msg.tiktok .message-user{color:var(--mobile-tk)}
+#chatPanel .msg.twitch .message-user{color:var(--mobile-tw)}
+#chatPanel .msg.kick .message-user{color:var(--mobile-ki)}
+#chatPanel .msg.youtube .message-user{color:var(--mobile-yt)}
+#chatPanel .msg .message-body{font-weight:400}
+#chatPanel .row{gap:6px}
+#chatPanel .row select,#chatPanel .row button{background:var(--mobile-card);border-color:var(--mobile-line)}
+#chatPanel .voice-settings{background:var(--mobile-card);border-color:var(--mobile-line);padding:6px 9px}
+#chatPanel .voice-settings summary{font-size:11px;color:#c4b6f5}
+body>nav{border-top:1px solid var(--mobile-line);background:var(--mobile-card)}
+body>nav button{border-color:var(--mobile-line);background:#101423;color:#aeb4cb}
+body>nav button.primary{background:#8062db;border-color:#8062db;color:#fff}
+@media(max-width:390px){#chatPanel .viewer-tile{gap:3px}#chatPanel .viewer-tile small{font-size:9px}#chatPanel .viewer-tile b{font-size:11px}}
+@media(max-height:690px){
+ #chatPanel:not(.hidden){gap:4px;padding:5px 8px}
+ #chatPanel .mobile-viewers{padding:5px 7px}
+ #chatPanel .viewers-top{margin-bottom:3px}
+ #chatPanel .activity-heading{padding-bottom:2px}
+ #chatPanel .activity-filters{padding-bottom:4px}
+ #chatPanel .activity-filters button{padding:3px 8px}
+ #chatPanel .activity-feed{height:64px;min-height:64px;max-height:64px}
+ #chatPanel .activity-card{height:61px;padding:4px 7px}
+ #chatPanel .chat{gap:5px;padding-block:5px}
+}
+@media(max-height:510px){
+ #chatPanel .voice-settings:not([open]){display:none}
+ #chatPanel .mobile-viewers .viewers-top{margin-bottom:2px}
+ #chatPanel .activity-feed{height:56px;min-height:56px;max-height:56px}
+ #chatPanel .activity-card{height:53px}
+ #chatPanel .activity-card-note{display:none}
+}
+</style></head><body><header><b>⚡ GREÑA <span style="color:#b4a0fc">MÓVIL</span></b><div class="mobile-header-status"><small id="connection">Conectando…</small> <button id="switch" type="button" aria-label="Cambiar versión">⇄</button></div></header><main>
 <section class="panel" id="home"><p class="hint" style="padding:9px;border:1px solid #53608b;border-radius:8px">🔐 GREÑA Mobile: vinculado al GREÑA ID de la PC. Puedes ver chat y alertas en vivo mientras el servidor GREÑA esté accesible.</p><h2>Plataformas <small id="total"></small></h2><div class="platforms" id="platforms"></div><p class="hint">El celular puede manejar GREÑA Chat y reproducir la voz sin ejecutar la interfaz completa de escritorio.</p><button id="openLinks" type="button">🔗 Vincular plataformas</button></section>
 <section class="panel" id="chatPanel">
 <div class="mobile-viewers" aria-label="Espectadores del directo">
-<div class="viewers-top"><b>👁️ Espectadores en vivo</b><div><span class="total-viewers" id="liveViewerTotal">—</span><small> total</small></div></div>
-<div class="viewer-breakdown"><div class="viewer-tile"><small>TikTok</small><b id="liveViewersTiktok">—</b></div><div class="viewer-tile"><small>Twitch</small><b id="liveViewersTwitch">—</b></div><div class="viewer-tile"><small>Kick</small><b id="liveViewersKick">—</b></div><div class="viewer-tile"><small>YouTube</small><b id="liveViewersYoutube">—</b></div></div>
+ <div class="viewers-top"><b>👁️ ESPECTADORES EN VIVO</b><div class="total-viewers"><span id="liveViewerTotal">—</span> <small>total</small></div></div>
+ <div class="viewer-breakdown" aria-label="Espectadores por plataforma">
+  <div class="viewer-tile tiktok"><small>TikTok</small><b id="liveViewersTiktok">—</b></div>
+  <div class="viewer-tile twitch"><small>Twitch</small><b id="liveViewersTwitch">—</b></div>
+  <div class="viewer-tile kick"><small>Kick</small><b id="liveViewersKick">—</b></div>
+  <div class="viewer-tile youtube"><small>YouTube</small><b id="liveViewersYoutube">—</b></div>
+ </div>
 </div>
-<section class="activity-dock" aria-label="Eventos y alertas del directo">
-<div class="activity-heading"><h2>🔔 Alertas y actividad</h2><small id="activityCount">0 eventos</small></div>
-<div class="activity-filters" role="group" aria-label="Filtrar eventos">
-<button class="active" type="button" data-activity-filter="all" aria-pressed="true">Todos</button>
-<button type="button" data-activity-filter="follow" aria-pressed="false">💜 Seguidores</button>
-<button type="button" data-activity-filter="gift" aria-pressed="false">🎁 Regalos</button>
-<button type="button" data-activity-filter="share" aria-pressed="false">↗ Compartidos</button>
-<button type="button" data-activity-filter="sub" aria-pressed="false">⭐ Subs</button>
-</div>
-<div class="activity-feed" id="liveActivity" role="log" aria-live="off"><p class="activity-empty">Esperando eventos del directo…</p></div>
+<section class="activity-dock" aria-label="Alertas e historial de eventos">
+ <div class="activity-heading"><h2>🔔 Alertas</h2><small id="activityCount">0 eventos</small></div>
+ <div class="activity-filters" role="group" aria-label="Filtrar alertas">
+  <button class="active" type="button" data-activity-filter="all" aria-pressed="true">Todos</button>
+  <button type="button" data-activity-filter="follow" aria-pressed="false">💜 Seguidores</button>
+  <button type="button" data-activity-filter="gift" aria-pressed="false">🎁 Regalos</button>
+  <button type="button" data-activity-filter="share" aria-pressed="false">↗ Compartidos</button>
+  <button type="button" data-activity-filter="sub" aria-pressed="false">⭐ Subs</button>
+ </div>
+ <div class="activity-feed" id="liveActivity" role="log" aria-label="Desliza a los lados para revisar alertas anteriores" aria-live="off"><p class="activity-empty">Esperando seguidores, regalos y compartidos…</p></div>
 </section>
-<div class="chat-heading"><h2>💬 Multichat en vivo</h2><small>Solo mensajes</small></div>
+<div class="chat-heading"><h2>💬 Chat en vivo</h2><small>Solo mensajes</small></div>
 <div class="chat" id="messages" role="log" aria-live="off"><p class="muted">Esperando mensajes del LIVE…</p></div>
 <div class="row"><label><input type="checkbox" id="voice"> 🔊 Leer</label><select id="voicePlatform" aria-label="Plataforma para voz"><option value="all">Todas las plataformas</option><option value="tiktok">TikTok</option><option value="twitch">Twitch</option><option value="kick">Kick</option><option value="youtube">YouTube</option></select><button id="testVoice">Probar voz</button></div>
 <details class="voice-settings"><summary>🎙️ Configuración de voz · Fish Audio</summary>
@@ -208,23 +304,43 @@ function mobileActivityKey(a){
  return unique?p+'|'+event+'|id|'+String(unique):[p,event,a.name||'',a.receivedAt||'',a.action||'',a.count||1].join('|');
 }
 function renderMobileActivities(){
- const host=$('liveActivity');host.replaceChildren();
+ const host=$('liveActivity');
+ const previousFirst=host.firstElementChild?.dataset?.eventKey||'';
  const visible=mobileActivities.filter(a=>currentActivityFilter==='all'||String(a.event||'').toLowerCase()===currentActivityFilter);
  text($('activityCount'),mobileActivities.length+' eventos');
- if(!visible.length){const p=document.createElement('p');p.className='activity-empty';p.textContent=mobileActivities.length?'No hay eventos de este tipo todavía.':'Esperando seguidores, regalos y compartidos…';host.append(p);return}
- const fragment=document.createDocumentFragment();
- for(const a of visible){
-  const event=String(a.event||'').toLowerCase(),platform=String(a.platform||'').toLowerCase();
-  const card=document.createElement('article');card.className='activity-item '+(activityLabels[event]?event:'other');
-  const meta=document.createElement('div');meta.className='activity-meta';
-  const title=document.createElement('strong');title.textContent=(activityLabels[event]||'🔔 Evento')+' · '+String(a.name||'Usuario');
-  const stamp=document.createElement('time');const when=Number(a.receivedAt)||Date.now();
-  stamp.dateTime=new Date(when).toISOString();stamp.textContent=new Date(when).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});
-  const body=document.createElement('p');
-  body.textContent=(platformNames[platform]||String(a.platform||'LIVE'))+' · '+String(a.action||a.summary||a.event||'Actividad registrada');
-  meta.append(title,stamp);card.append(meta,body);fragment.append(card);
+ host.replaceChildren();
+ if(!visible.length){
+  const p=document.createElement('p');p.className='activity-empty';
+  p.textContent=mobileActivities.length?'No hay eventos de este tipo todavía.':'Esperando seguidores, regalos y compartidos…';
+  host.append(p);return;
  }
- host.append(fragment);
+ const category={
+  follow:['💜','Nuevo seguidor'],gift:['🎁','Regalo'],share:['↗','Compartido'],
+  sub:['⭐','Suscripción'],cheer:['💎','Bits'],raid:['🚀','Raid'],like:['❤️','Me gusta']
+ };
+ const frag=document.createDocumentFragment();
+ for(const a of visible.slice(0,80)){
+  const event=String(a.event||'').toLowerCase();
+  const platform=String(a.platform||'').toLowerCase(),known=category[event]||['🔔','Evento'];
+  const card=document.createElement('article');
+  card.className='activity-card '+(category[event]?event:'other');
+  card.dataset.eventKey=mobileActivityKey(a);
+  const top=document.createElement('div');top.className='activity-card-top';
+  const title=document.createElement('b');title.textContent=known[0]+' '+known[1];
+  const tm=document.createElement('time');const time=Number(a.receivedAt);
+  const d=new Date(Number.isFinite(time)&&time>0?time:Date.now());
+  tm.dateTime=d.toISOString();tm.textContent=d.toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'});
+  top.append(title,tm);
+  const user=document.createElement('div');user.className='activity-card-user';
+  user.textContent=String(a.name||'Usuario');
+  const note=document.createElement('div');note.className='activity-card-note';
+  note.textContent=(platformNames[platform]||String(a.platform||'LIVE'))+' · '+String(a.action||a.event||'Actividad');
+  card.append(top,user,note);
+  if(previousFirst!==card.dataset.eventKey&&card.dataset.eventKey===mobileActivityKey(visible[0]))card.classList.add('is-new');
+  frag.append(card);
+ }
+ host.append(frag);
+ if(previousFirst!==host.firstElementChild?.dataset?.eventKey)host.scrollLeft=0;
 }
 function addMobileActivity(a,quiet=false){
  if(!a||typeof a!=='object')return;
@@ -436,7 +552,23 @@ async function unlinkPlatform(platform){
 }
 window.addEventListener('focus',()=>{if(sessionReady)refresh()});
 document.addEventListener('visibilitychange',()=>{if(sessionReady&&!document.hidden)refresh()});
-function addChat(m){const p=String(m.platform||'').toLowerCase();if(!platforms.includes(p)||m.type!=='chat')return;const box=$('messages');if(box.children.length===1&&box.firstElementChild.tagName==='P')box.replaceChildren();const div=document.createElement('div');div.className='msg '+p;const title=document.createElement('b'),body=document.createElement('p');text(title,(m.nickname||m.user||'Usuario')+' · '+p);text(body,String(m.text||'').slice(0,1500));div.append(title,body);box.append(div);while(box.children.length>100)box.firstElementChild.remove();box.scrollTop=box.scrollHeight;enqueue(m)}
+function addChat(m){
+ const p=String(m.platform||'').toLowerCase();
+ if(!platforms.includes(p)||m.type!=='chat')return;
+ const box=$('messages');
+ if(box.children.length===1&&box.firstElementChild.tagName==='P')box.replaceChildren();
+ const shouldScroll=box.scrollTop+box.clientHeight>=box.scrollHeight-50;
+ const div=document.createElement('div');div.className='msg '+p;
+ const tag=document.createElement('span');tag.className='platform-tag';tag.textContent=platformNames[p]||p;
+ const copy=document.createElement('div');copy.className='message-copy';
+ const username=document.createElement('strong');username.className='message-user';
+ username.textContent=String(m.nickname||m.user||'Usuario')+':';
+ const body=document.createElement('span');body.className='message-body';body.textContent=' '+String(m.text||'').slice(0,1500);
+ copy.append(username,body);div.append(tag,copy);box.append(div);
+ while(box.children.length>100)box.firstElementChild.remove();
+ if(shouldScroll)box.scrollTop=box.scrollHeight;
+ enqueue(m);
+}
 function addLiveAlert(a){addMobileActivity(a)}
 function connectLiveAlerts(){
  let socket;
