@@ -689,6 +689,11 @@ function eventHealthSnapshot(){
   tiktok:{account:ps.tiktok?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.tiktok,ps.tiktok?.authenticated?'waiting':'off'),events:ttEvents,source:'TikTok LIVE connector · FOLLOW + SOCIAL fallback · SUB_NOTIFY',diagnostics:ttSig},
   twitch:{account:ps.twitch?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.twitch,ps.twitch?.authenticated?'waiting':'off'),events:twitchEvents,source:'Twitch EventSub + IRC',active:[...twitchEventHealth.active],failed:[...twitchEventHealth.failed],lastError:twitchEventHealth.lastError||'',diagnostics:sig('twitch')},
   kick:{account:ps.kick?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.kick,ps.kick?.authenticated?'waiting':'off'),events:kickEvents,source:'Kick Events API + browser/Pusher realtime fallback',active:[...kickEventHealth.active],failed:[...kickEventHealth.failed],lastError:kickEventHealth.lastError||'',subscriptionsReady:!!kickEventHealth.subscriptionsReady,lastWebhookAt:Number(kickEventHealth.lastWebhookAt||0),webhookDeliveryVerified:!!kickEventHealth.lastWebhookAt,requiresPublicWebhook:true,diagnostics:kickSig},
+  youtube:{account:ps.youtube?.authenticated?'ready':'off',
+   chat:stateFor(bridgeRuntime.youtube,ps.youtube?.authenticated?'waiting':'off'),
+   events:!ps.youtube?.authenticated?'off':!bridgeRuntime.youtube?'waiting':sig('youtube').lastEventAt?'ready':'waiting',
+   source:'YouTube Data API v3 · comentarios, Super Chats, Super Stickers y membresías',
+   diagnostics:sig('youtube'),viewerSource:String(viewerMeta.youtube?.source||'esperando API')},
   starvios:{account:ps.starvios?.account?'ready':'off',chat:stateFor(bridgeRuntime.starvios,ps.starvios?.account?'waiting':'off'),events:!ps.starvios?.account?'off':starviosRealEventAt?'ready':'waiting',source:'StarVios public chat records + follower totals · verificación de eventos LIVE',lastRealEventAt:starviosRealEventAt,lastRealEventKind:starviosLastRealKind,lastRealNameAvailable:starviosLastRealNameAvailable,diagnostics:sig('starvios')}
  };
 }
