@@ -36,6 +36,9 @@ code{color:#afd9ff}label{font-size:14px;color:#c5d4e7}
 </section>
 <section><h2>Jugar con amigos</h2>
 <p>Sala local de pruebas: <code id="room">—</code></p><p>Sala GREÑA ID central: <code id="centralRoom">Sin conectar</code></p>
+<label>Tu gamertag de Minecraft<input id="gamertag" maxlength="16" placeholder="Ejemplo: Sr Omi1524"></label>
+<button id="saveGamertag" type="button">Guardar jugador</button>
+<p id="roomPlayers">Jugadores: sala no conectada</p>
 <label>GREÑA ID de tu amigo<input id="friend" placeholder="Usuario GREÑA ID"></label>
 <button id="invite">Enviar invitación a GREÑA ID</button>
 <p id="inviteResult">Este sistema requiere que el Worker central de GREÑA ID tenga desplegadas las rutas de salas. Ninguna invitación se confirma si el servidor no la recibe.</p>
@@ -74,10 +77,14 @@ async function refreshCentral(){
     const details=await central('/rooms/'+centralRoomId);
     const active=(details.challenges||[]).find(x=>x.state==='active');
     const recent=(details.challenges||[]).filter(x=>x.state==='done').slice(0,5);
+    $('roomPlayers').textContent='Jugadores: '+((details.members||[]).filter(x=>x.gamertag).map(x=>x.gamertag).join(' · ')||'Sin gamertags vinculados');
+
     if(active){
       $('voting').textContent='VOTACIÓN COMPARTIDA · Pregunta #'+active.question_id+' · A: '+active.option_a+' · B: '+active.option_b;
       $('timer').textContent='Cierra en '+Math.max(0,Math.ceil((Number(active.ends_at)-Date.now())/1000))+' segundos';
-      $('progress').style.width='50%';
+      const total=Number(active.votes_a||0)+Number(active.votes_b||0);
+      $('progress').style.width=(total?Math.round(Number(active.votes_a||0)*100/total):50)+'%';
+      $('voting').textContent+=' · Votos A: '+Number(active.votes_a||0)+' / B: '+Number(active.votes_b||0);
     }else{
       $('voting').textContent='Sin votación compartida activa';
       $('timer').textContent='';
@@ -129,6 +136,13 @@ $('enabled').addEventListener('change',e=>run(()=>request('enable',{enabled:e.ta
 $('follow').onclick=()=>run(()=>request('test-follow',{name:$('name').value,platform:$('platform').value}));
 $('voteA').onclick=()=>run(()=>request('test-vote',{vote:'A',platform:$('platform').value,userId:++testing}));
 $('voteB').onclick=()=>run(()=>request('test-vote',{vote:'B',platform:$('platform').value,userId:++testing}));
+$('saveGamertag').onclick=()=>run(async()=>{
+ if(!centralRoomId)throw Error('Primero crea una sala e invita a tu amigo');
+ const gamertag=$('gamertag').value.trim();
+ if(!/^[A-Za-z0-9_ ]{1,16}$/.test(gamertag))throw Error('Escribe un gamertag válido de Minecraft');
+ await central('/rooms/players','POST',{roomId:centralRoomId,gamertag});
+ await refreshCentral();
+});
 $('invite').onclick=()=>run(async()=>{
  const friend=$('friend').value.trim();
  if(!/^[A-Za-z0-9_.-]{2,80}$/.test(friend))throw Error('Introduce un GREÑA ID válido');
