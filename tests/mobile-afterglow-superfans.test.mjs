@@ -25,7 +25,7 @@ test('mobile companion has two distinct offline QR codes and one-time account pa
 test('top of day uses separate daily stats, 30 seconds and 5 minute rotation',()=>{
  const top=file('super-fans-overlay.html');
  assert.match(top,/SHOW_MS=demo\?8000:30000/);
- assert.match(top,/PERIOD_MS=demo\?14000:300000/);
+ assert.match(top,/PERIOD_MS=demo\?14000:330000/);
  for(const p of ['kick','twitch','tiktok'])assert.ok(top.includes("'"+p+"'"));
  for(const key of ['dailyTops','dailyStats','comments','minutes','shares'])assert.ok(top.includes(key));
  assert.ok(server.includes('dailyTops:'));
