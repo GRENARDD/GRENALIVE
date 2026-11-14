@@ -605,7 +605,24 @@ function invalidateUserSessions(userId){for(const [k,v] of Object.entries(sessio
 
 function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clients)if(ws.readyState===1)ws.send(m)}
  // ===== GREÑA DINÁMICAS (experimental, en esta instancia de servidor) =====
- const minecraftDynamics = createSharedDynamics({notify:event=>broadcast({type:'dynamics',event})});
+ const minecraftBridgeToken=String(process.env.GRENA_MINECRAFT_BRIDGE_TOKEN||'');
+ const minecraftGameEvents=[];
+ let minecraftGameSeq=0;
+ function minecraftQueueEvent(type,info){
+   minecraftGameEvents.push({id:++minecraftGameSeq,type,ts:Date.now(),...info});
+   while(minecraftGameEvents.length>300)minecraftGameEvents.shift();
+ }
+ const minecraftDynamics = createSharedDynamics({notify:event=>{
+   broadcast({type:'dynamics',event});
+   if(event.type==='vote-start'&&event.room?.active){
+     const a=event.room.active;
+     minecraftQueueEvent('vote_open',{roomId:event.roomId,user:'Seguidor',platform:'Multistream',pregunta:a.questionId,duration:Math.max(10,Math.ceil((a.endsAt-Date.now())/1000))});
+   }
+   if(event.type==='result'&&event.result){
+     const r=event.result;
+     minecraftQueueEvent('voted_result',{roomId:event.roomId,user:r.followerName||'Seguidor',platform:r.platform,pregunta:r.questionId,choice:r.winner,a:r.votes.A,b:r.votes.B});
+   }
+ }});
  const minecraftRoomsByUser=new Map();
  const minecraftResults=[];
  const minecraftSettings=new Map();
@@ -2145,6 +2162,19 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     return proxyChatHttp(req,res,url);
   }
  
+
+ 
+ if(pathname==='/mc/poll'&&req.method==='GET'){
+   if(!minecraftBridgeToken||minecraftBridgeToken.length<24)return json(res,503,{ok:false,error:'Puente Minecraft desactivado. Configura GRENA_MINECRAFT_BRIDGE_TOKEN.'});
+   const token=url.searchParams.get('token')||'';
+   if(!safeTokenEqual(token,minecraftBridgeToken))return json(res,401,{ok:false,error:'Token Minecraft incorrecto'});
+   const rawAfter=url.searchParams.get('after');
+   if(rawAfter===null)return json(res,200,{events:[],last:minecraftGameSeq});
+   const after=Math.max(0,Math.trunc(Number(rawAfter)||0));
+   const roomId=String(url.searchParams.get('room')||'').slice(0,80);
+   const events=minecraftGameEvents.filter(x=>x.id>after&&(!roomId||x.roomId===roomId));
+   return json(res,200,{events,last:minecraftGameSeq});
+ }
 
  if(!panelGuard(req,res,pathname))return;
  if(pathname==='/api/dynamics/minecraft' && (req.method==='GET'||req.method==='POST')){
