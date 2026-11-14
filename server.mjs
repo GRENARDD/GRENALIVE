@@ -12,7 +12,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfig } from 'tiktok-live-connector';
 import { chromium } from 'playwright-core';
 import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
-import {STARVIOS_SUPPORT_CATALOG,normalizeStarviosEvent} from './starvios-events.mjs';
+
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 import { makeLicensing } from './grena-licensing.mjs';
 import ownerFishVault from './fish-owner-vault.cjs';
@@ -233,7 +233,7 @@ const TIKTOK_GIFT_ES={
 };
 function giftTextKey(v){return String(v||'').trim().toLowerCase().replace(/[’‘]/g,"'").replace(/\s+/g,' ')}
 function tiktokGiftSpanishName(name){const raw=String(name||'').trim();return TIKTOK_GIFT_ES[giftTextKey(raw)]||raw}
-function catalogPlatform(v){const p=String(v||'').toLowerCase();return p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='kick'?'Kick':p==='starvios'?'Starvios':String(v||'')}
+function catalogPlatform(v){const p=String(v||'').toLowerCase();return p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='kick'?'Kick':String(v||'')}
 function catalogItemKey(x={}){const p=catalogPlatform(x.platform);const id=String(x.id||'').trim();if(id)return `${p}|id:${id}`;return `${p}|name:${giftTextKey(x.name||x.nameEs)}|${Number(x.amount||0)||0}|${String(x.unit||'')}`}
 function normalizeCatalogItem(x={}){
  const platform=catalogPlatform(x.platform),name=String(x.name||x.nameEs||'Apoyo').trim(),nameEs=String(x.nameEs||(platform==='TikTok'?tiktokGiftSpanishName(name):name)).trim();
@@ -255,7 +255,7 @@ function upsertCatalogItem(raw,{preferName=false}={}){
 function ensureBuiltInGiftCatalog(){
  const now=Date.now();
  // Identidades ilustrativas de eventos. No equivalen a regalos comprables oficiales.
- for(const x of [])upsertCatalogItem({platform:'Starvios',id:'starvios:'+x.id,name:x.label,nameEs:x.label,category:x.kind==='gift'?'support':'event',giftKind:x.kind,amount:0,unit:x.unit,image:x.image,source:'GREÑA · ilustración de evento, no regalo oficial',updatedAt:now});
+
  // Catalog event categories supported by YouTube, not an inventory of all paid stickers.
  {
   for(const [id,name,unit] of [['superchat','Super Chat','USD'],['supersticker','Super Sticker','USD'],['membership','Nueva membresía','membership'],['membershipgift','Membresías regaladas','membership'],['membermilestone','Hito de membresía','membership'],['membershipreceived','Membresía recibida','membership']]){
@@ -998,11 +998,6 @@ function rememberObservedCatalogGift(platform,event,extra={}){
  upsertCatalogItem(raw,{preferName:true});
 }
 function enrichAlertMedia(platform,event,extra={}){
- if(String(platform).toLowerCase()==='starvios'){
-  const kind=String(extra.eventKind||extra.giftKind||event||'').toLowerCase();
-  const x=STARVIOS_SUPPORT_CATALOG.find(item=>item.kind===kind)||STARVIOS_SUPPORT_CATALOG.find(item=>item.kind===event);
-  if(x)extra={...extra,giftImage:extra.giftImage||x.image,giftName:extra.giftName||(kind==='gift'?'Starvies':x.label),giftKind:kind};
- }
  if(String(platform).toLowerCase()==='youtube'){
   const kind=String(extra.eventKind||extra.giftKind||'').toLowerCase();
   const known=['superchat','supersticker','membership','membershipgift','membermilestone','membershipreceived'];
@@ -2480,45 +2475,9 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Starvios ya no es un proveedor activo. Rechazar también mensajes de instalaciones antiguas.
  if(req.method==='POST'&&['/api/internal/starvios-live','/api/internal/starvios-event'].includes(pathname))return json(res,410,{ok:false,error:'Proveedor retirado de GREÑA Live.'});
- if(pathname==='/api/internal/starvios-live'&&req.method==='POST'){
-  if(!requireInternalBridge(req,res))return;
-  const body=JSON.parse(await readBody(req)||'{}');
-  if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
-  if(typeof body.live!=='boolean')return json(res,400,{ok:false,error:'Estado LIVE no válido'});
-  starviosLive={live:body.live,known:true,updatedAt:Date.now()};
-  viewerMeta.starvios.live=body.live;
-  if(!body.live)setViewers('starvios',0,'Starvios offline verificado');
-  pushStatus();pushViewers();return json(res,200,{ok:true,state:starviosLive});
- }
- if(pathname==='/api/internal/starvios-event'&&req.method==='POST'){
-  if(!requireInternalBridge(req,res))return;
-  const body=JSON.parse(await readBody(req)||'{}');
-  if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
-  const e=normalizeStarviosEvent({...body,type:body.kind||body.type||''});
-  if(!e)return json(res,400,{ok:false,error:'Evento Starvios desconocido o sin datos'});
-  if(bridgeMessageDuplicate(body.bridgeEventId||('starvios:'+e.id)))return json(res,200,{ok:true,duplicate:true});
-  starviosRealEventAt=Date.now();
-  starviosLastRealKind=e.kind;
-  starviosLastRealNameAvailable=!body.anonymous&&!['Usuario','Usuario Starvios','Seguidor de Starvios','Nuevo seguidor'].includes(e.user);
-  noteBridgeSignal('starvios',e.kind,{user:e.user,amount:e.amount});
-  recordLoyaltyEvent({platform:'starvios',kind:e.kind,user:e.user,amount:e.amount,count:e.count});
-  const mapped=e.kind==='subrenew'?'sub':e.kind==='giftsub'||e.kind==='shower'?'gift':e.kind;
-  const labels={follow:body.anonymous?(e.count>1?'· '+e.count+' seguidores nuevos, nombres no disponibles':'· nuevo follow confirmado; nombre no disponible'):'siguió el canal',
-    sub:'se suscribió',subrenew:'renovó su suscripción',
-    giftsub:'regaló '+e.count+(e.count===1?' suscripción':' suscripciones'),raid:'envió una raid',
-    gift:'donó '+e.amount+' Starvies',shower:'activó Lluvia de Estrellas'};
-  const extra={giftKind:e.kind,eventKind:e.kind,amount:e.amount,count:e.count,bridgeEventId:body.bridgeEventId||e.id,anonymous:!!body.anonymous,source:String(body.source||'Starvios live events').slice(0,100),
-    ...(e.kind==='gift'?{giftName:'Starvies'}:{}),
-    ...(e.kind==='raid'?{viewers:e.viewers||0}:{}),
-    level:e.level,eventLabel:e.kind==='shower'?'LLUVIA DE ESTRELLAS':
-    e.kind==='subrenew'?'RENOVÓ SUSCRIPCIÓN':e.kind==='giftsub'?'SUBS REGALADAS':''};
-  alert('Starvios',mapped,body.anonymous?'Nuevo seguidor':e.user,labels[e.kind]||'',{...extra,identityAvailable:starviosLastRealNameAvailable});
-  pushEventHealth();
-  return json(res,200,{ok:true,kind:e.kind,mapped});
- }
  if(pathname==='/api/internal/event'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});const platform=String(body.platform||''),event=String(body.event||'');
-  if(!['TikTok','Twitch','Kick','YouTube','youtube','Starvios'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
+  if(!['TikTok','Twitch','Kick','YouTube','youtube'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
   if(bridgeMessageDuplicate(body.bridgeEventId))return json(res,200,{ok:true,duplicate:true});
   if(platform==='Twitch'&&twitchCfg){
    const officialFor={follow:['channel.follow'],sub:['channel.subscribe','channel.subscription.message'],gift:['channel.subscription.gift'],cheer:['channel.cheer'],raid:['channel.raid']};
