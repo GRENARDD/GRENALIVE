@@ -1064,7 +1064,7 @@ function alert(platform,event,name,message='',extra={}){
 function json(res,code,obj){res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj))}
 async function persistAuth(){await safeWriteJson(stateFile('auth.json',LEGACY_AUTH_FILE),savedAuth).catch(()=>{})}
 function b64url(buf){return Buffer.from(buf).toString('base64url')}
-function configured(p){if(p==='youtube')return !!(process.env.GRENA_YOUTUBE_CLIENT_ID&&process.env.GRENA_YOUTUBE_CLIENT_SECRET);const c=oauthConfig[p]||{};if(['tiktok','twitch','kick'].includes(p)&&isBrokerProvider(p))return true;if(p==='tiktok')return !!(c.clientKey&&c.clientSecret);if(p==='twitch')return !!c.clientId;if(p==='kick')return !!(c.clientId&&c.clientSecret);return false}
+function configured(p){if(p==='youtube')return isBrokerProvider('youtube')||!!(process.env.GRENA_YOUTUBE_CLIENT_ID&&process.env.GRENA_YOUTUBE_CLIENT_SECRET);const c=oauthConfig[p]||{};if(['tiktok','twitch','kick'].includes(p)&&isBrokerProvider(p))return true;if(p==='tiktok')return !!(c.clientKey&&c.clientSecret);if(p==='twitch')return !!c.clientId;if(p==='kick')return !!(c.clientId&&c.clientSecret);return false}
 async function persistOAuthConfig(){await safeWriteJson(CONFIG_FILE,oauthConfig)}
 function callbackPage(res,ok,message){res.writeHead(ok?200:400,{'content-type':'text/html; charset=utf-8'});res.end(`<!doctype html><meta charset="utf-8"><title>GREÑA LIVE</title><body style="background:#090b10;color:white;font-family:Arial;text-align:center;padding:70px"><h2>${ok?'✓ Cuenta conectada':'No se pudo conectar'}</h2><p>${String(message||'').replace(/[<>&]/g,'')}</p><p>Ya puedes cerrar esta ventana.</p><script>setTimeout(()=>window.close(),1200)</script></body>`)}
 async function postForm(url,params,headers={}){const r=await fetch(url,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',...headers},body:new URLSearchParams(params)});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error_description||d.message||d.error||`HTTP ${r.status}`);return d}
@@ -1629,7 +1629,8 @@ async function beginTwitchDeviceOAuth(res,ownerId,req){
 function beginOAuth(platform,req,res){
  const currentOwner=sessionUser(req);if(!currentOwner||currentOwner.id!==activeUserId)return callbackPage(res,false,'Inicia sesión en tu propia cuenta GREÑA antes de vincular plataformas.');
  if(platform==='youtube'){
-  if(!configured('youtube'))return callbackPage(res,false,'Configura las credenciales OAuth de YouTube en Railway.');
+  if(isBrokerProvider('youtube'))return beginBrokerOAuth('youtube',req,res,currentOwner.id);
+  if(!configured('youtube'))return callbackPage(res,false,'YouTube no está habilitado en GREÑA Auth. Actualiza la configuración de Cloudflare.');
   const owner=sessionUser(req);if(!owner)return callbackPage(res,false,'Inicia sesión en GREÑA primero.');
   const state=b64url(randomBytes(32));const redirect=oauthRedirectFor('youtube',req);
   oauthState.set(state,{platform:'youtube',created:Date.now(),userId:owner.id,redirect});
@@ -1676,6 +1677,15 @@ async function finishBrokerOAuth(platform,code,s,res){
   if(username){await syncCreatorAccount('tiktok',username);await connectTikTokLive(username).catch(()=>{});return callbackPage(res,true,`TikTok conectado como @${username}.`)}
   setStatus('tiktok',false,`${displayName} · cuenta vinculada · falta @usuario para LIVE`,displayName);
   return callbackPage(res,true,`TikTok conectado como ${displayName}. La cuenta quedó vinculada; el @usuario se activará para LIVE cuando TikTok entregue user.info.profile.`)
+ }
+ if(platform==='youtube'){
+  const response=await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',{headers:{Authorization:'Bearer '+tok.access_token}});
+  const details=await response.json().catch(()=>({}));
+  if(!response.ok||!details.items?.length)throw Error('Google autorizó GREÑA, pero no se pudo consultar el canal de YouTube.');
+  const channel=details.items[0];
+  savedAuth.youtube={...tok,refresh_token:tok.refresh_token||savedAuth.youtube?.refresh_token||'',expires_at:Date.now()+Number(tok.expires_in||3600)*1000,channelId:channel.id,displayName:channel.snippet?.title||'YouTube',avatar:channel.snippet?.thumbnails?.default?.url||'',mode:'grena-auth'};
+  await persistAuth();setStatus('youtube',true,'YouTube · cuenta vinculada',savedAuth.youtube.displayName);
+  return callbackPage(res,true,'YouTube vinculado: '+savedAuth.youtube.displayName);
  }
  if(platform==='twitch'){
   savedAuth.twitch={...tok,obtained_at:Date.now(),mode:'grena-auth'};await persistAuth();await startTwitch(tok.access_token);return callbackPage(res,true,`Twitch conectado como ${twitchCfg?.displayName||twitchCfg?.login||'tu cuenta'}.`)
@@ -2353,8 +2363,13 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   try{
    let token=yt.access_token;
    if(yt.refresh_token&&Date.now()>Number(yt.expires_at||0)-60000){
-    const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
-    token=refreshed.access_token;yt.access_token=token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
+    if(yt.mode==='grena-auth'){
+     const refreshed=await refreshBrokerToken('youtube');
+     token=refreshed.access_token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
+    }else{
+     const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
+     token=refreshed.access_token;yt.access_token=token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
+    }
    }
    const uri='https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,snippet,status&mine=true&maxResults=50';
    const response=await fetch(uri,{headers:{Authorization:'Bearer '+token}});
