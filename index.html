@@ -19,7 +19,7 @@
 .grena-control .gx-profile-name-photo.has-photo{color:transparent}
 </style>
 
-<style>.platform-row[data-platform="starvios"]{border-color:rgba(255,130,194,.38)!important;background:linear-gradient(90deg,rgba(255,106,185,.085),transparent)!important}.viewer-card.starvios{border-color:rgba(255,137,198,.4)!important}.platform-row[data-platform="starvios"] .platform-id b,.viewer-card.starvios small{color:#ff9cd3!important}</style></head>
+</head>
 <body class="grena-control">
 <div class="app-shell">
   <header class="topbar">
@@ -30,6 +30,8 @@
     <nav class="primary-nav" aria-label="Navegación principal">
       <a class="top-link nav-home active" href="/" data-home="1">⌂ <span>Inicio</span></a>
       <a class="top-link grena-desktop-bubble-control" id="grenaBubbleModeControl" href="/__grena_bubble_mode__" style="display:none" title="Abrir pestaña flotante que puedes arrastrar por cualquier monitor">🫧 <span>Pestaña flotante</span></a>
+      <a class="top-link" href="/mobile-device.html">📱 <span>Versión móvil</span></a>
+      <a class="top-link" href="/live-panel.html">💬 <span>Panel en vivo</span></a>
       <a class="top-link" href="/alerts.html" data-module="alerts">✦ <span>Alertas</span></a>
       <a class="top-link" href="/widgets.html" data-module="widgets">▦ <span>Widgets OBS</span></a>
       <a class="top-link" href="/cam-room.html" data-module="cam">▣ <span>Cam Room</span></a>
@@ -123,7 +125,7 @@
         <div class="viewer-grid">
           <div class="viewer-card tiktok"><img class="platform-glyph" src="/assets/platforms/tiktok.webp" alt="TikTok"><div><small>TikTok</small><b id="tiktokViewers">0</b></div></div>
           <div class="viewer-card twitch"><img class="platform-glyph" src="/assets/platforms/twitch.webp" alt="Twitch"><div><small>Twitch</small><b id="twitchViewers">0</b></div></div>
-          <div class="viewer-card kick"><img class="platform-glyph" src="/assets/platforms/kick.svg" alt="Kick"><div><small>Kick</small><b id="kickViewers">0</b></div></div><div class="viewer-card youtube"><span style="color:#ff3030;font-weight:900;font-size:24px">▶</span><div><small>YouTube</small><b id="youtubeViewers">0</b></div></div><div class="viewer-card starvios"><img class="platform-glyph" src="/assets/platforms/starvios.svg" alt="Starvios"><div><small>Starvios</small><b id="starviosViewers">0</b></div></div>
+          <div class="viewer-card kick"><img class="platform-glyph" src="/assets/platforms/kick.svg" alt="Kick"><div><small>Kick</small><b id="kickViewers">0</b></div></div><div class="viewer-card youtube"><span style="color:#ff3030;font-weight:900;font-size:24px">▶</span><div><small>YouTube</small><b id="youtubeViewers">0</b></div></div>
         </div>
         <div class="platform-section-head"><div class="platform-section-icon">◉</div><div><b>Plataformas</b><small>Gestiona tus conexiones y estado en tiempo real.</small></div></div>
         <div class="platform-stack">
@@ -139,11 +141,7 @@
             <div class="platform-id"><span class="platform-logo" style="color:#ff3030;font-weight:900">▶</span><div><b>YouTube</b><small id="youtubeAccount">Enlace LIVE no configurado</small></div></div>
             <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="youtubeAuth">Enlace</span><span class="state-chip" id="youtubeLive">Chat</span><span class="state-chip" id="youtubeEvents">Eventos</span></div><button id="loginYouTube" class="platform-action">Configurar</button></div>
           </article>
-          <article class="platform-row" data-platform="starvios">
-            <div class="platform-id"><span class="platform-logo"><img src="/assets/platforms/starvios.svg" alt="Starvios"></span><div><b>Starvios</b><small id="starviosAccount">Canal sin configurar</small></div></div>
-            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="starviosAuth">Canal</span><span class="state-chip" id="starviosLive">LIVE</span><span class="state-chip" id="starviosEvents">Eventos β</span></div><button id="loginStarvios" class="platform-action">Conectar</button></div>
-          </article>
-          <article class="platform-row" data-platform="kick">
+<article class="platform-row" data-platform="kick">
             <div class="platform-id"><span class="platform-logo"><img src="/assets/platforms/kick.svg" alt="Kick"></span><div><b>Kick</b><small id="kickAccount">Cuenta no vinculada</small></div></div>
             <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="kickAuth">Cuenta</span><span class="state-chip" id="kickLive">Chat</span><span class="state-chip" id="kickEvents">Eventos</span></div><button id="loginKick" class="platform-action">Conectar</button></div>
           </article>
@@ -170,12 +168,6 @@
           <button data-test="tw-bits"><span>◆</span>500 Bits</button>
           <button data-test="ki-follow"><span>＋</span>Kick Follow</button>
           <button data-test="ki-sub"><span>★</span>Kick Sub</button>
-          <button data-test="sv-follow"><span><img src="/assets/platforms/starvios.svg" alt="" style="width:1.2em;height:1.2em;object-fit:contain;vertical-align:middle"></span>Starvios Follow</button>
-          <button data-test="sv-starvies"><span>✨</span>100 Starvies</button>
-          <button data-test="sv-sub"><span>👑</span>Starvios Sub</button>
-          <button data-test="sv-giftsub"><span>🎁</span>Sub regalada</button>
-          <button data-test="sv-raid"><span>⚡</span>Starvios Raid</button>
-          <button data-test="sv-shower"><span>🌠</span>Lluvia de Estrellas</button>
         </div>
         <div class="obs-row"><div><small>OVERLAY OBS</small><code id="overlayUrl">/overlay.html</code></div><button id="copyOverlay" class="copy-btn">Copiar</button></div>
       </section>
@@ -204,38 +196,6 @@
     <input id="tiktokLiveUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://www.tiktok.com/@grena_rd/live">
     <small id="tiktokLinkHint">No necesitas iniciar sesión ni autorizar permisos de TikTok.</small>
     <div class="tiktok-link-actions"><button type="button" id="tiktokLinkCancel" class="secondary">Cancelar</button><button type="button" id="tiktokLinkConnect" class="primary">Conectar LIVE</button></div>
-  </section>
-</div>
-<div class="tiktok-link-backdrop starvios-link-backdrop" id="starviosLinkModal" aria-hidden="true">
-  <section class="tiktok-link-card starvios-link-card" role="dialog" aria-modal="true" aria-labelledby="starviosLinkTitle">
-    <div class="tiktok-link-brand starvios-link-brand"><img src="/assets/platforms/starvios.svg" alt=""><span>STARVIOS LIVE</span></div>
-    <h2 id="starviosLinkTitle">Vincular canal de Starvios</h2>
-    <p>Pega el enlace público de tu canal o escribe tu usuario. GREÑA guardará el canal en este equipo e intentará detectar el chat del directo automáticamente.</p>
-    <form id="starviosLinkForm">
-      <label for="starviosLinkInput">Usuario o enlace de Starvios</label>
-      <input id="starviosLinkInput" type="text" inputmode="url" maxlength="180" autocomplete="off" spellcheck="false" placeholder="https://www.starvios.com/tuusuario" required>
-      <small class="starvios-link-hint" id="starviosLinkHint" role="status" aria-live="polite">No necesitas contraseña. Vincular el canal no significa que el LIVE esté conectado.</small>
-      <small id="starviosLiveDiagnostics" class="starvios-link-hint" style="display:block;white-space:pre-line;margin-top:8px;line-height:1.5" aria-live="polite">Estado real del LIVE: sin verificar.</small>
-      <div class="tiktok-link-actions starvios-link-actions">
-        <button type="button" class="secondary starvios-disconnect" id="starviosLinkDisconnect" hidden>Desvincular</button>
-        <button type="button" class="secondary" id="starviosLinkCancel">Cancelar</button>
-        <button type="submit" class="primary" id="starviosLinkConnect">Guardar y conectar</button>
-      </div>
-    </form>
-  </section>
-</div>
-<div class="onboarding-backdrop" id="onboarding" aria-hidden="true">
-  <section class="onboarding-card" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
-    <div class="onboarding-badge">GREÑA LIVE PRO</div>
-    <h2 id="onboardingTitle">Conecta tus plataformas</h2>
-    <p>Autoriza tus cuentas una sola vez. GREÑA recordará cada creador y conectará chat, alertas, widgets y contadores automáticamente.</p>
-    <div class="onboarding-platforms">
-      <button type="button" data-onboard="tiktok"><img src="/assets/platforms/tiktok.webp" alt=""> <span><b>TikTok</b><small>Link del LIVE · sin login</small></span><i>Conectar</i></button>
-      <button type="button" data-onboard="twitch"><img src="/assets/platforms/twitch.webp" alt=""> <span><b>Twitch</b><small>Autorización segura</small></span><i>Conectar</i></button>
-      <button type="button" data-onboard="kick"><img src="/assets/platforms/kick.svg" alt=""> <span><b>Kick</b><small>OAuth + LIVE</small></span><i>Conectar</i></button>
-      <button type="button" data-onboard="starvios"><img src="/assets/platforms/starvios.svg" alt=""> <span><b>Starvios</b><small>Usuario o enlace del canal · sin contraseña</small></span><i>Conectar</i></button>
-    </div>
-    <button type="button" class="onboarding-later" id="onboardingLater">Continuar por ahora</button>
   </section>
 </div>
 <div class="toast" id="toast"></div>

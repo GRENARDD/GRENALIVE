@@ -8,6 +8,11 @@ on:
       - 'grena-gamer.css'
       - 'chat-server.mjs'
       - 'server.mjs'
+      - 'tests/mobile-afterglow-superfans.test.mjs'
+      - 'assets/mobile.webmanifest'
+      - 'assets/qr-code.min.js'
+      - 'mobile-device.html'
+      - 'super-fans-overlay.html'
       - 'kick-realtime.mjs'
       - 'tests/kick-*.test.mjs'
       - 'grena-tokens.css'
@@ -22,6 +27,9 @@ on:
       - 'mode.html'
       - 'login.html'
       - 'index.html'
+      - 'live-panel.html'
+      - 'mobile.html'
+      - 'custom-alerts.html'
       - 'chat.html'
       - 'afterglow-overlay.html'
       - 'assets/grena-mascot-alerts.html'
@@ -40,7 +48,10 @@ on:
       - 'assets/grena-fullscreen-gift-obs.html'
       - 'assets/grena-premium-catalog-obs.html'
       - 'desktop-build/verify-premium-alpha.cjs'
-      - 'desktop-build/verify-upgrade-5117-to-5118.ps1'
+      - 'desktop-build/smoke-chat.mjs'
+      - 'live-panel.html'
+      - 'mobile.html'
+      - 'desktop-build/verify-upgrade-5117-to-5119.ps1'
       - '.github/workflows/grena-release-v5115.yml'
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
@@ -111,7 +122,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5117-to-5118.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5117-to-5119.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -119,7 +130,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v5.1.17 -> v5.1.18 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v5.1.17 -> v5.1.19 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -181,7 +192,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_kick_auth.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python desktop-build/fix_starvios_version.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_bubble.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -203,35 +213,14 @@ jobs:
             node --check $path
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          node --check starvios-public-events.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node --check starvios-reader.mjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Verify Starvios white SVG inside OBS widgets
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          foreach ($path in @("social-overlay.html", "social-overlay-classic.html")) {
-            $html = Get-Content $path -Raw -Encoding UTF8
-            if ($html -notmatch 'aria-label="Starvios"' -or $html -notmatch 'fill="#ffffff"') {
-              throw "El widget $path no contiene las estrellas Starvios blancas integradas."
-            }
-            if ($html -match '<img[^>]+starvios\\.svg') {
-              throw "El widget $path vuelve a usar el SVG rosado."
-            }
-          }
-          $preview = Get-Content widgets.html -Raw -Encoding UTF8
-          if (-not $preview.Contains('social-overlay.html?preview=1')) {
-            throw "La vista previa del widget no tiene activado el modo oscuro."
-          }
-      - name: Set distinct v5.1.18 beta version for preview installer
+      - name: Set distinct v5.1.19 release-candidate version for preview installer
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "5.1.18-beta.1"
+          $pkg.version = "5.1.19-rc.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 5.1.18-beta.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 5.1.19-rc.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -249,16 +238,16 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Set official 5.1.18 version on main (never on pull requests)
+      - name: Set official 5.1.19 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ($pkg.version -ne "5.1.18") { throw "Versión base inesperada; se cancela publicación estable." }
-          $pkg.version = "5.1.18"
+          if ($pkg.version -ne "5.1.19") { throw "Versión base inesperada; se cancela publicación estable." }
+          $pkg.version = "5.1.19"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Versión oficial verificada: 5.1.18"
+          Write-Host "Versión oficial verificada: 5.1.19"
       - name: Verify pack logic
         shell: pwsh
         run: |
@@ -267,10 +256,6 @@ jobs:
           node --test assets/grena-packs/minecraft/tests/phase1.test.js
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test tests/voice-emoji-filter.test.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node --test desktop-build/test-starvios-dialog.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node --test desktop-build/test-starvios-realtime.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node --test desktop-build/test-bubble-mode.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -286,6 +271,10 @@ jobs:
           WIN_CSC_LINK: ${{ github.event_name == 'push' && secrets.GRENA_WINDOWS_CERT_BASE64 || '' }}
           WIN_CSC_KEY_PASSWORD: ${{ github.event_name == 'push' && secrets.GRENA_WINDOWS_CERT_PASSWORD || '' }}
         run: npx electron-builder --win nsis --x64 --publish never
+      - name: Check that the new live dashboard is packaged
+        shell: pwsh
+        run: |
+          if (!(Test-Path 'dist/win-unpacked/resources/app/live-panel.html')) { throw 'Falta live-panel.html en la aplicación empaquetada' }
       - name: Verify Windows installer Authenticode and SHA256
         shell: pwsh
         env:
@@ -339,10 +328,10 @@ jobs:
       - name: Verify installed upgrade from GREÑA 5.1.17 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
-        run: ./desktop-build/verify-upgrade-5117-to-5118.ps1
+        run: ./desktop-build/verify-upgrade-5117-to-5119.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.18-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.18' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-RC-5.1.19-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.19' }}
           path: dist/*.exe
           if-no-files-found: error

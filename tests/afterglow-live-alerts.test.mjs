@@ -12,8 +12,8 @@ test('studio and overlays expose two independent OBS sources with retained accou
  assert.match(overlay,/obsQuery/);assert.match(overlay,/new WebSocket/);
  assert.match(panel,/overlayUrlHorizontal2/);
 });
-test('all five platforms map to proper visual palettes and live events',()=>{
- for(const platform of ['tiktok','twitch','kick','starvios','youtube']){assert.match(overlay,new RegExp(platform+':\\['));assert.match(studio,new RegExp('data-platform="'+platform+'"'))}
+test('the four supported platforms map to visual palettes and live events',()=>{
+ for(const platform of ['tiktok','twitch','kick','youtube']){assert.match(overlay,new RegExp(platform+':\\['));assert.match(studio,new RegExp('data-platform="'+platform+'"'))}
  const start=overlay.indexOf('function mapAlert('),end=overlay.indexOf('function normalizedSettings(',start);
  assert.ok(start>0&&end>start);
  const local=vm.runInNewContext("let platform='tiktok';const cfg={intensity:65};const events=['follow','gift','sub','raid','share','likes'];"+overlay.slice(start,end)+";({mapAlert,platform:()=>platform})");

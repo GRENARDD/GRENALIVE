@@ -70,7 +70,7 @@ h3{font-size:14px;margin:24px 0 12px;display:flex;gap:10px;align-items:center;co
 <label>Nombre del regalo (opcional)<input id="giftName" type="text" maxlength="100" placeholder="Rosa, Galaxy, etc."></label>
 <label>Cantidad mínima (opcional)<input id="minCount" type="number" min="0" max="1000000" value="0"></label>
 <label>Valor mínimo (opcional)<input id="minValue" type="number" min="0" max="100000000" value="0"></label>
-</div><p class="hint">Los filtros de regalos usan el nombre y el valor que devuelve cada plataforma. En TikTok, diamantes; Twitch, Bits; Kick, KICKs; Starvios, Starvies, cuando están disponibles. Cero = sin mínimo.</p>
+</div><p class="hint">Los filtros de regalos usan el nombre y el valor que devuelve cada plataforma. En TikTok, diamantes; Twitch, Bits; Kick, KICKs, cuando están disponibles. Cero = sin mínimo.</p>
 <h3>③ ¿Qué debe ocurrir? · Diseño y multimedia</h3>
 <label>Título de la alerta<input id="title" type="text" maxlength="120" value="¡NUEVO APOYO!"></label>
 <label>Texto dinámico<textarea id="message" maxlength="280">¡Gracias {user} por apoyar el directo!</textarea></label>
@@ -106,7 +106,7 @@ h3{font-size:14px;margin:24px 0 12px;display:flex;gap:10px;align-items:center;co
 <script>
 (function(){
 'use strict';
-const platforms=[['tiktok','TikTok','/assets/platforms/tiktok.webp'],['twitch','Twitch','/assets/platforms/twitch.webp'],['kick','Kick','/assets/platforms/kick.svg'],['starvios','Starvios','/assets/platforms/starvios.svg'],['youtube','YouTube','/assets/youtube-logo.svg']];
+const platforms=[['tiktok','TikTok','/assets/platforms/tiktok.webp'],['twitch','Twitch','/assets/platforms/twitch.webp'],['kick','Kick','/assets/platforms/kick.svg'],['youtube','YouTube','/assets/youtube-logo.svg']];
 const events=[['follow','Seguidor'],['gift','Regalo / apoyo'],['sub','Suscripción'],['subrenew','Renovación'],['giftsub','Subs regaladas'],['shower','Lluvia de estrellas'],['cheer','Bits'],['share','Compartir'],['like','Me gusta / Tap Taps'],['raid','Raid']];
 const $=id=>document.getElementById(id);let alerts=[],editingId='',busy=false,previewHandle=null;
 function toast(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.remove('show'),3800)}
@@ -118,7 +118,7 @@ function drawChoices(){
   $('events').innerHTML=events.map(e=>'<label class="option"><input type="checkbox" name="trigger" value="'+e[0]+'">'+e[1]+'</label>').join('');
 }
 function fresh(){
-  return {id:crypto.randomUUID(),name:'Mi nueva alerta',enabled:true,platforms:['tiktok','twitch','kick','starvios'],events:['gift'],
+  return {id:crypto.randomUUID(),name:'Mi nueva alerta',enabled:true,platforms:['tiktok','twitch','kick','youtube'],events:['gift'],
     conditions:{username:'',giftName:'',minCount:0,minValue:0},
     action:{title:'¡NUEVO APOYO!',message:'¡Gracias {user} por apoyar el directo!',image:'',audio:'',video:'',color:'#a855f7',textColor:'#ffffff',style:'neon',animation:'pop',duration:7,orientation:'both',volume:70,showAvatar:true,showGift:true,playAudio:true,tts:false,priority:50,cooldownGlobal:0,cooldownUser:0}};
 }

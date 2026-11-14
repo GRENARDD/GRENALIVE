@@ -1,0 +1,18 @@
+{
+  "name": "GREÑA Live Mobile",
+  "short_name": "GREÑA Mobile",
+  "description": "Panel remoto de GREÑA Live vinculado a tu PC y GREÑA ID",
+  "start_url": "/mobile.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b101c",
+  "theme_color": "#7c4dff",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

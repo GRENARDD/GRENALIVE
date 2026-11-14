@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GREÑA LIVE · Versión móvil</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,"Segoe UI",system-ui,Arial,sans-serif}*{box-sizing:border-box}
+body{margin:0;background:#090d18;color:#f4f4ff}header{padding:17px 22px;border-bottom:1px solid #343052;background:#111227;display:flex;justify-content:space-between;gap:15px;align-items:center;flex-wrap:wrap}
+h1{font-size:24px;margin:0}header a{color:#bfaaff;text-decoration:none}main{max-width:1060px;margin:28px auto;padding:0 18px}
+p{color:#bdb8d0;line-height:1.6}.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:25px}.card{border:1px solid #393051;background:#19162d;border-radius:18px;padding:24px;text-align:center}
+.card h2{font-size:19px;margin:5px 0 9px}.qr{background:#fff;border:10px solid white;border-radius:12px;width:230px;height:230px;display:grid;place-items:center;margin:18px auto;color:#333;overflow:hidden}
+button{border:0;border-radius:10px;padding:12px 17px;background:linear-gradient(120deg,#884afa,#4f62ef);color:white;font-weight:800;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.link{word-break:break-all;color:#a5ceff;font-size:12px;margin:10px auto}.note{font-size:13px}#timer{font-weight:900;color:#dbbaff}.warning{margin-top:24px;border:1px solid #786347;border-radius:12px;padding:14px;color:#ffdca4;background:#28201b}.warning[hidden]{display:none}
+@media(max-width:670px){.cards{grid-template-columns:1fr}main{margin:15px auto}.qr{width:220px;height:220px}}
+</style></head><body>
+<header><div><h1>📱 GREÑA LIVE · Versión móvil</h1><p style="margin:4px 0">Vincula tu teléfono con GREÑA ID</p></div><a href="/">← Volver a GREÑA Desktop</a></header>
+<main><p>Dos QR diferentes: el primero abre la experiencia móvil. El segundo autoriza temporalmente este teléfono con la sesión de GREÑA ID de tu PC, sin desconectarte del programa.</p>
+<div class="cards">
+<section class="card"><h2>1. Instalar GREÑA Live Mobile</h2><p class="note">Abre la versión web en tu teléfono y agrégala a la pantalla de inicio cuando el navegador lo permita. No es un APK.</p><div class="qr" id="installQr">Preparando QR…</div><div class="link" id="installLink"></div><button id="copyInstall" type="button" disabled>Copiar enlace</button></section>
+<section class="card"><h2>2. Vincular dispositivo</h2><p class="note">Código exclusivo, de un solo uso y válido durante 2 minutos. Escanéalo con tu teléfono para iniciar sesión.</p><div class="qr" id="pairQr">Genera un QR privado</div><div id="timer">Sin código activo</div><p><button id="pairButton" type="button">Generar QR de vinculación</button></p><div class="link" id="pairLink"></div></section>
+</div>
+<div class="warning" id="networkWarning" hidden></div>
+<p><button id="enableWifi" type="button" hidden>📶 Habilitar acceso por Wi‑Fi local</button></p>
+<p id="feedback" role="status" aria-live="polite"></p>
+</main>
+<script src="/assets/qr-code.min.js"></script>
+<script>
+(()=>{'use strict';const $=id=>document.getElementById(id);
+let installUrl='',pairUrl='',expiresAt=0,tick;
+function qr(el,url){el.replaceChildren();new QRCode(el,{text:url,width:208,height:208,colorDark:'#111122',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M})}
+function warning(data){
+ const p=$('networkWarning');
+ if(data.publicAccess){p.hidden=true;$('enableWifi').hidden=true;return}
+ p.hidden=false;$('enableWifi').hidden=!!data.lanEnabled;
+ p.textContent=data.lanEnabled
+  ?'Acceso local por Wi-Fi: tu teléfono y la PC deben estar en la misma red. Usa una red privada de confianza; para conectarte desde otra red necesitas un enlace HTTPS público y seguro.'
+   :'Tu servidor está limitado a esta PC. Pulsa Habilitar acceso por Wi-Fi para permitir conexión al teléfono en la misma red privada. Desde otra red necesitarás acceso HTTPS público seguro.';
+}
+async function generate(){
+ $('pairButton').disabled=true;$('feedback').textContent='Generando vinculación segura…';
+ try{
+  const r=await fetch('/api/mobile/pair/create',{method:'POST',headers:{'content-type':'application/json'},body:'{}',credentials:'same-origin'});
+  const d=await r.json();if(!r.ok)throw Error(d.error||'No fue posible crear la vinculación.');
+  installUrl=d.installationUrl;pairUrl=d.pairUrl;expiresAt=d.expiresAt;
+  qr($('installQr'),installUrl);$('installLink').textContent=installUrl;$('copyInstall').disabled=false;
+  qr($('pairQr'),pairUrl);$('pairLink').textContent='QR privado generado. No compartas este enlace.';
+  warning(d);$('feedback').textContent='Vinculación lista. Escanea el segundo código.';
+  clearInterval(tick);tick=setInterval(()=>{const s=Math.max(0,Math.ceil((expiresAt-Date.now())/1000));$('timer').textContent=s?'Caduca en '+s+' s':'Caducado · genera otro QR';if(!s){$('pairQr').replaceChildren(document.createTextNode('QR caducado'));$('pairButton').disabled=false;clearInterval(tick)}},1000);
+ }catch(e){$('feedback').textContent='Error: '+e.message}
+ finally{$('pairButton').disabled=false}
+}
+$('enableWifi').onclick=async()=>{
+ if(!confirm('GREÑA abrirá el puerto local para tu teléfono. Úsalo solo en una red Wi-Fi privada y de confianza. ¿Activar?'))return;
+ $('enableWifi').disabled=true;
+ try{const r=await fetch('/api/mobile/lan/enable',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+ const d=await r.json();if(!r.ok)throw Error(d.error||'No se pudo abrir la red local');await generate();
+ }catch(e){$('feedback').textContent='No se pudo activar Wi-Fi: '+e.message}
+ finally{$('enableWifi').disabled=false}
+};
+$('copyInstall').onclick=()=>navigator.clipboard.writeText(installUrl).then(()=>$('feedback').textContent='Enlace copiado').catch(()=>$('feedback').textContent=installUrl);
+$('pairButton').onclick=generate;
+generate();
+})();
+</script></body></html>

@@ -6,7 +6,7 @@ import { readFile, writeFile, mkdir, copyFile, unlink, access, rename, chmod, ap
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { extname, join, normalize, dirname } from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, networkInterfaces } from 'node:os';
 import { randomBytes, randomInt, createHash, createVerify, scryptSync, scrypt, timingSafeEqual } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfig } from 'tiktok-live-connector';
@@ -24,7 +24,13 @@ RoomIdRouteConfig.skipFetchRoomIdFromEulerRoute = true;
 IsLiveRouteConfig.skipFetchRoomIdFromEulerRoute = true;
 
 const CLOUD_MODE=process.env.GRENA_CLOUD==='1';
-const HOST=process.env.HOST||(CLOUD_MODE?'0.0.0.0':'127.0.0.1'), PORT=Number(process.env.PORT||8787), APP_ROOT=dirname(fileURLToPath(import.meta.url)), ROOT=APP_ROOT;
+const MOBILE_LAN_ENABLED=!CLOUD_MODE&&process.env.GRENA_MOBILE_LAN==='1';
+let mobileLanActive=MOBILE_LAN_ENABLED,mobileGateway=null;
+const LAN_IPV4=[...Object.values(networkInterfaces()).flat()].filter(x=>x&&x.family==='IPv4'&&!x.internal).map(x=>x.address);
+const MOBILE_HOSTS=new Set(LAN_IPV4.flatMap(ip=>[ip+':'+Number(process.env.PORT||8787),ip+':'+(Number(process.env.PORT||8787)+2)]));
+const MOBILE_ORIGINS=new Set(LAN_IPV4.flatMap(ip=>['http://'+ip+':'+Number(process.env.PORT||8787),'http://'+ip+':'+(Number(process.env.PORT||8787)+2)]));
+
+const HOST=process.env.HOST||(CLOUD_MODE||MOBILE_LAN_ENABLED?'0.0.0.0':'127.0.0.1'), PORT=Number(process.env.PORT||8787), APP_ROOT=dirname(fileURLToPath(import.meta.url)), ROOT=APP_ROOT;
 const PUBLIC_URL=String(process.env.GRENA_PUBLIC_URL||(process.env.RAILWAY_PUBLIC_DOMAIN?`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`:'')).trim().replace(/\/$/,'');
 const BASE=PUBLIC_URL||`http://${HOST}:${PORT}`;
 // Stable across Railway containers of the same release; used only to refresh OBS browser pages.
@@ -79,8 +85,8 @@ const LOCAL_ORIGINS=new Set([`http://127.0.0.1:${PORT}`,`http://localhost:${PORT
 if(PUBLIC_URL)LOCAL_ORIGINS.add(PUBLIC_URL);
 function requestHost(req){return String(req?.headers?.['x-forwarded-host']||req?.headers?.host||'').split(',')[0].trim().toLowerCase()}
 function sameOriginRequest(req,origin){if(!origin)return true;try{return new URL(String(origin)).host.toLowerCase()===requestHost(req)}catch{return false}}
-function localOriginOk(origin,req){return CLOUD_MODE?sameOriginRequest(req,origin):(!origin||LOCAL_ORIGINS.has(origin))}
-const STATIC_EXT=new Set(['.html','.css','.js','.png','.jpg','.jpeg','.webp','.gif','.svg','.ico','.mp3','.wav','.ogg','.woff','.woff2','.ttf']);
+function localOriginOk(origin,req){return CLOUD_MODE?sameOriginRequest(req,origin):(!origin||LOCAL_ORIGINS.has(origin)||(mobileLanActive&&MOBILE_ORIGINS.has(origin)))}
+const STATIC_EXT=new Set(['.html','.css','.js','.png','.jpg','.jpeg','.webp','.gif','.svg','.ico','.mp3','.wav','.ogg','.woff','.woff2','.ttf','.webmanifest']);
 // Lista blanca: solo archivos de la raíz con extensión web, o cualquier cosa dentro de /assets.
 function resolveStaticFile(pathname){
   let rel;try{rel=pathname==='/'?'index.html':decodeURIComponent(pathname.slice(1))}catch{return null}
@@ -93,7 +99,7 @@ function resolveStaticFile(pathname){
 }
 function safeReqPath(u){return typeof u==='string'&&/^\/(?![\/\\])/.test(u)}
 const OAUTH_BASE=PUBLIC_URL||`http://localhost:${PORT}`;
-const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.mp3':'audio/mpeg','.wav':'audio/wav','.ogg':'audio/ogg'};
+const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.json':'application/json; charset=utf-8','.webmanifest':'application/manifest+json','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.mp3':'audio/mpeg','.wav':'audio/wav','.ogg':'audio/ogg'};
 
 // El servidor principal también levanta GREÑA Chat (8788). Así el multichat funciona
 // incluso si el usuario ejecuta `node server.mjs` directamente en lugar de `npm start`.
@@ -249,7 +255,7 @@ function upsertCatalogItem(raw,{preferName=false}={}){
 function ensureBuiltInGiftCatalog(){
  const now=Date.now();
  // Identidades ilustrativas de eventos. No equivalen a regalos comprables oficiales.
- for(const x of STARVIOS_SUPPORT_CATALOG)upsertCatalogItem({platform:'Starvios',id:'starvios:'+x.id,name:x.label,nameEs:x.label,category:x.kind==='gift'?'support':'event',giftKind:x.kind,amount:0,unit:x.unit,image:x.image,source:'GREÑA · ilustración de evento, no regalo oficial',updatedAt:now});
+ for(const x of [])upsertCatalogItem({platform:'Starvios',id:'starvios:'+x.id,name:x.label,nameEs:x.label,category:x.kind==='gift'?'support':'event',giftKind:x.kind,amount:0,unit:x.unit,image:x.image,source:'GREÑA · ilustración de evento, no regalo oficial',updatedAt:now});
  // Catalog event categories supported by YouTube, not an inventory of all paid stickers.
  {
   for(const [id,name,unit] of [['superchat','Super Chat','USD'],['supersticker','Super Sticker','USD'],['membership','Nueva membresía','membership'],['membershipgift','Membresías regaladas','membership'],['membermilestone','Hito de membresía','membership'],['membershipreceived','Membresía recibida','membership']]){
@@ -269,15 +275,18 @@ function ensureBuiltInGiftCatalog(){
  for(const tier of ['Tier 1','Tier 2','Tier 3'])upsertCatalogItem({platform:'Twitch',id:`sub:${tier.toLowerCase().replace(/\s+/g,'-')}`,name:`Gifted subscription · ${tier}`,nameEs:`Suscripción regalada · ${tier}`,category:'subscription',giftKind:'subscription',amount:1,unit:'sub',source:'Twitch',updatedAt:now});
 }
 ensureBuiltInGiftCatalog();
-const AFTERGLOW_DEFAULTS={mascotCharacter:'zp',streamerNames:{tiktok:'',twitch:'',kick:'',starvios:'',youtube:''},theme:'minecraft',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
+const AFTERGLOW_DEFAULTS={mascotCharacter:'zp',streamerNames:{tiktok:'',twitch:'',kick:'',starvios:'',youtube:''},theme:'minecraft',intensity:65,volume:54,soundEnabled:true,audioRoute:'both',sounds:{follow:true,gift:true,sub:true,raid:true,share:true,likes:true},audioFiles:{},eventLevels:{},eventIntensity:{},fontFamily:'Inter',textColor:'#ffffff',accentMode:'platform',accent:'#caff5f'};
 function normalizeAfterglowSettings(input={}){
  const x=input&&typeof input==='object'&&!Array.isArray(input)?input:{};
  const number=(v,d)=>Number.isFinite(Number(v))?Math.max(0,Math.min(100,Number(v))):d;
  const color=(v,d)=>/^#[0-9a-f]{6}$/i.test(String(v||''))?String(v).toLowerCase():d;
  const sounds=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,x.sounds?.[k]!==false]));
+ const audioFiles=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,/^\/api\/custom-alerts\/media\/[A-Za-z0-9_-]{10,80}\.(?:mp3|wav|ogg)$/.test(String(x.audioFiles?.[k]||''))?x.audioFiles[k]:'']));
+ const eventLevels=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,number(x.eventLevels?.[k],54)]));
+ const eventIntensity=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,number(x.eventIntensity?.[k],65)]));
  const fontFamily=['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(x.fontFamily)?x.fontFamily:'Inter';
  const streamerNames=Object.fromEntries(['tiktok','twitch','kick','starvios','youtube'].map(p=>[p,String(x.streamerNames?.[p]||'').trim().slice(0,64)]));
- return {streamerNames,theme:['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','grena_grenito','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(x.theme)?x.theme:'minecraft',mascotCharacter:['zp','pg','bm','sk','dg'].includes(x.mascotCharacter)?x.mascotCharacter:'zp',intensity:number(x.intensity,65),volume:number(x.volume,54),soundEnabled:x.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(x.audioRoute)?x.audioRoute:'both',sounds,fontFamily,textColor:color(x.textColor,'#ffffff'),accentMode:x.accentMode==='custom'?'custom':'platform',accent:color(x.accent,'#caff5f')};
+ return {streamerNames,theme:['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','grena_grenito','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(x.theme)?x.theme:'minecraft',mascotCharacter:['zp','pg','bm','sk','dg'].includes(x.mascotCharacter)?x.mascotCharacter:'zp',intensity:number(x.intensity,65),volume:number(x.volume,54),soundEnabled:x.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(x.audioRoute)?x.audioRoute:'both',sounds,audioFiles,eventLevels,eventIntensity,fontFamily,textColor:color(x.textColor,'#ffffff'),accentMode:x.accentMode==='custom'?'custom':'platform',accent:color(x.accent,'#caff5f')};
 }
 const socialDefaults={socialLayout:'classic',tiktokUser:'',instagramUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',enabledNetworks:['tiktok','instagram','twitch','kick','youtube','starvios'],fontFamily:'Segoe UI',fontSize:18,iconSize:22,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true,edge:'left',edgeOffset:0};
 const autoDefaults={enabled:true,counterTikTok:'',counterTwitch:'',counterKick:'',counterTikTokEnabled:false,counterTwitchEnabled:false,counterKickEnabled:false,counterStyle:'classic',counterCardColor:'#18232c',counterEdge:'left',counterEdgeOffset:0,alertStyle:'classic'};
@@ -386,7 +395,7 @@ async function withAccountTransition(fn){let release;const prev=accountTransitio
 function disconnectPrivateSockets(){for(const ws of [...clients,...chatProxyClients])try{ws.close(4001,'GRENA profile changed')}catch{try{ws.terminate()}catch{}}}
 function purgeExpiredSessions(){const now=Date.now();let n=0;for(const [k,v] of Object.entries(sessionsStore.sessions||{}))if(!v||Number(v.expiresAt||0)<now){delete sessionsStore.sessions[k];n++}return n}
 async function purgeSessionsAndPersist(){try{if(purgeExpiredSessions())await safeWriteJson(SESSIONS_FILE,sessionsStore);const now=Date.now();for(const [k,r] of loginRate)if(now-r.last>30*60e3)loginRate.delete(k)}catch(e){console.warn('Purga de sesiones:',e?.message||e)}}
-async function createSession(res,user){if(!activeUserId||user.id!==activeUserId)throw Error('El perfil activo no coincide con esta sesión.');const token=randomBytes(32).toString('base64url'),expiresAt=Date.now()+30*24*60*60*1000;/* GREÑA es de perfil activo único: invalida sesiones anteriores para que una pestaña vieja no controle otro perfil. */sessionsStore.sessions={};sessionsStore.sessions[sessionHash(token)]={userId:user.id,expiresAt};await safeWriteJson(SESSIONS_FILE,sessionsStore);res.setHeader('Set-Cookie',`grena_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${30*24*60*60}${CLOUD_MODE?'; Secure':''}`);return token}
+async function createSession(res,user,{preserveExisting=false}={}){if(!activeUserId||user.id!==activeUserId)throw Error('El perfil activo no coincide con esta sesión.');const token=randomBytes(32).toString('base64url'),expiresAt=Date.now()+30*24*60*60*1000;/* GREÑA es de perfil activo único: invalida sesiones anteriores para que una pestaña vieja no controle otro perfil. */if(!preserveExisting)sessionsStore.sessions={};sessionsStore.sessions[sessionHash(token)]={userId:user.id,expiresAt};await safeWriteJson(SESSIONS_FILE,sessionsStore);res.setHeader('Set-Cookie',`grena_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${30*24*60*60}${CLOUD_MODE?'; Secure':''}`);return token}
 async function destroySession(req,res){const token=parseCookies(req).grena_session;if(token)delete sessionsStore.sessions[sessionHash(token)];await safeWriteJson(SESSIONS_FILE,sessionsStore).catch(()=>{});res.setHeader('Set-Cookie',`grena_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${CLOUD_MODE?'; Secure':''}`)}
 async function migrateLegacyIntoProfile(userId){
   const copies=[
@@ -599,11 +608,12 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
 // no tiempo de visualización exacto: TikTok/Twitch/Kick no exponen una identidad fiable de cada viewer silencioso.
 function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube','starvios'].includes(p)?p:''}
 function loyaltyKey(v=''){return String(v||'').trim().replace(/^@/,'').toLowerCase().slice(0,80)}
-function loyaltyDay(ts=Date.now()){const d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function loyaltyDay(ts=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ts))}
 function loyaltyLevel(score=0){const n=Number(score)||0;if(n>=6000)return {name:'Leyenda',icon:'★',next:null};if(n>=3000)return {name:'Diamante',icon:'◆',next:6000};if(n>=1500)return {name:'Platino',icon:'⬟',next:3000};if(n>=700)return {name:'Oro',icon:'●',next:1500};if(n>=250)return {name:'Plata',icon:'◈',next:700};return {name:'Bronce',icon:'◇',next:250}}
 function publicLoyaltyUser(u={}){const score=Math.round((Number(u.score)||0)*10)/10;return {...u,score,level:loyaltyLevel(score)}}
 function loyaltyTop(platform,limit=10){const p=loyaltyPlatform(platform);if(!p)return [];return Object.values(loyaltyState.users[p]||{}).map(publicLoyaltyUser).sort((a,b)=>(b.score-a.score)||(b.lastSeen-a.lastSeen)).slice(0,Math.max(1,Math.min(50,Number(limit)||10))).map((u,i)=>({...u,rank:i+1,platform:p}))}
-function publicLoyaltyState(limit=10){return {settings:{...loyaltyState.settings},tops:{tiktok:loyaltyTop('tiktok',limit),twitch:loyaltyTop('twitch',limit),kick:loyaltyTop('kick',limit),youtube:loyaltyTop('youtube',limit),starvios:loyaltyTop('starvios',limit)},updatedAt:Date.now()}}
+function loyaltyDailyTop(platform,limit=10){const p=loyaltyPlatform(platform),today=loyaltyDay();if(!p)return [];return Object.values(loyaltyState.users[p]||{}).filter(u=>u.daily?.day===today&&Number(u.daily.score)>0).map(u=>({...publicLoyaltyUser(u),dailyScore:u.daily.score,dailyStats:u.daily.stats})).sort((a,b)=>b.dailyScore-a.dailyScore).slice(0,Math.max(1,Math.min(50,Number(limit)||10)));}
+function publicLoyaltyState(limit=10){return {settings:{...loyaltyState.settings},tops:{tiktok:loyaltyTop('tiktok',limit),twitch:loyaltyTop('twitch',limit),kick:loyaltyTop('kick',limit),youtube:loyaltyTop('youtube',limit)},dailyTops:{kick:loyaltyDailyTop('kick',limit),twitch:loyaltyDailyTop('twitch',limit),tiktok:loyaltyDailyTop('tiktok',limit),youtube:loyaltyDailyTop('youtube',limit)},day:loyaltyDay(),updatedAt:Date.now()}}
 async function persistLoyalty(){if(activeUserId)await safeWriteJson(profileFile('loyalty.json'),loyaltyState).catch(()=>{})}
 let loyaltySaveTimer=null;
 function scheduleLoyaltySave(){clearTimeout(loyaltySaveTimer);loyaltySaveTimer=setTimeout(()=>persistLoyalty(),700)}
@@ -614,12 +624,12 @@ function ensureLoyaltyUser(platform,user,nickname='',avatar=''){
  const u=bucket[key]||(bucket[key]={id:key,user:key,nickname:String(nickname||user||key).slice(0,80),avatar:String(avatar||''),score:0,firstSeen:Date.now(),lastSeen:0,activeDays:0,lastDay:'',stats:{minutes:0,comments:0,likes:0,shares:0,follows:0,subs:0,gifts:0,support:0,raids:0}});
  if(nickname)u.nickname=String(nickname).slice(0,80);if(avatar)u.avatar=String(avatar);u.stats=u.stats||{};return {p,key,u};
 }
-function loyaltyAdd(u,points,stat='',amount=1){const pts=Math.max(0,Number(points)||0);u.score=(Number(u.score)||0)+pts;if(stat)u.stats[stat]=(Number(u.stats[stat])||0)+(Number(amount)||0);return pts}
+function loyaltyAdd(u,points,stat='',amount=1){const pts=Math.max(0,Number(points)||0);u.score=(Number(u.score)||0)+pts;if(stat)u.stats[stat]=(Number(u.stats[stat])||0)+(Number(amount)||0);if(u.daily?.day===loyaltyDay()){u.daily.score=(Number(u.daily.score)||0)+pts;if(stat)u.daily.stats[stat]=(Number(u.daily.stats[stat])||0)+(Number(amount)||0)}return pts}
 function estimateActiveTime(u,now){const last=Number(u.lastSeen||0);if(last>0){const mins=Math.min(Number(loyaltyState.settings.activeWindowMinutes||10),Math.max(0,(now-last)/60000));if(mins>=0.35){loyaltyAdd(u,mins*0.6,'minutes',mins)}}u.lastSeen=now}
 function recordLoyaltyEvent(evt={}){
  const p=loyaltyPlatform(evt.platform),kind=String(evt.kind||evt.event||'').toLowerCase();
  const rec=ensureLoyaltyUser(p,evt.user||evt.name,evt.nickname||evt.name||evt.user,evt.avatar||'');if(!rec)return null;
- const {key,u}=rec,now=Date.now();estimateActiveTime(u,now);
+ const {key,u}=rec,now=Date.now();const today=loyaltyDay(now);if(u.daily?.day!==today)u.daily={day:today,score:0,stats:{minutes:0,comments:0,shares:0,likes:0,subs:0,follows:0,gifts:0,raids:0,support:0}};estimateActiveTime(u,now);
  const day=loyaltyDay(now);if(u.lastDay!==day){u.lastDay=day;u.activeDays=(Number(u.activeDays)||0)+1;loyaltyAdd(u,10);}
  const runtimeKey=`${p}:${key}`,rt=loyaltyRuntime.get(runtimeKey)||{lastCommentAt:0,lastText:'',lastLikeAt:0};
  let awarded=0;
@@ -628,7 +638,7 @@ function recordLoyaltyEvent(evt={}){
   const same=text&&text===rt.lastText&&now-rt.lastCommentAt<120000;
   if(text&&!same&&now-rt.lastCommentAt>=18000){awarded+=loyaltyAdd(u,2.5,'comments',1);rt.lastCommentAt=now;rt.lastText=text}
  }else if(kind==='like'){
-  const n=Math.max(1,Number(evt.amount??evt.likes??1)||1);u.stats.likes=(Number(u.stats.likes)||0)+n;
+  const n=Math.max(1,Number(evt.amount??evt.likes??1)||1);u.stats.likes=(Number(u.stats.likes)||0)+n;u.daily.stats.likes=(Number(u.daily.stats.likes)||0)+n;
   // Rendimiento decreciente: 1 tap casi no pesa; una ráfaga grande suma, pero no domina el ranking.
   awarded+=loyaltyAdd(u,Math.min(8,0.28*Math.sqrt(n)), '',0);rt.lastLikeAt=now;
  }else if(kind==='share'){awarded+=loyaltyAdd(u,12,'shares',1)}
@@ -637,7 +647,7 @@ function recordLoyaltyEvent(evt={}){
  else if(kind==='gift'||kind==='cheer'||kind==='support'){
   const count=Math.max(1,Number(evt.count)||1),value=Math.max(0,Number(evt.value??evt.totalDiamonds??evt.bits??evt.amount??0)||0);
   let pts=value>0?10+Math.min(80,4*Math.sqrt(value)):18+Math.min(50,count*8);
-  awarded+=loyaltyAdd(u,pts,'gifts',count);u.stats.support=(Number(u.stats.support)||0)+value;
+  awarded+=loyaltyAdd(u,pts,'gifts',count);u.stats.support=(Number(u.stats.support)||0)+value;u.daily.stats.support=(Number(u.daily.stats.support)||0)+value;
  }else if(kind==='raid'){
   const viewers=Math.max(0,Number(evt.viewers)||0);awarded+=loyaltyAdd(u,20+Math.min(80,3*Math.sqrt(viewers)),'raids',1)
  }else if(kind==='join'||kind==='presence'){awarded+=0}
@@ -656,7 +666,7 @@ const bridgeSignals={
  youtube:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
  starvios:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}}
 };
-function bridgeKey(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube','starvios'].includes(p)?p:''}
+function bridgeKey(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube'].includes(p)?p:''}
 function noteBridgeSignal(platform,kind,meta={}){
  const p=bridgeKey(platform);if(!p)return;
  const s=bridgeSignals[p],k=String(kind||'signal').toLowerCase(),now=Date.now();
@@ -713,7 +723,7 @@ function tapTapPreviewState(amount=0){const names=['GreñaFan','TapMaster','Luna
 const activityHistory=[];
 const recentAlerts=new Map();
 function accountFromAuth(p){if(p==='youtube')return savedAuth.youtube?.displayName||savedAuth.youtube?.channelId||'';if(p==='tiktok')return savedAuth.tiktok?.username||'';if(p==='twitch')return twitchCfg?.displayName||twitchCfg?.login||savedAuth.twitch?.displayName||savedAuth.twitch?.login||'';if(p==='kick')return savedAuth.kick?.username||savedAuth.kick?.slug||'';if(p==='starvios')return status.starvios?.account||'';return ''}
-function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube','starvios']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected){const showTikTokWait=p==='tiktok'&&/reconexi[oó]n|límite temporal|conectando al LIVE|LIVE no disponible/i.test(runtimeLabel);if(!showTikTokWait)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;}out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,configured:p==='starvios'?!!account:authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel,...(p==='starvios'?{live:starviosLive.known?starviosLive.live:null,liveKnown:starviosLive.known}:{})}}return out}
+function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected){const showTikTokWait=p==='tiktok'&&/reconexi[oó]n|límite temporal|conectando al LIVE|LIVE no disponible/i.test(runtimeLabel);if(!showTikTokWait)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;}out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,configured:p==='starvios'?!!account:authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel,...(p==='starvios'?{live:starviosLive.known?starviosLive.live:null,liveKnown:starviosLive.known}:{})}}return out}
 function pushStatus(){broadcast({type:'platform-status',status:publicStatus()})}
 function normalizeCounterWidgetSettings(input={}){
  const style=['classic','trio','vertical'].includes(String(input.counterStyle||input.style||''))?String(input.counterStyle||input.style):'classic';
@@ -724,7 +734,7 @@ function normalizeCounterWidgetSettings(input={}){
  return {style,counterCardColor,edge,edgeOffset};
 }
 function publicCounterSettings(){return normalizeCounterWidgetSettings({counterStyle:autoPrefs.counterStyle,counterCardColor:autoPrefs.counterCardColor,counterEdge:autoPrefs.counterEdge,counterEdgeOffset:autoPrefs.counterEdgeOffset})}
-function currentViewers(){return viewerTest.enabled?{tiktok:viewerTest.tiktok,twitch:viewerTest.twitch,kick:viewerTest.kick,youtube:viewers.youtube,starvios:viewers.starvios}:{...viewers}}
+function currentViewers(){return viewerTest.enabled?{tiktok:viewerTest.tiktok,twitch:viewerTest.twitch,kick:viewerTest.kick,youtube:viewers.youtube}:{tiktok:viewers.tiktok,twitch:viewers.twitch,kick:viewers.kick,youtube:viewers.youtube}}
 function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,meta:viewerMeta,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,updatedAt:Date.now()})}
 function tiktokViewerSourceFamily(source=''){
  const x=String(source||'').toLowerCase();
@@ -1064,7 +1074,7 @@ function alert(platform,event,name,message='',extra={}){
 function json(res,code,obj){res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj))}
 async function persistAuth(){await safeWriteJson(stateFile('auth.json',LEGACY_AUTH_FILE),savedAuth).catch(()=>{})}
 function b64url(buf){return Buffer.from(buf).toString('base64url')}
-function configured(p){if(p==='youtube')return !!(process.env.GRENA_YOUTUBE_CLIENT_ID&&process.env.GRENA_YOUTUBE_CLIENT_SECRET);const c=oauthConfig[p]||{};if(['tiktok','twitch','kick'].includes(p)&&isBrokerProvider(p))return true;if(p==='tiktok')return !!(c.clientKey&&c.clientSecret);if(p==='twitch')return !!c.clientId;if(p==='kick')return !!(c.clientId&&c.clientSecret);return false}
+function configured(p){if(p==='youtube')return isBrokerProvider('youtube')||!!(process.env.GRENA_YOUTUBE_CLIENT_ID&&process.env.GRENA_YOUTUBE_CLIENT_SECRET);const c=oauthConfig[p]||{};if(['tiktok','twitch','kick'].includes(p)&&isBrokerProvider(p))return true;if(p==='tiktok')return !!(c.clientKey&&c.clientSecret);if(p==='twitch')return !!c.clientId;if(p==='kick')return !!(c.clientId&&c.clientSecret);return false}
 async function persistOAuthConfig(){await safeWriteJson(CONFIG_FILE,oauthConfig)}
 function callbackPage(res,ok,message){res.writeHead(ok?200:400,{'content-type':'text/html; charset=utf-8'});res.end(`<!doctype html><meta charset="utf-8"><title>GREÑA LIVE</title><body style="background:#090b10;color:white;font-family:Arial;text-align:center;padding:70px"><h2>${ok?'✓ Cuenta conectada':'No se pudo conectar'}</h2><p>${String(message||'').replace(/[<>&]/g,'')}</p><p>Ya puedes cerrar esta ventana.</p><script>setTimeout(()=>window.close(),1200)</script></body>`)}
 async function postForm(url,params,headers={}){const r=await fetch(url,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',...headers},body:new URLSearchParams(params)});const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error_description||d.message||d.error||`HTTP ${r.status}`);return d}
@@ -1629,7 +1639,8 @@ async function beginTwitchDeviceOAuth(res,ownerId,req){
 function beginOAuth(platform,req,res){
  const currentOwner=sessionUser(req);if(!currentOwner||currentOwner.id!==activeUserId)return callbackPage(res,false,'Inicia sesión en tu propia cuenta GREÑA antes de vincular plataformas.');
  if(platform==='youtube'){
-  if(!configured('youtube'))return callbackPage(res,false,'Configura las credenciales OAuth de YouTube en Railway.');
+  if(isBrokerProvider('youtube'))return beginBrokerOAuth('youtube',req,res,currentOwner.id);
+  if(!configured('youtube'))return callbackPage(res,false,'YouTube no está habilitado en GREÑA Auth. Comprueba la configuración de Cloudflare.');
   const owner=sessionUser(req);if(!owner)return callbackPage(res,false,'Inicia sesión en GREÑA primero.');
   const state=b64url(randomBytes(32));const redirect=oauthRedirectFor('youtube',req);
   oauthState.set(state,{platform:'youtube',created:Date.now(),userId:owner.id,redirect});
@@ -1676,6 +1687,15 @@ async function finishBrokerOAuth(platform,code,s,res){
   if(username){await syncCreatorAccount('tiktok',username);await connectTikTokLive(username).catch(()=>{});return callbackPage(res,true,`TikTok conectado como @${username}.`)}
   setStatus('tiktok',false,`${displayName} · cuenta vinculada · falta @usuario para LIVE`,displayName);
   return callbackPage(res,true,`TikTok conectado como ${displayName}. La cuenta quedó vinculada; el @usuario se activará para LIVE cuando TikTok entregue user.info.profile.`)
+ }
+ if(platform==='youtube'){
+  const response=await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',{headers:{Authorization:'Bearer '+tok.access_token}});
+  const details=await response.json().catch(()=>({}));
+  if(!response.ok||!details.items?.length)throw Error('Google autorizó GREÑA, pero no se pudo consultar el canal de YouTube.');
+  const channel=details.items[0];
+  savedAuth.youtube={...tok,refresh_token:tok.refresh_token||savedAuth.youtube?.refresh_token||'',expires_at:Date.now()+Number(tok.expires_in||3600)*1000,channelId:channel.id,displayName:channel.snippet?.title||'YouTube',avatar:channel.snippet?.thumbnails?.default?.url||'',mode:'grena-auth'};
+  await persistAuth();setStatus('youtube',true,'YouTube · cuenta vinculada',savedAuth.youtube.displayName);
+  return callbackPage(res,true,'YouTube vinculado: '+savedAuth.youtube.displayName);
  }
  if(platform==='twitch'){
   savedAuth.twitch={...tok,obtained_at:Date.now(),mode:'grena-auth'};await persistAuth();await startTwitch(tok.access_token);return callbackPage(res,true,`Twitch conectado como ${twitchCfg?.displayName||twitchCfg?.login||'tu cuenta'}.`)
@@ -1976,11 +1996,15 @@ const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/sta
 const PUBLIC_GET_CLOUD=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite']);
 const OBS_PUBLIC_API=new Set(['/api/overlay-version','/api/afterglow-settings','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
 const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/social-overlay-classic.html','/loyalty-overlay.html','/super-fans-overlay.html','/personajes-minecraft.html','/taptap-race.html']);
-const PUBLIC_POST=new Set(['/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
+const PUBLIC_POST=new Set(['/api/mobile/pair/consume','/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
-function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())}
+const MOBILE_PAIRS=new Map();
+const mobilePairRate=new Map();
+function mobileShareBase(){return PUBLIC_URL||((mobileLanActive&&LAN_IPV4[0])?'http://'+LAN_IPV4[0]+':'+(mobileGateway?PORT+2:PORT):'http://127.0.0.1:'+PORT)}
+async function enableMobileLanGateway(){if(CLOUD_MODE)return;if(mobileLanActive)return;if(!LAN_IPV4.length)throw Error('Esta PC no tiene IP local WiFi/Ethernet disponible.');const gw=http.createServer((req,res)=>server.emit('request',req,res));gw.on('upgrade',(req,socket,head)=>server.emit('upgrade',req,socket,head));await new Promise((resolve,reject)=>{gw.once('error',reject);gw.listen(PORT+2,'0.0.0.0',()=>{gw.off('error',reject);resolve()})});mobileGateway=gw;mobileLanActive=true;}
+function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):(LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())||(mobileLanActive&&MOBILE_HOSTS.has(String(req.headers.host||'').toLowerCase())))}
 // Un navegador siempre envía Origin en un POST entre sitios; sin Origin = cliente no-navegador (curl, puente interno).
-function panelOriginOk(req){const o=req.headers.origin;if(CLOUD_MODE){if(o!==undefined&&!sameOriginRequest(req,o))return false}else if(o!==undefined&&!LOCAL_ORIGINS.has(String(o)))return false;const sfs=String(req.headers['sec-fetch-site']||'').toLowerCase();if(sfs&&!['same-origin','same-site','none'].includes(sfs))return false;return true}
+function panelOriginOk(req){const o=req.headers.origin;if(CLOUD_MODE){if(o!==undefined&&!sameOriginRequest(req,o))return false}else if(o!==undefined&&!(LOCAL_ORIGINS.has(String(o))||(mobileLanActive&&MOBILE_ORIGINS.has(String(o)))))return false;const sfs=String(req.headers['sec-fetch-site']||'').toLowerCase();if(sfs&&!['same-origin','same-site','none'].includes(sfs))return false;return true}
 // Devuelve true si la petición puede continuar; si no, ya respondió y devuelve false.
 function panelGuard(req,res,pathname){
   const method=req.method||'GET';
@@ -1996,6 +2020,13 @@ function panelGuard(req,res,pathname){
     if(hasBody&&!allowedBody){if(pathname.startsWith('/api/'))json(res,415,{ok:false,error:soundUpload?'Selecciona un archivo de audio válido.':'Content-Type debe ser application/json.'});else{res.writeHead(415);res.end('Unsupported Media Type')}return false}
   }
   if(!pathname.startsWith('/api/'))return true;                // páginas y estáticos: ya los gestiona el router
+  // En la pasarela Wi-Fi la API no expone contadores, historiales ni estados antes de vincular GREÑA ID.
+  const fromPhoneLan=mobileLanActive&&MOBILE_HOSTS.has(String(req.headers.host||'').toLowerCase());
+  if(fromPhoneLan&&!sessionUser(req)&&!obsAuthorized(req)){
+    if(!(method==='POST'&&pathname==='/api/mobile/pair/consume')&&!(method==='GET'&&pathname==='/api/account/me')){
+      return json(res,401,{ok:false,error:'Vincula este teléfono con el QR temporal de GREÑA Desktop.'});
+    }
+  }
   if(pathname.startsWith('/api/internal/'))return true;        // llevan su propio token de puente
   // Registro y panel admin poseen su propia autenticación en grena-licensing.mjs.
   if(CLOUD_MODE&&(pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/')))return true;
@@ -2140,6 +2171,38 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/app/window-heartbeat'&&req.method==='POST'){appWindowHeartbeat();return json(res,200,{ok:true});}
  if(pathname==='/api/app/window-closing'&&req.method==='POST'){appWindowClosing();return json(res,200,{ok:true});}
  if(pathname==='/api/app/exit'&&req.method==='POST'){if(CLOUD_MODE)return json(res,200,{ok:true,message:'GREÑA Web continúa en línea. Usa Cerrar sesión para salir de tu cuenta.'});json(res,200,{ok:true,message:'Cerrando GREÑA LIVE PRO…'});setTimeout(()=>requestFullShutdown('boton-salir-de-grena'),120);return;}
+ if(pathname==='/api/mobile/lan/enable'&&req.method==='POST'){
+   if(CLOUD_MODE)return json(res,400,{ok:false,error:'La versión pública ya utiliza HTTPS.'});
+   if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'});
+   if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(String(req.socket.remoteAddress||'')))return json(res,403,{ok:false,error:'Activa la red local únicamente desde la PC.'});
+   try{await enableMobileLanGateway();return json(res,200,{ok:true,url:mobileShareBase()})}
+   catch(error){return json(res,500,{ok:false,error:String(error?.message||error)})}
+ }
+ if(pathname==='/api/mobile/pair/create'&&req.method==='POST'){
+   const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Entra en GREÑA Desktop para vincular un móvil.'});
+   const token=randomBytes(32).toString('base64url'),id=sessionHash(token),expiresAt=Date.now()+120000;
+   for(const [k,v] of MOBILE_PAIRS)if(v.expiresAt<Date.now()||v.userId===owner.id)MOBILE_PAIRS.delete(k);
+   MOBILE_PAIRS.set(id,{userId:owner.id,expiresAt});
+   const base=mobileShareBase();
+   return json(res,200,{ok:true,expiresAt,installationUrl:base+'/mobile.html',pairUrl:base+'/mobile.html?pair='+encodeURIComponent(token),lanEnabled:mobileLanActive,publicAccess:!!PUBLIC_URL});
+ }
+ if(pathname==='/api/mobile/pair/consume'&&req.method==='POST')return withAccountTransition(async()=>{
+   const peer=String(req.socket.remoteAddress||'').slice(0,100);const now=Date.now();
+   const hits=mobilePairRate.get(peer)||[];const recent=hits.filter(x=>now-x<60000);recent.push(now);mobilePairRate.set(peer,recent);
+   if(recent.length>10)return json(res,429,{ok:false,error:'Demasiados intentos de vinculación.'});
+   const body=JSON.parse((await readBody(req))||'{}');
+   const token=String(body.token||'');if(!/^[A-Za-z0-9_-]{40,60}$/.test(token))return json(res,400,{ok:false,error:'Código de vinculación inválido.'});
+   const key=sessionHash(token),item=MOBILE_PAIRS.get(key);
+   if(!item||item.expiresAt<now||item.userId!==activeUserId)return json(res,401,{ok:false,error:'QR caducado. Genera uno nuevo desde la PC.'});
+   MOBILE_PAIRS.delete(key);
+   const user=usersStore.users.find(x=>x.id===item.userId);if(!user)return json(res,401,{ok:false,error:'GREÑA ID no disponible.'});
+   await createSession(res,user,{preserveExisting:true});
+   return json(res,200,{ok:true,account:user.displayName||user.username});
+ });
+ if(pathname==='/api/mobile/logout'&&req.method==='POST'){
+   if(!sessionUser(req))return json(res,401,{ok:false});
+   await destroySession(req,res);return json(res,200,{ok:true});
+ }
  if(pathname==='/api/account/me'&&req.method==='GET'){const u=sessionUser(req);res.setHeader('Cache-Control','no-store');return json(res,200,accountPayload(u));}
   if(pathname==='/api/obs-token'&&req.method==='GET'){const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Sesión requerida.'});res.setHeader('Cache-Control','no-store');return json(res,200,{ok:true,token:obsToken});}
  if(pathname==='/api/soundboard'&&req.method==='GET'){
@@ -2353,8 +2416,13 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   try{
    let token=yt.access_token;
    if(yt.refresh_token&&Date.now()>Number(yt.expires_at||0)-60000){
-    const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
-    token=refreshed.access_token;yt.access_token=token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
+    if(yt.mode==='grena-auth'){
+     const refreshed=await refreshBrokerToken('youtube');
+     token=refreshed.access_token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
+    }else{
+     const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
+     token=refreshed.access_token;yt.access_token=token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
+    }
    }
    const uri='https://www.googleapis.com/youtube/v3/liveBroadcasts?part=id,snippet,status&mine=true&maxResults=50';
    const response=await fetch(uri,{headers:{Authorization:'Bearer '+token}});
@@ -2367,7 +2435,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/internal/status'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;
   let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
-  if(!['tiktok','twitch','kick','youtube','starvios'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
+  if(!['tiktok','twitch','kick','youtube'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   const p=body.platform,wasConnected=!!bridgeRuntime[p],label=String(body.label||'');
   bridgeRuntime[p]=!!body.connected;
   if(p==='kick')console.log('[KICK BRIDGE]',JSON.stringify({connected:!!body.connected,label,account:String(body.account||''),source:String(body.source||'')}));
@@ -2719,10 +2787,10 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
- const interactive=new Set(['/','/index.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/license.html','/license-admin.html']);
+ const interactive=new Set(['/','/index.html','/live-panel.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/mobile-device.html','/license.html','/license-admin.html']);
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
- if(interactive.has(pathname)){const su=sessionUser(req);if(!su){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
+ if(interactive.has(pathname)){const su=sessionUser(req);const pairingLanding=pathname==='/mobile.html'&&/^[A-Za-z0-9_-]{40,60}$/.test(url.searchParams.get('pair')||'');if(!su&&!pairingLanding){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(su&&!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
  const file=resolveStaticFile(pathname);if(!file){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});return res.end('No encontrado')}const abs=join(ROOT,file);if(!abs.startsWith(ROOT)){res.writeHead(404,{'content-type':'text/plain; charset=utf-8'});return res.end('No encontrado')}const data=await readFile(abs);
  // Stamp the initial OBS HTML with the deployment version, so its first poll
  // can detect a newly deployed release even if CEF kept an older document alive.
@@ -2776,6 +2844,7 @@ chatProxyWss.on('connection',(client)=>{
 server.on('upgrade',async(req,socket,head)=>{
   let pathname='/';try{pathname=new URL(req.url||'/','http://127.0.0.1').pathname}catch{return socket.destroy()}
   if(!panelHostOk(req)||!localOriginOk(req.headers.origin,req))return socket.destroy();
+  if(mobileLanActive&&MOBILE_HOSTS.has(String(req.headers.host||'').toLowerCase())&&!sessionUser(req)&&!obsAuthorized(req))return socket.destroy();
   if(!CLOUD_MODE&&process.env.GRENA_LICENSE_REQUIRE==='1'&&activeUserId){
     try{if(!await licensing.canUse(activeUserId))return socket.destroy()}catch{return socket.destroy()}
   }

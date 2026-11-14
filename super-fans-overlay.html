@@ -1,104 +1,93 @@
-<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GREÑA · Super Fans</title>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GREÑA · Top del día</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent;font-family:Inter,"Segoe UI",Arial,sans-serif;color:#fff}
-:root{--accent:#25f4ee;--accent2:#fe2c55;--muted:#aeb7c8}
-body{padding:10px}
-.stage{width:min(760px,100%);height:190px;position:relative}
-.card{position:relative;height:100%;border-radius:24px;overflow:hidden;background:linear-gradient(135deg,rgba(8,11,18,.92),rgba(16,20,31,.78));border:1px solid rgba(255,255,255,.09);box-shadow:0 14px 44px rgba(0,0,0,.30);backdrop-filter:blur(8px);transition:opacity .28s ease,transform .38s cubic-bezier(.2,.85,.2,1),filter .28s ease}
-.card.switching{opacity:.18;transform:translateX(22px) scale(.985);filter:blur(2px)}
-.card:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 18% 20%,color-mix(in srgb,var(--accent) 14%,transparent),transparent 38%),linear-gradient(90deg,color-mix(in srgb,var(--accent) 7%,transparent),transparent 40%);pointer-events:none}
-.top{height:50px;display:flex;align-items:center;padding:10px 16px;gap:10px;position:relative;z-index:2}
-.logo{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);flex:0 0 auto}.logo img{width:20px;height:20px;object-fit:contain}
-.title{min-width:0;flex:1}.eyebrow{font-size:9px;letter-spacing:.2em;font-weight:1000;color:var(--accent)}.platform{font-size:16px;font-weight:1000;line-height:1.05}.timer{font-size:11px;font-weight:1000;color:var(--accent);padding:6px 9px;border-radius:999px;border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);background:rgba(0,0,0,.16)}
-.main{height:104px;display:grid;grid-template-columns:70px minmax(0,1fr) auto;gap:13px;align-items:center;padding:0 16px;position:relative;z-index:2}
-.avatar{width:66px;height:66px;border-radius:20px;display:grid;place-items:center;overflow:hidden;background:#111723;border:2px solid color-mix(in srgb,var(--accent) 55%,transparent);box-shadow:0 0 25px color-mix(in srgb,var(--accent) 18%,transparent);font-size:24px;font-weight:1000}.avatar img{width:100%;height:100%;object-fit:cover}
-.copy{min-width:0}.crown{font-size:10px;color:#ffd76a;font-weight:1000;letter-spacing:.1em;margin-bottom:2px}.name{font-size:22px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 12px rgba(0,0,0,.5)}.level{font-size:10px;color:var(--muted);font-weight:800;margin-top:3px}
-.stats{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}.pill{padding:4px 7px;border-radius:9px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.06);font-size:9px;color:#d6dce8;font-weight:900}.pill b{color:#fff}
-.score{text-align:right;min-width:112px}.score strong{display:block;font-size:30px;line-height:.95;font-weight:1000}.score span{font-size:9px;color:var(--accent);letter-spacing:.15em;font-weight:1000}
-.empty{grid-column:1/-1;text-align:center;color:var(--muted);font-weight:800}.empty b{display:block;color:#fff;font-size:17px;margin-bottom:4px}
-.progress{position:absolute;left:16px;right:16px;bottom:12px;height:3px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;z-index:3}.progress i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transform-origin:left center}
-.foot{position:absolute;right:16px;bottom:18px;font-size:8px;color:#7f899c;font-weight:900;letter-spacing:.12em;z-index:3}
-@media(max-width:540px){body{padding:5px}.stage{height:176px}.main{grid-template-columns:58px minmax(0,1fr) auto;padding:0 11px;gap:9px}.avatar{width:55px;height:55px;border-radius:17px}.name{font-size:17px}.score{min-width:78px}.score strong{font-size:23px}.pill:nth-child(n+3){display:none}.top{padding:8px 11px}.progress{left:11px;right:11px}}
-</style>
-</head>
-<body>
-<div class="stage">
-  <div class="card" id="card">
-    <div class="top">
-      <div class="logo"><img id="logo" alt=""></div>
-      <div class="title"><div class="eyebrow">GREÑA · SUPER FANS</div><div class="platform" id="platform">TikTok</div></div>
-      <div class="timer" id="timer">10s</div>
-    </div>
-    <div class="main" id="main"></div>
-    <div class="progress"><i id="bar"></i></div>
-    <div class="foot">TOP #1 · TIEMPO + INTERACCIONES + APOYO</div>
-  </div>
-</div>
+*{box-sizing:border-box;margin:0;padding:0}html,body{height:100%;overflow:hidden;background:transparent}
+body{font-family:Impact,"Arial Narrow",Inter,"Segoe UI",system-ui,sans-serif;color:#fff}body.demo{background:radial-gradient(ellipse at 30% 0%,#171726,#07070b 70%)}
+#fx{position:fixed;left:0;bottom:0;width:100%;height:220px;pointer-events:none;z-index:0}
+.wrap{position:fixed;left:0;right:0;bottom:max(28px,env(safe-area-inset-bottom,0px));z-index:1}
+.card{position:relative;display:flex;align-items:center;gap:clamp(14px,2.2vw,38px);padding:20px clamp(18px,2.6vw,48px) 18px;
+ text-shadow:0 3px 14px rgba(0,0,0,.95),0 0 3px rgba(0,0,0,.95);animation:enter .8s cubic-bezier(.16,1,.3,1) both}
+.card.out{animation:leave .75s ease-in both}
+.card::before{content:"";position:absolute;left:0;right:0;top:0;height:5px;background:rgba(255,255,255,.14)}
+.bar{position:absolute;left:0;right:0;top:0;height:5px}
+.bar::after{content:"";position:absolute;inset:0;background:var(--c);transform-origin:left;animation:drain var(--t) linear forwards;box-shadow:0 0 16px var(--c),0 0 40px var(--c)}
+.fx{position:absolute;inset:0;overflow:hidden;pointer-events:none}.slash{position:absolute;top:-10%;left:-20%;width:14%;height:120%;transform:skewX(-22deg);mix-blend-mode:screen;
+ background:linear-gradient(90deg,transparent,var(--c) 40%,#fff 50%,var(--c) 60%,transparent);animation:slash 1s ease-out both}
+.flash{position:absolute;inset:0;background:radial-gradient(ellipse at 0 50%,var(--c),transparent 55%);animation:flash .7s ease-out both}
+.tag{flex:none;display:flex;flex-direction:column;gap:2px;background:var(--c);color:#000;font-family:Impact,"Arial Narrow",sans-serif;letter-spacing:.14em;
+ padding:8px 16px 6px;transform:skewX(-14deg);text-shadow:none;text-transform:uppercase;box-shadow:0 0 24px var(--c)}
+.tag b{font-weight:900;font-size:clamp(14px,1.4vw,22px);line-height:1}
+.tag small{font-size:clamp(9px,.8vw,12px);letter-spacing:.2em;opacity:.8}
+.plat{position:relative;flex:none;font-family:Impact,"Arial Narrow",sans-serif;font-size:clamp(40px,5vw,88px);line-height:1;letter-spacing:.015em;
+ text-transform:uppercase;color:var(--c);text-shadow:0 0 34px var(--c),0 4px 10px rgba(0,0,0,.9);animation:slam .6s .15s cubic-bezier(.2,1.6,.4,1) both}
+.plat::before,.plat::after{content:attr(data-t);position:absolute;left:0;top:0;opacity:.85;animation:glitch .7s .2s steps(2) both;mix-blend-mode:screen}
+.plat::before{color:#00e5ff;transform:translateX(-5px)}.plat::after{color:#ff0055;transform:translateX(5px)}
+.user{display:flex;align-items:center;gap:10px;min-width:0;font-size:clamp(20px,2.2vw,40px);font-weight:900;animation:rise .6s .4s ease both;font-family:Inter,"Segoe UI",sans-serif}
+.user .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.crown{flex:none;filter:drop-shadow(0 0 10px #ffd54a)}
+.stats{display:flex;gap:clamp(16px,2.4vw,44px);margin-left:auto;flex:none;animation:rise .6s .5s ease both}
+.stat b{display:block;font-size:clamp(26px,3vw,54px);line-height:1}.stat span{font-family:Inter,"Segoe UI",sans-serif;font-size:clamp(8px,.75vw,12px);
+ font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.78)}
+@keyframes enter{from{clip-path:polygon(0 0,0 0,-6% 100%,0 100%)}to{clip-path:polygon(0 0,106% 0,100% 100%,0 100%)}}
+@keyframes leave{0%{filter:none}14%{filter:brightness(2.4);transform:translateX(-8px)}28%{transform:translateX(9px);filter:brightness(1.4)}42%{transform:translateX(-4px);filter:none}100%{clip-path:polygon(0 0,0 0,-6% 100%,0 100%);opacity:0;transform:translateX(-40px)}}
+@keyframes slash{from{left:-20%;opacity:1}to{left:115%;opacity:0}}@keyframes flash{from{opacity:.7}to{opacity:0}}
+@keyframes slam{from{transform:scale(1.5) translateX(-20px);opacity:0}to{transform:none;opacity:1}}
+@keyframes glitch{0%{clip-path:inset(10% 0 60% 0)}25%{clip-path:inset(55% 0 10% 0);transform:translateX(7px)}50%{clip-path:inset(30% 0 35% 0);transform:translateX(-7px)}75%{clip-path:inset(70% 0 5% 0)}100%{clip-path:inset(0 0 100% 0);opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}@keyframes drain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+body.vertical .wrap{width:min(380px,94%);left:3%;right:auto;bottom:4%;}body.vertical.right .wrap{left:auto;right:3%}
+body.vertical .card{flex-direction:column;align-items:flex-start;padding:16px 16px 22px;gap:8px}body.vertical .plat{font-size:62px}
+body.vertical .user{font-size:27px}body.vertical .stats{width:100%;margin-left:0;justify-content:space-between}
+body.vertical .stat b{font-size:36px}body.vertical .tag{flex-direction:row;gap:12px}
+@media(max-width:760px){body:not(.vertical) .card{flex-wrap:wrap}body:not(.vertical) .stats{margin-left:0}}
+@media(prefers-reduced-motion:reduce){.card,.card *{animation:none!important}}
+</style></head><body><canvas id="fx"></canvas><div class="wrap" id="slot"></div>
 <script>
-(()=>{
-  const $=id=>document.getElementById(id);
-  const platforms=['tiktok','twitch','kick','youtube','starvios'];
-  const info={
-    tiktok:{name:'TikTok',logo:'/assets/platforms/tiktok.webp',a:'#25f4ee',b:'#fe2c55'},
-    twitch:{name:'Twitch',logo:'/assets/platforms/twitch.webp',a:'#9146ff',b:'#c8a7ff'},
-    kick:{name:'Kick',logo:'/assets/platforms/kick.svg',a:'#53fc18',b:'#baff9f'},
-    youtube:{name:'YouTube',logo:'/assets/youtube-logo.svg',a:'#FF0033',b:'#ff738e'},
-    starvios:{name:'Starvios',logo:'/assets/platforms/starvios.svg',a:'#ff86c8',b:'#ff4ca6'}
-  };
-  let state={tops:{tiktok:[],twitch:[],kick:[],youtube:[],starvios:[]}},index=0,remain=10,timer=null;
-  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  const initials=s=>String(s||'?').trim().slice(0,2).toUpperCase();
-  const fmt=n=>Math.round(Number(n)||0).toLocaleString('es-DO');
-  const fmtMin=n=>{const m=Math.round(Number(n)||0);return m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+'m'};
-  function render(){
-    const p=platforms[index],d=info[p],u=(state.tops?.[p]||[])[0];
-    document.documentElement.style.setProperty('--accent',d.a);
-    document.documentElement.style.setProperty('--accent2',d.b);
-    $('platform').textContent=d.name;$('logo').src=d.logo;$('logo').alt=d.name;
-    if(!u){
-      $('main').innerHTML='<div class="empty"><b>Aún no hay Super Fan</b>Cuando haya actividad, aquí aparecerá el #1 de '+esc(d.name)+'.</div>';
-      return;
-    }
-    const st=u.stats||{};
-    const interaction=(Number(st.comments)||0)+(Number(st.shares)||0)+(Number(st.follows)||0)+(Number(st.subs)||0)+(Number(st.gifts)||0)+(Number(st.raids)||0);
-    const tapLabel=p==='tiktok'?'Tap Taps':'Apoyo';
-    const tapValue=p==='tiktok'?(Number(st.likes)||0):(Number(st.support)||0);
-    const av=u.avatar?'<img src="'+esc(u.avatar)+'" alt="">':esc(initials(u.nickname||u.user));
-    $('main').innerHTML=
-      '<div class="avatar">'+av+'</div>'+
-      '<div class="copy"><div class="crown">👑 SUPER FAN #1</div><div class="name">'+esc(u.nickname||u.user||'Fan')+'</div>'+
-      '<div class="level">'+esc(u.level?.icon||'◇')+' '+esc(u.level?.name||'Bronce')+' · '+fmt(u.activeDays||0)+' días activo</div>'+
-      '<div class="stats"><span class="pill">⏱ <b>'+fmtMin(st.minutes||0)+'</b></span><span class="pill">⚡ <b>'+fmt(interaction)+'</b> interacciones</span><span class="pill">❤ <b>'+fmt(tapValue)+'</b> '+tapLabel+'</span></div></div>'+
-      '<div class="score"><strong>'+fmt(u.score)+'</strong><span>PUNTOS SUPER FAN</span></div>';
-  }
-  function switchPlatform(){
-    const card=$('card');card.classList.add('switching');
-    setTimeout(()=>{index=(index+1)%platforms.length;remain=10;render();$('timer').textContent='10s';restartBar();setTimeout(()=>card.classList.remove('switching'),45)},260);
-  }
-  function restartBar(){
-    const bar=$('bar');bar.style.transition='none';bar.style.transform='scaleX(1)';void bar.offsetWidth;
-    bar.style.transition='transform 10s linear';bar.style.transform='scaleX(0)';
-  }
-  function start(){
-    clearInterval(timer);remain=10;$('timer').textContent='10s';restartBar();
-    timer=setInterval(()=>{remain--;if(remain<=0){switchPlatform();return}$('timer').textContent=remain+'s'},1000);
-  }
-  function apply(data){if(!data)return;state=data;render()}
-  async function load(){
-    try{const r=await fetch('/api/loyalty?limit=1',{cache:'no-store'}),d=await r.json();if(d.ok)apply(d.loyalty)}catch{}
-  }
-  function connect(){
-    const proto=location.protocol==='https:'?'wss':'ws',sock=new WebSocket(proto+'://'+location.host);
-    sock.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='hello'&&d.loyalty)apply(d.loyalty);if(d.type==='loyalty-update'&&d.loyalty)apply(d.loyalty)}catch{}};
-    sock.onclose=()=>setTimeout(connect,1500);sock.onerror=()=>{try{sock.close()}catch{}};
-  }
-  render();load();connect();start();
+(()=>{'use strict';
+const params=new URLSearchParams(location.search),demo=location.hash.includes('demo')||params.get('preview')==='1';
+if(params.get('layout')==='vertical')document.body.classList.add('vertical');
+if(params.get('side')==='right')document.body.classList.add('right');
+if(demo)document.body.classList.add('demo');
+const SHOW_MS=demo?8000:30000,PERIOD_MS=demo?14000:300000,FIRST_MS=demo?800:3000;
+const platforms=['kick','twitch','tiktok'],palettes={kick:'#53fc18',twitch:'#a970ff',tiktok:'#ff2d55'};
+const display={kick:'KICK',twitch:'TWITCH',tiktok:'TIKTOK'};
+let dailyTops={},index=0,hideTimer,nextTimer,particlesActive=false,color='#fff',particles=[];
+const slot=document.getElementById('slot'),cv=document.getElementById('fx'),cx=cv.getContext('2d');
+const esc=v=>String(v??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
+const fmt=n=>Number(n)>=1000?(Number(n)/1000).toFixed(1).replace('.0','')+'K':String(Math.round(Number(n)||0));
+const rounded=n=>Number.isFinite(Number(n))?Number(n):0;
+const preview={kick:{nickname:'UsuarioKick',dailyStats:{comments:482,minutes:390,shares:37}},twitch:{nickname:'UsuarioTwitch',dailyStats:{comments:318,minutes:240,shares:21}},tiktok:{nickname:'UsuarioTikTok',dailyStats:{comments:1250,minutes:470,shares:96}}};
+function resize(){cv.width=innerWidth;cv.height=220}resize();addEventListener('resize',resize);
+const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+(function sparks(){
+ cx.clearRect(0,0,cv.width,cv.height);
+ if(particlesActive&&!reduce)for(let i=0;i<Math.ceil(cv.width/500);i++)particles.push({x:Math.random()*cv.width,y:cv.height-30,vx:(Math.random()-.5)*.8,vy:-(.6+Math.random()*1.6),life:1,size:1+Math.random()*2});
+ particles=particles.filter(x=>x.life>0);
+ for(const x of particles){x.x+=x.vx;x.y+=x.vy;x.life-=.012;cx.globalAlpha=Math.max(0,x.life);cx.fillStyle=color;cx.shadowColor=color;cx.shadowBlur=10;cx.fillRect(x.x,x.y,x.size,x.size)}
+ cx.globalAlpha=1;requestAnimationFrame(sparks);
 })();
-</script>
-</body>
-</html>
+function animateNums(el){
+ const targets=[...el.querySelectorAll('[data-n]')],start=performance.now();function frame(now){const t=Math.min(1,Math.max(0,(now-start-300)/(reduce?1:1200))),factor=1-(1-t)**3;
+ for(const target of targets){const n=rounded(target.dataset.n)*factor;target.textContent=target.dataset.h==='1'?n.toFixed(1)+'H':fmt(n)}
+ if(t<1&&el.isConnected)requestAnimationFrame(frame)}requestAnimationFrame(frame);
+}
+function refreshDay(){return new Intl.DateTimeFormat('es-DO',{day:'numeric',month:'short',timeZone:'America/Santo_Domingo'}).format(new Date()).toUpperCase()}
+function show(){
+ const p=platforms[index];const user=demo?preview[p]:(dailyTops[p]||[])[0];if(!user){slot.replaceChildren();return}
+ const st=user.dailyStats||{};const hours=Math.max(0,rounded(st.minutes)/60);const displayUser=user.nickname||user.user||'Fan';
+ const markup=`<div class="card" style="--c:${palettes[p]};--t:${SHOW_MS}ms">
+ <div class="fx"><div class="flash"></div><div class="slash"></div></div><div class="bar"></div>
+ <div class="tag"><b>👑 Top del día</b><small>${refreshDay()}</small></div>
+ <div class="plat" data-t="${esc(display[p])}">${esc(display[p])}</div>
+ <div class="user"><span class="crown">👑</span><span class="nm">@${esc(displayUser)}</span></div>
+ <div class="stats"><div class="stat"><b data-n="${rounded(st.comments)}">0</b><span>Comentarios</span></div>
+ <div class="stat"><b data-n="${hours.toFixed(2)}" data-h="1">0H</b><span>Tiempo activo aprox.</span></div>
+ <div class="stat"><b data-n="${rounded(st.shares)}">0</b><span>Compartió el LIVE</span></div></div></div>`;
+ slot.innerHTML=markup;color=palettes[p];particlesActive=true;animateNums(slot.firstElementChild);
+}
+function hide(){particlesActive=false;const el=slot.firstElementChild;if(!el)return;el.classList.add('out');setTimeout(()=>{if(slot.firstElementChild===el)slot.replaceChildren()},800)}
+function cycle(){show();clearTimeout(hideTimer);hideTimer=setTimeout(hide,SHOW_MS);index=(index+1)%platforms.length;nextTimer=setTimeout(cycle,PERIOD_MS)}
+function use(data){if(data?.dailyTops)dailyTops=data.dailyTops}
+async function load(){try{const obs=params.get('obs');const r=await fetch('/api/loyalty?limit=1'+(obs?'&obs='+encodeURIComponent(obs):''),{cache:'no-store'});if(r.ok){const data=await r.json();use(data.loyalty)}}catch{}}
+function connect(){const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+(params.get('obs')?'/?obs='+encodeURIComponent(params.get('obs')):''));ws.onmessage=e=>{try{const d=JSON.parse(e.data);if((d.type==='hello'||d.type==='loyalty-update')&&d.loyalty)use(d.loyalty)}catch{}};ws.onclose=()=>setTimeout(connect,2500);ws.onerror=()=>ws.close()}
+load();connect();setInterval(load,30000);nextTimer=setTimeout(cycle,FIRST_MS);
+})();
+</script></body></html>
