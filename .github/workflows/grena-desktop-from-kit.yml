@@ -62,8 +62,6 @@ on:
       - main
     paths:
       - GRENA_LIVE_Desktop_v5_Kit.zip
-      - 'starvios-reader.mjs'
-      - 'starvios-public-events.mjs'
       - 'server.mjs'
       - 'grena-avatar.js'
       - 'login.html'
@@ -93,7 +91,6 @@ on:
       - 'chat.html'
       - 'desktop-bubble.html'
       - 'desktop-bubble-preload.cjs'
-      - 'starvios-viewers.mjs'
       - 'chat-server.mjs'
       - 'tests/**'
       - 'desktop-build/**'
