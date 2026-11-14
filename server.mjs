@@ -2689,7 +2689,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     const event=['giftsub','shower'].includes(ev)?'gift':ev==='subrenew'?'sub':ev;
     const sample={platform:platform==='starvios'?'Starvios':platform==='tiktok'?'TikTok':platform==='twitch'?'Twitch':platform==='kick'?'Kick':'YouTube',
       event,eventKind,name:'USUARIO_PRUEBA',giftName:rule.conditions.giftName||'Rosa',
-      giftImage:'/assets/starvios-events/starvies.svg',count:Math.max(5,rule.conditions.minCount||0),
+      giftImage:'/assets/youtube-events/superchat.svg',count:Math.max(5,rule.conditions.minCount||0),
       totalDiamonds:Math.max(100,rule.conditions.minValue||0),bits:Math.max(500,rule.conditions.minValue||0),amount:Math.max(500,rule.conditions.minValue||0),
       customRuleId:rule.id,customAction:rule.action,receivedAt:Date.now(),isPreview:true};
     broadcast({type:'alert',alert:sample});
