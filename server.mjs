@@ -6,7 +6,7 @@ import { readFile, writeFile, mkdir, copyFile, unlink, access, rename, chmod, ap
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { extname, join, normalize, dirname } from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, networkInterfaces } from 'node:os';
 import { randomBytes, randomInt, createHash, createVerify, scryptSync, scrypt, timingSafeEqual } from 'node:crypto';
 import { WebSocketServer, WebSocket } from 'ws';
 import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfig } from 'tiktok-live-connector';
@@ -24,7 +24,12 @@ RoomIdRouteConfig.skipFetchRoomIdFromEulerRoute = true;
 IsLiveRouteConfig.skipFetchRoomIdFromEulerRoute = true;
 
 const CLOUD_MODE=process.env.GRENA_CLOUD==='1';
-const HOST=process.env.HOST||(CLOUD_MODE?'0.0.0.0':'127.0.0.1'), PORT=Number(process.env.PORT||8787), APP_ROOT=dirname(fileURLToPath(import.meta.url)), ROOT=APP_ROOT;
+const MOBILE_LAN_ENABLED=!CLOUD_MODE&&process.env.GRENA_MOBILE_LAN==='1';
+const LAN_IPV4=[...Object.values(networkInterfaces()).flat()].filter(x=>x&&x.family==='IPv4'&&!x.internal).map(x=>x.address);
+const MOBILE_HOSTS=new Set(LAN_IPV4.map(ip=>ip+':'+Number(process.env.PORT||8787)));
+const MOBILE_ORIGINS=new Set(LAN_IPV4.map(ip=>'http://'+ip+':'+Number(process.env.PORT||8787)));
+
+const HOST=process.env.HOST||(CLOUD_MODE||MOBILE_LAN_ENABLED?'0.0.0.0':'127.0.0.1'), PORT=Number(process.env.PORT||8787), APP_ROOT=dirname(fileURLToPath(import.meta.url)), ROOT=APP_ROOT;
 const PUBLIC_URL=String(process.env.GRENA_PUBLIC_URL||(process.env.RAILWAY_PUBLIC_DOMAIN?`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`:'')).trim().replace(/\/$/,'');
 const BASE=PUBLIC_URL||`http://${HOST}:${PORT}`;
 // Stable across Railway containers of the same release; used only to refresh OBS browser pages.
@@ -389,7 +394,7 @@ async function withAccountTransition(fn){let release;const prev=accountTransitio
 function disconnectPrivateSockets(){for(const ws of [...clients,...chatProxyClients])try{ws.close(4001,'GRENA profile changed')}catch{try{ws.terminate()}catch{}}}
 function purgeExpiredSessions(){const now=Date.now();let n=0;for(const [k,v] of Object.entries(sessionsStore.sessions||{}))if(!v||Number(v.expiresAt||0)<now){delete sessionsStore.sessions[k];n++}return n}
 async function purgeSessionsAndPersist(){try{if(purgeExpiredSessions())await safeWriteJson(SESSIONS_FILE,sessionsStore);const now=Date.now();for(const [k,r] of loginRate)if(now-r.last>30*60e3)loginRate.delete(k)}catch(e){console.warn('Purga de sesiones:',e?.message||e)}}
-async function createSession(res,user){if(!activeUserId||user.id!==activeUserId)throw Error('El perfil activo no coincide con esta sesión.');const token=randomBytes(32).toString('base64url'),expiresAt=Date.now()+30*24*60*60*1000;/* GREÑA es de perfil activo único: invalida sesiones anteriores para que una pestaña vieja no controle otro perfil. */sessionsStore.sessions={};sessionsStore.sessions[sessionHash(token)]={userId:user.id,expiresAt};await safeWriteJson(SESSIONS_FILE,sessionsStore);res.setHeader('Set-Cookie',`grena_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${30*24*60*60}${CLOUD_MODE?'; Secure':''}`);return token}
+async function createSession(res,user,{preserveExisting=false}={}){if(!activeUserId||user.id!==activeUserId)throw Error('El perfil activo no coincide con esta sesión.');const token=randomBytes(32).toString('base64url'),expiresAt=Date.now()+30*24*60*60*1000;/* GREÑA es de perfil activo único: invalida sesiones anteriores para que una pestaña vieja no controle otro perfil. */if(!preserveExisting)sessionsStore.sessions={};sessionsStore.sessions[sessionHash(token)]={userId:user.id,expiresAt};await safeWriteJson(SESSIONS_FILE,sessionsStore);res.setHeader('Set-Cookie',`grena_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${30*24*60*60}${CLOUD_MODE?'; Secure':''}`);return token}
 async function destroySession(req,res){const token=parseCookies(req).grena_session;if(token)delete sessionsStore.sessions[sessionHash(token)];await safeWriteJson(SESSIONS_FILE,sessionsStore).catch(()=>{});res.setHeader('Set-Cookie',`grena_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${CLOUD_MODE?'; Secure':''}`)}
 async function migrateLegacyIntoProfile(userId){
   const copies=[
@@ -1979,11 +1984,14 @@ const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/sta
 const PUBLIC_GET_CLOUD=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite']);
 const OBS_PUBLIC_API=new Set(['/api/overlay-version','/api/afterglow-settings','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
 const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/social-overlay-classic.html','/loyalty-overlay.html','/super-fans-overlay.html','/personajes-minecraft.html','/taptap-race.html']);
-const PUBLIC_POST=new Set(['/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
+const PUBLIC_POST=new Set(['/api/mobile/pair/consume','/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
-function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())}
+const MOBILE_PAIRS=new Map();
+const mobilePairRate=new Map();
+function mobileShareBase(){return PUBLIC_URL||((MOBILE_LAN_ENABLED&&LAN_IPV4[0])?'http://'+LAN_IPV4[0]+':'+PORT:'http://127.0.0.1:'+PORT)}
+function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):(LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())||(MOBILE_LAN_ENABLED&&MOBILE_HOSTS.has(String(req.headers.host||'').toLowerCase())))}
 // Un navegador siempre envía Origin en un POST entre sitios; sin Origin = cliente no-navegador (curl, puente interno).
-function panelOriginOk(req){const o=req.headers.origin;if(CLOUD_MODE){if(o!==undefined&&!sameOriginRequest(req,o))return false}else if(o!==undefined&&!LOCAL_ORIGINS.has(String(o)))return false;const sfs=String(req.headers['sec-fetch-site']||'').toLowerCase();if(sfs&&!['same-origin','same-site','none'].includes(sfs))return false;return true}
+function panelOriginOk(req){const o=req.headers.origin;if(CLOUD_MODE){if(o!==undefined&&!sameOriginRequest(req,o))return false}else if(o!==undefined&&!(LOCAL_ORIGINS.has(String(o))||(MOBILE_LAN_ENABLED&&MOBILE_ORIGINS.has(String(o)))))return false;const sfs=String(req.headers['sec-fetch-site']||'').toLowerCase();if(sfs&&!['same-origin','same-site','none'].includes(sfs))return false;return true}
 // Devuelve true si la petición puede continuar; si no, ya respondió y devuelve false.
 function panelGuard(req,res,pathname){
   const method=req.method||'GET';
@@ -2143,6 +2151,31 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/app/window-heartbeat'&&req.method==='POST'){appWindowHeartbeat();return json(res,200,{ok:true});}
  if(pathname==='/api/app/window-closing'&&req.method==='POST'){appWindowClosing();return json(res,200,{ok:true});}
  if(pathname==='/api/app/exit'&&req.method==='POST'){if(CLOUD_MODE)return json(res,200,{ok:true,message:'GREÑA Web continúa en línea. Usa Cerrar sesión para salir de tu cuenta.'});json(res,200,{ok:true,message:'Cerrando GREÑA LIVE PRO…'});setTimeout(()=>requestFullShutdown('boton-salir-de-grena'),120);return;}
+ if(pathname==='/api/mobile/pair/create'&&req.method==='POST'){
+   const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Entra en GREÑA Desktop para vincular un móvil.'});
+   const token=randomBytes(32).toString('base64url'),id=sessionHash(token),expiresAt=Date.now()+120000;
+   for(const [k,v] of MOBILE_PAIRS)if(v.expiresAt<Date.now()||v.userId===owner.id)MOBILE_PAIRS.delete(k);
+   MOBILE_PAIRS.set(id,{userId:owner.id,expiresAt});
+   const base=mobileShareBase();
+   return json(res,200,{ok:true,expiresAt,installationUrl:base+'/mobile.html',pairUrl:base+'/mobile.html?pair='+encodeURIComponent(token),lanEnabled:MOBILE_LAN_ENABLED,publicAccess:!!PUBLIC_URL});
+ }
+ if(pathname==='/api/mobile/pair/consume'&&req.method==='POST')return withAccountTransition(async()=>{
+   const peer=String(req.socket.remoteAddress||'').slice(0,100);const now=Date.now();
+   const hits=mobilePairRate.get(peer)||[];const recent=hits.filter(x=>now-x<60000);recent.push(now);mobilePairRate.set(peer,recent);
+   if(recent.length>10)return json(res,429,{ok:false,error:'Demasiados intentos de vinculación.'});
+   const body=JSON.parse((await readBody(req))||'{}');
+   const token=String(body.token||'');if(!/^[A-Za-z0-9_-]{40,60}$/.test(token))return json(res,400,{ok:false,error:'Código de vinculación inválido.'});
+   const key=sessionHash(token),item=MOBILE_PAIRS.get(key);
+   if(!item||item.expiresAt<now||item.userId!==activeUserId)return json(res,401,{ok:false,error:'QR caducado. Genera uno nuevo desde la PC.'});
+   MOBILE_PAIRS.delete(key);
+   const user=usersStore.users.find(x=>x.id===item.userId);if(!user)return json(res,401,{ok:false,error:'GREÑA ID no disponible.'});
+   await createSession(res,user,{preserveExisting:true});
+   return json(res,200,{ok:true,account:user.displayName||user.username});
+ });
+ if(pathname==='/api/mobile/logout'&&req.method==='POST'){
+   if(!sessionUser(req))return json(res,401,{ok:false});
+   await destroySession(req,res);return json(res,200,{ok:true});
+ }
  if(pathname==='/api/account/me'&&req.method==='GET'){const u=sessionUser(req);res.setHeader('Cache-Control','no-store');return json(res,200,accountPayload(u));}
   if(pathname==='/api/obs-token'&&req.method==='GET'){const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Sesión requerida.'});res.setHeader('Cache-Control','no-store');return json(res,200,{ok:true,token:obsToken});}
  if(pathname==='/api/soundboard'&&req.method==='GET'){
@@ -2722,7 +2755,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
- const interactive=new Set(['/','/index.html','/live-panel.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/license.html','/license-admin.html']);
+ const interactive=new Set(['/','/index.html','/live-panel.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/mobile-device.html','/license.html','/license-admin.html']);
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);if(!su){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
