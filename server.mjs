@@ -285,10 +285,10 @@ function normalizeAfterglowSettings(input={}){
  const eventLevels=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,number(x.eventLevels?.[k],54)]));
  const eventIntensity=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,number(x.eventIntensity?.[k],65)]));
  const fontFamily=['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(x.fontFamily)?x.fontFamily:'Inter';
- const streamerNames=Object.fromEntries(['tiktok','twitch','kick','starvios','youtube'].map(p=>[p,String(x.streamerNames?.[p]||'').trim().slice(0,64)]));
+ const streamerNames=Object.fromEntries(['tiktok','twitch','kick','youtube'].map(p=>[p,String(x.streamerNames?.[p]||'').trim().slice(0,64)]));
  return {streamerNames,theme:['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','grena_grenito','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(x.theme)?x.theme:'minecraft',mascotCharacter:['zp','pg','bm','sk','dg'].includes(x.mascotCharacter)?x.mascotCharacter:'zp',intensity:number(x.intensity,65),volume:number(x.volume,54),soundEnabled:x.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(x.audioRoute)?x.audioRoute:'both',sounds,audioFiles,eventLevels,eventIntensity,fontFamily,textColor:color(x.textColor,'#ffffff'),accentMode:x.accentMode==='custom'?'custom':'platform',accent:color(x.accent,'#caff5f')};
 }
-const socialDefaults={socialLayout:'classic',tiktokUser:'',instagramUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',enabledNetworks:['tiktok','instagram','twitch','kick','youtube','starvios'],fontFamily:'Segoe UI',fontSize:18,iconSize:22,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true,edge:'left',edgeOffset:0};
+const socialDefaults={socialLayout:'classic',tiktokUser:'',instagramUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',enabledNetworks:['tiktok','instagram','twitch','kick','youtube'],fontFamily:'Segoe UI',fontSize:18,iconSize:22,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true,edge:'left',edgeOffset:0};
 const autoDefaults={enabled:true,counterTikTok:'',counterTwitch:'',counterKick:'',counterTikTokEnabled:false,counterTwitchEnabled:false,counterKickEnabled:false,counterStyle:'classic',counterCardColor:'#18232c',counterEdge:'left',counterEdgeOffset:0,alertStyle:'classic'};
 let usersStore=await readJson(USERS_FILE,{version:1,users:[]});
 if(!Array.isArray(usersStore.users))usersStore={version:1,users:[]};
@@ -606,7 +606,7 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
 // ===== GREÑA FIDELIDAD =====
 // Ranking separado por plataforma. El "tiempo" es tiempo activo estimado entre señales del usuario,
 // no tiempo de visualización exacto: TikTok/Twitch/Kick no exponen una identidad fiable de cada viewer silencioso.
-function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube','starvios'].includes(p)?p:''}
+function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube'].includes(p)?p:''}
 function loyaltyKey(v=''){return String(v||'').trim().replace(/^@/,'').toLowerCase().slice(0,80)}
 function loyaltyDay(ts=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ts))}
 function loyaltyLevel(score=0){const n=Number(score)||0;if(n>=6000)return {name:'Leyenda',icon:'★',next:null};if(n>=3000)return {name:'Diamante',icon:'◆',next:6000};if(n>=1500)return {name:'Platino',icon:'⬟',next:3000};if(n>=700)return {name:'Oro',icon:'●',next:1500};if(n>=250)return {name:'Plata',icon:'◈',next:700};return {name:'Bronce',icon:'◇',next:250}}
@@ -2478,6 +2478,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(p==='tiktok'&&!body.connected&&wasConnected&&/termin[oó]|ended|stream_end/i.test(label))endTapTapSession();
   pushEventHealth();return json(res,200,{ok:true,status:publicStatus(),eventHealth:eventHealthSnapshot()});
  }
+ // Starvios ya no es un proveedor activo. Rechazar también mensajes de instalaciones antiguas.
+ if(req.method==='POST'&&['/api/internal/starvios-live','/api/internal/starvios-event'].includes(pathname))return json(res,410,{ok:false,error:'Proveedor retirado de GREÑA Live.'});
  if(pathname==='/api/internal/starvios-live'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;
   const body=JSON.parse(await readBody(req)||'{}');
