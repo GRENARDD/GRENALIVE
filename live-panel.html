@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GREÑA LIVE · Panel en vivo</title>
+<style>
+:root{color-scheme:dark;--bg:#0c0b14;--panel:#171527;--ink:#f2f0ff;--muted:#a7a2c2}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px system-ui,Segoe UI,Arial}
+header{padding:15px 18px;border-bottom:1px solid #333047;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+header strong{font-size:17px}a{color:#d5c2ff;text-decoration:none}nav{display:flex;gap:12px;flex-wrap:wrap}
+main{max-width:1100px;margin:auto;padding:18px;display:flex;flex-direction:column;gap:14px;min-height:calc(100dvh - 70px)}
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.stat{background:var(--panel);border:1px solid #302c45;border-bottom:3px solid var(--accent);border-radius:12px;padding:10px;text-align:center;min-width:0}.stat img{width:18px;height:18px;object-fit:contain;vertical-align:middle}.stat small{display:block;color:var(--muted);font-size:11px}.stat b{font-size:20px}
+.feed{background:#100f1b;border:1px solid #34304b;border-radius:17px;min-height:370px;flex:1;display:flex;flex-direction:column;overflow:hidden}
+.feedhead{padding:14px 17px;border-bottom:1px solid #302a44;display:flex;justify-content:space-between;gap:10px;align-items:center}.feedhead h1{margin:0;font-size:18px}.feedhead small{color:var(--muted)}
+#messages{padding:13px;overflow:auto;flex:1;min-height:280px;max-height:65dvh;display:flex;flex-direction:column;gap:9px}
+.entry{display:flex;gap:9px;align-items:flex-start}.icon{width:35px;height:35px;border-radius:11px;display:grid;place-items:center;background:#252037;flex:none;font-size:20px}
+.bubble{min-width:0;background:#1c1930;border-left:3px solid var(--accent,#786c9f);border-radius:5px 12px 12px 12px;padding:8px 11px;overflow-wrap:anywhere;flex:1}
+.bubble b{color:#ece4ff}.bubble p{margin:4px 0 0}.bubble small{color:var(--muted)}.entry.alert .bubble{background:linear-gradient(90deg,#302442,#1c1930);border-left-width:5px}
+.foot{padding:11px 15px;border-top:1px solid #302a44;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;color:var(--muted);font-size:12px}
+button{background:#6d49bd;color:white;border:0;border-radius:9px;padding:8px 12px;cursor:pointer}
+@media(max-width:610px){.stats{gap:4px}.stat{padding:7px 3px}.stat b{font-size:15px}.stat small{font-size:9px}main{padding:9px}header{padding:12px}.feedhead h1{font-size:16px}}
+</style></head><body>
+<header><strong>🎛️ GREÑA · PANEL EN VIVO</strong><nav><a href="/index.html">Inicio</a><a href="/alerts.html">Personalizar alertas y sonidos</a><a href="/mobile.html">Versión móvil</a></nav></header>
+<main><section class="stats" aria-label="Espectadores por plataforma">
+<div class="stat" style="--accent:#25f4ee"><img src="/assets/platforms/tiktok.webp" alt=""><small>TikTok</small><b id="tiktok">—</b></div>
+<div class="stat" style="--accent:#9146ff"><img src="/assets/platforms/twitch.webp" alt=""><small>Twitch</small><b id="twitch">—</b></div>
+<div class="stat" style="--accent:#53fc18"><img src="/assets/platforms/kick.svg" alt=""><small>Kick</small><b id="kick">—</b></div>
+<div class="stat" style="--accent:#ff3048"><img src="/assets/youtube-logo.svg" alt=""><small>YouTube</small><b id="youtube">—</b></div>
+<div class="stat" style="--accent:#ffcb63"><span>👥</span><small>Total</small><b id="total">—</b></div>
+</section>
+<section class="feed"><div class="feedhead"><h1>💬 Multichat + Alertas</h1><small id="status">Conectando…</small></div>
+<div id="messages" role="log" aria-live="polite"><div class="entry"><div class="icon">💬</div><div class="bubble">Los mensajes y las alertas del LIVE aparecerán aquí.</div></div></div>
+<div class="foot"><span>Alertas y chat en orden de llegada · sin Starvios</span><button id="clear">Limpiar pantalla</button></div>
+</section></main>
+<script>
+(()=>{'use strict';
+const allowed=new Set(['tiktok','twitch','kick','youtube']),labels={tiktok:'TikTok',twitch:'Twitch',kick:'Kick',youtube:'YouTube'};
+const colors={tiktok:'#25f4ee',twitch:'#9146ff',kick:'#53fc18',youtube:'#ff3048'};
+const $=id=>document.getElementById(id),panel=$('messages');let connected=false;
+function add(kind,platform,name,message,icon,extra=''){
+ const p=String(platform||'').toLowerCase();if(!allowed.has(p))return;
+ if(panel.children.length===1&&panel.firstElementChild?.textContent.includes('aparecerán aquí'))panel.replaceChildren();
+ const row=document.createElement('div');row.className='entry '+(kind==='alert'?'alert':'');
+ row.style.setProperty('--accent',colors[p]);const av=document.createElement('div');av.className='icon';av.textContent=icon||'💬';
+ const bubble=document.createElement('div');bubble.className='bubble';const label=document.createElement('b');label.textContent=String(name||'Usuario');
+ const small=document.createElement('small');small.textContent=' · '+labels[p];const body=document.createElement('p');body.textContent=String(message||'');
+ bubble.append(label,small,body);if(extra){const note=document.createElement('small');note.textContent=extra;bubble.append(note)}
+ row.append(av,bubble);panel.append(row);while(panel.children.length>150)panel.firstElementChild.remove();panel.scrollTop=panel.scrollHeight;
+}
+function stats(v,s){let sum=0,known=false;for(const p of allowed){const isConnected=s?.[p]?.connected===true||s?.[p]?.live===true;const n=Number(v?.[p]);const valid=Number.isFinite(n)&&n>=0&&isConnected;$(p).textContent=valid?n.toLocaleString('es-DO'):'—';if(valid){sum+=n;known=true}}$('total').textContent=known?sum.toLocaleString('es-DO'):'—'}
+let status={};async function initial(){try{const [a,b,c]=await Promise.all([fetch('/api/viewers').then(r=>r.json()),fetch('/api/status').then(r=>r.json()),fetch('/api/activity?limit=50').then(r=>r.json())]);status=b.status||{};stats(a.viewers,status);for(const e of (c.activity||[])){const p=String(e.platform||'').toLowerCase();add('alert',p,e.name,e.action||e.message||e.event, e.giftName==='Quiéreme'?'💝':e.event==='gift'?'🎁':e.event==='follow'?'💜':'🔔',e.giftName?(e.giftName+' ×'+(e.count||1)):'')}}catch{}}
+const wsUrl=path=>(location.protocol==='https:'?'wss://':'ws://')+location.host+path;
+function core(){const ws=new WebSocket(wsUrl(''));ws.onopen=()=>{$('status').textContent='Alertas conectadas'};ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='hello'||d.type==='platform-status'){status=d.status||status;stats(d.viewers,status)}if(d.type==='viewers')stats(d.viewers,status);if(d.type==='activity'){const a=d.activity||{};add('alert',a.platform,a.name,a.action||a.message||a.event,a.giftName==='Quiéreme'?'💝':a.event==='gift'?'🎁':a.event==='follow'?'💜':'🔔',a.giftName?a.giftName+' ×'+(a.count||1):'')}}catch{}};ws.onclose=()=>{$('status').textContent='Reconectando alertas…';setTimeout(core,2500)};ws.onerror=()=>ws.close()}
+function chat(){const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);const target=cloud?wsUrl('/chat-ws'):'ws://'+location.hostname+':8788/ws';const ws=new WebSocket(target);ws.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==='chat')add('chat',d.platform,d.user||d.username||d.name,d.text||d.message,'💬')}catch{}};ws.onclose=()=>setTimeout(chat,2500);ws.onerror=()=>ws.close()}
+$('clear').onclick=()=>panel.replaceChildren();initial();core();chat();setInterval(async()=>{try{const [v,s]=await Promise.all([fetch('/api/viewers').then(r=>r.json()),fetch('/api/status').then(r=>r.json())]);status=s.status||status;stats(v.viewers,status)}catch{}},10000);
+})();
+</script></body></html>
