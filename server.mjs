@@ -689,6 +689,11 @@ function eventHealthSnapshot(){
   tiktok:{account:ps.tiktok?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.tiktok,ps.tiktok?.authenticated?'waiting':'off'),events:ttEvents,source:'TikTok LIVE connector · FOLLOW + SOCIAL fallback · SUB_NOTIFY',diagnostics:ttSig},
   twitch:{account:ps.twitch?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.twitch,ps.twitch?.authenticated?'waiting':'off'),events:twitchEvents,source:'Twitch EventSub + IRC',active:[...twitchEventHealth.active],failed:[...twitchEventHealth.failed],lastError:twitchEventHealth.lastError||'',diagnostics:sig('twitch')},
   kick:{account:ps.kick?.authenticated?'ready':'off',chat:stateFor(bridgeRuntime.kick,ps.kick?.authenticated?'waiting':'off'),events:kickEvents,source:'Kick Events API + browser/Pusher realtime fallback',active:[...kickEventHealth.active],failed:[...kickEventHealth.failed],lastError:kickEventHealth.lastError||'',subscriptionsReady:!!kickEventHealth.subscriptionsReady,lastWebhookAt:Number(kickEventHealth.lastWebhookAt||0),webhookDeliveryVerified:!!kickEventHealth.lastWebhookAt,requiresPublicWebhook:true,diagnostics:kickSig},
+  youtube:{account:ps.youtube?.authenticated?'ready':'off',
+   chat:stateFor(bridgeRuntime.youtube,ps.youtube?.authenticated?'waiting':'off'),
+   events:!ps.youtube?.authenticated?'off':!bridgeRuntime.youtube?'waiting':sig('youtube').lastEventAt?'ready':'waiting',
+   source:'YouTube Data API v3 · comentarios, Super Chats, Super Stickers y membresías',
+   diagnostics:sig('youtube'),viewerSource:String(viewerMeta.youtube?.source||'esperando API')},
   starvios:{account:ps.starvios?.account?'ready':'off',chat:stateFor(bridgeRuntime.starvios,ps.starvios?.account?'waiting':'off'),events:!ps.starvios?.account?'off':starviosRealEventAt?'ready':'waiting',source:'StarVios public chat records + follower totals · verificación de eventos LIVE',lastRealEventAt:starviosRealEventAt,lastRealEventKind:starviosLastRealKind,lastRealNameAvailable:starviosLastRealNameAvailable,diagnostics:sig('starvios')}
  };
 }
@@ -1061,7 +1066,7 @@ function alert(platform,event,name,message='',extra={}){
  recentAlerts.set(key,now);for(const [k,t] of recentAlerts)if(now-t>2*60*1000)recentAlerts.delete(k);
  noteBridgeSignal(platform,event,{name:a.name,event,source:extra.tiktokSource||extra.kickEvent||extra.source||'alert'});pushEventHealth();
  rememberActivity(a);
- if(['TikTok','Twitch','Kick'].includes(platform)&&event!=='like'&&!['GREÑA_FAN','USUARIO_PRUEBA'].includes(String(a.name||'').toUpperCase()))recordLoyaltyEvent({platform,kind:event,user:a.name,nickname:a.name,avatar:a.avatar||'',count:a.count,totalDiamonds:a.totalDiamonds,bits:a.bits,amount:a.amount,viewers:a.viewers});
+ if(['TikTok','Twitch','Kick','YouTube'].includes(platform)&&event!=='like'&&!['GREÑA_FAN','USUARIO_PRUEBA'].includes(String(a.name||'').toUpperCase()))recordLoyaltyEvent({platform,kind:event,user:a.name,nickname:a.name,avatar:a.avatar||'',count:a.count,totalDiamonds:a.totalDiamonds,bits:a.bits,amount:a.amount,viewers:a.viewers});
  if(event==='follow')followerGoalFollow(platform,platform==='Starvios'?extra.count:1);
  const custom=findCustomRule(customAlerts,a,Date.now(),customAlertCooldowns);
   if(custom){a.customRuleId=custom.id;a.customAction=custom.action}
@@ -2415,6 +2420,49 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   const room=camRoomByInvite(url.searchParams.get('token'));if(!room)return json(res,404,{ok:false,error:'Invitación inválida o vencida.'});return json(res,200,{ok:true,room:{id:room.id,code:room.code,hostName:room.ownerName,createdAt:room.createdAt},secureContextRequired:true});
  }
 
+ if(pathname==='/api/internal/youtube/data'&&req.method==='GET'){
+  // Solo el motor local autenticado con el token de arranque puede leer datos
+  // del YouTube enlazado; nunca se envía el OAuth token a OBS ni al navegador.
+  if(!requireInternalBridge(req,res))return;
+  const yt=savedAuth.youtube;
+  if(!yt?.channelId)return json(res,401,{ok:false,error:'Vincula tu canal YouTube en GREÑA ID primero.'});
+  const resource=String(url.searchParams.get('resource')||'');
+  if(!['videos','liveChat/messages'].includes(resource))return json(res,400,{ok:false,error:'Recurso YouTube inválido'});
+  const uri=new URL('https://www.googleapis.com/youtube/v3/'+resource);
+  if(resource==='videos'){
+   const id=String(url.searchParams.get('id')||'');
+   if(!/^[A-Za-z0-9_-]{11}$/.test(id))return json(res,400,{ok:false,error:'ID de vídeo inválido'});
+   uri.searchParams.set('id',id);uri.searchParams.set('part','liveStreamingDetails,snippet,status');
+  }else{
+   const liveChatId=String(url.searchParams.get('liveChatId')||'');
+   if(!liveChatId||liveChatId.length>256||!/^[A-Za-z0-9_+=/-]+$/.test(liveChatId))return json(res,400,{ok:false,error:'ID de chat inválido'});
+   uri.searchParams.set('liveChatId',liveChatId);uri.searchParams.set('part','id,snippet,authorDetails');
+   uri.searchParams.set('maxResults',String(Math.max(1,Math.min(200,Number(url.searchParams.get('maxResults'))||200))));
+   const pageToken=String(url.searchParams.get('pageToken')||'');
+   if(pageToken.length>512)return json(res,400,{ok:false,error:'Token de página demasiado largo'});
+   if(pageToken)uri.searchParams.set('pageToken',pageToken);
+  }
+  try{
+   let token=yt.access_token;
+   if(!token||Date.now()>Number(yt.expires_at||0)-60000){
+    if(!yt.refresh_token)throw Error('Reautoriza YouTube para activar el chat y el contador.');
+    if(yt.mode==='grena-auth'){
+     const refreshed=await refreshBrokerToken('youtube');
+     token=refreshed.access_token;savedAuth.youtube.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;
+     await persistAuth();
+    }else{
+     const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
+     token=refreshed.access_token;yt.access_token=token;
+     yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;
+     await persistAuth();
+    }
+   }
+   const response=await fetch(uri,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(12000)});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)return json(res,response.status,{ok:false,error:String(data.error?.message||'YouTube API rechazada').slice(0,300)});
+   return json(res,200,data);
+  }catch(e){return json(res,502,{ok:false,error:String(e.message||e).slice(0,300)})}
+ }
  if(pathname==='/api/internal/youtube/live'&&req.method==='GET'){
   if(!requireInternalBridge(req,res))return;
   const yt=savedAuth.youtube;
@@ -2424,7 +2472,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    if(yt.refresh_token&&Date.now()>Number(yt.expires_at||0)-60000){
     if(yt.mode==='grena-auth'){
      const refreshed=await refreshBrokerToken('youtube');
-     token=refreshed.access_token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
+     token=refreshed.access_token;savedAuth.youtube.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
     }else{
      const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
      token=refreshed.access_token;yt.access_token=token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
@@ -2434,8 +2482,11 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    const response=await fetch(uri,{headers:{Authorization:'Bearer '+token}});
    const payload=await response.json().catch(()=>({}));
    if(!response.ok)throw Error('YouTube '+response.status+': '+String(payload.error?.message||'Error API'));
-   const live=(payload.items||[]).find(x=>x.id&&(x.status?.lifeCycleStatus==='live'||x.snippet?.actualStartTime)&&!x.snippet?.actualEndTime);
-   return json(res,200,{ok:true,linked:true,live:!!live,videoId:live?.id||'',channel:yt.displayName||''});
+   // Dos directos independientes pueden convivir (horizontal y vertical Shorts).
+   const lives=(payload.items||[])
+    .filter(x=>x.id&&(x.status?.lifeCycleStatus==='live'||x.snippet?.actualStartTime)&&!x.snippet?.actualEndTime)
+    .map(x=>({videoId:String(x.id),title:String(x.snippet?.title||'').slice(0,120)}));
+   return json(res,200,{ok:true,linked:true,live:lives.length>0,videoId:lives[0]?.videoId||'',lives,channel:yt.displayName||''});
   }catch(e){console.warn('[YouTube detection]',e.message);return json(res,200,{ok:false,linked:true,live:false,error:String(e.message||e).slice(0,180)})}
  }
  if(pathname==='/api/internal/status'&&req.method==='POST'){
