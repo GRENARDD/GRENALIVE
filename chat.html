@@ -3109,7 +3109,7 @@ function shortenRepeatedLaughsForVoice(input=''){
   const spaced=/(^|[^\p{L}\p{N}_@#])((?:(?:j[aeiou]|h[aeiou])[\s,!?;.:]+){3,}(?:j[aeiou]|h[aeiou]))(?=$|[^\p{L}\p{N}_])/giu;
   const shortLaugh=sequence=>{
     const sound=sequence.match(/^[jh][aeiou]/i)?.[0]?.toLowerCase()||'ja';
-    return sound+', '+sound;
+    return 'jaja';
   };
   const replaceLaugh=(whole,prefix,sequence,offset,full)=>{
     // No cambiar menciones, hashtags, nombres ni fragmentos de enlaces.
@@ -3832,7 +3832,7 @@ function queueVoice(m){
   // visual sticker tokens to Fish Audio, including when mixed with text.
   const humanText=stripStickerAndInternalCodes(m.text||'');
   let text=isFishVoiceSelected()
-    ? humanText
+    ? stripEmojisForVoice(humanText)
     : cleanTextForVoice(humanText);
   // Acorta únicamente las risas exageradas antes de enviar la COPIA al TTS.
   // También funciona con las voces de Windows; nunca modifica m.text.

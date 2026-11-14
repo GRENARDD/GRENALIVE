@@ -2786,6 +2786,12 @@ const server =
             response.end(JSON.stringify({ok:false,error:'El texto debe tener entre 1 y 600 caracteres.'}));
             return;
           }
+          if(!naturalSpeech.text){
+            // Do not make Fish Audio requests for emoji-only messages.
+            response.writeHead(204,{'cache-control':'no-store'});
+            response.end();
+            return;
+          }
           if(!/^[A-Za-z0-9_-]{8,160}$/.test(referenceId)){
             response.writeHead(400,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
             response.end(JSON.stringify({ok:false,error:'El ID del modelo Fish Audio no es válido.'}));

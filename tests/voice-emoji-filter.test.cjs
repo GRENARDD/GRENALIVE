@@ -37,10 +37,21 @@ test('voces del sistema conservan filtro emoji y Fish elimina codigos de sticker
   assert.match(html,/result\s*=\s*stripEmojisForVoice\(\s*result\s*\)/);
   assert.match(html,/const spokenName = stripEmojisForVoice\(/);
   assert.match(html,/const humanText=stripStickerAndInternalCodes\(m\.text\|\|''\)/);
-  assert.match(html,/isFishVoiceSelected\(\)\s*\?\s*humanText/);
+  assert.match(html,/isFishVoiceSelected\(\)\s*\?\s*stripEmojisForVoice\(humanText\)/);
   assert.match(html,/cleanTextForVoice\(humanText\)/);
   assert.match(html,/insertVoiceByPriority\(\{\s*\.\.\.m,\s*text\s*\}\)/);
   assert.match(html,/function buildSpokenText\(message\)/);
   assert.match(html,/const spokenText = buildSpokenText\(message\)/);
   assert.match(html,/function startFishPrefetch\(message\)/);
+});
+
+test('las risas largas se acortan a un solo jaja hablado',()=>{
+ const b='// GRENA_VOICE_SHORT_LAUGHS_BEGIN',e='// GRENA_VOICE_SHORT_LAUGHS_END';
+ const i=html.indexOf(b),j=html.indexOf(e);
+ assert.ok(i>=0 && j>i);
+ const scope=vm.createContext({String});
+ vm.runInContext(html.slice(i+b.length,j),scope,{timeout:1000});
+ for(const msg of ['jajajajajajajaja','JAJAJAJA','jejejejeje']){
+  assert.equal(scope.shortenRepeatedLaughsForVoice(msg),'jaja');
+ }
 });
