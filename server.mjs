@@ -2010,6 +2010,13 @@ function panelGuard(req,res,pathname){
     if(hasBody&&!allowedBody){if(pathname.startsWith('/api/'))json(res,415,{ok:false,error:soundUpload?'Selecciona un archivo de audio válido.':'Content-Type debe ser application/json.'});else{res.writeHead(415);res.end('Unsupported Media Type')}return false}
   }
   if(!pathname.startsWith('/api/'))return true;                // páginas y estáticos: ya los gestiona el router
+  // En la pasarela Wi-Fi la API no expone contadores, historiales ni estados antes de vincular GREÑA ID.
+  const fromPhoneLan=mobileLanActive&&MOBILE_HOSTS.has(String(req.headers.host||'').toLowerCase());
+  if(fromPhoneLan&&!sessionUser(req)&&!obsAuthorized(req)){
+    if(!(method==='POST'&&pathname==='/api/mobile/pair/consume')&&!(method==='GET'&&pathname==='/api/account/me')){
+      return json(res,401,{ok:false,error:'Vincula este teléfono con el QR temporal de GREÑA Desktop.'});
+    }
+  }
   if(pathname.startsWith('/api/internal/'))return true;        // llevan su propio token de puente
   // Registro y panel admin poseen su propia autenticación en grena-licensing.mjs.
   if(CLOUD_MODE&&(pathname.startsWith('/api/license/')||pathname.startsWith('/api/license-admin/')))return true;
