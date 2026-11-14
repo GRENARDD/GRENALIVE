@@ -1190,7 +1190,13 @@ function alert(platform,event,name,message='',extra={}){
  if(event==='follow')followerGoalFollow(platform,platform==='Starvios'?extra.count:1);
  const custom=findCustomRule(customAlerts,a,Date.now(),customAlertCooldowns);
   if(custom){a.customRuleId=custom.id;a.customAction=custom.action}
-  if(event==='follow')minecraftFollow(platform,a.name,String(extra.eventId||extra.id||''));
+  if(event==='follow'){
+   const sourceKey=String(extra.eventId||extra.event_id||extra.messageId||extra.message_id||extra.id||'');
+   // Some connectors omit stable IDs. Dedup normalized follower within a minute
+   // rather than inventing an ID that would make every webhook retry a new challenge.
+   const fallback=createHash('sha256').update(String(platform).toLowerCase()+':'+String(a.name||'').toLowerCase()+':'+Math.floor(Date.now()/60000)).digest('hex');
+   minecraftFollow(platform,a.name,sourceKey||fallback);
+  }
   broadcast({type:'alert',alert:a});broadcast({type:'activity',activity:a})
 }
 function json(res,code,obj){res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj))}
