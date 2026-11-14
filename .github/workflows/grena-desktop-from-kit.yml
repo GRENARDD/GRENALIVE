@@ -28,6 +28,8 @@ on:
       - 'mode.html'
       - 'login.html'
       - 'index.html'
+      - 'dynamics.html'
+      - 'dynamics/**'
       - 'live-panel.html'
       - 'mobile.html'
       - 'custom-alerts.html'
