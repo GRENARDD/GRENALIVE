@@ -1,10 +1,10 @@
 # Gate de publicación: instalar v5.1.17, actualizar EN EL MISMO DIRECTORIO
-# con el instalador compilado v5.1.19 y comprobar la persistencia de APPDATA.
+# con el instalador compilado v5.1.20 y comprobar la persistencia de APPDATA.
 # Se ejecuta exclusivamente en un Windows runner efímero de GitHub Actions.
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
 $oldVersion='5.1.17'
-$newVersion='5.1.19'
+$newVersion='5.1.20'
 $work=Join-Path $env:RUNNER_TEMP 'grena-upgrade-5117-to-5119'
 $install=Join-Path $work 'Installed'
 $oldSetup=Join-Path $work 'GRENA.LIVE.Setup.5.1.17.exe'
@@ -56,10 +56,10 @@ if((Get-Content $appPackage -Raw -Encoding UTF8|ConvertFrom-Json).version -ne $o
  throw 'El instalador 5.1.17 no contiene la versión 5.1.17.'
 }
 Assert-ProfilePreserved '5.1.17'
-$latest=Get-ChildItem -Path (Join-Path (Get-Location) 'dist') -File -Filter "*5.1.19.exe"
-if(@($latest).Count -ne 1){throw "Esperaba un solo instalador v5.1.19, encontrados: $(@($latest).Count)"}
+$latest=Get-ChildItem -Path (Join-Path (Get-Location) 'dist') -File -Filter "*5.1.20.exe"
+if(@($latest).Count -ne 1){throw "Esperaba un solo instalador v5.1.20, encontrados: $(@($latest).Count)"}
 Install-Silent (@($latest)[0].FullName) $newVersion
-if(!(Test-Path -LiteralPath $installedExe)){throw 'El ejecutable desapareció al actualizar a 5.1.19.'}
+if(!(Test-Path -LiteralPath $installedExe)){throw 'El ejecutable desapareció al actualizar a 5.1.20.'}
 if(!(Test-Path -LiteralPath $appPackage)){throw 'No quedó el paquete actualizado instalado.'}
 $actual=(Get-Content $appPackage -Raw -Encoding UTF8|ConvertFrom-Json).version
 if($actual -ne $newVersion){throw "La actualización no sustituyó la versión antigua: $actual"}
@@ -67,5 +67,5 @@ foreach($mod in @('universalify','fs-extra','electron-updater')){
  $modulePath=Join-Path $install "resources\app\node_modules\$mod"
  if(!(Test-Path -LiteralPath $modulePath)){throw "Dependencia ausente tras actualizar: $mod"}
 }
-Assert-ProfilePreserved '5.1.19'
-Write-Host 'OK: instalación real 5.1.17 -> 5.1.19; código y dependencias nuevos; datos persistentes intactos.'
+Assert-ProfilePreserved '5.1.20'
+Write-Host 'OK: instalación real 5.1.17 -> 5.1.20; código y dependencias nuevos; datos persistentes intactos.'
