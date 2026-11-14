@@ -36,3 +36,38 @@ test('disabled streamer cannot receive follows',()=>{
   d.enable({roomId:r.id,userId:'grena',value:false});
   assert.equal(d.follow({roomId:r.id,streamerId:'grena',platform:'tiktok',questionId:1}).accepted,false);
 });
+
+test('turning off follow intake does not cancel current A/B vote',()=>{
+ let time=0;
+ const d=createSharedDynamics({now:()=>time});
+ const room=d.create({ownerId:'grena',gamertag:'Sr Omi1524',voteSeconds:20});
+ d.follow({roomId:room.id,streamerId:'grena',platform:'tiktok',followerName:'Pedro',questionId:1,optionA:'Sin armadura',optionB:'Sin espada'});
+ d.enable({roomId:room.id,userId:'grena',value:false});
+ assert.equal(d.getRoom(room.id).active.questionId,1);
+ assert.equal(d.follow({roomId:room.id,streamerId:'grena',platform:'tiktok',questionId:2}).accepted,false);
+ time=20000;
+ const result=d.tick();
+ assert.equal(result.length,1);
+ assert.equal(result[0].questionId,1);
+});
+
+test('invitation expiration and unauthorized join are rejected',()=>{
+ let time=0;
+ const d=createSharedDynamics({now:()=>time});
+ const room=d.create({ownerId:'grena'});
+ assert.throws(()=>d.invite({roomId:room.id,fromId:'intruso',toId:'amiga'}));
+ const invite=d.invite({roomId:room.id,fromId:'grena',toId:'amiga'});
+ time=300001;
+ assert.deepEqual(d.pendingInvitations('amiga'),[]);
+ assert.throws(()=>d.respond({invitationId:invite.id,userId:'amiga',accept:true}));
+});
+
+test('one vote per account per platform; last vote wins',()=>{
+ let time=0;
+ const d=createSharedDynamics({now:()=>time});
+ const r=d.create({ownerId:'grena'});
+ d.follow({roomId:r.id,streamerId:'grena',platform:'kick',questionId:44,optionA:'A',optionB:'B'});
+ d.vote({roomId:r.id,streamerId:'grena',platform:'kick',userId:'viewer1',message:'A'});
+ d.vote({roomId:r.id,streamerId:'grena',platform:'kick',userId:'viewer1',message:'B'});
+ assert.deepEqual(d.getRoom(r.id).active.votes,{A:0,B:1});
+});
