@@ -615,11 +615,11 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
  }
  const minecraftDynamics = createSharedDynamics({notify:event=>{
    broadcast({type:'dynamics',event});
-   if(event.type==='vote-start'&&event.room?.active){
+   if(event.type==='vote-start'&&event.room?.active&&!minecraftCentralRoomCache.get(event.room.ownerId)?.room){
      const a=event.room.active;
      minecraftQueueEvent('vote_open',{roomId:event.roomId,user:a.followerName||'Seguidor',platform:a.platform||'TikTok',pregunta:a.questionId,duration:Math.max(10,Math.ceil((a.endsAt-Date.now())/1000))});
    }
-   if(event.type==='result'&&event.result){
+   if(event.type==='result'&&event.result&&!minecraftCentralRoomCache.get(event.result.streamerId)?.room){
      const r=event.result;
      minecraftQueueEvent('voted_result',{roomId:event.roomId,user:r.followerName||'Seguidor',platform:r.platform,pregunta:r.questionId,choice:r.winner,a:r.votes.A,b:r.votes.B});
    }
@@ -723,9 +723,9 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
        if(Date.now()-Number(event.created_at)>60000)continue;
        const p=event.payload||{};
        if(event.event_type==='vote_open'){
-         minecraftQueueEvent('vote_open',{roomId,user:p.followerName||'Seguidor',platform:p.platform,pregunta:p.questionId,duration:Math.max(1,Math.ceil((Number(p.endsAt)-Date.now())/1000)),challengeId:p.challengeId});
+         minecraftQueueEvent('vote_open',{roomId,user:p.followerName||'Seguidor',platform:p.platform,pregunta:p.questionId,optionA:p.optionA,optionB:p.optionB,duration:Math.max(1,Math.ceil((Number(p.endsAt)-Date.now())/1000)),challengeId:p.challengeId});
        }else if(event.event_type==='voted_result'){
-         minecraftQueueEvent('voted_result',{roomId,user:p.followerName||'Seguidor',platform:p.platform,pregunta:p.questionId,choice:p.choice,a:p.a,b:p.b,challengeId:p.challengeId});
+         minecraftQueueEvent('voted_result',{roomId,user:p.followerName||'Seguidor',platform:p.platform,pregunta:p.questionId,choice:p.choice,a:p.a,b:p.b,players:Array.isArray(p.players)?p.players:[],challengeId:p.challengeId});
        }
      }
      if(minecraftRemoteSeen.size>400){
