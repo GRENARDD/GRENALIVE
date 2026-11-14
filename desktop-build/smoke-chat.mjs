@@ -31,7 +31,7 @@ const resources=[
   '/assets/platforms/tiktok.webp',
   '/assets/platforms/twitch.webp',
   '/assets/platforms/kick.svg',
-  '/assets/platforms/starvios.svg',
+  '/assets/youtube-logo.svg',
   '/control-center.js'
 ];
 for(const resource of resources){
@@ -66,11 +66,24 @@ console.log('OK: /chat/ carga el chat completo con la sesión autenticada.');
 const panel=await get(main+'/',{headers:{Cookie:cookie}});
 assert.equal(panel.status,200,'El panel principal no abre tras iniciar sesión.');
 const panelHtml=await panel.text();
-assert.match(panelHtml,/id="starviosLinkModal"/,'El formulario Starvios falta en el HTML del instalador.');
-assert.match(panelHtml,/id="starviosLinkInput"/,'El campo de usuario Starvios no está empaquetado.');
-assert.match(js,/function openStarviosLinkModal\(\)/,'El botón de Starvios no abre el modal nuevo.');
-assert.match(js,/starviosLinkForm.*addEventListener\('submit',submitStarviosLink\)/,'El formulario Starvios no permite guardar el canal.');
-console.log('OK: panel empaquetado incluye formulario Starvios compatible con Electron.');
+assert.doesNotMatch(panelHtml,/id="starviosLinkModal"|data-platform="starvios"|id="starviosAccount"/i,'Starvios sigue visible en Inicio.');
+assert.match(panelHtml,/href="\/live-panel\.html"/,'Falta acceso al panel multistream real en Inicio.');
+const live=await get(main+'/live-panel.html',{headers:{Cookie:cookie}});
+assert.equal(live.status,200,'El panel multistream empaquetado no abre con GREÑA ID.');
+const liveHtml=await live.text();
+for(const id of ['tiktok','twitch','kick','youtube','total','messages']){
+ assert.match(liveHtml,new RegExp('id="'+id+'"'),'Falta en panel multistream: '+id);
+}
+assert.match(liveHtml,/\/chat-ws/,'El panel multistream no recibe mensajes desde el chat real.');
+assert.match(liveHtml,/d\.type==='activity'/,'El panel multistream no recibe alertas del servidor real.');
+assert.doesNotMatch(liveHtml,/starvios/i,'El panel nuevo aún contiene Starvios.');
+const mobilePage=await get(main+'/mobile.html',{headers:{Cookie:cookie}});
+assert.equal(mobilePage.status,200,'La versión móvil empaquetada no abre con GREÑA ID.');
+assert.doesNotMatch(await mobilePage.text(),/starvios/i,'Starvios sigue visible en la versión móvil.');
+const currentStatus=await get(main+'/api/status',{headers:{Cookie:cookie}});
+assert.equal(currentStatus.status,200,'El estado de plataformas no responde.');
+assert.equal(Object.hasOwn((await currentStatus.json()).status||{},'starvios'),false,'Starvios sigue anunciado como plataforma activa.');
+console.log('OK: panel y móvil empaquetados, alertas/chat conectados y Starvios no publicado.');
 
 // Comprobar contra el instalador REAL, no el HTML del repositorio, que se
 // empaquetó la burbuja con texto y alertas completos y diseño adaptable.
