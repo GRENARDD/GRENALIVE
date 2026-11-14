@@ -70,6 +70,21 @@ async function refreshCentral(){
   centralReady=true;
   const first=(rooms.rooms||[])[0];centralRoomId=first?.id||null;
   $('centralRoom').textContent=centralRoomId||'Sin sala creada';
+  if(centralRoomId){
+    const details=await central('/rooms/'+centralRoomId);
+    const active=(details.challenges||[]).find(x=>x.state==='active');
+    const recent=(details.challenges||[]).filter(x=>x.state==='done').slice(0,5);
+    if(active){
+      $('voting').textContent='VOTACIÓN COMPARTIDA · Pregunta #'+active.question_id+' · A: '+active.option_a+' · B: '+active.option_b;
+      $('timer').textContent='Cierra en '+Math.max(0,Math.ceil((Number(active.ends_at)-Date.now())/1000))+' segundos';
+      $('progress').style.width='50%';
+    }else{
+      $('voting').textContent='Sin votación compartida activa';
+      $('timer').textContent='';
+      $('progress').style.width='0%';
+    }
+    $('results').textContent=recent.map(x=>'Pregunta #'+x.question_id+': '+(x.winner==='TIE'?'empate':x.winner)).join(' · ')||'—';
+  }
   inbox.replaceChildren();
   for(const invite of invites.invitations||[]){
    const card=document.createElement('div');card.style.marginTop='14px';
@@ -80,7 +95,7 @@ async function refreshCentral(){
    no.onclick=()=>run(async()=>{await central('/rooms/respond','POST',{invitationId:invite.id,accept:false});await refreshCentral()});
    card.append(info,yes,no);inbox.append(card);
   }
-  $('inviteResult').textContent='Conectado al servicio de invitaciones de GREÑA ID. Las salas todavía requieren sincronización de eventos para jugar en vivo desde dos PC.';
+  $('inviteResult').textContent='Sala central vinculada. Votaciones sincronizadas; el puente Minecraft aún requiere comprobarse con el servidor.';
  }catch(e){
   centralReady=false;
   $('centralRoom').textContent='Servicio no disponible';
@@ -97,6 +112,7 @@ async function refresh(){
   snapshot=d;$('enabled').checked=!!d.enabled;$('state').textContent=d.enabled?'ACTIVADA':'DESACTIVADA';
   $('room').textContent=d.room.id;$('queue').textContent='Cola: '+d.room.queue;
 
+  if(centralReady&&centralRoomId)return;
   const a=d.room.active;
   if(!a){$('voting').textContent='No hay votación activa';$('timer').textContent='';$('progress').style.width='0%'}
   else {
