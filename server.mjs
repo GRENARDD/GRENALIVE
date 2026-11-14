@@ -616,7 +616,7 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
    broadcast({type:'dynamics',event});
    if(event.type==='vote-start'&&event.room?.active){
      const a=event.room.active;
-     minecraftQueueEvent('vote_open',{roomId:event.roomId,user:'Seguidor',platform:'Multistream',pregunta:a.questionId,duration:Math.max(10,Math.ceil((a.endsAt-Date.now())/1000))});
+     minecraftQueueEvent('vote_open',{roomId:event.roomId,user:a.followerName||'Seguidor',platform:a.platform||'TikTok',pregunta:a.questionId,duration:Math.max(10,Math.ceil((a.endsAt-Date.now())/1000))});
    }
    if(event.type==='result'&&event.result){
      const r=event.result;
