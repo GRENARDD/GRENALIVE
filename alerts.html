@@ -321,7 +321,7 @@ html.grena-embedded .home-link{display:none!important}
   const k=type.value;const url=String((pending&&pending.type===k?pending.url:config.audioFiles?.[k])||'');
   output.textContent=url?'🔊 Audio personalizado activo para '+type.selectedOptions[0].textContent:'🔔 Sonido predeterminado para '+type.selectedOptions[0].textContent;
   vol.value=Number(config.eventLevels?.[k]??config.volume??54);byId('grenaSoundVolumeValue').textContent=vol.value+'%';
-  fileInput.value='';notify(pending&&pending.type===k?'Audio seleccionado: guarda los cambios para aplicarlo.':'');
+  fileInput.value='';
  }
  async function load(){
   try{
@@ -329,7 +329,7 @@ html.grena-embedded .home-link{display:none!important}
    config=(await r.json()).settings||{};ready=true;render();
   }catch(e){notify('Error: '+e.message);output.textContent='No se pudo consultar el audio actual.'}
  }
- type.addEventListener('change',()=>{pending=null;render()});
+ type.addEventListener('change',()=>{pending=null;render();notify('')});
  vol.addEventListener('input',()=>byId('grenaSoundVolumeValue').textContent=vol.value+'%');
  fileInput.addEventListener('change',async()=>{
   if(!ready)return;const file=fileInput.files?.[0];if(!file)return;
