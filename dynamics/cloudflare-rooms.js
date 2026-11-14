@@ -16,6 +16,10 @@ export async function handleDynamicsIdentityRequest(request,env,authUserId,{veri
  if(!env.DB)return response({ok:false,error:'Cloudflare D1 no está configurado'},503);
  const db=env.DB;
  try{
+  if(path==='/api/dynamics/rooms'&&method==='GET'){
+   const r=await db.prepare("SELECT r.id,r.host_user_id,r.status,r.created_at FROM dynamics_rooms r JOIN dynamics_members m ON m.room_id=r.id WHERE m.user_id=? AND r.status='open' ORDER BY r.created_at DESC LIMIT 20").bind(authUserId).all();
+   return response({ok:true,rooms:r.results||[]});
+  }
   if(path==='/api/dynamics/rooms'&&method==='POST'){
    const id=uid(),at=now();
    const result=await db.batch([
