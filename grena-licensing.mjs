@@ -486,7 +486,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
  // The central GREÑA ID Worker owns inter-device room invitations.
  // Never accept a cloud token from a browser. Use the verified session cache.
  async function requestDynamics(userId,path,method='GET',payload){
-   const allowed=new Set(['/api/dynamics/rooms','/api/dynamics/rooms/inbox','/api/dynamics/rooms/invite','/api/dynamics/rooms/respond','/api/dynamics/rooms/follow','/api/dynamics/rooms/vote']);
+   const allowed=new Set(['/api/dynamics/rooms','/api/dynamics/rooms/inbox','/api/dynamics/rooms/invite','/api/dynamics/rooms/respond','/api/dynamics/rooms/players','/api/dynamics/rooms/follow','/api/dynamics/rooms/vote']);
    const match=/^\/api\/dynamics\/rooms\/[0-9a-f-]{36}$/i.test(path);
    if(!allowed.has(path)&&!match)throw Object.assign(Error('Ruta de Dinámicas no permitida'),{status:400});
    if(!['GET','POST'].includes(method))throw Object.assign(Error('Método no permitido'),{status:405});
