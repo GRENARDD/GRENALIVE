@@ -607,11 +607,12 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
 // no tiempo de visualización exacto: TikTok/Twitch/Kick no exponen una identidad fiable de cada viewer silencioso.
 function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube','starvios'].includes(p)?p:''}
 function loyaltyKey(v=''){return String(v||'').trim().replace(/^@/,'').toLowerCase().slice(0,80)}
-function loyaltyDay(ts=Date.now()){const d=new Date(ts);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function loyaltyDay(ts=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ts))}
 function loyaltyLevel(score=0){const n=Number(score)||0;if(n>=6000)return {name:'Leyenda',icon:'★',next:null};if(n>=3000)return {name:'Diamante',icon:'◆',next:6000};if(n>=1500)return {name:'Platino',icon:'⬟',next:3000};if(n>=700)return {name:'Oro',icon:'●',next:1500};if(n>=250)return {name:'Plata',icon:'◈',next:700};return {name:'Bronce',icon:'◇',next:250}}
 function publicLoyaltyUser(u={}){const score=Math.round((Number(u.score)||0)*10)/10;return {...u,score,level:loyaltyLevel(score)}}
 function loyaltyTop(platform,limit=10){const p=loyaltyPlatform(platform);if(!p)return [];return Object.values(loyaltyState.users[p]||{}).map(publicLoyaltyUser).sort((a,b)=>(b.score-a.score)||(b.lastSeen-a.lastSeen)).slice(0,Math.max(1,Math.min(50,Number(limit)||10))).map((u,i)=>({...u,rank:i+1,platform:p}))}
-function publicLoyaltyState(limit=10){return {settings:{...loyaltyState.settings},tops:{tiktok:loyaltyTop('tiktok',limit),twitch:loyaltyTop('twitch',limit),kick:loyaltyTop('kick',limit),youtube:loyaltyTop('youtube',limit),starvios:loyaltyTop('starvios',limit)},updatedAt:Date.now()}}
+function loyaltyDailyTop(platform,limit=10){const p=loyaltyPlatform(platform),today=loyaltyDay();if(!p)return [];return Object.values(loyaltyState.users[p]||{}).filter(u=>u.daily?.day===today&&Number(u.daily.score)>0).map(u=>({...publicLoyaltyUser(u),dailyScore:u.daily.score,dailyStats:u.daily.stats})).sort((a,b)=>b.dailyScore-a.dailyScore).slice(0,Math.max(1,Math.min(50,Number(limit)||10)));}
+function publicLoyaltyState(limit=10){return {settings:{...loyaltyState.settings},tops:{tiktok:loyaltyTop('tiktok',limit),twitch:loyaltyTop('twitch',limit),kick:loyaltyTop('kick',limit),youtube:loyaltyTop('youtube',limit)},dailyTops:{kick:loyaltyDailyTop('kick',limit),twitch:loyaltyDailyTop('twitch',limit),tiktok:loyaltyDailyTop('tiktok',limit),youtube:loyaltyDailyTop('youtube',limit)},day:loyaltyDay(),updatedAt:Date.now()}}
 async function persistLoyalty(){if(activeUserId)await safeWriteJson(profileFile('loyalty.json'),loyaltyState).catch(()=>{})}
 let loyaltySaveTimer=null;
 function scheduleLoyaltySave(){clearTimeout(loyaltySaveTimer);loyaltySaveTimer=setTimeout(()=>persistLoyalty(),700)}
@@ -622,12 +623,12 @@ function ensureLoyaltyUser(platform,user,nickname='',avatar=''){
  const u=bucket[key]||(bucket[key]={id:key,user:key,nickname:String(nickname||user||key).slice(0,80),avatar:String(avatar||''),score:0,firstSeen:Date.now(),lastSeen:0,activeDays:0,lastDay:'',stats:{minutes:0,comments:0,likes:0,shares:0,follows:0,subs:0,gifts:0,support:0,raids:0}});
  if(nickname)u.nickname=String(nickname).slice(0,80);if(avatar)u.avatar=String(avatar);u.stats=u.stats||{};return {p,key,u};
 }
-function loyaltyAdd(u,points,stat='',amount=1){const pts=Math.max(0,Number(points)||0);u.score=(Number(u.score)||0)+pts;if(stat)u.stats[stat]=(Number(u.stats[stat])||0)+(Number(amount)||0);return pts}
+function loyaltyAdd(u,points,stat='',amount=1){const pts=Math.max(0,Number(points)||0);u.score=(Number(u.score)||0)+pts;if(stat)u.stats[stat]=(Number(u.stats[stat])||0)+(Number(amount)||0);if(u.daily?.day===loyaltyDay()){u.daily.score=(Number(u.daily.score)||0)+pts;if(stat)u.daily.stats[stat]=(Number(u.daily.stats[stat])||0)+(Number(amount)||0)}return pts}
 function estimateActiveTime(u,now){const last=Number(u.lastSeen||0);if(last>0){const mins=Math.min(Number(loyaltyState.settings.activeWindowMinutes||10),Math.max(0,(now-last)/60000));if(mins>=0.35){loyaltyAdd(u,mins*0.6,'minutes',mins)}}u.lastSeen=now}
 function recordLoyaltyEvent(evt={}){
  const p=loyaltyPlatform(evt.platform),kind=String(evt.kind||evt.event||'').toLowerCase();
  const rec=ensureLoyaltyUser(p,evt.user||evt.name,evt.nickname||evt.name||evt.user,evt.avatar||'');if(!rec)return null;
- const {key,u}=rec,now=Date.now();estimateActiveTime(u,now);
+ const {key,u}=rec,now=Date.now();const today=loyaltyDay(now);if(u.daily?.day!==today)u.daily={day:today,score:0,stats:{minutes:0,comments:0,shares:0,likes:0,subs:0,follows:0,gifts:0,raids:0,support:0}};estimateActiveTime(u,now);
  const day=loyaltyDay(now);if(u.lastDay!==day){u.lastDay=day;u.activeDays=(Number(u.activeDays)||0)+1;loyaltyAdd(u,10);}
  const runtimeKey=`${p}:${key}`,rt=loyaltyRuntime.get(runtimeKey)||{lastCommentAt:0,lastText:'',lastLikeAt:0};
  let awarded=0;
@@ -636,7 +637,7 @@ function recordLoyaltyEvent(evt={}){
   const same=text&&text===rt.lastText&&now-rt.lastCommentAt<120000;
   if(text&&!same&&now-rt.lastCommentAt>=18000){awarded+=loyaltyAdd(u,2.5,'comments',1);rt.lastCommentAt=now;rt.lastText=text}
  }else if(kind==='like'){
-  const n=Math.max(1,Number(evt.amount??evt.likes??1)||1);u.stats.likes=(Number(u.stats.likes)||0)+n;
+  const n=Math.max(1,Number(evt.amount??evt.likes??1)||1);u.stats.likes=(Number(u.stats.likes)||0)+n;u.daily.stats.likes=(Number(u.daily.stats.likes)||0)+n;
   // Rendimiento decreciente: 1 tap casi no pesa; una ráfaga grande suma, pero no domina el ranking.
   awarded+=loyaltyAdd(u,Math.min(8,0.28*Math.sqrt(n)), '',0);rt.lastLikeAt=now;
  }else if(kind==='share'){awarded+=loyaltyAdd(u,12,'shares',1)}
@@ -645,7 +646,7 @@ function recordLoyaltyEvent(evt={}){
  else if(kind==='gift'||kind==='cheer'||kind==='support'){
   const count=Math.max(1,Number(evt.count)||1),value=Math.max(0,Number(evt.value??evt.totalDiamonds??evt.bits??evt.amount??0)||0);
   let pts=value>0?10+Math.min(80,4*Math.sqrt(value)):18+Math.min(50,count*8);
-  awarded+=loyaltyAdd(u,pts,'gifts',count);u.stats.support=(Number(u.stats.support)||0)+value;
+  awarded+=loyaltyAdd(u,pts,'gifts',count);u.stats.support=(Number(u.stats.support)||0)+value;u.daily.stats.support=(Number(u.daily.stats.support)||0)+value;
  }else if(kind==='raid'){
   const viewers=Math.max(0,Number(evt.viewers)||0);awarded+=loyaltyAdd(u,20+Math.min(80,3*Math.sqrt(viewers)),'raids',1)
  }else if(kind==='join'||kind==='presence'){awarded+=0}
