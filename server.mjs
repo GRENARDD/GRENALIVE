@@ -656,7 +656,7 @@ const bridgeSignals={
  youtube:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}},
  starvios:{lastSeenAt:0,lastEventAt:0,lastKind:'',counts:{}}
 };
-function bridgeKey(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube','starvios'].includes(p)?p:''}
+function bridgeKey(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube'].includes(p)?p:''}
 function noteBridgeSignal(platform,kind,meta={}){
  const p=bridgeKey(platform);if(!p)return;
  const s=bridgeSignals[p],k=String(kind||'signal').toLowerCase(),now=Date.now();
@@ -2367,7 +2367,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/internal/status'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;
   let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
-  if(!['tiktok','twitch','kick','youtube','starvios'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
+  if(!['tiktok','twitch','kick','youtube'].includes(body.platform))return json(res,400,{ok:false,error:'Plataforma no válida'});
   const p=body.platform,wasConnected=!!bridgeRuntime[p],label=String(body.label||'');
   bridgeRuntime[p]=!!body.connected;
   if(p==='kick')console.log('[KICK BRIDGE]',JSON.stringify({connected:!!body.connected,label,account:String(body.account||''),source:String(body.source||'')}));
@@ -2719,7 +2719,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
- const interactive=new Set(['/','/index.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/license.html','/license-admin.html']);
+ const interactive=new Set(['/','/index.html','/live-panel.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/license.html','/license-admin.html']);
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);if(!su){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
