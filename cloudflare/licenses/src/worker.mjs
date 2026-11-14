@@ -1,4 +1,5 @@
 import {publicUpdates,adminUpdates} from './updates.mjs';
+import {dynamicsRequest} from './dynamics.mjs';
 // GREÑA Live PRO — Cloudflare Worker + D1.
 // Only account identity, status and licensing metadata are stored here.
 const DAY=86400000, ONLINE=135000, SESSION_AGE=90*DAY, MAX_DAYS=3650;
@@ -160,6 +161,10 @@ async function handle(req,env){
    try{await fishCipherKey(env);fishCredentialsReady=true}catch{}
    return json({ok:failed.length===0,service:'GREÑA Licencias Cloudflare D1',
      databaseReady:failed.length===0,fishCredentialsReady,failedChecks:failed},failed.length?503:200);
+ }
+ if(path.startsWith('/api/dynamics/rooms')){
+   const user=await sessionUser(env,req);
+   return dynamicsRequest(req,env,user);
  }
  if(path==='/api/license/community'&&req.method==='GET'){
    const u=await sessionUser(env,req);
