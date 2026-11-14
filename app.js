@@ -41,37 +41,7 @@ $('testOptionAStyle')?.addEventListener('click',()=>sendAlert({alertStyle:'optio
 loadAlertStyle();
 document.querySelectorAll('[data-event]').forEach(b=>b.addEventListener('click',()=>{const ev=b.dataset.event,platform=b.dataset.platform;$('eventType').value=ev;design=normalizeDesign(eventDesigns[ev]||{},ev);$('editMessage').value=design.message||eventMessages[ev]||'¡Gracias por el apoyo!';$('soundEnabled').checked=design.soundEnabled!==false;updatePreview();const sample={event:ev,title:titles[ev],platform,name:'USUARIO_PRUEBA',sound:design.sound,soundName:design.soundName,soundProfileVersion:SOUND_PROFILE_VERSION,soundEnabled:design.soundEnabled};if(ev==='gift'&&platform==='TikTok')Object.assign(sample,{giftName:'Rosa',giftKind:'tiktok-gift',count:5,unitDiamonds:1,totalDiamonds:5,action:'envió Rosa × 5 · 5 diamantes'});if(ev==='gift'&&platform==='Twitch')Object.assign(sample,{giftName:'Suscripciones regaladas · Tier 1',giftKind:'subscription',count:5,tier:'Tier 1',action:'regaló 5 suscripciones · Tier 1'});if(ev==='gift'&&platform==='Kick')Object.assign(sample,{giftName:'Rage Quit',giftKind:'kicks',amount:500,kickGiftTier:'MID',action:'envió Rage Quit · 500 KICKs'});if(ev==='cheer'&&platform==='Twitch')Object.assign(sample,{bits:500,giftName:'Bits',giftKind:'bits',action:'envió 500 Bits'});sendAlert(sample)}));
 
-// StarVios has seven real-event categories but the OBS renderer uses four
-// standard templates: follow, sub, gift and raid. Keep demos separate from
-// saved editor draft, so testing a StarVios gift cannot overwrite a follow design.
-const starviosDemoSpecs={
- follow:{event:'follow',eventKind:'follow',giftKind:'follow',action:'siguió el canal',giftImage:'/assets/starvios-events/follow.svg'},
- sub:{event:'sub',eventKind:'sub',giftKind:'sub',action:'se suscribió',giftImage:'/assets/starvios-events/sub.svg'},
- subrenew:{event:'sub',eventKind:'subrenew',giftKind:'subrenew',action:'renovó su suscripción',giftImage:'/assets/starvios-events/sub.svg',eventLabel:'RENOVÓ SUSCRIPCIÓN'},
- giftsub:{event:'gift',eventKind:'giftsub',giftKind:'giftsub',giftName:'Suscripciones regaladas',count:3,action:'regaló 3 suscripciones',giftImage:'/assets/starvios-events/giftsub.svg',eventLabel:'SUBS REGALADAS'},
- gift:{event:'gift',eventKind:'gift',giftKind:'gift',giftName:'Starvies',amount:100,action:'donó 100 Starvies',giftImage:'/assets/starvios-events/starvies.svg'},
- raid:{event:'raid',eventKind:'raid',giftKind:'raid',viewers:25,action:'envió una raid con 25 espectadores',giftImage:'/assets/starvios-events/raid.svg'},
- shower:{event:'gift',eventKind:'shower',giftKind:'shower',giftName:'Lluvia de Estrellas',level:3,action:'activó Lluvia de Estrellas',giftImage:'/assets/starvios-events/shower.svg',eventLabel:'LLUVIA DE ESTRELLAS'}
-};
-async function starviosDemo(kind,button){
- const spec=starviosDemoSpecs[kind];if(!spec)return;
- const wasDisabled=button.disabled;button.disabled=true;
- try{
-  const payload={platform:'Starvios',name:'USUARIO_PRUEBA',...spec};
-  const response=await fetch('/api/alert',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
-  if(!response.ok)throw Error('HTTP '+response.status);
-  toast('Prueba StarVios enviada a OBS. Esto NO simula un evento real.');
- }catch(error){toast('No se pudo enviar la prueba de StarVios: '+String(error.message||error).slice(0,80))}
- finally{button.disabled=wasDisabled}
-}
-document.querySelectorAll('[data-sv-kind]').forEach(button=>button.addEventListener('click',()=>starviosDemo(button.dataset.svKind,button)));
-document.querySelectorAll('[data-sv-edit]').forEach(button=>button.addEventListener('click',()=>{
- const kind=button.dataset.svEdit;
- const editorButton=document.querySelector('[data-alert-event="'+kind+'"]');
- if(editorButton)editorButton.click();
- activatePage('editor');
- toast('Editando '+(eventLabels[kind]||kind)+' · diseño compartido con las demás plataformas');
-}));
+
 
 ['eventType','editName','editMessage','theme','accent','accent2','duration','nameSize','soundEnabled','animation'].forEach(id=>$(id).addEventListener('input',updatePreview));
 ['layerX','layerY','layerW','layerFont','layerOpacity','layerAnim'].forEach(id=>$(id)?.addEventListener('input',editSelected));
@@ -138,7 +108,7 @@ $('testAIResult').onclick=()=>{if(!$('applyConcept').dataset.concept)return;cons
 fetch('/api/designs',{cache:'no-store'}).then(r=>r.json()).then(d=>{if(d.designs){eventDesigns={...eventDesigns,...d.designs};for(const [key,val] of Object.entries(eventDesigns))eventDesigns[key]=normalizeDesign(val,key);const ev=$('eventType').value;if(eventDesigns[ev]){design=normalizeDesign(eventDesigns[ev],ev);$('editName').value=design.name||'USUARIO_PRUEBA';$('editMessage').value=design.message||eventMessages[ev]||'';$('theme').value=design.theme||'Gaming neón';$('accent').value=design.accent||'#a855f7';$('accent2').value=design.accent2||'#22d3ee';$('duration').value=design.duration||6;$('nameSize').value=design.nameSize||30;$('animation').value=design.animation||'pop';$('soundEnabled').checked=design.soundEnabled!==false;updatePreview()}}}).catch(()=>{});
 const wsStatus=$('serverStatus');const obsStatus=$('obsConnection');let statusSocket=null,statusRetry=null;function checkSocket(){clearTimeout(statusRetry);try{if(statusSocket&&statusSocket.readyState===WebSocket.OPEN)statusSocket.close()}catch{}const ws=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}`);statusSocket=ws;ws.onopen=()=>{wsStatus.textContent='Servidor local conectado';obsStatus.textContent='Enlace local activo'};ws.onmessage=e=>{try{const d=JSON.parse(e.data);if((d.type==='hello'||d.type==='platform-status')&&d.status)renderPlatformStatus(d.status,d.eventHealth||{});if(d.type==='event-health')refreshPlatformStatus();if(d.type==='activity'&&d.activity)addActivity(d.activity)}catch{}};ws.onerror=()=>{wsStatus.textContent='Servidor local no disponible';obsStatus.textContent='No se detecta el servidor';try{ws.close()}catch{}};ws.onclose=()=>{wsStatus.textContent='Reconectando servidor…';obsStatus.textContent='Reconectando enlace local…';statusRetry=setTimeout(checkSocket,1500)}}checkSocket();design.layers=baseLayers();updatePreview();
 // ===== CUENTAS CONECTADAS: TikTok + Twitch + Kick =====
-const platformEls={tiktok:$('tiktokStatus'),twitch:$('twitchStatus'),kick:$('kickStatus'),starvios:$('starviosStatus')};
+const platformEls={tiktok:$('tiktokStatus'),twitch:$('twitchStatus'),kick:$('kickStatus'),};
 let lastAlertEventHealth={};
 function renderPlatformStatus(st={},health=null){
  if(health&&Object.keys(health).length)lastAlertEventHealth=health;
