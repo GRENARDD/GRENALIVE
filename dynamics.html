@@ -35,10 +35,10 @@ code{color:#afd9ff}label{font-size:14px;color:#c5d4e7}
 <p>La prueba no publica un follow real en ninguna plataforma.</p>
 </section>
 <section><h2>Jugar con amigos</h2>
-<p>Sala GREÑA ID local: <code id="room">—</code></p>
+<p>Sala local de pruebas: <code id="room">—</code></p><p>Sala GREÑA ID central: <code id="centralRoom">Sin conectar</code></p>
 <label>GREÑA ID de tu amigo<input id="friend" placeholder="Usuario GREÑA ID"></label>
-<button id="invite">Preparar invitación</button>
-<p id="inviteResult">Las invitaciones entre diferentes PC requieren el servicio compartido de GREÑA ID. Esta pantalla todavía no envía avisos remotos.</p>
+<button id="invite">Enviar invitación a GREÑA ID</button>
+<p id="inviteResult">Este sistema requiere que el Worker central de GREÑA ID tenga desplegadas las rutas de salas. Ninguna invitación se confirma si el servidor no la recibe.</p>
 <div id="invitations" aria-live="polite"></div>
 </section>
 <section><h2>Votación activa</h2>
@@ -51,11 +51,44 @@ code{color:#afd9ff}label{font-size:14px;color:#c5d4e7}
 <p id="error" aria-live="polite"></p>
 <script>
 const $=id=>document.getElementById(id);
-let snapshot=null,testing=0,updating=false;
+let snapshot=null,testing=0,updating=false,centralRoomId=null,centralReady=false;
 async function request(action,data={}){
  const response=await fetch('/api/dynamics/minecraft',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});
  const json=await response.json();if(!response.ok||!json.ok)throw Error(json.error||'Operación fallida');return json;
 }
+
+async function central(path,method='GET',data){
+ const response=await fetch('/api/dynamics/central'+path,{method,credentials:'same-origin',headers:{'content-type':'application/json'},body:method==='POST'?JSON.stringify(data||{}):undefined,cache:'no-store'});
+ const result=await response.json().catch(()=>({}));
+ if(!response.ok||!result.ok)throw Error(result.error||'GREÑA ID central no disponible');
+ return result;
+}
+async function refreshCentral(){
+ const inbox=$('invitations');
+ try{
+  const [rooms,invites]=await Promise.all([central('/rooms'),central('/rooms/inbox')]);
+  centralReady=true;
+  const first=(rooms.rooms||[])[0];centralRoomId=first?.id||null;
+  $('centralRoom').textContent=centralRoomId||'Sin sala creada';
+  inbox.replaceChildren();
+  for(const invite of invites.invitations||[]){
+   const card=document.createElement('div');card.style.marginTop='14px';
+   const info=document.createElement('p');info.textContent='Invitación recibida de '+invite.sender_id;
+   const yes=document.createElement('button');yes.textContent='Aceptar';
+   const no=document.createElement('button');no.textContent='Rechazar';no.style.marginLeft='8px';
+   yes.onclick=()=>run(async()=>{await central('/rooms/respond','POST',{invitationId:invite.id,accept:true});await refreshCentral()});
+   no.onclick=()=>run(async()=>{await central('/rooms/respond','POST',{invitationId:invite.id,accept:false});await refreshCentral()});
+   card.append(info,yes,no);inbox.append(card);
+  }
+  $('inviteResult').textContent='Conectado al servicio de invitaciones de GREÑA ID. Las salas todavía requieren sincronización de eventos para jugar en vivo desde dos PC.';
+ }catch(e){
+  centralReady=false;
+  $('centralRoom').textContent='Servicio no disponible';
+  $('inviteResult').textContent='No hay servicio central operativo: '+e.message;
+  inbox.replaceChildren();
+ }
+}
+
 async function refresh(){
  if(updating)return;updating=true;
  try{
@@ -63,16 +96,6 @@ async function refresh(){
   if(!r.ok||!d.ok)throw Error(d.error||'No se puede consultar GREÑA Live');
   snapshot=d;$('enabled').checked=!!d.enabled;$('state').textContent=d.enabled?'ACTIVADA':'DESACTIVADA';
   $('room').textContent=d.room.id;$('queue').textContent='Cola: '+d.room.queue;
-  const inbox=$('invitations');inbox.replaceChildren();
-  (d.invitations||[]).forEach(inv=>{
-    const item=document.createElement('div');item.style.marginTop='12px';
-    const label=document.createElement('p');label.textContent='Invitación de '+inv.fromId;
-    const yes=document.createElement('button');yes.textContent='Aceptar';
-    const no=document.createElement('button');no.textContent='Rechazar';no.style.marginLeft='8px';
-    yes.onclick=()=>run(()=>request('respond',{invitationId:inv.id,accept:true}));
-    no.onclick=()=>run(()=>request('respond',{invitationId:inv.id,accept:false}));
-    item.append(label,yes,no);inbox.append(item);
-  });
 
   const a=d.room.active;
   if(!a){$('voting').textContent='No hay votación activa';$('timer').textContent='';$('progress').style.width='0%'}
@@ -90,6 +113,15 @@ $('enabled').addEventListener('change',e=>run(()=>request('enable',{enabled:e.ta
 $('follow').onclick=()=>run(()=>request('test-follow',{name:$('name').value,platform:$('platform').value}));
 $('voteA').onclick=()=>run(()=>request('test-vote',{vote:'A',platform:$('platform').value,userId:++testing}));
 $('voteB').onclick=()=>run(()=>request('test-vote',{vote:'B',platform:$('platform').value,userId:++testing}));
-$('invite').onclick=()=>run(async()=>{const r=await request('invite',{friendId:$('friend').value});$('inviteResult').textContent='Invitación local '+r.value.id+' creada. Falta el servicio remoto para que tu amigo la reciba en otra PC.'});
-refresh();setInterval(refresh,1000);
+$('invite').onclick=()=>run(async()=>{
+ const friend=$('friend').value.trim();
+ if(!/^[A-Za-z0-9_.-]{2,80}$/.test(friend))throw Error('Introduce un GREÑA ID válido');
+ if(!centralRoomId){
+   const r=await central('/rooms','POST',{});centralRoomId=r.roomId;
+ }
+ const result=await central('/rooms/invite','POST',{roomId:centralRoomId,toId:friend});
+ $('inviteResult').textContent='Invitación recibida por GREÑA ID central. Número: '+result.invitationId+'. La persona debe aceptarla desde su aplicación.';
+ await refreshCentral();
+});
+refresh();refreshCentral();setInterval(refresh,1000);setInterval(refreshCentral,10000);
 </script></body></html>
