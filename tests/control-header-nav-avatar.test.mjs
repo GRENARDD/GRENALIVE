@@ -23,3 +23,15 @@ test('only one image exists inside the large account avatar',()=>{
  assert.match(js,/av\.style\.backgroundImage=d/);
  assert.match(css,/width:46px!important;height:46px!important/);
 });
+
+test('official v5.1.27 release gate is not the PR preview artifact',()=>{
+ const workflow=file('.github/workflows/grena-desktop-from-kit.yml');
+ const release=file('.github/workflows/grena-release-v5127.yml');
+ const upgrade=file('desktop-build/verify-upgrade-5117-to-5127.ps1');
+ assert.match(workflow,/Set official 5\.1\.27 version on main/);
+ assert.match(workflow,/GRENA-LIVE-Installer-Windows-v5\.1\.27/);
+ assert.match(workflow,/verify-upgrade-5117-to-5127\.ps1/);
+ assert.match(release,/Publish official v5\.1\.27 release/);
+ assert.match(release,/Verify production GREÑA ID Worker has secure shared rooms/);
+ assert.match(upgrade,/\$newVersion='5\.1\.27'/);
+});
