@@ -25,9 +25,10 @@ IsLiveRouteConfig.skipFetchRoomIdFromEulerRoute = true;
 
 const CLOUD_MODE=process.env.GRENA_CLOUD==='1';
 const MOBILE_LAN_ENABLED=!CLOUD_MODE&&process.env.GRENA_MOBILE_LAN==='1';
+let mobileLanActive=MOBILE_LAN_ENABLED,mobileGateway=null;
 const LAN_IPV4=[...Object.values(networkInterfaces()).flat()].filter(x=>x&&x.family==='IPv4'&&!x.internal).map(x=>x.address);
-const MOBILE_HOSTS=new Set(LAN_IPV4.map(ip=>ip+':'+Number(process.env.PORT||8787)));
-const MOBILE_ORIGINS=new Set(LAN_IPV4.map(ip=>'http://'+ip+':'+Number(process.env.PORT||8787)));
+const MOBILE_HOSTS=new Set(LAN_IPV4.flatMap(ip=>[ip+':'+Number(process.env.PORT||8787),ip+':'+(Number(process.env.PORT||8787)+1)]));
+const MOBILE_ORIGINS=new Set(LAN_IPV4.flatMap(ip=>['http://'+ip+':'+Number(process.env.PORT||8787),'http://'+ip+':'+(Number(process.env.PORT||8787)+1)]));
 
 const HOST=process.env.HOST||(CLOUD_MODE||MOBILE_LAN_ENABLED?'0.0.0.0':'127.0.0.1'), PORT=Number(process.env.PORT||8787), APP_ROOT=dirname(fileURLToPath(import.meta.url)), ROOT=APP_ROOT;
 const PUBLIC_URL=String(process.env.GRENA_PUBLIC_URL||(process.env.RAILWAY_PUBLIC_DOMAIN?`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`:'')).trim().replace(/\/$/,'');
@@ -84,7 +85,7 @@ const LOCAL_ORIGINS=new Set([`http://127.0.0.1:${PORT}`,`http://localhost:${PORT
 if(PUBLIC_URL)LOCAL_ORIGINS.add(PUBLIC_URL);
 function requestHost(req){return String(req?.headers?.['x-forwarded-host']||req?.headers?.host||'').split(',')[0].trim().toLowerCase()}
 function sameOriginRequest(req,origin){if(!origin)return true;try{return new URL(String(origin)).host.toLowerCase()===requestHost(req)}catch{return false}}
-function localOriginOk(origin,req){return CLOUD_MODE?sameOriginRequest(req,origin):(!origin||LOCAL_ORIGINS.has(origin))}
+function localOriginOk(origin,req){return CLOUD_MODE?sameOriginRequest(req,origin):(!origin||LOCAL_ORIGINS.has(origin)||(mobileLanActive&&MOBILE_ORIGINS.has(origin)))}
 const STATIC_EXT=new Set(['.html','.css','.js','.png','.jpg','.jpeg','.webp','.gif','.svg','.ico','.mp3','.wav','.ogg','.woff','.woff2','.ttf','.webmanifest']);
 // Lista blanca: solo archivos de la raíz con extensión web, o cualquier cosa dentro de /assets.
 function resolveStaticFile(pathname){
@@ -1989,10 +1990,11 @@ const PUBLIC_POST=new Set(['/api/mobile/pair/consume','/api/account/register','/
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
 const MOBILE_PAIRS=new Map();
 const mobilePairRate=new Map();
-function mobileShareBase(){return PUBLIC_URL||((MOBILE_LAN_ENABLED&&LAN_IPV4[0])?'http://'+LAN_IPV4[0]+':'+PORT:'http://127.0.0.1:'+PORT)}
-function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):(LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())||(MOBILE_LAN_ENABLED&&MOBILE_HOSTS.has(String(req.headers.host||'').toLowerCase())))}
+function mobileShareBase(){return PUBLIC_URL||((mobileLanActive&&LAN_IPV4[0])?'http://'+LAN_IPV4[0]+':'+(mobileGateway?PORT+1:PORT):'http://127.0.0.1:'+PORT)}
+async function enableMobileLanGateway(){if(CLOUD_MODE)return;if(mobileLanActive)return;if(!LAN_IPV4.length)throw Error('Esta PC no tiene IP local WiFi/Ethernet disponible.');const gw=http.createServer((req,res)=>server.emit('request',req,res));gw.on('upgrade',(req,socket,head)=>server.emit('upgrade',req,socket,head));await new Promise((resolve,reject)=>{gw.once('error',reject);gw.listen(PORT+1,'0.0.0.0',()=>{gw.off('error',reject);resolve()})});mobileGateway=gw;mobileLanActive=true;}
+function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):(LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())||(mobileLanActive&&MOBILE_HOSTS.has(String(req.headers.host||'').toLowerCase())))}
 // Un navegador siempre envía Origin en un POST entre sitios; sin Origin = cliente no-navegador (curl, puente interno).
-function panelOriginOk(req){const o=req.headers.origin;if(CLOUD_MODE){if(o!==undefined&&!sameOriginRequest(req,o))return false}else if(o!==undefined&&!(LOCAL_ORIGINS.has(String(o))||(MOBILE_LAN_ENABLED&&MOBILE_ORIGINS.has(String(o)))))return false;const sfs=String(req.headers['sec-fetch-site']||'').toLowerCase();if(sfs&&!['same-origin','same-site','none'].includes(sfs))return false;return true}
+function panelOriginOk(req){const o=req.headers.origin;if(CLOUD_MODE){if(o!==undefined&&!sameOriginRequest(req,o))return false}else if(o!==undefined&&!(LOCAL_ORIGINS.has(String(o))||(mobileLanActive&&MOBILE_ORIGINS.has(String(o)))))return false;const sfs=String(req.headers['sec-fetch-site']||'').toLowerCase();if(sfs&&!['same-origin','same-site','none'].includes(sfs))return false;return true}
 // Devuelve true si la petición puede continuar; si no, ya respondió y devuelve false.
 function panelGuard(req,res,pathname){
   const method=req.method||'GET';
@@ -2152,13 +2154,20 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/app/window-heartbeat'&&req.method==='POST'){appWindowHeartbeat();return json(res,200,{ok:true});}
  if(pathname==='/api/app/window-closing'&&req.method==='POST'){appWindowClosing();return json(res,200,{ok:true});}
  if(pathname==='/api/app/exit'&&req.method==='POST'){if(CLOUD_MODE)return json(res,200,{ok:true,message:'GREÑA Web continúa en línea. Usa Cerrar sesión para salir de tu cuenta.'});json(res,200,{ok:true,message:'Cerrando GREÑA LIVE PRO…'});setTimeout(()=>requestFullShutdown('boton-salir-de-grena'),120);return;}
+ if(pathname==='/api/mobile/lan/enable'&&req.method==='POST'){
+   if(CLOUD_MODE)return json(res,400,{ok:false,error:'La versión pública ya utiliza HTTPS.'});
+   if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'});
+   if(!['127.0.0.1','::1','::ffff:127.0.0.1'].includes(String(req.socket.remoteAddress||'')))return json(res,403,{ok:false,error:'Activa la red local únicamente desde la PC.'});
+   try{await enableMobileLanGateway();return json(res,200,{ok:true,url:mobileShareBase()})}
+   catch(error){return json(res,500,{ok:false,error:String(error?.message||error)})}
+ }
  if(pathname==='/api/mobile/pair/create'&&req.method==='POST'){
    const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Entra en GREÑA Desktop para vincular un móvil.'});
    const token=randomBytes(32).toString('base64url'),id=sessionHash(token),expiresAt=Date.now()+120000;
    for(const [k,v] of MOBILE_PAIRS)if(v.expiresAt<Date.now()||v.userId===owner.id)MOBILE_PAIRS.delete(k);
    MOBILE_PAIRS.set(id,{userId:owner.id,expiresAt});
    const base=mobileShareBase();
-   return json(res,200,{ok:true,expiresAt,installationUrl:base+'/mobile.html',pairUrl:base+'/mobile.html?pair='+encodeURIComponent(token),lanEnabled:MOBILE_LAN_ENABLED,publicAccess:!!PUBLIC_URL});
+   return json(res,200,{ok:true,expiresAt,installationUrl:base+'/mobile.html',pairUrl:base+'/mobile.html?pair='+encodeURIComponent(token),lanEnabled:mobileLanActive,publicAccess:!!PUBLIC_URL});
  }
  if(pathname==='/api/mobile/pair/consume'&&req.method==='POST')return withAccountTransition(async()=>{
    const peer=String(req.socket.remoteAddress||'').slice(0,100);const now=Date.now();
@@ -2813,6 +2822,7 @@ chatProxyWss.on('connection',(client)=>{
 server.on('upgrade',async(req,socket,head)=>{
   let pathname='/';try{pathname=new URL(req.url||'/','http://127.0.0.1').pathname}catch{return socket.destroy()}
   if(!panelHostOk(req)||!localOriginOk(req.headers.origin,req))return socket.destroy();
+  if(mobileLanActive&&MOBILE_HOSTS.has(String(req.headers.host||'').toLowerCase())&&!sessionUser(req)&&!obsAuthorized(req))return socket.destroy();
   if(!CLOUD_MODE&&process.env.GRENA_LICENSE_REQUIRE==='1'&&activeUserId){
     try{if(!await licensing.canUse(activeUserId))return socket.destroy()}catch{return socket.destroy()}
   }
