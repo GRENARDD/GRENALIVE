@@ -133,6 +133,12 @@ function renderPlatformStatus(st={},health=null){
 }
 async function refreshPlatformStatus(){try{const r=await fetch('/api/status',{cache:'no-store'}),d=await r.json();renderPlatformStatus(d.status,d.eventHealth||{});document.querySelectorAll('.oauth-login').forEach(b=>{const p=b.dataset.platform;b.title=d.oauthConfigured&&d.oauthConfigured[p]===false?'La conexión de esta plataforma todavía no está disponible':''})}catch{}}
 async function ensurePlatformConfigured(platform){
+ if(platform==='youtube'){
+  const r=await fetch('/api/youtube/diagnostic',{cache:'no-store'});
+  const d=await r.json().catch(()=>({}));
+  if(d.brokerEnabled)return true;
+  toast(d.workerError||'YouTube OAuth no está habilitado en GREÑA Auth.');return false;
+ }
  const st=await fetch('/api/status',{cache:'no-store'}).then(r=>r.json());
  if(st.oauthConfigured?.[platform]!==false)return true;
  const msg=st.authService?.configured?(st.authService?.lastError||'Esta plataforma todavía no está disponible.'):'El servicio de conexión todavía no está disponible.';
