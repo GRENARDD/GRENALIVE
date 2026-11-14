@@ -72,3 +72,9 @@ test('YouTube membership gifts, milestones and jewels are normalized for real al
  assert.match(chat,/bridgeEventId:stableId/);
  assert.match(chat,/action:detail/);
 });
+
+test('Event health reports live YouTube chat events and true viewer source',()=>{
+ assert.match(server,/youtube:\{account:ps\.youtube\?\.authenticated/);
+ assert.match(server,/diagnostics:sig\('youtube'\),viewerSource:/);
+ assert.match(chat,/bridgeViewers\('youtube',known\.reduce/);
+});
