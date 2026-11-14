@@ -285,7 +285,7 @@ jobs:
         run: |
           node --check cloudflare/licenses/src/dynamics.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          foreach ($path in @('dynamics.html','dynamics/questions.mjs','dynamics/shared-rooms.mjs')) {
+          foreach ($path in @('dynamics.html','dynamics/questions.mjs','dynamics/shared-rooms.mjs','dynamics/bedrock-websocket.mjs')) {
             if (!(Test-Path (Join-Path 'dist/win-unpacked/resources/app' $path))) {
               throw "Missing Minecraft dynamics packaged file: $path"
             }
