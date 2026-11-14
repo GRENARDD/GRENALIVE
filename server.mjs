@@ -693,6 +693,35 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
    }
  },500);
  minecraftDynamicsTicker.unref?.();
+
+ // Bring the shared result feed from Cloudflare back to the local Minecraft bridge.
+ const minecraftRemoteSeen=new Map();
+ let minecraftRemoteSyncBusy=false;
+ const minecraftRemoteTicker=setInterval(async()=>{
+   if(minecraftRemoteSyncBusy||!activeUserId||!minecraftSettings.get(activeUserId)?.enabled)return;
+   minecraftRemoteSyncBusy=true;
+   try{
+     const roomId=await minecraftCentralRoom(activeUserId);if(!roomId)return;
+     const data=await licensing.requestDynamics(activeUserId,'/api/dynamics/rooms/'+roomId);
+     for(const event of (data.events||[]).slice().reverse()){
+       if(!event?.id||minecraftRemoteSeen.has(event.id))continue;
+       minecraftRemoteSeen.set(event.id,Date.now());
+       if(Date.now()-Number(event.created_at)>60000)continue;
+       const p=event.payload||{};
+       if(event.event_type==='vote_open'){
+         minecraftQueueEvent('vote_open',{roomId,user:p.followerName||'Seguidor',platform:p.platform,pregunta:p.questionId,duration:Math.max(1,Math.ceil((Number(p.endsAt)-Date.now())/1000)),challengeId:p.challengeId});
+       }else if(event.event_type==='voted_result'){
+         minecraftQueueEvent('voted_result',{roomId,user:p.followerName||'Seguidor',platform:p.platform,pregunta:p.questionId,choice:p.choice,a:p.a,b:p.b,challengeId:p.challengeId});
+       }
+     }
+     if(minecraftRemoteSeen.size>400){
+       for(const [id,t] of minecraftRemoteSeen)if(Date.now()-t>180000)minecraftRemoteSeen.delete(id);
+     }
+   }catch(e){/* Remote offline: keep the local UI available without mutating licenses. */}
+   finally{minecraftRemoteSyncBusy=false}
+ },2500);
+ minecraftRemoteTicker.unref?.();
+
  
 
 // ===== GREÑA FIDELIDAD =====
