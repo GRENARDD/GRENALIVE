@@ -105,5 +105,6 @@ jobs:
 
           Se mantienen las funciones de GREÑA Live v5.1.25. Windows SmartScreen puede advertir
           si el instalador no está firmado. Se requiere GREÑA ID vinculado y Worker central activo.
-          EOF          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.5.1.26.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
+          EOF
+          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.5.1.26.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" --title "GREÑA Live Desktop v$VERSION" --notes-file release-notes.md
