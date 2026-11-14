@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GREÑA Live · Dinámicas</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:#0b101a;color:#eaf2ff}
+*{box-sizing:border-box}body{margin:0;max-width:1120px;padding:26px 18px 60px;margin-inline:auto}
+a{color:#afdaff}h1{margin:0 0 8px;font-size:30px}h2{font-size:18px;margin:0 0 14px}
+p,small{color:#9cabbf}nav{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:25px}
+nav a{text-decoration:none}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+section{background:#161e2d;border:1px solid #34405a;border-radius:17px;padding:20px}
+button,input,select{font:inherit;border-radius:9px;border:1px solid #42516a;padding:10px 12px;background:#101726;color:#eef3fb}
+button{cursor:pointer;background:#2755ae;border-color:#4180d7;font-weight:700}
+button:hover{filter:brightness(1.15)}button:disabled{opacity:.5;cursor:not-allowed}
+input{width:100%;margin:6px 0 10px}.line{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.stack{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.badge{padding:5px 9px;background:#29445b;border-radius:20px;font-size:12px}
+#state{font-size:13px;color:#c5d4ef}#error{color:#ffc2b1;white-space:pre-wrap}
+.bars{height:11px;background:#354152;border-radius:8px;overflow:hidden;margin-top:8px}
+#progress{height:100%;width:0;background:#6db8ff;transition:width .15s}
+code{color:#afd9ff}label{font-size:14px;color:#c5d4e7}
+</style></head><body>
+<nav><a href="/">← GREÑA Live</a><span class="badge">Dinámicas · Desarrollo</span></nav>
+<h1>🎮 ¿Qué prefieres en Minecraft?</h1>
+<p>Tu chat decide A o B cuando recibes un follow. Los desafíos compartidos todavía requieren configurar un servidor y puente Minecraft compatible.</p>
+<div class="grid">
+<section><h2>Control de la dinámica</h2>
+<div class="line"><div><b>Recibir nuevos retos</b><p>Interruptor por GREÑA ID</p></div><input id="enabled" type="checkbox" style="width:25px;height:25px"></div>
+<div class="line"><span id="state">Cargando estado…</span><span id="queue" class="badge">Cola: —</span></div>
+<p>Cuando está apagado, no se aceptan nuevos follows ni votos para este perfil.</p>
+</section>
+<section><h2>Pruebas internas (sin LIVE)</h2>
+<label>Nombre del seguidor falso<input id="name" value="PedroRD" maxlength="64"></label>
+<label>Plataforma<select id="platform"><option>TikTok</option><option>Twitch</option><option>Kick</option><option>YouTube</option></select></label>
+<div class="stack"><button id="follow">Simular follow</button><button id="voteA">Voto A</button><button id="voteB">Voto B</button></div>
+<p>La prueba no publica un follow real en ninguna plataforma.</p>
+</section>
+<section><h2>Jugar con amigos</h2>
+<p>Sala GREÑA ID local: <code id="room">—</code></p>
+<label>GREÑA ID de tu amigo<input id="friend" placeholder="Usuario GREÑA ID"></label>
+<button id="invite">Preparar invitación</button>
+<p id="inviteResult">Las invitaciones entre diferentes PC requieren el servicio compartido de GREÑA ID. Esta pantalla todavía no envía avisos remotos.</p>
+</section>
+<section><h2>Votación activa</h2>
+<div id="voting">Todavía no hay preguntas activas.</div>
+<div class="bars"><div id="progress"></div></div>
+<p id="timer"></p>
+<h2>Resultados recientes</h2><div id="results">—</div>
+</section>
+</div>
+<p id="error" aria-live="polite"></p>
+<script>
+const $=id=>document.getElementById(id);
+let snapshot=null,testing=0,updating=false;
+async function request(action,data={}){
+ const response=await fetch('/api/dynamics/minecraft',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});
+ const json=await response.json();if(!response.ok||!json.ok)throw Error(json.error||'Operación fallida');return json;
+}
+async function refresh(){
+ if(updating)return;updating=true;
+ try{
+  const r=await fetch('/api/dynamics/minecraft',{cache:'no-store',credentials:'same-origin'}),d=await r.json();
+  if(!r.ok||!d.ok)throw Error(d.error||'No se puede consultar GREÑA Live');
+  snapshot=d;$('enabled').checked=!!d.enabled;$('state').textContent=d.enabled?'ACTIVADA':'DESACTIVADA';
+  $('room').textContent=d.room.id;$('queue').textContent='Cola: '+d.room.queue;
+  const a=d.room.active;
+  if(!a){$('voting').textContent='No hay votación activa';$('timer').textContent='';$('progress').style.width='0%'}
+  else {
+   const count=a.votes.A+a.votes.B;const percent=count?Math.round(a.votes.A/count*100):50;
+   $('voting').textContent='Pregunta #'+a.questionId+' · Chat de '+a.ownerId+' · A: '+a.votes.A+' votos · B: '+a.votes.B+' votos';
+   $('progress').style.width=percent+'%';$('timer').textContent='Cierra en '+Math.max(0,Math.ceil((a.endsAt-Date.now())/1000))+' s';
+  }
+  $('results').textContent=(d.results||[]).slice(-5).reverse().map(x=>'Pregunta #'+x.questionId+': ganó '+x.winner+' (A '+x.votes.A+' / B '+x.votes.B+')').join(' · ')||'—';
+  $('error').textContent='';
+ }catch(e){$('error').textContent=e.message}finally{updating=false}
+}
+async function run(fn){try{await fn();await refresh()}catch(e){$('error').textContent=e.message}}
+$('enabled').addEventListener('change',e=>run(()=>request('enable',{enabled:e.target.checked})));
+$('follow').onclick=()=>run(()=>request('test-follow',{name:$('name').value,platform:$('platform').value}));
+$('voteA').onclick=()=>run(()=>request('test-vote',{vote:'A',platform:$('platform').value,userId:++testing}));
+$('voteB').onclick=()=>run(()=>request('test-vote',{vote:'B',platform:$('platform').value,userId:++testing}));
+$('invite').onclick=()=>run(async()=>{const r=await request('invite',{friendId:$('friend').value});$('inviteResult').textContent='Invitación local '+r.value.id+' creada. Falta el servicio remoto para que tu amigo la reciba en otra PC.'});
+refresh();setInterval(refresh,1000);
+</script></body></html>
