@@ -113,8 +113,11 @@ export async function dynamicsRequest(req,env,identity){
    const questionA=String(p.optionA||'').slice(0,250),questionB=String(p.optionB||'').slice(0,250);
    if(!questionA||!questionB)return bad('Opciones inválidas');
    const id=uuid(),t=stamp();
-   try{await db.prepare("INSERT INTO dynamics_challenges(id,room_id,streamer_id,source_platform,follower_name,source_event_key,question_id,option_a,option_b,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)").bind(id,room,identity.id,platform,String(p.followerName||'Seguidor').slice(0,64),key,n,questionA,questionB,t).run()}
-   catch(e){if(/UNIQUE|constraint/i.test(String(e)))return ok({duplicate:true});throw e}
+   let inserted;
+   try{
+     inserted=await db.prepare("INSERT INTO dynamics_challenges(id,room_id,streamer_id,source_platform,follower_name,source_event_key,question_id,option_a,option_b,created_at) SELECT ?,?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM dynamics_challenges WHERE room_id=? AND state='queued')<20").bind(id,room,identity.id,platform,String(p.followerName||'Seguidor').slice(0,64),key,n,questionA,questionB,t,room).run();
+   }catch(e){if(/UNIQUE|constraint/i.test(String(e)))return ok({duplicate:true});throw e}
+   if(inserted.meta?.changes!==1)return bad('La cola compartida alcanzó 20 retos pendientes',429);
    await advance(db,room);return ok({accepted:true,challengeId:id});
   }
   if(path==='/api/dynamics/rooms/vote'&&method==='POST'){
