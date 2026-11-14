@@ -17,6 +17,7 @@ button{border:0;border-radius:10px;padding:12px 17px;background:linear-gradient(
 <section class="card"><h2>2. Vincular dispositivo</h2><p class="note">Código exclusivo, de un solo uso y válido durante 2 minutos. Escanéalo con tu teléfono para iniciar sesión.</p><div class="qr" id="pairQr">Genera un QR privado</div><div id="timer">Sin código activo</div><p><button id="pairButton" type="button">Generar QR de vinculación</button></p><div class="link" id="pairLink"></div></section>
 </div>
 <div class="warning" id="networkWarning" hidden></div>
+<p><button id="enableWifi" type="button" hidden>📶 Habilitar acceso por Wi‑Fi local</button></p>
 <p id="feedback" role="status" aria-live="polite"></p>
 </main>
 <script src="/assets/qr-code.min.js"></script>
@@ -26,11 +27,11 @@ let installUrl='',pairUrl='',expiresAt=0,tick;
 function qr(el,url){el.replaceChildren();new QRCode(el,{text:url,width:208,height:208,colorDark:'#111122',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M})}
 function warning(data){
  const p=$('networkWarning');
- if(data.publicAccess){p.hidden=true;return}
- p.hidden=false;
+ if(data.publicAccess){p.hidden=true;$('enableWifi').hidden=true;return}
+ p.hidden=false;$('enableWifi').hidden=!!data.lanEnabled;
  p.textContent=data.lanEnabled
   ?'Acceso local por Wi-Fi: tu teléfono y la PC deben estar en la misma red. Usa una red privada de confianza; para conectarte desde otra red necesitas un enlace HTTPS público y seguro.'
-  :'Tu servidor está limitado a esta PC (127.0.0.1). Estos QR no funcionarán desde el teléfono hasta habilitar acceso de red local con GRENA_MOBILE_LAN=1 y reiniciar GREÑA, o configurar una dirección HTTPS pública segura.';
+   :'Tu servidor está limitado a esta PC. Pulsa Habilitar acceso por Wi-Fi para permitir conexión al teléfono en la misma red privada. Desde otra red necesitarás acceso HTTPS público seguro.';
 }
 async function generate(){
  $('pairButton').disabled=true;$('feedback').textContent='Generando vinculación segura…';
@@ -45,6 +46,14 @@ async function generate(){
  }catch(e){$('feedback').textContent='Error: '+e.message}
  finally{$('pairButton').disabled=false}
 }
+$('enableWifi').onclick=async()=>{
+ if(!confirm('GREÑA abrirá el puerto local para tu teléfono. Úsalo solo en una red Wi-Fi privada y de confianza. ¿Activar?'))return;
+ $('enableWifi').disabled=true;
+ try{const r=await fetch('/api/mobile/lan/enable',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});
+ const d=await r.json();if(!r.ok)throw Error(d.error||'No se pudo abrir la red local');await generate();
+ }catch(e){$('feedback').textContent='No se pudo activar Wi-Fi: '+e.message}
+ finally{$('enableWifi').disabled=false}
+};
 $('copyInstall').onclick=()=>navigator.clipboard.writeText(installUrl).then(()=>$('feedback').textContent='Enlace copiado').catch(()=>$('feedback').textContent=installUrl);
 $('pairButton').onclick=generate;
 generate();
