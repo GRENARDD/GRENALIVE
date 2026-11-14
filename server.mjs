@@ -14,6 +14,7 @@ import { chromium } from 'playwright-core';
 import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
 import {createSharedDynamics} from './dynamics/shared-rooms.mjs';
 import {MINECRAFT_QUESTIONS} from './dynamics/questions.mjs';
+import {makeBedrockClientBridge} from './dynamics/bedrock-websocket.mjs';
 
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 import { makeLicensing } from './grena-licensing.mjs';
@@ -607,10 +608,13 @@ function invalidateUserSessions(userId){for(const [k,v] of Object.entries(sessio
 function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clients)if(ws.readyState===1)ws.send(m)}
  // ===== GREÑA DINÁMICAS (experimental, en esta instancia de servidor) =====
  const minecraftBridgeToken=String(process.env.GRENA_MINECRAFT_BRIDGE_TOKEN||'');
- const minecraftGameEvents=[];
+ const minecraftBedrockBridge=makeBedrockClientBridge();
+ minecraftBedrockBridge.start();
+  const minecraftGameEvents=[];
  let minecraftGameSeq=0;
  function minecraftQueueEvent(type,info){
    minecraftGameEvents.push({id:++minecraftGameSeq,type,ts:Date.now(),...info});
+   minecraftBedrockBridge.dispatch({type,...info});
    while(minecraftGameEvents.length>300)minecraftGameEvents.shift();
  }
  const minecraftDynamics = createSharedDynamics({notify:event=>{
@@ -2283,7 +2287,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/dynamics/minecraft' && (req.method==='GET'||req.method==='POST')){
    const me=sessionUser(req);if(!me)return json(res,401,{ok:false,error:'Se requiere GREÑA ID'});
    const room=minecraftRoomFor(me.id);
-   if(req.method==='GET')return json(res,200,{ok:true,enabled:!!minecraftSettings.get(me.id)?.enabled,room,invitations:minecraftDynamics.pendingInvitations(me.id),results:minecraftResults.filter(x=>x.streamerId===me.id).slice(-10)});
+   if(req.method==='GET')return json(res,200,{ok:true,enabled:!!minecraftSettings.get(me.id)?.enabled,bedrockBridge:minecraftBedrockBridge.status(),room,invitations:minecraftDynamics.pendingInvitations(me.id),results:minecraftResults.filter(x=>x.streamerId===me.id).slice(-10)});
    let input;try{input=JSON.parse(await readBody(req,8192)||'{}')}catch{return json(res,400,{ok:false,error:'JSON inválido'})}
    try {
      const action=String(input.action||'');
