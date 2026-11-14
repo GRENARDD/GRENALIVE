@@ -39,6 +39,7 @@ code{color:#afd9ff}label{font-size:14px;color:#c5d4e7}
 <label>GREÑA ID de tu amigo<input id="friend" placeholder="Usuario GREÑA ID"></label>
 <button id="invite">Preparar invitación</button>
 <p id="inviteResult">Las invitaciones entre diferentes PC requieren el servicio compartido de GREÑA ID. Esta pantalla todavía no envía avisos remotos.</p>
+<div id="invitations" aria-live="polite"></div>
 </section>
 <section><h2>Votación activa</h2>
 <div id="voting">Todavía no hay preguntas activas.</div>
@@ -62,6 +63,17 @@ async function refresh(){
   if(!r.ok||!d.ok)throw Error(d.error||'No se puede consultar GREÑA Live');
   snapshot=d;$('enabled').checked=!!d.enabled;$('state').textContent=d.enabled?'ACTIVADA':'DESACTIVADA';
   $('room').textContent=d.room.id;$('queue').textContent='Cola: '+d.room.queue;
+  const inbox=$('invitations');inbox.replaceChildren();
+  (d.invitations||[]).forEach(inv=>{
+    const item=document.createElement('div');item.style.marginTop='12px';
+    const label=document.createElement('p');label.textContent='Invitación de '+inv.fromId;
+    const yes=document.createElement('button');yes.textContent='Aceptar';
+    const no=document.createElement('button');no.textContent='Rechazar';no.style.marginLeft='8px';
+    yes.onclick=()=>run(()=>request('respond',{invitationId:inv.id,accept:true}));
+    no.onclick=()=>run(()=>request('respond',{invitationId:inv.id,accept:false}));
+    item.append(label,yes,no);inbox.append(item);
+  });
+
   const a=d.room.active;
   if(!a){$('voting').textContent='No hay votación activa';$('timer').textContent='';$('progress').style.width='0%'}
   else {
