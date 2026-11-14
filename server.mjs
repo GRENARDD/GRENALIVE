@@ -627,6 +627,34 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
  const minecraftRoomsByUser=new Map();
  const minecraftResults=[];
  const minecraftSettings=new Map();
+ const minecraftCentralRoomCache=new Map();
+ async function minecraftCentralRoom(userId){
+   const rec=minecraftCentralRoomCache.get(userId);
+   if(rec&&Date.now()-rec.at<10000)return rec.room;
+   try{
+     const answer=await licensing.requestDynamics(userId,'/api/dynamics/rooms');
+     const room=answer.rooms?.[0]?.id||null;
+     minecraftCentralRoomCache.set(userId,{room,at:Date.now()});
+     return room;
+   }catch{minecraftCentralRoomCache.set(userId,{room:null,at:Date.now()});return null}
+ }
+ async function minecraftForwardFollow(userId,platform,followerName,eventId,question){
+   if(!eventId)return; // No event identity: do not produce duplicate remote challenges.
+   const roomId=await minecraftCentralRoom(userId);if(!roomId)return;
+   try{
+     await licensing.requestDynamics(userId,'/api/dynamics/rooms/follow','POST',{
+       roomId,platform:String(platform||'').toLowerCase(),followerName,
+       eventId:String(eventId).slice(0,128),questionId:question.id,
+       optionA:question.optionA,optionB:question.optionB
+     });
+   }catch(e){console.warn('[Dinámicas] No se pudo sincronizar follow remoto:',String(e.message||e).slice(0,100))}
+ }
+ async function minecraftForwardVote(userId,platform,viewerId,choice){
+   const roomId=await minecraftCentralRoom(userId);if(!roomId)return;
+   try{await licensing.requestDynamics(userId,'/api/dynamics/rooms/vote','POST',{roomId,platform,viewerId,choice})}
+   catch(e){console.warn('[Dinámicas] No se pudo sincronizar voto remoto:',String(e.message||e).slice(0,100))}
+ }
+
  function minecraftRoomFor(userId){
    if(!userId)return null;
    const existing=minecraftRoomsByUser.get(userId);
@@ -642,14 +670,20 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
    const questionId=1+Math.floor(Math.random()*MINECRAFT_QUESTIONS.length);
    const question=MINECRAFT_QUESTIONS[questionId-1];
    const accepted=minecraftDynamics.follow({roomId:room.id,streamerId:activeUserId,platform:String(platform||'').toLowerCase(),followerName:String(name||'Seguidor').slice(0,64),questionId,optionA:question.optionA.replaceAll('{user}',String(name||'Seguidor').slice(0,64)),optionB:question.optionB.replaceAll('{user}',String(name||'Seguidor').slice(0,64)),eventId:id});
-   if(accepted.accepted)broadcast({type:'dynamics-follow',streamerId:activeUserId,platform,name,questionId});
+   if(accepted.accepted){
+     broadcast({type:'dynamics-follow',streamerId:activeUserId,platform,name,questionId});
+     void minecraftForwardFollow(activeUserId,platform,String(name||'Seguidor').slice(0,64),id,question);
+   }
  }
  function minecraftVoteFromChat(data){
    if(!activeUserId||!minecraftSettings.get(activeUserId)?.enabled)return;
    const room=minecraftRoomsByUser.get(activeUserId);if(!room)return;
    const platform=String(data.platform||'').toLowerCase();
    if(!['tiktok','twitch','kick','youtube'].includes(platform))return;
-   minecraftDynamics.vote({roomId:room,streamerId:activeUserId,platform,userId:String(data.userId||data.user||'').slice(0,128),message:data.text||''});
+   const viewerId=String(data.userId||data.user||'').slice(0,128);
+   const choice=String(data.text||'').trim().toUpperCase();
+   minecraftDynamics.vote({roomId:room,streamerId:activeUserId,platform,userId:viewerId,message:choice});
+   if(viewerId&&['A','B'].includes(choice))void minecraftForwardVote(activeUserId,platform,viewerId,choice);
  }
  const minecraftDynamicsTicker=setInterval(()=>{
    for(const result of minecraftDynamics.tick()){
