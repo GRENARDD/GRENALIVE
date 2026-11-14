@@ -40,14 +40,14 @@ test('continuous streams preserve independent message IDs, suppress historic pay
  await new Promise(resolve=>setImmediate(resolve));
  assert.equal(opened.length,1);
  assert.equal(opened[0].pageToken,'');
- opened[0].onBatch({items:[example('old','SUPER_CHAT_EVENT',{superChatDetails:{amountMicros:'1000000'}})],nextPageToken:'cursor1'});
+ opened[0].onBatch({items:[normalizeGrpcLiveChatItem(example('old','SUPER_CHAT_EVENT',{superChatDetails:{amountMicros:'1000000'}}))],nextPageToken:'cursor1'});
  assert.equal(seen.length,0,'old monetization is not played when joining');
  opened[0].onBatch({items:[
-  example('chat','TEXT_MESSAGE_EVENT',{textMessageDetails:{messageText:'hola'}}),
-  example('new','SUPER_CHAT_EVENT',{superChatDetails:{amountMicros:'3000000'}})
+  normalizeGrpcLiveChatItem(example('chat','TEXT_MESSAGE_EVENT',{textMessageDetails:{messageText:'hola'}})),
+  normalizeGrpcLiveChatItem(example('new','SUPER_CHAT_EVENT',{superChatDetails:{amountMicros:'3000000'}}))
  ],nextPageToken:'cursor2'});
  assert.deepEqual(seen.map(x=>x.kind),['chat','superchat']);
- opened[0].onBatch({items:[example('new','SUPER_CHAT_EVENT')],nextPageToken:'cursor3'});
+ opened[0].onBatch({items:[normalizeGrpcLiveChatItem(example('new','SUPER_CHAT_EVENT'))],nextPageToken:'cursor3'});
  assert.equal(seen.length,2,'same paid message is not replayed');
  assert.equal(reader.nextPageToken,'cursor3');
  await reader.stop();
