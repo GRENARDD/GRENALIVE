@@ -2179,6 +2179,24 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
 
  if(!panelGuard(req,res,pathname))return;
+// GREÑA ID central proxy: only trusted local GREÑA session tokens can relay.
+ if(pathname.startsWith('/api/dynamics/central/rooms')&&(req.method==='GET'||req.method==='POST')){
+   const me=sessionUser(req);if(!me)return json(res,401,{ok:false,error:'Inicia sesión con tu GREÑA ID'});
+   const centralPath=pathname.replace('/api/dynamics/central/','/api/dynamics/');
+   let input;
+   if(req.method==='POST'){
+     try{input=JSON.parse(await readBody(req,4096)||'{}')}
+     catch{return json(res,400,{ok:false,error:'JSON inválido'})}
+   }
+   try{
+     const result=await licensing.requestDynamics(me.id,centralPath,req.method,input);
+     return json(res,200,result);
+   }catch(e){
+     const code=Number(e.status)||503;
+     return json(res,code>=400&&code<600?code:503,{ok:false,error:String(e.message||e).slice(0,190)});
+   }
+ }
+
  if(pathname==='/api/dynamics/minecraft' && (req.method==='GET'||req.method==='POST')){
    const me=sessionUser(req);if(!me)return json(res,401,{ok:false,error:'Se requiere GREÑA ID'});
    const room=minecraftRoomFor(me.id);
