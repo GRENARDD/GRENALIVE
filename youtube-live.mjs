@@ -26,88 +26,168 @@ export function normalizeYouTubeMessage(item){
   return null;
 }
 export class YouTubeLiveReader {
-  constructor({apiKey=process.env.GRENA_YOUTUBE_API_KEY,requestProxy=null,onMessage=()=>{},onStatus=()=>{},onViewers=()=>{}}={}){
-    this.apiKey=String(apiKey||'').trim();this.requestProxy=requestProxy;this.onMessage=onMessage;this.onStatus=onStatus;this.onViewers=onViewers;
-    this.running=false;this.timer=null;this.nextPageToken='';this.seen=new Set();this.giftCombos=new Map();this.chatId='';this.videoId='';this.backoff=0;this.pollCount=0;
+  constructor({apiKey=process.env.GRENA_YOUTUBE_API_KEY,requestProxy=null,getStreamToken=null,
+    streamFactory=null,onMessage=()=>{},onStatus=()=>{},onViewers=()=>{}}={}){
+    this.apiKey=String(apiKey||'').trim();this.requestProxy=requestProxy;
+    this.getStreamToken=getStreamToken;this.streamFactory=streamFactory;
+    this.onMessage=onMessage;this.onStatus=onStatus;this.onViewers=onViewers;
+    this.running=false;this.timer=null;this.stream=null;this.streamDisabled=false;
+    this.nextPageToken='';this.seen=new Set();this.giftCombos=new Map();
+    this.chatId='';this.videoId='';this.backoff=0;this.pollCount=0;this.initialReceived=false;
   }
   async request(resource,params){
     if(this.requestProxy)return this.requestProxy(resource,params);
-    const u=new URL(API+'/'+resource);for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v));
+    const u=new URL(API+'/'+resource);
+    for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v));
     u.searchParams.set('key',this.apiKey);
     const ac=new AbortController(),t=setTimeout(()=>ac.abort(),12000);
-    try{const r=await fetch(u,{signal:ac.signal});const data=await r.json();if(!r.ok)throw new Error('YouTube API '+r.status+': '+(data?.error?.message||'No disponible'));return data}finally{clearTimeout(t)}
+    try{
+      const r=await fetch(u,{signal:ac.signal});
+      const data=await r.json();
+      if(!r.ok)throw Error('YouTube API '+r.status+': '+(data?.error?.message||'No disponible'));
+      return data;
+    }finally{clearTimeout(t)}
   }
   async start(input){
     await this.stop();
-    if(!this.apiKey&&!this.requestProxy)throw new Error('Necesitas vincular YouTube con Google o configurar la clave de YouTube Data API.');
-    const id=youtubeVideoId(input);if(!id)throw new Error('Introduce el enlace público de YouTube (Compartir → Copiar enlace), no el enlace de Studio.');
-    this.videoId=id;this.running=true;this.nextPageToken='';this.seen.clear();this.giftCombos.clear();this.backoff=0;
-    try {await this.discoverChat();} catch(e){await this.stop();throw e}
+    if(!this.apiKey&&!this.requestProxy)throw Error('Vincula YouTube con Google para usar GREÑA.');
+    const id=youtubeVideoId(input);
+    if(!id)throw Error('Introduce el enlace público de YouTube, no el enlace de Studio.');
+    this.videoId=id;this.running=true;this.nextPageToken='';
+    this.seen.clear();this.giftCombos.clear();this.backoff=0;
+    try{await this.discoverChat()}catch(e){await this.stop();throw e}
     return {videoId:id,chatId:this.chatId,waiting:!this.chatId};
   }
   async discoverChat(){
     if(!this.running)return;
+    const data=await this.request('videos',{part:'liveStreamingDetails,snippet,status',id:this.videoId});
+    if(!this.running)return;
+    const v=data.items?.[0];if(!v)throw Error('No se encuentra el vídeo de YouTube.');
+    const chat=v.liveStreamingDetails?.activeLiveChatId||'';
+    if(chat){
+      this.chatId=chat;
+      this.onStatus({connected:true,videoId:this.videoId,title:v.snippet?.title||''});
+      if(this.getStreamToken&&!this.streamDisabled)void this.beginStream();
+      else void this.poll();
+      return;
+    }
+    this.onStatus({connected:false,waiting:true,videoId:this.videoId,error:'Esperando que YouTube active el chat LIVE.'});
+    this.timer=setTimeout(()=>this.discoverChat().catch(e=>{
+      this.onStatus({connected:false,error:String(e.message||e)});
+      if(this.running)this.timer=setTimeout(()=>this.discoverChat().catch(()=>{}),60000);
+    }),30000);
+  }
+  consumeBatch(data){
+    const initial=!this.initialReceived&&!this.nextPageToken;
+    this.initialReceived=true;
+    for(const item of data.items||[]){
+      if(!item.id)continue;
+      const combo=item.snippet?.type==='giftEvent';
+      const total=combo?Math.max(1,Number(item.snippet?.giftDetails?.comboCount)||1):0;
+      const previous=combo?(this.giftCombos.get(item.id)||0):0;
+      if(this.seen.has(item.id)&&(!combo||total<=previous))continue;
+      this.seen.add(item.id);
+      if(combo)this.giftCombos.set(item.id,total);
+      const mapped=normalizeYouTubeMessage(item);
+      if(mapped&&combo)mapped.count=Math.max(1,total-previous);
+      // Evitar pagos antiguos solo en el primer historial inicial.
+      // Al reanudar con pageToken, los pagos nuevos sí se entregan.
+      if(mapped&&(!initial||mapped.kind==='chat'))this.onMessage(mapped);
+    }
+    if(this.seen.size>1500){
+      this.seen=new Set([...this.seen].slice(-700));
+      for(const id of this.giftCombos.keys())if(!this.seen.has(id))this.giftCombos.delete(id);
+    }
+    if(data.nextPageToken)this.nextPageToken=data.nextPageToken;
+    this.backoff=0;
+    this.onStatus({connected:true,videoId:this.videoId,transport:this.stream?'streamList':'poll'});
+  }
+  async beginStream(){
+    if(!this.running||!this.chatId||this.stream)return;
     try{
-      const data=await this.request('videos',{part:'liveStreamingDetails,snippet,status',id:this.videoId});
-      const v=data.items?.[0];
-      if(!v)throw new Error('No se encuentra este vídeo. Comprueba que es público o no listado y que la URL es correcta.');
-      const chat=v.liveStreamingDetails?.activeLiveChatId||'';
-      if(chat){
-        this.chatId=chat;this.nextPageToken='';this.seen.clear();this.giftCombos.clear();
-        this.onStatus({connected:true,videoId:this.videoId,title:v.snippet?.title||''});
-        void this.poll();return;
-      }
-      this.onStatus({connected:false,waiting:true,videoId:this.videoId,error:'Directo guardado. Esperando que YouTube active el chat LIVE; inicia la emisión desde OBS.'});
-      this.timer=setTimeout(()=>this.discoverChat().catch(e=>this.onStatus({connected:false,error:String(e.message||e)})),30000);
-    }catch(e){this.onStatus({connected:false,error:String(e.message||e)});throw e}
+      const token=await this.getStreamToken();
+      if(!this.running)return;
+      const factory=this.streamFactory||((await import('./youtube-live-stream.mjs')).openYouTubeLiveStream);
+      if(!this.running)return;
+      const chatId=this.chatId;
+      this.stream=factory({token,chatId,pageToken:this.nextPageToken,
+        onBatch:batch=>{
+          if(!this.running||this.chatId!==chatId)return;
+          try{
+            this.consumeBatch(batch);
+            if(batch.offlineAt)this.onStatus({connected:false,videoId:this.videoId,error:'Directo de YouTube finalizado.'});
+          }catch(e){this.onStatus({connected:false,error:String(e.message||e)})}
+        },
+        onError:error=>{
+          if(!this.running||this.chatId!==chatId)return;
+          this.stream=null;
+          const code=Number(error?.code);
+          const msg=String(error?.details||error?.message||error).slice(0,220);
+          this.onStatus({connected:false,videoId:this.videoId,error:'YouTube streamList: '+msg});
+          if([3,12].includes(code)){
+            // API no disponible en este proyecto: modo REST con sondeo limitado.
+            this.streamDisabled=true;this.schedulePoll(45000);
+          }else{
+            const isQuota=code===8||/quota|rate.?limit|exhausted/i.test(msg);
+            this.backoff=Math.min(isQuota?900000:120000,Math.max(isQuota?300000:15000,(this.backoff||7500)*2));
+            this.scheduleStream(this.backoff);
+          }
+        },
+        onEnd:()=>{
+          if(!this.running||this.chatId!==chatId)return;
+          this.stream=null;this.scheduleStream(10000);
+        }
+      });
+    }catch(e){
+      if(!this.running)return;
+      this.onStatus({connected:false,videoId:this.videoId,error:'Stream YouTube no disponible: '+String(e.message||e).slice(0,180)});
+      this.streamDisabled=true;this.schedulePoll(45000);
+    }
+  }
+  scheduleStream(delay){
+    if(!this.running)return;
+    clearTimeout(this.timer);
+    this.timer=setTimeout(()=>{this.timer=null;void this.beginStream()},Math.max(5000,delay));
+  }
+  schedulePoll(delay){
+    if(!this.running)return;
+    clearTimeout(this.timer);
+    this.timer=setTimeout(()=>{this.timer=null;void this.poll()},Math.max(30000,delay));
   }
   async poll(){
-    if(!this.running)return;
-    let interval=5000;
+    if(!this.running||!this.chatId)return;
+    let interval=45000;
     try{
-      const data=await this.request('liveChat/messages',{liveChatId:this.chatId,part:'id,snippet,authorDetails',maxResults:200,pageToken:this.nextPageToken});
-      const initial=!this.nextPageToken;
-      this.pollCount=(this.pollCount||0)+1;
-      if(this.pollCount<=3||this.pollCount%12===0)console.log('[YouTube CHAT POLL]',JSON.stringify({videoId:this.videoId,chatFound:!!this.chatId,items:(data.items||[]).length,initial,hasNextPage:!!data.nextPageToken,poll:this.pollCount}));
-      this.nextPageToken=data.nextPageToken||this.nextPageToken;
-      for(const item of data.items||[]){
-        if(!item.id)continue;
-        // YouTube reutiliza el mismo ID al aumentar la cantidad de un combo
-        // Jewels: emitir solo el incremento, no repetir todo el regalo.
-        const combo=item.snippet?.type==='giftEvent';
-        const total=combo?Math.max(1,Number(item.snippet?.giftDetails?.comboCount)||1):0;
-        const previous=combo?(this.giftCombos.get(item.id)||0):0;
-        if(this.seen.has(item.id)&&(!combo||total<=previous))continue;
-        this.seen.add(item.id);
-        if(combo)this.giftCombos.set(item.id,total);
-        // Show the most recent messages when joining a live chat; skip older history.
-        const items=data.items||[];
-        const displayOnInitial=!initial||items.indexOf(item)>=Math.max(0,items.length-25);
-        if(displayOnInitial){
-          const mapped=normalizeYouTubeMessage(item);
-          if(mapped&&combo)mapped.count=Math.max(1,total-previous);
-          // Al reconectar se recuperan comentarios recientes para el chat,
-          // pero nunca se vuelven a lanzar alertas de pagos o membresías antiguos.
-          if(mapped&&(!initial||mapped.kind==='chat'))this.onMessage(mapped);
-        }
-      }
-      if(this.seen.size>1500){this.seen=new Set([...this.seen].slice(-700));for(const id of this.giftCombos.keys())if(!this.seen.has(id))this.giftCombos.delete(id)}
-      interval=Math.max(2000,Number(data.pollingIntervalMillis)||5000);
-      this.backoff=0;
-      this.onStatus({connected:true,videoId:this.videoId});
+      const data=await this.request('liveChat/messages',{
+        liveChatId:this.chatId,part:'id,snippet,authorDetails',
+        maxResults:200,pageToken:this.nextPageToken
+      });
+      if(!this.running)return;
+      this.pollCount+=1;this.consumeBatch(data);
+      interval=Math.max(30000,Number(data.pollingIntervalMillis)||45000);
     }catch(e){
-      this.backoff=Math.min(60000,this.backoff?this.backoff*2:5000);interval=this.backoff;
-      console.warn('[YouTube CHAT POLL ERROR]',String(e.message||e).slice(0,250));
-      this.onStatus({connected:false,error:String(e.message||e),retryMs:interval});
+      if(!this.running)return;
+      const msg=String(e.message||e);
+      const quota=/quota|rateLimitExceeded|403|429/i.test(msg);
+      this.backoff=Math.min(quota?900000:120000,Math.max(quota?300000:30000,(this.backoff||15000)*2));
+      interval=this.backoff;
+      this.onStatus({connected:false,error:'YouTube: '+msg.slice(0,180),retryMs:interval});
     }
-    if(this.running)this.timer=setTimeout(()=>this.poll().catch(()=>{}),interval);
+    this.schedulePoll(interval);
   }
   async refreshViewers(){
     if(!this.running)return;
-    try{const d=await this.request('videos',{part:'liveStreamingDetails',id:this.videoId});const n=d.items?.[0]?.liveStreamingDetails?.concurrentViewers;this.onViewers(n===undefined?null:Number(n))}catch{}
+    try{
+      const d=await this.request('videos',{part:'liveStreamingDetails',id:this.videoId});
+      const n=d.items?.[0]?.liveStreamingDetails?.concurrentViewers;
+      this.onViewers(n===undefined?null:Number(n));
+    }catch{this.onViewers(null)}
   }
   async stop(){
-    this.running=false;if(this.timer)clearTimeout(this.timer);this.timer=null;
-    this.nextPageToken='';this.seen.clear();this.giftCombos.clear();this.videoId='';this.chatId='';
+    this.running=false;clearTimeout(this.timer);this.timer=null;
+    if(this.stream){try{this.stream.cancel()}catch{}this.stream=null}
+    this.nextPageToken='';this.seen.clear();this.giftCombos.clear();
+    this.videoId='';this.chatId='';this.initialReceived=false;
+    this.streamDisabled=false;
   }
 }
