@@ -243,11 +243,12 @@ let giftCatalogCache=await readJson(GIFT_CATALOG_CACHE_FILE,{version:1,updatedAt
 if(!giftCatalogCache||typeof giftCatalogCache!=='object')giftCatalogCache={version:1,updatedAt:0,sources:{},items:[]};
 if(!Array.isArray(giftCatalogCache.items))giftCatalogCache.items=[];
 if(!giftCatalogCache.sources||typeof giftCatalogCache.sources!=='object')giftCatalogCache.sources={};
-giftCatalogCache.items=giftCatalogCache.items.map(normalizeCatalogItem);
+giftCatalogCache.items=giftCatalogCache.items.map(normalizeCatalogItem).filter(item=>item.platform!=='Starvios');
 let giftCatalogSaveTimer=null;
 function scheduleGiftCatalogSave(){if(giftCatalogSaveTimer)return;giftCatalogSaveTimer=setTimeout(async()=>{giftCatalogSaveTimer=null;giftCatalogCache.updatedAt=Date.now();await safeWriteJson(GIFT_CATALOG_CACHE_FILE,giftCatalogCache).catch(e=>console.warn('Catálogo regalos:',e?.message||e))},400)}
 function upsertCatalogItem(raw,{preferName=false}={}){
- const item=normalizeCatalogItem(raw);let i=giftCatalogCache.items.findIndex(x=>catalogItemKey(x)===catalogItemKey(item));
+ const item=normalizeCatalogItem(raw);
+ if(item.platform==='Starvios')return null;let i=giftCatalogCache.items.findIndex(x=>catalogItemKey(x)===catalogItemKey(item));
  if(i<0&&preferName)i=giftCatalogCache.items.findIndex(x=>x.platform===item.platform&&giftTextKey(x.name)===giftTextKey(item.name));
  if(i<0){giftCatalogCache.items.push(item);scheduleGiftCatalogSave();return item}
  const old=giftCatalogCache.items[i];const merged=normalizeCatalogItem({...old,...item,name:old.name||item.name,nameEs:item.nameEs||old.nameEs,image:item.image||old.image,animatedImage:item.animatedImage||old.animatedImage,observed:old.observed||item.observed,meta:{...(old.meta||{}),...(item.meta||{})}});giftCatalogCache.items[i]=merged;scheduleGiftCatalogSave();return merged;
@@ -2729,7 +2730,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   });
   if(pathname==='/api/designs'&&req.method==='GET')return json(res,200,{ok:true,designs:savedAlertDesigns});
  if(pathname==='/api/design'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const d=JSON.parse(b||'{}');const ev=String(d.event||'follow');savedAlertDesigns[ev]={...d,soundProfileVersion:SOUND_PROFILE_VERSION};await safeWriteJson(stateFile('alert-designs.json',LEGACY_ALERTS_FILE),savedAlertDesigns);return json(res,200,{ok:true,event:ev})});
- if(pathname==='/api/alert'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(a.platform&&a.event&&['follow','sub','gift','cheer','share','raid','like'].includes(String(a.event))){alert(String(a.platform),String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,receivedAt:Date.now()}})}return json(res,200,{ok:true})});
+ if(pathname==='/api/alert'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(String(a.platform||'').toLowerCase()==='starvios')return json(res,410,{ok:false,error:'Plataforma retirada.'});if(a.platform&&a.event&&['follow','sub','gift','cheer','share','raid','like'].includes(String(a.event))){alert(String(a.platform),String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,receivedAt:Date.now()}})}return json(res,200,{ok:true})});
  if(pathname==='/api/tiktok/browser-login'&&req.method==='POST'){json(res,202,{ok:true,message:'Abriendo TikTok…'});beginTikTokBrowserLogin().catch(e=>{console.error('TikTok Browser Login:',e);if(tiktokLoginContext){tiktokLoginContext.close().catch(()=>{});tiktokLoginContext=null}setStatus('tiktok',false,'Error de login: '+(e?.message||e))});return}
  const m=pathname.match(/^\/oauth\/(tiktok|twitch|kick|youtube)\/(start|callback)$/);if(m){if(m[2]==='start')return await beginOAuth(m[1],req,res);return await withAccountTransition(()=>finishOAuth(m[1],url,res,req))}
  if(pathname==='/api/twitch/device/status'&&req.method==='GET'){
