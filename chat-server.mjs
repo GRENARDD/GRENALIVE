@@ -1691,7 +1691,7 @@ function publishYoutubeViewers(){
  // la última cifra conocida; no interpretar la ausencia como 0 espectadores.
  const known=active.filter(id=>Number.isFinite(youtubeViewers.get(id)));
  if(!known.length)return;
- bridgeViewers('youtube',known.reduce((total,id)=>total+youtubeViewers.get(id),0));
+ bridgeViewers('youtube',known.reduce((total,id)=>total+youtubeViewers.get(id),0),'YouTube LIVE '+known.length+'/'+active.length+' contadores disponibles');
 }
 function youtubeStatus(label='YouTube LIVE conectado'){
  const active=youtubeActiveReaders().length;
