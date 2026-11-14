@@ -12,11 +12,9 @@
 <link rel="stylesheet" href="/aurora-ui.css">
 <link rel="stylesheet" href="/grena-gamer.css">
 <style id="grena-profile-name-photo-style">
-/* Same per-GREÑA-ID profile photo, visible directly beside the account name. */
-.grena-control .profile-copy b.gx-profile-name-inline{display:flex;align-items:center;gap:6px;max-width:165px;min-width:0;overflow:hidden}
+/* One profile image only: the main, accessible avatar circle. */
+.grena-control .profile-copy b.gx-profile-name-inline{display:flex;align-items:center;max-width:165px;min-width:0;overflow:hidden}
 .grena-control .gx-profile-name-inline #profileName{min-width:0;overflow:hidden;text-overflow:ellipsis}
-.grena-control .gx-profile-name-photo{display:inline-flex;flex:0 0 17px;width:17px;height:17px;align-items:center;justify-content:center;border-radius:50%;font:800 9px sans-serif;font-style:normal;color:#fff;background:#6650af;background-size:cover;background-position:center;border:1px solid rgba(255,255,255,.4)}
-.grena-control .gx-profile-name-photo.has-photo{color:transparent}
 </style>
 
 </head>
@@ -28,20 +26,20 @@
       <div><strong>GREÑA LIVE PRO</strong><span>CREATOR CONTROL · 4.0</span></div>
     </div>
     <nav class="primary-nav" aria-label="Navegación principal">
-      <a class="top-link nav-home active" href="/" data-home="1">⌂ <span>Inicio</span></a>
-      <a class="top-link grena-desktop-bubble-control" id="grenaBubbleModeControl" href="/__grena_bubble_mode__" style="display:none" title="Abrir pestaña flotante que puedes arrastrar por cualquier monitor">🫧 <span>Pestaña flotante</span></a>
-      <a class="top-link" href="/mobile-device.html">📱 <span>Versión móvil</span></a>
-      <a class="top-link" href="/live-panel.html">💬 <span>Panel en vivo</span></a>
-      <a class="top-link" href="/alerts.html" data-module="alerts">✦ <span>Alertas</span></a>
-      <a class="top-link" href="/widgets.html" data-module="widgets">▦ <span>Widgets OBS</span></a>
-      <a class="top-link" href="/dynamics.html" data-module="dynamics">🎮 <span>Dinámicas</span></a>
-      <a class="top-link" href="/cam-room.html" data-module="cam">▣ <span>Cam Room</span></a>
-      <a class="top-link" href="/gift-catalog.html" data-module="catalog">◉ <span>Catálogo</span></a>
+      <a class="top-link nav-home active" href="/" data-home="1" title="Inicio · Chat y Voz" aria-label="Inicio"><span class="gx-nav-icon" aria-hidden="true">⌂</span><span class="gx-nav-label">Inicio</span></a>
+      <a class="top-link grena-desktop-bubble-control" id="grenaBubbleModeControl" href="/__grena_bubble_mode__" style="display:none" title="Abrir pestaña flotante" aria-label="Ventana flotante"><span class="gx-nav-icon" aria-hidden="true">▣</span><span class="gx-nav-label">Flotante</span></a>
+      <a class="top-link" href="/mobile-device.html" title="Versión móvil" aria-label="Versión móvil"><span class="gx-nav-icon" aria-hidden="true">📱</span><span class="gx-nav-label">Móvil</span></a>
+      <a class="top-link" href="/live-panel.html" title="Panel en vivo" aria-label="Panel en vivo"><span class="gx-nav-icon" aria-hidden="true">💬</span><span class="gx-nav-label">En vivo</span></a>
+      <a class="top-link" href="/alerts.html" data-module="alerts" title="Editor de alertas" aria-label="Alertas"><span class="gx-nav-icon" aria-hidden="true">✦</span><span class="gx-nav-label">Alertas</span></a>
+      <a class="top-link" href="/widgets.html" data-module="widgets" title="Widgets para OBS" aria-label="Widgets OBS"><span class="gx-nav-icon" aria-hidden="true">▦</span><span class="gx-nav-label">Widgets</span></a>
+      <a class="top-link" href="/dynamics.html" data-module="dynamics" title="Dinámicas Minecraft" aria-label="Dinámicas Minecraft"><span class="gx-nav-icon" aria-hidden="true">🎮</span><span class="gx-nav-label">Juegos</span></a>
+      <a class="top-link" href="/cam-room.html" data-module="cam" title="Cámaras para OBS" aria-label="Cam Room"><span class="gx-nav-icon" aria-hidden="true">▣</span><span class="gx-nav-label">Cámaras</span></a>
+      <a class="top-link" href="/gift-catalog.html" data-module="catalog" title="Catálogo de regalos" aria-label="Catálogo de regalos"><span class="gx-nav-icon" aria-hidden="true">🎁</span><span class="gx-nav-label">Regalos</span></a>
     </nav>
     <div class="top-status">
       <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
       <a class="top-link" href="/mode.html" title="Elegir versión web o móvil">📱 Cambiar versión</a>
-      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b class="gx-profile-name-inline"><i class="gx-profile-name-photo" id="profileNamePhoto" aria-hidden="true">G</i><span id="profileName">GREÑA ID</span><span id="betaLicenseBadge" hidden style="margin-left:7px;padding:2px 7px;background:#145568;color:#d7ffff;border:1px solid #52e2ec;border-radius:7px;font-size:10px;font-weight:900;letter-spacing:.7px" title="Licencia BETA sin fecha de vencimiento">✦ BETA</span></b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
+      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b class="gx-profile-name-inline"><span id="profileName">GREÑA ID</span><span id="betaLicenseBadge" hidden style="margin-left:7px;padding:2px 7px;background:#145568;color:#d7ffff;border:1px solid #52e2ec;border-radius:7px;font-size:10px;font-weight:900;letter-spacing:.7px" title="Licencia BETA sin fecha de vencimiento">✦ BETA</span></b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
       <button id="exitAppBtn" class="app-exit-btn" type="button">Salir de GREÑA</button>
     </div>
   </header>
