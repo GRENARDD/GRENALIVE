@@ -140,7 +140,7 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
     </section>
 
     <section class="counter yt is-hidden"><div class="platform"><img src="/assets/youtube-logo.svg" alt="YouTube"><span>YouTube</span></div><strong id="yt" class="count">0</strong></section>
-    <section class="counter sv is-hidden"><div class="platform"><img src="/assets/platforms/starvios.svg" alt="Starvios"><span>Starvios</span></div><strong id="sv" class="count">0</strong></section>
+
     <section class="counter ki is-hidden">
       <div class="platform">
         <img src="/assets/platforms/kick-viewer.png" alt="Kick">
@@ -152,17 +152,17 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
 </main>
 
 <script>
-const old={tiktok:-1,twitch:-1,kick:-1,youtube:-1,starvios:-1};
+const old={tiktok:-1,twitch:-1,kick:-1,youtube:-1};
 const counterDefaults={style:'classic',counterCardColor:'#18232c',edge:'left',edgeOffset:0};
 let counterSettings={...counterDefaults};
 let previewOverride=false;
 let latestMeta={};
 
 function updatePlatformVisibility(v={}){
- for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki'],['youtube','.counter.yt'],['starvios','.counter.sv']]){
+ for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki'],['youtube','.counter.yt']]){
   const card=document.querySelector(selector);if(!card)continue;
   const n=Number(v[k]);
-  card.classList.toggle('is-hidden',!(Number.isFinite(n)&&n>=1 || k==='starvios'&&latestMeta.starvios?.live===true));
+  card.classList.toggle('is-hidden',!(Number.isFinite(n)&&n>=1));
  }
 }
 
@@ -185,10 +185,10 @@ function applyCounterSettings(v={}){
 }
 function draw(v={},meta){
   if(meta&&typeof meta==='object')latestMeta=meta;
-  for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki'],['youtube','yt'],['starvios','sv']]){
+  for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki'],['youtube','yt']]){
     const n=Math.max(0,Math.floor(Number(v[k])||0));
     const e=document.getElementById(id);
-    const label=k==='starvios'&&latestMeta.starvios?.live===true&&latestMeta.starvios?.available!==true?'—':n.toLocaleString('es-DO');
+    const label=n.toLocaleString('es-DO');
     if(old[k]!==label){
       e.textContent=label;
       e.classList.remove('pulse');
