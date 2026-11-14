@@ -31,11 +31,13 @@ async function emit(db,room,type,payload){const id=uuid();await db.prepare('INSE
 async function advance(db,room){
  const a=await db.prepare("SELECT * FROM dynamics_challenges WHERE room_id=? AND state='active' ORDER BY starts_at LIMIT 1").bind(room).first();
  if(a&&a.ends_at<=stamp()){
+  const members=await db.prepare("SELECT user_id,gamertag FROM dynamics_members WHERE room_id=? AND enabled=1 AND TRIM(gamertag)!='' ORDER BY joined_at LIMIT 20").bind(room).all();
+  const players=(members.results||[]).map(m=>({grenaId:m.user_id,gamertag:m.gamertag}));
   const count=await db.prepare("SELECT choice,COUNT(*) AS n FROM dynamics_votes WHERE event_id=? GROUP BY choice").bind(a.id).all();
   const tally=Object.fromEntries((count.results||[]).map(v=>[v.choice,v.n]));
   const A=Number(tally.A||0),B=Number(tally.B||0),winner=A===B?'TIE':A>B?'A':'B';
   const changed=await db.prepare("UPDATE dynamics_challenges SET state='done',winner=? WHERE id=? AND state='active' AND ends_at<=?").bind(winner,a.id,stamp()).run();
-  if(changed.meta?.changes===1)await emit(db,room,'voted_result',{streamerId:a.streamer_id,challengeId:a.id,questionId:a.question_id,choice:winner,a:A,b:B,platform:a.source_platform,followerName:a.follower_name});
+  if(changed.meta?.changes===1)await emit(db,room,'voted_result',{streamerId:a.streamer_id,challengeId:a.id,questionId:a.question_id,choice:winner,a:A,b:B,platform:a.source_platform,followerName:a.follower_name,players});
  }
  const still=await db.prepare("SELECT id FROM dynamics_challenges WHERE room_id=? AND state='active' LIMIT 1").bind(room).first();
  if(still)return;
@@ -93,6 +95,14 @@ export async function dynamicsRequest(req,env,identity){
    if(p.accept)await db.prepare('INSERT OR IGNORE INTO dynamics_members(room_id,user_id,joined_at) VALUES(?,?,?)').bind(item.room_id,identity.id,stamp()).run();
    return ok({accepted:p.accept,roomId:item.room_id});
   }
+  if(path==='/api/dynamics/rooms/players'&&method==='POST'){
+   const p=await data(req),room=String(p.roomId||''),tag=String(p.gamertag||'').trim();
+   if(!isId(room)||!/^[A-Za-z0-9_ ]{1,16}$/.test(tag))return bad('Gamertag inválido');
+   const m=await membership(db,room,identity.id);
+   if(!m||m.status!=='open')return bad('No perteneces a esta sala',403);
+   await db.prepare('UPDATE dynamics_members SET gamertag=?,enabled=? WHERE room_id=? AND user_id=?').bind(tag,p.enabled===false?0:1,room,identity.id).run();
+   return ok({roomId:room,gamertag:tag,enabled:p.enabled!==false});
+  }
   if(path==='/api/dynamics/rooms/follow'&&method==='POST'){
    const p=await data(req),room=String(p.roomId||''),platform=String(p.platform||'').toLowerCase(),key=String(p.eventId||'').trim();
    const m=await membership(db,room,identity.id);
@@ -124,7 +134,7 @@ export async function dynamicsRequest(req,env,identity){
    if(!m)return bad('No perteneces a esta sala',403);
    await advance(db,room);
    const members=await db.prepare('SELECT m.user_id,m.gamertag,m.enabled,u.username FROM dynamics_members m JOIN users u ON u.id=m.user_id WHERE m.room_id=? ORDER BY m.joined_at').bind(room).all();
-   const challenges=await db.prepare("SELECT id,streamer_id,source_platform,follower_name,question_id,option_a,option_b,state,ends_at,winner FROM dynamics_challenges WHERE room_id=? AND state!='queued' ORDER BY created_at DESC LIMIT 10").bind(room).all();
+   const challenges=await db.prepare("SELECT c.id,c.streamer_id,c.source_platform,c.follower_name,c.question_id,c.option_a,c.option_b,c.state,c.ends_at,c.winner,(SELECT COUNT(*) FROM dynamics_votes v WHERE v.event_id=c.id AND v.choice='A') AS votes_a,(SELECT COUNT(*) FROM dynamics_votes v WHERE v.event_id=c.id AND v.choice='B') AS votes_b FROM dynamics_challenges c WHERE c.room_id=? AND c.state!='queued' ORDER BY c.created_at DESC LIMIT 10").bind(room).all();
    const events=await db.prepare('SELECT id,event_type,payload,created_at FROM dynamics_events WHERE room_id=? ORDER BY created_at DESC LIMIT 40').bind(room).all();
    return ok({roomId:room,members:members.results||[],challenges:challenges.results||[],events:(events.results||[]).map(e=>({...e,payload:JSON.parse(e.payload)}))});
   }
