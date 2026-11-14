@@ -4,9 +4,9 @@ const bad=(error,status=400)=>new Response(JSON.stringify({ok:false,error}),{sta
 const stamp=()=>Date.now();
 const isId=s=>typeof s==='string'&&/^[A-Za-z0-9_-]{1,128}$/.test(s);
 const uuid=()=>crypto.randomUUID();
-let initialized=false;
+const initialized=new WeakSet();
 async function tables(db){
- if(initialized)return;
+ if(initialized.has(db))return;
  const statements=[
   "CREATE TABLE IF NOT EXISTS dynamics_rooms(id TEXT PRIMARY KEY,host_user_id TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'open',created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS dynamics_members(room_id TEXT NOT NULL,user_id TEXT NOT NULL,gamertag TEXT NOT NULL DEFAULT '',enabled INTEGER NOT NULL DEFAULT 1,joined_at INTEGER NOT NULL,PRIMARY KEY(room_id,user_id))",
@@ -19,7 +19,7 @@ async function tables(db){
   "CREATE INDEX IF NOT EXISTS dynamics_challenges_queue ON dynamics_challenges(room_id,state,created_at)"
  ];
  for(const sql of statements)await db.prepare(sql).run();
- initialized=true;
+ initialized.add(db);
 }
 async function data(req){
  if(!String(req.headers.get('content-type')||'').startsWith('application/json'))throw Object.assign(Error('JSON requerido'),{status:415});
