@@ -40,5 +40,5 @@ test('Compilación estable prepara instalador 5.1.25',()=>{
  const update=src('desktop-build/fix_official_updates.py');
  assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '5\.1\.19'/);
  const gh=src('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(gh,/GRENA-LIVE-Installer-Windows-v5\.1\.24/);
+ assert.match(gh,/GRENA-LIVE-Installer-Windows-v5\.1\.25/);
 });
