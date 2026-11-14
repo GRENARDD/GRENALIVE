@@ -2448,7 +2448,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     if(!yt.refresh_token)throw Error('Reautoriza YouTube para activar el chat y el contador.');
     if(yt.mode==='grena-auth'){
      const refreshed=await refreshBrokerToken('youtube');
-     token=refreshed.access_token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;
+     token=refreshed.access_token;savedAuth.youtube.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;
      await persistAuth();
     }else{
      const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
@@ -2472,7 +2472,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    if(yt.refresh_token&&Date.now()>Number(yt.expires_at||0)-60000){
     if(yt.mode==='grena-auth'){
      const refreshed=await refreshBrokerToken('youtube');
-     token=refreshed.access_token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
+     token=refreshed.access_token;savedAuth.youtube.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
     }else{
      const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
      token=refreshed.access_token;yt.access_token=token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;await persistAuth();
