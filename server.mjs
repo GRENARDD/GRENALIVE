@@ -663,7 +663,7 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
    minecraftRoomsByUser.set(userId,room.id);
    return room;
  }
- function minecraftFollow(platform,name,id=''){
+ function minecraftFollow(platform,name,id='',isTest=false){
    if(!activeUserId)return;
    const room=minecraftRoomFor(activeUserId);
    if(!minecraftSettings.get(activeUserId)?.enabled)return;
@@ -672,10 +672,10 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
    const accepted=minecraftDynamics.follow({roomId:room.id,streamerId:activeUserId,platform:String(platform||'').toLowerCase(),followerName:String(name||'Seguidor').slice(0,64),questionId,optionA:question.optionA.replaceAll('{user}',String(name||'Seguidor').slice(0,64)),optionB:question.optionB.replaceAll('{user}',String(name||'Seguidor').slice(0,64)),eventId:id});
    if(accepted.accepted){
      broadcast({type:'dynamics-follow',streamerId:activeUserId,platform,name,questionId});
-     void minecraftForwardFollow(activeUserId,platform,String(name||'Seguidor').slice(0,64),id,question);
+     if(!isTest)void minecraftForwardFollow(activeUserId,platform,String(name||'Seguidor').slice(0,64),id,question);
    }
  }
- function minecraftVoteFromChat(data){
+ function minecraftVoteFromChat(data,isTest=false){
    if(!activeUserId||!minecraftSettings.get(activeUserId)?.enabled)return;
    const room=minecraftRoomsByUser.get(activeUserId);if(!room)return;
    const platform=String(data.platform||'').toLowerCase();
@@ -683,7 +683,7 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
    const viewerId=String(data.userId||data.user||'').slice(0,128);
    const choice=String(data.text||'').trim().toUpperCase();
    minecraftDynamics.vote({roomId:room,streamerId:activeUserId,platform,userId:viewerId,message:choice});
-   if(viewerId&&['A','B'].includes(choice))void minecraftForwardVote(activeUserId,platform,viewerId,choice);
+   if(!isTest&&viewerId&&['A','B'].includes(choice))void minecraftForwardVote(activeUserId,platform,viewerId,choice);
  }
  const minecraftDynamicsTicker=setInterval(()=>{
    for(const result of minecraftDynamics.tick()){
@@ -2242,8 +2242,8 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
      if(action==='enable'){minecraftSettings.set(me.id,{enabled:!!input.enabled});minecraftDynamics.enable({roomId:room.id,userId:me.id,value:!!input.enabled})}
      else if(action==='invite'){value=minecraftDynamics.invite({roomId:room.id,fromId:me.id,toId:String(input.friendId||'').trim()})}
      else if(action==='respond'){value=minecraftDynamics.respond({invitationId:String(input.invitationId||''),userId:me.id,accept:!!input.accept,gamertag:String(input.gamertag||'')});if(input.accept)minecraftRoomsByUser.set(me.id,value.id)}
-     else if(action==='test-follow'){if(!minecraftSettings.get(me.id)?.enabled)return json(res,409,{ok:false,error:'Activa la dinámica'});minecraftFollow(String(input.platform||'TikTok'),String(input.name||'Prueba'),String(Date.now()))}
-     else if(action==='test-vote'){minecraftVoteFromChat({platform:String(input.platform||'TikTok'),userId:'test-'+String(input.userId||'1'),text:String(input.vote||'A')})}
+     else if(action==='test-follow'){if(!minecraftSettings.get(me.id)?.enabled)return json(res,409,{ok:false,error:'Activa la dinámica'});minecraftFollow(String(input.platform||'TikTok'),String(input.name||'Prueba'),String(Date.now()),true)}
+     else if(action==='test-vote'){minecraftVoteFromChat({platform:String(input.platform||'TikTok'),userId:'test-'+String(input.userId||'1'),text:String(input.vote||'A')},true)}
      else return json(res,400,{ok:false,error:'Acción desconocida'});
      return json(res,200,{ok:true,value,room:minecraftDynamics.getRoom(room.id)});
    } catch(error){return json(res,400,{ok:false,error:String(error.message||error)})}
