@@ -754,13 +754,8 @@ body.voice-settings-modal-open{overflow:hidden!important}
       <img class="button-platform-icon" src="/assets/platforms/kick.svg" alt=""> CONECTAR KICK
     </button>
   </div>
-  <div class="connection-box network-card">
-    <div class="connection-title"><img class="platform-brand-icon" src="/assets/platforms/starvios.svg" alt=""> Starvios</div>
-    <div class="bar"><input id="starviosUrl" placeholder="@usuario o https://starvios.com/usuario"></div>
-    <button id="connectStarvios" class="network-connect starvios-connect"><img class="button-platform-icon" src="/assets/platforms/starvios.svg" alt=""> CONECTAR STARVIOS</button>
-    <a id="starviosOfficialLogin" href="https://starvios.com/go-live" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin-top:10px;color:#ffadd9;font-weight:700">Abrir inicio de sesión oficial de Starvios ↗</a>
-    <p style="font-size:12px;line-height:1.4;opacity:.82;margin-top:6px">Inicias sesión solamente en starvios.com; GREÑA no recibe tu contraseña ni una sesión vinculada. Para leer chat y alertas utiliza CONECTAR STARVIOS con el canal.</p>
-  </div>
+  <!-- Identificadores heredados conservados sin controles visibles para migrar ajustes guardados. -->
+  <div hidden aria-hidden="true"><input id="starviosUrl" value=""><button id="connectStarvios" disabled type="button"></button><a id="starviosOfficialLogin"></a></div>
   <div class="connection-box youtube">
     <div class="connection-title">▶ YouTube Gaming</div>
     <div class="bar"><input id="youtubeUrl" placeholder="https://www.youtube.com/watch?v=..."></div>
@@ -1099,16 +1094,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
       <div class="voice-field" style="margin-top:14px"><label>Usuarios seleccionados</label><textarea id="kickSelectedUsers" placeholder="usuario1&#10;usuario2"></textarea></div>
     </div>
 
-    <!-- STARVIOS -->
-    <div class="voice-box">
-      <h3 class="platform-heading"><img src="/assets/platforms/starvios.svg" alt="">Starvios</h3>
-      <label class="voice-check"><input type="checkbox" id="starviosVoiceEnabled" checked> Leer mensajes de Starvios</label>
-      <div class="radio-group">
-        <label class="radio-option"><input type="radio" name="starviosMode" value="all" checked> 👥 Todos</label>
-        <label class="radio-option"><input type="radio" name="starviosMode" value="selected"> 🎯 Solo usuarios seleccionados</label>
-      </div>
-      <div class="voice-field" style="margin-top:14px"><label>Usuarios seleccionados</label><textarea id="starviosSelectedUsers" placeholder="usuario1&#10;usuario2"></textarea></div>
-    </div>
+    <div hidden aria-hidden="true"><input type="checkbox" id="starviosVoiceEnabled"><input type="radio" name="starviosMode" value="all" checked><input type="radio" name="starviosMode" value="selected"><textarea id="starviosSelectedUsers"></textarea></div>
 
     <!-- YOUTUBE: misma tarjeta de voz plegable que las demás plataformas -->
     <details class="voice-box youtube-voice-card" style="border:1px solid #633137">
@@ -1283,7 +1269,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
     <button type="button" data-chat-filter="twitch"><img src="/assets/platforms/twitch.webp" alt=""> Twitch <span id="chatCountTwitch">0</span></button>
     <button type="button" data-chat-filter="kick"><img src="/assets/platforms/kick.svg" alt=""> Kick <span id="chatCountKick">0</span></button>
     <button type="button" data-chat-filter="youtube">▶ YouTube <span id="chatCountYouTube">0</span></button>
-    <button type="button" data-chat-filter="starvios"><img src="/assets/platforms/starvios.svg" alt=""> Starvios <span id="chatCountStarvios">0</span></button>
+    <span id="chatCountStarvios" hidden aria-hidden="true">0</span>
   </div>
 
 <div id="chat" class="chat">
