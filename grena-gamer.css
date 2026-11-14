@@ -411,3 +411,58 @@ body.grena-control::after{
   border:1px solid rgba(255,60,129,.45);box-shadow:0 18px 50px rgba(0,0,0,.6),0 0 24px rgba(255,60,129,.18);
 }
 .gx-avatar-menu button:focus-visible{outline:2px solid var(--gx-cyan);outline-offset:-2px}
+
+
+/* GREÑA 5.1.27 · Header visible and usable at desktop widths */
+.grena-control .primary-nav{
+  display:flex!important;align-items:stretch!important;gap:3px!important;
+  max-width:100%;padding:4px!important;
+  overflow-x:auto;scrollbar-width:thin;
+}
+.grena-control .primary-nav .top-link{
+  display:flex!important;flex-direction:column;align-items:center;justify-content:center;
+  flex:0 0 auto;min-width:57px;min-height:60px;padding:7px 7px!important;
+  gap:3px;line-height:1.1;text-align:center;
+  border-radius:12px!important;position:relative;
+  font-size:12px!important;cursor:pointer!important;
+}
+.grena-control .primary-nav .top-link .gx-nav-icon{
+  display:block!important;font-size:22px!important;line-height:25px;
+  color:#e9e5ff;filter:drop-shadow(0 0 4px rgba(136,99,255,.35));
+}
+.grena-control .primary-nav .top-link .gx-nav-label{
+  display:block!important;font-size:10px!important;font-weight:750;
+  color:#e0e6fb;white-space:nowrap;letter-spacing:0!important;
+}
+.grena-control .primary-nav .top-link:hover,
+.grena-control .primary-nav .top-link:focus-visible{
+  background:rgba(114,76,231,.18)!important;
+  box-shadow:inset 0 0 0 1px rgba(190,158,255,.52),0 0 16px rgba(110,68,231,.26)!important;
+}
+.grena-control .primary-nav .top-link.active{
+  background:linear-gradient(135deg,#703aff,#4435ad)!important;
+  border-color:#b99cff!important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.22),0 0 18px rgba(134,76,255,.65)!important;
+}
+.grena-control .primary-nav .top-link.active .gx-nav-label,
+.grena-control .primary-nav .top-link.active .gx-nav-icon{color:#fff!important}
+.grena-control .profile-pill .profile-avatar{
+  flex:0 0 46px!important;width:46px!important;height:46px!important;
+  background-size:cover!important;background-position:center!important;
+  background-repeat:no-repeat!important;border-radius:50%!important;
+  box-shadow:0 0 0 2px #101528,0 0 0 4px #9f6bff,0 0 17px rgba(161,88,255,.62)!important;
+}
+.grena-control .profile-pill .profile-copy{
+  min-width:0!important;max-width:140px!important;
+}
+.grena-control .profile-pill .gx-profile-name-inline #profileName{
+  font-size:12px!important;white-space:nowrap!important;
+}
+@media (max-width:1720px){
+ .grena-control .primary-nav .top-link .gx-nav-label{display:block!important}
+}
+@media (max-width:1250px){
+ .grena-control .primary-nav .top-link{min-width:52px;padding:6px 5px!important}
+ .grena-control .primary-nav .top-link .gx-nav-icon{font-size:20px!important}
+ .grena-control .primary-nav .top-link .gx-nav-label{font-size:9px!important}
+}
