@@ -85,6 +85,28 @@ assert.equal(currentStatus.status,200,'El estado de plataformas no responde.');
 assert.equal(Object.hasOwn((await currentStatus.json()).status||{},'starvios'),false,'Starvios sigue anunciado como plataforma activa.');
 console.log('OK: panel y móvil empaquetados, alertas/chat conectados y Starvios no publicado.');
 
+const pcMobile=await get(main+'/mobile-device.html',{headers:{Cookie:cookie}});
+assert.equal(pcMobile.status,200,'Falta sección Versión móvil dentro de GREÑA Desktop.');
+const pcMobileHtml=await pcMobile.text();
+assert.match(pcMobileHtml,/id="installQr"/);
+assert.match(pcMobileHtml,/id="pairQr"/);
+assert.equal((await get(main+'/assets/qr-code.min.js')).status,200,'Librería QR no incluida en instalador.');
+const created=await get(main+'/api/mobile/pair/create',{method:'POST',headers:{Cookie:cookie,Origin:main,'content-type':'application/json'},body:'{}'});
+assert.equal(created.status,200,'GREÑA Desktop no pudo crear QR temporal.');
+const pairData=await created.json();assert.ok(pairData.pairUrl&&pairData.expiresAt>Date.now(),'La vinculación QR no tiene vencimiento.');
+const pairToken=new URL(pairData.pairUrl).searchParams.get('pair');assert.ok(pairToken,'El QR no contiene token.');
+const landing=await get(main+'/mobile.html?pair='+encodeURIComponent(pairToken),{redirect:'manual'});
+assert.equal(landing.status,200,'La página del teléfono exige sesión antes de escanear el QR.');
+const redeemed=await get(main+'/api/mobile/pair/consume',{method:'POST',headers:{Origin:main,'content-type':'application/json'},body:JSON.stringify({token:pairToken})});
+assert.equal(redeemed.status,200,'No se pudo completar la vinculación del móvil.');
+const mobileCookie=redeemed.headers.get('set-cookie')?.split(';')[0];assert.ok(mobileCookie,'No se creó sesión GREÑA ID en móvil.');
+const pcStillActive=await get(main+'/api/account/me',{headers:{Cookie:cookie}});
+assert.equal((await pcStillActive.json()).authenticated,true,'Vincular el móvil cerró sesión en la PC.');
+const reused=await get(main+'/api/mobile/pair/consume',{method:'POST',headers:{Origin:main,'content-type':'application/json'},body:JSON.stringify({token:pairToken})});
+assert.notEqual(reused.status,200,'Un QR de vinculación fue reutilizado.');
+console.log('OK: dos QR y emparejamiento de un solo uso; PC conserva sesión GREÑA ID.');
+
+
 // Comprobar contra el instalador REAL, no el HTML del repositorio, que se
 // empaquetó la burbuja con texto y alertas completos y diseño adaptable.
 const bubblePage=await get(main+'/desktop-bubble.html');
