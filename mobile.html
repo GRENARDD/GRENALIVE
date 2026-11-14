@@ -204,6 +204,10 @@ function renderLinks(){
 function linkNotice(message){text($('linkInfo'),message)}
 function beginLink(platform){
  linkingPlatform=platform;changeTab('accountPanel');$('linkForm').classList.add('hidden');
+ if(platform==='youtube'){
+  linkNotice('YouTube se vincula mediante Google OAuth desde la PC. En GREÑA Desktop pulsa Conectar YouTube; el enlace de un LIVE no autoriza la cuenta. Una vez autorizada se sincronizará aquí.');
+  return;
+ }
  if(platform==='twitch'||platform==='kick'){
   if(platformOAuth[platform]===false){linkNotice(platformNames[platform]+' necesita autorización configurada en GREÑA.');return}
   linkNotice('Autoriza '+platformNames[platform]+' en la pestaña que se abrirá y vuelve aquí.');
@@ -211,7 +215,7 @@ function beginLink(platform){
   if(!windowRef){linkNotice('Tu navegador bloqueó la ventana. Revisa los permisos de ventanas emergentes.')}
   return;
  }
- const sample=platform==='tiktok'?'https://www.tiktok.com/@usuario/live':platform==='youtube'?'https://www.youtube.com/live/ID-del-directo':'enlace del canal';
+ const sample=platform==='tiktok'?'https://www.tiktok.com/@usuario/live':'enlace del canal';
  $('linkLabel').textContent=platformNames[platform]+' · usuario/enlace del LIVE';
  $('linkValue').type='url';$('linkValue').value='';
  $('linkValue').placeholder=sample;
@@ -261,7 +265,7 @@ function addLiveAlert(a){
 function connectLiveAlerts(){
  let socket;try{socket=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host);socket.onmessage=e=>{try{const d=JSON.parse(e.data);if(d.type==="activity")addLiveAlert(d.activity)}catch{}};socket.onclose=()=>setTimeout(connectLiveAlerts,2500);socket.onerror=()=>socket.close()}catch{setTimeout(connectLiveAlerts,2500)}
 }
-function chatConnect(){if(!sessionReady)return;clearTimeout(retry);let url;const cloud=location.protocol==='https:'||!['127.0.0.1','localhost'].includes(location.hostname);url=cloud?(location.protocol==='https:'?'wss://':'ws://')+location.host+'/chat-ws':'ws://'+location.hostname+':8788/ws';try{ws=new WebSocket(url);ws.onopen=()=>text($('connection'),'Chat conectado');ws.onmessage=e=>{try{addChat(JSON.parse(e.data))}catch{}};ws.onerror=()=>{try{ws.close()}catch{}};ws.onclose=()=>{text($('connection'),'Reconectando…');retry=setTimeout(chatConnect,2500)}}catch{retry=setTimeout(chatConnect,2500)}}
+function chatConnect(){if(!sessionReady)return;clearTimeout(retry);let url;const remoteHost=!['127.0.0.1','localhost'].includes(location.hostname);url=remoteHost?(location.protocol==='https:'?'wss://':'ws://')+location.host+'/chat-ws':'ws://'+location.hostname+':8788/ws';try{ws=new WebSocket(url);ws.onopen=()=>text($('connection'),'Chat conectado');ws.onmessage=e=>{try{addChat(JSON.parse(e.data))}catch{}};ws.onerror=()=>{try{ws.close()}catch{}};ws.onclose=()=>{text($('connection'),'Reconectando…');retry=setTimeout(chatConnect,2500)}}catch{retry=setTimeout(chatConnect,2500)}}
 for(const [id,url]of [['alerts','/alerts.html?embed=1'],['widgets','/widgets.html?embed=1'],['catalog','/gift-catalog.html?embed=1']])$(id).onclick=()=>{$('toolFrame').classList.remove('hidden');$('toolFrame').src=url};
 async function redeemDevicePair(){
  const token=new URLSearchParams(location.search).get('pair');if(!token)return;
