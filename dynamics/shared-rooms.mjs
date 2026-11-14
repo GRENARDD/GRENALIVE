@@ -1,0 +1,22 @@
+import {randomUUID} from 'node:crypto';
+
+// GREÑA Live · Motor de salas compartidas. No contiene credenciales ni instala addons.
+// Los eventos entran desde los conectores oficiales de GREÑA Live.
+export function createSharedDynamics({now=()=>Date.now(),notify=()=>{}}={}) {
+  const rooms=new Map(), invites=new Map();
+  const requireRoom=id=>{const r=rooms.get(id);if(!r)throw Error('Sala no encontrada');return r};
+  const member=(r,id)=>{if(!r.members.has(id))throw Error('No perteneces a la sala')};
+  const publicRoom=r=>({id:r.id,ownerId:r.ownerId,members:[...r.members].map(([id,x])=>({id,...x})),active:r.active&&{id:r.active.id,ownerId:r.active.ownerId,questionId:r.active.questionId,optionA:r.active.a,optionB:r.active.b,endsAt:r.active.endsAt,votes:counts(r.active)},queue:r.queue.length});
+  const counts=q=>{const x=[...q.votes.values()];return {A:x.filter(v=>v==='A').length,B:x.filter(v=>v==='B').length}};
+  const emit=(r,type,data={})=>notify({roomId:r.id,type,...data,room:publicRoom(r)});
+  function startNext(r){if(r.active)return;const q=r.queue.shift();if(!q)return;q.endsAt=now()+r.voteSeconds*1000;r.active=q;emit(r,'vote-start');}
+  function create({ownerId,gamertag='',voteSeconds=20}){if(!ownerId)throw Error('GREÑA ID necesario');const r={id:randomUUID(),ownerId,members:new Map([[ownerId,{gamertag,enabled:true}]]),voteSeconds:Math.max(10,Math.min(30,voteSeconds)),queue:[],active:null};rooms.set(r.id,r);return publicRoom(r)}
+  function invite({roomId,fromId,toId}){const r=requireRoom(roomId);member(r,fromId);if(!toId||r.members.has(toId))throw Error('Invitación inválida');const i={id:randomUUID(),roomId,fromId,toId,expiresAt:now()+300000,status:'pending'};invites.set(i.id,i);emit(r,'invite',{toId,inviteId:i.id});return {...i}}
+  function respond({invitationId,userId,accept,gamertag=''}){const i=invites.get(invitationId);if(!i||i.toId!==userId||i.status!=='pending'||now()>i.expiresAt)throw Error('Invitación inválida o vencida');const r=requireRoom(i.roomId);i.status=accept?'accepted':'rejected';if(accept)r.members.set(userId,{gamertag,enabled:true});emit(r,i.status,{userId});return publicRoom(r)}
+  function enable({roomId,userId,value}){const r=requireRoom(roomId);member(r,userId);r.members.get(userId).enabled=!!value;if(!value){r.queue=r.queue.filter(x=>x.ownerId!==userId);if(r.active?.ownerId===userId){r.active=null;startNext(r)}}emit(r,'enabled',{userId,value:!!value});return publicRoom(r)}
+  function follow({roomId,streamerId,platform,followerName,questionId,optionA,optionB,eventId=''}){const r=requireRoom(roomId);member(r,streamerId);if(!r.members.get(streamerId).enabled)return {accepted:false,reason:'disabled'};if(r.queue.length>=20)return {accepted:false,reason:'full'};const dup=[r.active,...r.queue].some(x=>x?.eventId&&x.eventId===eventId&&x.ownerId===streamerId);if(eventId&&dup)return {accepted:false,reason:'duplicate'};const q={id:randomUUID(),ownerId:streamerId,platform,followerName,questionId,a:optionA,b:optionB,eventId,votes:new Map(),endsAt:null};r.queue.push(q);startNext(r);return {accepted:true,id:q.id}}
+  function vote({roomId,streamerId,platform,userId,message}){const r=requireRoom(roomId),q=r.active;if(!q||now()>=q.endsAt)return false;if(q.ownerId!==streamerId)return false;const choice=String(message||'').trim().toUpperCase();if(!['A','B'].includes(choice)||!userId)return false;q.votes.set(String(platform).toLowerCase()+':'+userId,choice);emit(r,'vote');return true}
+  function tick(){const results=[];for(const r of rooms.values()){const q=r.active;if(!q||now()<q.endsAt)continue;const votes=counts(q);const winner=votes.A===votes.B?(Math.random()<.5?'A':'B'):(votes.A>votes.B?'A':'B');const result={roomId:r.id,questionId:q.questionId,streamerId:q.ownerId,platform:q.platform,followerName:q.followerName,winner,votes,players:[...r.members].filter(([,m])=>m.enabled&&m.gamertag).map(([id,m])=>({grenaId:id,gamertag:m.gamertag}))};results.push(result);r.active=null;emit(r,'result',{result});startNext(r)}return results}
+  function leave({roomId,userId}){const r=requireRoom(roomId);member(r,userId);if(userId===r.ownerId){rooms.delete(roomId);notify({roomId,type:'closed'});return}r.members.delete(userId);r.queue=r.queue.filter(q=>q.ownerId!==userId);if(r.active?.ownerId===userId){r.active=null;startNext(r)}emit(r,'leave',{userId})}
+  return {create,invite,respond,enable,follow,vote,tick,leave,getRoom:roomId=>publicRoom(requireRoom(roomId))};
+}
