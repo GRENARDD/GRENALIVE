@@ -89,5 +89,6 @@ jobs:
           - Es recomendable validar las alertas de pagos con un LIVE real monetizado.
           - La conexión móvil en red local aún no utiliza HTTPS.
           - Windows SmartScreen puede avisar si el instalador no está firmado.
-          EOF          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.5.1.23.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
+          EOF
+          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.5.1.23.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" --title "GREÑA Live Desktop v$VERSION" --notes-file release-notes.md
