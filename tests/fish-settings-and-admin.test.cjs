@@ -36,7 +36,7 @@ test('Fish Audio ofrece siempre el botón de sincronización y verifica la cuent
  assert.match(ui,/fishRequest\('POST',undefined,'\/api\/license\/fish-credentials\/sync'\)/);
  assert.match(ui,/No hay API vinculada ni copia local recuperable/);
 });
-test('Compilación estable prepara instalador 5.1.24',()=>{
+test('Compilación estable prepara instalador 5.1.25',()=>{
  const update=src('desktop-build/fix_official_updates.py');
  assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '5\.1\.19'/);
  const gh=src('.github/workflows/grena-desktop-from-kit.yml');
