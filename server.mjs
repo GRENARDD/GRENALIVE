@@ -2415,6 +2415,49 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   const room=camRoomByInvite(url.searchParams.get('token'));if(!room)return json(res,404,{ok:false,error:'Invitación inválida o vencida.'});return json(res,200,{ok:true,room:{id:room.id,code:room.code,hostName:room.ownerName,createdAt:room.createdAt},secureContextRequired:true});
  }
 
+ if(pathname==='/api/internal/youtube/data'&&req.method==='GET'){
+  // Solo el motor local autenticado con el token de arranque puede leer datos
+  // del YouTube enlazado; nunca se envía el OAuth token a OBS ni al navegador.
+  if(!requireInternalBridge(req,res))return;
+  const yt=savedAuth.youtube;
+  if(!yt?.channelId)return json(res,401,{ok:false,error:'Vincula tu canal YouTube en GREÑA ID primero.'});
+  const resource=String(url.searchParams.get('resource')||'');
+  if(!['videos','liveChat/messages'].includes(resource))return json(res,400,{ok:false,error:'Recurso YouTube inválido'});
+  const uri=new URL('https://www.googleapis.com/youtube/v3/'+resource);
+  if(resource==='videos'){
+   const id=String(url.searchParams.get('id')||'');
+   if(!/^[A-Za-z0-9_-]{11}$/.test(id))return json(res,400,{ok:false,error:'ID de vídeo inválido'});
+   uri.searchParams.set('id',id);uri.searchParams.set('part','liveStreamingDetails,snippet,status');
+  }else{
+   const liveChatId=String(url.searchParams.get('liveChatId')||'');
+   if(!liveChatId||liveChatId.length>256||!/^[A-Za-z0-9_+=/-]+$/.test(liveChatId))return json(res,400,{ok:false,error:'ID de chat inválido'});
+   uri.searchParams.set('liveChatId',liveChatId);uri.searchParams.set('part','id,snippet,authorDetails');
+   uri.searchParams.set('maxResults',String(Math.max(1,Math.min(200,Number(url.searchParams.get('maxResults'))||200))));
+   const pageToken=String(url.searchParams.get('pageToken')||'');
+   if(pageToken.length>512)return json(res,400,{ok:false,error:'Token de página demasiado largo'});
+   if(pageToken)uri.searchParams.set('pageToken',pageToken);
+  }
+  try{
+   let token=yt.access_token;
+   if(!token||Date.now()>Number(yt.expires_at||0)-60000){
+    if(!yt.refresh_token)throw Error('Reautoriza YouTube para activar el chat y el contador.');
+    if(yt.mode==='grena-auth'){
+     const refreshed=await refreshBrokerToken('youtube');
+     token=refreshed.access_token;yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;
+     await persistAuth();
+    }else{
+     const refreshed=await postForm('https://oauth2.googleapis.com/token',{client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,refresh_token:yt.refresh_token,grant_type:'refresh_token'});
+     token=refreshed.access_token;yt.access_token=token;
+     yt.expires_at=Date.now()+Number(refreshed.expires_in||3600)*1000;
+     await persistAuth();
+    }
+   }
+   const response=await fetch(uri,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(12000)});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok)return json(res,response.status,{ok:false,error:String(data.error?.message||'YouTube API rechazada').slice(0,300)});
+   return json(res,200,data);
+  }catch(e){return json(res,502,{ok:false,error:String(e.message||e).slice(0,300)})}
+ }
  if(pathname==='/api/internal/youtube/live'&&req.method==='GET'){
   if(!requireInternalBridge(req,res))return;
   const yt=savedAuth.youtube;
