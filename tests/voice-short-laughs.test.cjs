@@ -49,7 +49,7 @@ test('ordinary words, short laughs, links, tags, emoji and names are unchanged',
 
 test('laugh compression only touches the TTS message copy, never the visual chat',()=>{
  assert.match(chat,/const humanText=stripStickerAndInternalCodes\(m\.text\|\|''\)/);
- assert.match(chat,/let text=isFishVoiceSelected\(\)\s*\?\s*humanText\s*:\s*cleanTextForVoice\(humanText\);/);
+ assert.match(chat,/let text=isFishVoiceSelected\(\)\s*\?\s*stripEmojisForVoice\(humanText\)\s*:\s*cleanTextForVoice\(humanText\);/);
  assert.match(chat,/text=shortenRepeatedLaughsForVoice\(text\);/);
  assert.match(chat,/insertVoiceByPriority\(\{\s*\.\.\.m,\s*text\s*\}\)/);
  assert.doesNotMatch(chat.slice(start,stop),/m\.text\s*=/);
