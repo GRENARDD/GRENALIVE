@@ -27,8 +27,8 @@ const CLOUD_MODE=process.env.GRENA_CLOUD==='1';
 const MOBILE_LAN_ENABLED=!CLOUD_MODE&&process.env.GRENA_MOBILE_LAN==='1';
 let mobileLanActive=MOBILE_LAN_ENABLED,mobileGateway=null;
 const LAN_IPV4=[...Object.values(networkInterfaces()).flat()].filter(x=>x&&x.family==='IPv4'&&!x.internal).map(x=>x.address);
-const MOBILE_HOSTS=new Set(LAN_IPV4.flatMap(ip=>[ip+':'+Number(process.env.PORT||8787),ip+':'+(Number(process.env.PORT||8787)+1)]));
-const MOBILE_ORIGINS=new Set(LAN_IPV4.flatMap(ip=>['http://'+ip+':'+Number(process.env.PORT||8787),'http://'+ip+':'+(Number(process.env.PORT||8787)+1)]));
+const MOBILE_HOSTS=new Set(LAN_IPV4.flatMap(ip=>[ip+':'+Number(process.env.PORT||8787),ip+':'+(Number(process.env.PORT||8787)+2)]));
+const MOBILE_ORIGINS=new Set(LAN_IPV4.flatMap(ip=>['http://'+ip+':'+Number(process.env.PORT||8787),'http://'+ip+':'+(Number(process.env.PORT||8787)+2)]));
 
 const HOST=process.env.HOST||(CLOUD_MODE||MOBILE_LAN_ENABLED?'0.0.0.0':'127.0.0.1'), PORT=Number(process.env.PORT||8787), APP_ROOT=dirname(fileURLToPath(import.meta.url)), ROOT=APP_ROOT;
 const PUBLIC_URL=String(process.env.GRENA_PUBLIC_URL||(process.env.RAILWAY_PUBLIC_DOMAIN?`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`:'')).trim().replace(/\/$/,'');
@@ -1990,8 +1990,8 @@ const PUBLIC_POST=new Set(['/api/mobile/pair/consume','/api/account/register','/
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
 const MOBILE_PAIRS=new Map();
 const mobilePairRate=new Map();
-function mobileShareBase(){return PUBLIC_URL||((mobileLanActive&&LAN_IPV4[0])?'http://'+LAN_IPV4[0]+':'+(mobileGateway?PORT+1:PORT):'http://127.0.0.1:'+PORT)}
-async function enableMobileLanGateway(){if(CLOUD_MODE)return;if(mobileLanActive)return;if(!LAN_IPV4.length)throw Error('Esta PC no tiene IP local WiFi/Ethernet disponible.');const gw=http.createServer((req,res)=>server.emit('request',req,res));gw.on('upgrade',(req,socket,head)=>server.emit('upgrade',req,socket,head));await new Promise((resolve,reject)=>{gw.once('error',reject);gw.listen(PORT+1,'0.0.0.0',()=>{gw.off('error',reject);resolve()})});mobileGateway=gw;mobileLanActive=true;}
+function mobileShareBase(){return PUBLIC_URL||((mobileLanActive&&LAN_IPV4[0])?'http://'+LAN_IPV4[0]+':'+(mobileGateway?PORT+2:PORT):'http://127.0.0.1:'+PORT)}
+async function enableMobileLanGateway(){if(CLOUD_MODE)return;if(mobileLanActive)return;if(!LAN_IPV4.length)throw Error('Esta PC no tiene IP local WiFi/Ethernet disponible.');const gw=http.createServer((req,res)=>server.emit('request',req,res));gw.on('upgrade',(req,socket,head)=>server.emit('upgrade',req,socket,head));await new Promise((resolve,reject)=>{gw.once('error',reject);gw.listen(PORT+2,'0.0.0.0',()=>{gw.off('error',reject);resolve()})});mobileGateway=gw;mobileLanActive=true;}
 function panelHostOk(req){return CLOUD_MODE?!!requestHost(req):(LOCAL_HOSTS.has(String(req.headers.host||'').toLowerCase())||(mobileLanActive&&MOBILE_HOSTS.has(String(req.headers.host||'').toLowerCase())))}
 // Un navegador siempre envía Origin en un POST entre sitios; sin Origin = cliente no-navegador (curl, puente interno).
 function panelOriginOk(req){const o=req.headers.origin;if(CLOUD_MODE){if(o!==undefined&&!sameOriginRequest(req,o))return false}else if(o!==undefined&&!(LOCAL_ORIGINS.has(String(o))||(mobileLanActive&&MOBILE_ORIGINS.has(String(o)))))return false;const sfs=String(req.headers['sec-fetch-site']||'').toLowerCase();if(sfs&&!['same-origin','same-site','none'].includes(sfs))return false;return true}
