@@ -39,13 +39,26 @@ new='''  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https:\/\//i.test(url)) shell.openExternal(url).catch(()=>{});
       return {action:'deny'};
     });
-    popup.webContents.on('will-navigate',(event,url)=>{
+    // Google rechaza navegadores embebidos. Abrir el proveedor OAuth en el
+    // navegador predeterminado de Windows y preservar la ventana GREÑA.
+    // El callback de Chrome se autentica mediante un state aleatorio de un solo uso.
+    let externalOpened = false;
+    const openProvider = (event, url) => {
       try {
-        const target=new URL(url);
-        if(target.protocol==='http:' && target.origin!==ADDRESS) event.preventDefault();
-        if(!['https:','http:'].includes(target.protocol)) event.preventDefault();
+        const target = new URL(url);
+        if (target.protocol === 'https:') {
+          event.preventDefault();
+          if (!externalOpened) {
+            externalOpened = true;
+            shell.openExternal(url).catch(e=>logStartup('YouTube OAuth navegador:',e.message));
+          }
+          return;
+        }
+        if (target.protocol !== 'http:' || target.origin !== ADDRESS) event.preventDefault();
       } catch { event.preventDefault(); }
-    });
+    };
+    popup.webContents.on('will-redirect',openProvider);
+    popup.webContents.on('will-navigate',openProvider);
   });'''
 if main.count(old)!=1:
     raise RuntimeError('El manejador OAuth original de Electron no coincide con el esperado.')

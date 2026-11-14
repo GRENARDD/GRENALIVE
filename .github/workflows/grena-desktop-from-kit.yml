@@ -62,8 +62,6 @@ on:
       - main
     paths:
       - GRENA_LIVE_Desktop_v5_Kit.zip
-      - 'starvios-reader.mjs'
-      - 'starvios-public-events.mjs'
       - 'server.mjs'
       - 'grena-avatar.js'
       - 'login.html'
@@ -93,7 +91,6 @@ on:
       - 'chat.html'
       - 'desktop-bubble.html'
       - 'desktop-bubble-preload.cjs'
-      - 'starvios-viewers.mjs'
       - 'chat-server.mjs'
       - 'tests/**'
       - 'desktop-build/**'
@@ -109,7 +106,7 @@ permissions:
   contents: write
 concurrency:
   group: grena-windows-build-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   windows:
     runs-on: windows-latest
@@ -213,14 +210,14 @@ jobs:
             node --check $path
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Set distinct v5.1.19 release-candidate version for preview installer
+      - name: Set distinct v5.1.20 beta version for preview installer
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "5.1.19-rc.1"
+          $pkg.version = "5.1.20-beta.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 5.1.19-rc.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 5.1.20-beta.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -238,16 +235,16 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Set official 5.1.19 version on main (never on pull requests)
+      - name: Set official 5.1.20 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
           if ($pkg.version -ne "5.1.19") { throw "Versión base inesperada; se cancela publicación estable." }
-          $pkg.version = "5.1.19"
+          $pkg.version = "5.1.20"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Versión oficial verificada: 5.1.19"
+          Write-Host "Versión oficial verificada: 5.1.20"
       - name: Verify pack logic
         shell: pwsh
         run: |
@@ -332,6 +329,6 @@ jobs:
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-RC-5.1.19-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.19' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.20-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.20' }}
           path: dist/*.exe
           if-no-files-found: error

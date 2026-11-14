@@ -12,7 +12,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfig } from 'tiktok-live-connector';
 import { chromium } from 'playwright-core';
 import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
-import {STARVIOS_SUPPORT_CATALOG,normalizeStarviosEvent} from './starvios-events.mjs';
+
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 import { makeLicensing } from './grena-licensing.mjs';
 import ownerFishVault from './fish-owner-vault.cjs';
@@ -233,7 +233,7 @@ const TIKTOK_GIFT_ES={
 };
 function giftTextKey(v){return String(v||'').trim().toLowerCase().replace(/[’‘]/g,"'").replace(/\s+/g,' ')}
 function tiktokGiftSpanishName(name){const raw=String(name||'').trim();return TIKTOK_GIFT_ES[giftTextKey(raw)]||raw}
-function catalogPlatform(v){const p=String(v||'').toLowerCase();return p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='kick'?'Kick':p==='starvios'?'Starvios':String(v||'')}
+function catalogPlatform(v){const p=String(v||'').toLowerCase();return p==='tiktok'?'TikTok':p==='twitch'?'Twitch':p==='kick'?'Kick':String(v||'')}
 function catalogItemKey(x={}){const p=catalogPlatform(x.platform);const id=String(x.id||'').trim();if(id)return `${p}|id:${id}`;return `${p}|name:${giftTextKey(x.name||x.nameEs)}|${Number(x.amount||0)||0}|${String(x.unit||'')}`}
 function normalizeCatalogItem(x={}){
  const platform=catalogPlatform(x.platform),name=String(x.name||x.nameEs||'Apoyo').trim(),nameEs=String(x.nameEs||(platform==='TikTok'?tiktokGiftSpanishName(name):name)).trim();
@@ -243,11 +243,12 @@ let giftCatalogCache=await readJson(GIFT_CATALOG_CACHE_FILE,{version:1,updatedAt
 if(!giftCatalogCache||typeof giftCatalogCache!=='object')giftCatalogCache={version:1,updatedAt:0,sources:{},items:[]};
 if(!Array.isArray(giftCatalogCache.items))giftCatalogCache.items=[];
 if(!giftCatalogCache.sources||typeof giftCatalogCache.sources!=='object')giftCatalogCache.sources={};
-giftCatalogCache.items=giftCatalogCache.items.map(normalizeCatalogItem);
+giftCatalogCache.items=giftCatalogCache.items.map(normalizeCatalogItem).filter(item=>item.platform!=='Starvios');
 let giftCatalogSaveTimer=null;
 function scheduleGiftCatalogSave(){if(giftCatalogSaveTimer)return;giftCatalogSaveTimer=setTimeout(async()=>{giftCatalogSaveTimer=null;giftCatalogCache.updatedAt=Date.now();await safeWriteJson(GIFT_CATALOG_CACHE_FILE,giftCatalogCache).catch(e=>console.warn('Catálogo regalos:',e?.message||e))},400)}
 function upsertCatalogItem(raw,{preferName=false}={}){
- const item=normalizeCatalogItem(raw);let i=giftCatalogCache.items.findIndex(x=>catalogItemKey(x)===catalogItemKey(item));
+ const item=normalizeCatalogItem(raw);
+ if(item.platform==='Starvios')return null;let i=giftCatalogCache.items.findIndex(x=>catalogItemKey(x)===catalogItemKey(item));
  if(i<0&&preferName)i=giftCatalogCache.items.findIndex(x=>x.platform===item.platform&&giftTextKey(x.name)===giftTextKey(item.name));
  if(i<0){giftCatalogCache.items.push(item);scheduleGiftCatalogSave();return item}
  const old=giftCatalogCache.items[i];const merged=normalizeCatalogItem({...old,...item,name:old.name||item.name,nameEs:item.nameEs||old.nameEs,image:item.image||old.image,animatedImage:item.animatedImage||old.animatedImage,observed:old.observed||item.observed,meta:{...(old.meta||{}),...(item.meta||{})}});giftCatalogCache.items[i]=merged;scheduleGiftCatalogSave();return merged;
@@ -255,7 +256,7 @@ function upsertCatalogItem(raw,{preferName=false}={}){
 function ensureBuiltInGiftCatalog(){
  const now=Date.now();
  // Identidades ilustrativas de eventos. No equivalen a regalos comprables oficiales.
- for(const x of [])upsertCatalogItem({platform:'Starvios',id:'starvios:'+x.id,name:x.label,nameEs:x.label,category:x.kind==='gift'?'support':'event',giftKind:x.kind,amount:0,unit:x.unit,image:x.image,source:'GREÑA · ilustración de evento, no regalo oficial',updatedAt:now});
+
  // Catalog event categories supported by YouTube, not an inventory of all paid stickers.
  {
   for(const [id,name,unit] of [['superchat','Super Chat','USD'],['supersticker','Super Sticker','USD'],['membership','Nueva membresía','membership'],['membershipgift','Membresías regaladas','membership'],['membermilestone','Hito de membresía','membership'],['membershipreceived','Membresía recibida','membership']]){
@@ -285,10 +286,10 @@ function normalizeAfterglowSettings(input={}){
  const eventLevels=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,number(x.eventLevels?.[k],54)]));
  const eventIntensity=Object.fromEntries(Object.keys(AFTERGLOW_DEFAULTS.sounds).map(k=>[k,number(x.eventIntensity?.[k],65)]));
  const fontFamily=['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(x.fontFamily)?x.fontFamily:'Inter';
- const streamerNames=Object.fromEntries(['tiktok','twitch','kick','starvios','youtube'].map(p=>[p,String(x.streamerNames?.[p]||'').trim().slice(0,64)]));
+ const streamerNames=Object.fromEntries(['tiktok','twitch','kick','youtube'].map(p=>[p,String(x.streamerNames?.[p]||'').trim().slice(0,64)]));
  return {streamerNames,theme:['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','grena_grenito','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(x.theme)?x.theme:'minecraft',mascotCharacter:['zp','pg','bm','sk','dg'].includes(x.mascotCharacter)?x.mascotCharacter:'zp',intensity:number(x.intensity,65),volume:number(x.volume,54),soundEnabled:x.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(x.audioRoute)?x.audioRoute:'both',sounds,audioFiles,eventLevels,eventIntensity,fontFamily,textColor:color(x.textColor,'#ffffff'),accentMode:x.accentMode==='custom'?'custom':'platform',accent:color(x.accent,'#caff5f')};
 }
-const socialDefaults={socialLayout:'classic',tiktokUser:'',instagramUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',enabledNetworks:['tiktok','instagram','twitch','kick','youtube','starvios'],fontFamily:'Segoe UI',fontSize:18,iconSize:22,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true,edge:'left',edgeOffset:0};
+const socialDefaults={socialLayout:'classic',tiktokUser:'',instagramUser:'',twitchUser:'',kickUser:'',youtubeUser:'',starviosUser:'',enabledNetworks:['tiktok','instagram','twitch','kick','youtube'],fontFamily:'Segoe UI',fontSize:18,iconSize:22,textColor:'#ffffff',accent:'#22d3ee',panelOpacity:78,holdSeconds:4,transitionSeconds:0.65,style:'glass',uppercase:false,showAt:true,edge:'left',edgeOffset:0};
 const autoDefaults={enabled:true,counterTikTok:'',counterTwitch:'',counterKick:'',counterTikTokEnabled:false,counterTwitchEnabled:false,counterKickEnabled:false,counterStyle:'classic',counterCardColor:'#18232c',counterEdge:'left',counterEdgeOffset:0,alertStyle:'classic'};
 let usersStore=await readJson(USERS_FILE,{version:1,users:[]});
 if(!Array.isArray(usersStore.users))usersStore={version:1,users:[]};
@@ -606,7 +607,7 @@ function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clie
 // ===== GREÑA FIDELIDAD =====
 // Ranking separado por plataforma. El "tiempo" es tiempo activo estimado entre señales del usuario,
 // no tiempo de visualización exacto: TikTok/Twitch/Kick no exponen una identidad fiable de cada viewer silencioso.
-function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube','starvios'].includes(p)?p:''}
+function loyaltyPlatform(v=''){const p=String(v||'').toLowerCase();return ['tiktok','twitch','kick','youtube'].includes(p)?p:''}
 function loyaltyKey(v=''){return String(v||'').trim().replace(/^@/,'').toLowerCase().slice(0,80)}
 function loyaltyDay(ts=Date.now()){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ts))}
 function loyaltyLevel(score=0){const n=Number(score)||0;if(n>=6000)return {name:'Leyenda',icon:'★',next:null};if(n>=3000)return {name:'Diamante',icon:'◆',next:6000};if(n>=1500)return {name:'Platino',icon:'⬟',next:3000};if(n>=700)return {name:'Oro',icon:'●',next:1500};if(n>=250)return {name:'Plata',icon:'◈',next:700};return {name:'Bronce',icon:'◇',next:250}}
@@ -998,11 +999,6 @@ function rememberObservedCatalogGift(platform,event,extra={}){
  upsertCatalogItem(raw,{preferName:true});
 }
 function enrichAlertMedia(platform,event,extra={}){
- if(String(platform).toLowerCase()==='starvios'){
-  const kind=String(extra.eventKind||extra.giftKind||event||'').toLowerCase();
-  const x=STARVIOS_SUPPORT_CATALOG.find(item=>item.kind===kind)||STARVIOS_SUPPORT_CATALOG.find(item=>item.kind===event);
-  if(x)extra={...extra,giftImage:extra.giftImage||x.image,giftName:extra.giftName||(kind==='gift'?'Starvies':x.label),giftKind:kind};
- }
  if(String(platform).toLowerCase()==='youtube'){
   const kind=String(extra.eventKind||extra.giftKind||'').toLowerCase();
   const known=['superchat','supersticker','membership','membershipgift','membermilestone','membershipreceived'];
@@ -1636,11 +1632,13 @@ async function beginTwitchDeviceOAuth(res,ownerId,req){
   const id=b64url(randomBytes(24)),session={id,userId:ownerId,deviceCode:d.device_code,userCode:d.user_code||'',verificationUri:d.verification_uri||`https://www.twitch.tv/activate?public=true&device-code=${encodeURIComponent(d.user_code||'')}`,interval:Math.max(2,Number(d.interval||5)),expiresAt:Date.now()+Math.max(60,Number(d.expires_in||1800))*1000,status:'pending',message:'Esperando que autorices GREÑA en Twitch…'};
  twitchDeviceSessions.set(id,session);void pollTwitchDeviceSession(id);return twitchDevicePage(res,session);
 }
-function beginOAuth(platform,req,res){
+async function beginOAuth(platform,req,res){
  const currentOwner=sessionUser(req);if(!currentOwner||currentOwner.id!==activeUserId)return callbackPage(res,false,'Inicia sesión en tu propia cuenta GREÑA antes de vincular plataformas.');
  if(platform==='youtube'){
+  // Comprobar la configuración REAL cada vez: evita un estado OAuth obsoleto si el Worker fue activado con GREÑA abierta.
+  if(AUTH_SERVICE_URL)await loadAuthServiceConfig();
   if(isBrokerProvider('youtube'))return beginBrokerOAuth('youtube',req,res,currentOwner.id);
-  if(!configured('youtube'))return callbackPage(res,false,'YouTube no está habilitado en GREÑA Auth. Comprueba la configuración de Cloudflare.');
+  if(!configured('youtube'))return callbackPage(res,false,authService.lastError?'YouTube: no se pudo consultar GREÑA Auth ('+authService.lastError+').':'YouTube no está habilitado en GREÑA Auth. Comprueba la configuración de Cloudflare.');
   const owner=sessionUser(req);if(!owner)return callbackPage(res,false,'Inicia sesión en GREÑA primero.');
   const state=b64url(randomBytes(32));const redirect=oauthRedirectFor('youtube',req);
   oauthState.set(state,{platform:'youtube',created:Date.now(),userId:owner.id,redirect});
@@ -1709,7 +1707,10 @@ async function finishBrokerOAuth(platform,code,s,res){
  }
  throw Error('Plataforma no compatible con GREÑA Auth.');
 }
-async function finishOAuth(platform,url,res,req){const code=url.searchParams.get('code'),state=url.searchParams.get('state'),err=url.searchParams.get('error');if(err)throw Error(url.searchParams.get('error_description')||err);const s=oauthState.get(state);oauthState.delete(state);if(!s||s.platform!==platform||Date.now()-s.created>10*60e3)throw Error('La sesión de autorización expiró. Inténtalo de nuevo.');const owner=sessionUser(req);if(!s.userId||!owner||owner.id!==s.userId||owner.id!==activeUserId)throw Error('La autorización pertenece a otra sesión GREÑA. Inicia de nuevo desde tu cuenta.');if(s.mode==='grena-auth')return await finishBrokerOAuth(platform,code,s,res);const redirect=s.redirect||oauthRedirectFor(platform);if(platform==='youtube'){
+async function finishOAuth(platform,url,res,req){const code=url.searchParams.get('code'),state=url.searchParams.get('state'),err=url.searchParams.get('error');if(err)throw Error(url.searchParams.get('error_description')||err);const s=oauthState.get(state);oauthState.delete(state);if(!s||s.platform!==platform||Date.now()-s.created>10*60e3)throw Error('La sesión de autorización expiró. Inténtalo de nuevo.');const owner=sessionUser(req);// OAuth abierto en Chrome: Chrome no comparte las cookies de Electron. El state impredecible, de un solo uso,
+ // con caducidad y asociado al GREÑA ID activo autoriza este callback únicamente para YouTube por broker.
+ const browserYoutube=platform==='youtube'&&s.mode==='grena-auth'&&s.userId===activeUserId;
+ if(!s.userId||s.userId!==activeUserId||(!browserYoutube&&(!owner||owner.id!==s.userId)))throw Error('La autorización pertenece a otra sesión GREÑA. Inicia de nuevo desde tu cuenta.');if(s.mode==='grena-auth')return await finishBrokerOAuth(platform,code,s,res);const redirect=s.redirect||oauthRedirectFor(platform);if(platform==='youtube'){
   const tok=await postForm('https://oauth2.googleapis.com/token',{code,client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,redirect_uri:redirect,grant_type:'authorization_code'});
   const response=await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',{headers:{Authorization:'Bearer '+tok.access_token}});
   const details=await response.json();if(!response.ok||!details.items?.length)throw Error('No se pudo consultar tu canal de YouTube.');
@@ -2204,7 +2205,12 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    await destroySession(req,res);return json(res,200,{ok:true});
  }
  if(pathname==='/api/account/me'&&req.method==='GET'){const u=sessionUser(req);res.setHeader('Cache-Control','no-store');return json(res,200,accountPayload(u));}
-  if(pathname==='/api/obs-token'&&req.method==='GET'){const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Sesión requerida.'});res.setHeader('Cache-Control','no-store');return json(res,200,{ok:true,token:obsToken});}
+  if(pathname==='/api/youtube/diagnostic'&&req.method==='GET'){
+  if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'});
+  await loadAuthServiceConfig();
+  return json(res,200,{ok:true,workerReachable:authService.reachable,brokerEnabled:isBrokerProvider('youtube'),linked:!!savedAuth.youtube?.channelId,channel:savedAuth.youtube?.displayName||'',callback:oauthRedirectFor('youtube',req),workerError:authService.lastError||''});
+ }
+ if(pathname==='/api/obs-token'&&req.method==='GET'){const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Sesión requerida.'});res.setHeader('Cache-Control','no-store');return json(res,200,{ok:true,token:obsToken});}
  if(pathname==='/api/soundboard'&&req.method==='GET'){
    const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
    const board=await soundboardState(u.id);
@@ -2471,45 +2477,11 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(p==='tiktok'&&!body.connected&&wasConnected&&/termin[oó]|ended|stream_end/i.test(label))endTapTapSession();
   pushEventHealth();return json(res,200,{ok:true,status:publicStatus(),eventHealth:eventHealthSnapshot()});
  }
- if(pathname==='/api/internal/starvios-live'&&req.method==='POST'){
-  if(!requireInternalBridge(req,res))return;
-  const body=JSON.parse(await readBody(req)||'{}');
-  if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
-  if(typeof body.live!=='boolean')return json(res,400,{ok:false,error:'Estado LIVE no válido'});
-  starviosLive={live:body.live,known:true,updatedAt:Date.now()};
-  viewerMeta.starvios.live=body.live;
-  if(!body.live)setViewers('starvios',0,'Starvios offline verificado');
-  pushStatus();pushViewers();return json(res,200,{ok:true,state:starviosLive});
- }
- if(pathname==='/api/internal/starvios-event'&&req.method==='POST'){
-  if(!requireInternalBridge(req,res))return;
-  const body=JSON.parse(await readBody(req)||'{}');
-  if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});
-  const e=normalizeStarviosEvent({...body,type:body.kind||body.type||''});
-  if(!e)return json(res,400,{ok:false,error:'Evento Starvios desconocido o sin datos'});
-  if(bridgeMessageDuplicate(body.bridgeEventId||('starvios:'+e.id)))return json(res,200,{ok:true,duplicate:true});
-  starviosRealEventAt=Date.now();
-  starviosLastRealKind=e.kind;
-  starviosLastRealNameAvailable=!body.anonymous&&!['Usuario','Usuario Starvios','Seguidor de Starvios','Nuevo seguidor'].includes(e.user);
-  noteBridgeSignal('starvios',e.kind,{user:e.user,amount:e.amount});
-  recordLoyaltyEvent({platform:'starvios',kind:e.kind,user:e.user,amount:e.amount,count:e.count});
-  const mapped=e.kind==='subrenew'?'sub':e.kind==='giftsub'||e.kind==='shower'?'gift':e.kind;
-  const labels={follow:body.anonymous?(e.count>1?'· '+e.count+' seguidores nuevos, nombres no disponibles':'· nuevo follow confirmado; nombre no disponible'):'siguió el canal',
-    sub:'se suscribió',subrenew:'renovó su suscripción',
-    giftsub:'regaló '+e.count+(e.count===1?' suscripción':' suscripciones'),raid:'envió una raid',
-    gift:'donó '+e.amount+' Starvies',shower:'activó Lluvia de Estrellas'};
-  const extra={giftKind:e.kind,eventKind:e.kind,amount:e.amount,count:e.count,bridgeEventId:body.bridgeEventId||e.id,anonymous:!!body.anonymous,source:String(body.source||'Starvios live events').slice(0,100),
-    ...(e.kind==='gift'?{giftName:'Starvies'}:{}),
-    ...(e.kind==='raid'?{viewers:e.viewers||0}:{}),
-    level:e.level,eventLabel:e.kind==='shower'?'LLUVIA DE ESTRELLAS':
-    e.kind==='subrenew'?'RENOVÓ SUSCRIPCIÓN':e.kind==='giftsub'?'SUBS REGALADAS':''};
-  alert('Starvios',mapped,body.anonymous?'Nuevo seguidor':e.user,labels[e.kind]||'',{...extra,identityAvailable:starviosLastRealNameAvailable});
-  pushEventHealth();
-  return json(res,200,{ok:true,kind:e.kind,mapped});
- }
+ // Starvios ya no es un proveedor activo. Rechazar también mensajes de instalaciones antiguas.
+ if(req.method==='POST'&&['/api/internal/starvios-live','/api/internal/starvios-event'].includes(pathname))return json(res,410,{ok:false,error:'Proveedor retirado de GREÑA Live.'});
  if(pathname==='/api/internal/event'&&req.method==='POST'){
   if(!requireInternalBridge(req,res))return;let b='';b=await readBody(req);const body=JSON.parse(b||'{}');if(CLOUD_MODE&&(!activeUserId||String(body.profileId||'')!==activeUserId))return json(res,202,{ok:true,ignored:'stale-creator-event'});const platform=String(body.platform||''),event=String(body.event||'');
-  if(!['TikTok','Twitch','Kick','YouTube','youtube','Starvios'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
+  if(!['TikTok','Twitch','Kick','YouTube','youtube'].includes(platform)||!['follow','sub','gift','cheer','share','raid','like'].includes(event))return json(res,400,{ok:false,error:'Evento interno no válido'});
   if(bridgeMessageDuplicate(body.bridgeEventId))return json(res,200,{ok:true,duplicate:true});
   if(platform==='Twitch'&&twitchCfg){
    const officialFor={follow:['channel.follow'],sub:['channel.subscribe','channel.subscription.message'],gift:['channel.subscription.gift'],cheer:['channel.cheer'],raid:['channel.raid']};
@@ -2720,7 +2692,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     const event=['giftsub','shower'].includes(ev)?'gift':ev==='subrenew'?'sub':ev;
     const sample={platform:platform==='starvios'?'Starvios':platform==='tiktok'?'TikTok':platform==='twitch'?'Twitch':platform==='kick'?'Kick':'YouTube',
       event,eventKind,name:'USUARIO_PRUEBA',giftName:rule.conditions.giftName||'Rosa',
-      giftImage:'/assets/starvios-events/starvies.svg',count:Math.max(5,rule.conditions.minCount||0),
+      giftImage:'/assets/youtube-events/superchat.svg',count:Math.max(5,rule.conditions.minCount||0),
       totalDiamonds:Math.max(100,rule.conditions.minValue||0),bits:Math.max(500,rule.conditions.minValue||0),amount:Math.max(500,rule.conditions.minValue||0),
       customRuleId:rule.id,customAction:rule.action,receivedAt:Date.now(),isPreview:true};
     broadcast({type:'alert',alert:sample});
@@ -2761,7 +2733,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   });
   if(pathname==='/api/designs'&&req.method==='GET')return json(res,200,{ok:true,designs:savedAlertDesigns});
  if(pathname==='/api/design'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const d=JSON.parse(b||'{}');const ev=String(d.event||'follow');savedAlertDesigns[ev]={...d,soundProfileVersion:SOUND_PROFILE_VERSION};await safeWriteJson(stateFile('alert-designs.json',LEGACY_ALERTS_FILE),savedAlertDesigns);return json(res,200,{ok:true,event:ev})});
- if(pathname==='/api/alert'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(a.platform&&a.event&&['follow','sub','gift','cheer','share','raid','like'].includes(String(a.event))){alert(String(a.platform),String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,receivedAt:Date.now()}})}return json(res,200,{ok:true})});
+ if(pathname==='/api/alert'&&req.method==='POST')return withAccountTransition(async()=>{if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA vencida.'});let b='';b=await readBody(req);const a=JSON.parse(b||'{}');if(String(a.platform||'').toLowerCase()==='starvios')return json(res,410,{ok:false,error:'Plataforma retirada.'});if(a.platform&&a.event&&['follow','sub','gift','cheer','share','raid','like'].includes(String(a.event))){alert(String(a.platform),String(a.event),a.name,a.action||'',a)}else{broadcast({type:'alert',alert:{...a,receivedAt:Date.now()}})}return json(res,200,{ok:true})});
  if(pathname==='/api/tiktok/browser-login'&&req.method==='POST'){json(res,202,{ok:true,message:'Abriendo TikTok…'});beginTikTokBrowserLogin().catch(e=>{console.error('TikTok Browser Login:',e);if(tiktokLoginContext){tiktokLoginContext.close().catch(()=>{});tiktokLoginContext=null}setStatus('tiktok',false,'Error de login: '+(e?.message||e))});return}
  const m=pathname.match(/^\/oauth\/(tiktok|twitch|kick|youtube)\/(start|callback)$/);if(m){if(m[2]==='start')return await beginOAuth(m[1],req,res);return await withAccountTransition(()=>finishOAuth(m[1],url,res,req))}
  if(pathname==='/api/twitch/device/status'&&req.method==='GET'){

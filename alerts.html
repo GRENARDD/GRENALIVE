@@ -111,8 +111,36 @@ html.grena-embedded .home-link{display:none!important}
 <details class="basic-alert-category"><summary>✨ Alertas básicas · 8 diseños nuevos</summary><div class="basic-alert-grid"><button type="button" class="basic-alert-item" data-grena-theme="celestial" aria-pressed="false"><span class="basic-art basic-art-celestial">✦</span><strong>Celestial Strike</strong><small>Impacto cósmico azul</small></button><button type="button" class="basic-alert-item" data-grena-theme="sakura" aria-pressed="false"><span class="basic-art basic-art-sakura">❀</span><strong>Sakura Spirit</strong><small>Pétalos y luz rosada</small></button><button type="button" class="basic-alert-item" data-grena-theme="comic" aria-pressed="false"><span class="basic-art basic-art-comic">💥</span><strong>Comic Impact</strong><small>Viñeta tipo cómic</small></button><button type="button" class="basic-alert-item" data-grena-theme="hologram" aria-pressed="false"><span class="basic-art basic-art-hologram">⌬</span><strong>Hologram X</strong><small>Escáner futurista</small></button><button type="button" class="basic-alert-item" data-grena-theme="inferno" aria-pressed="false"><span class="basic-art basic-art-inferno">♨</span><strong>Inferno Boss</strong><small>Fuego y energía</small></button><button type="button" class="basic-alert-item" data-grena-theme="arcade" aria-pressed="false"><span class="basic-art basic-art-arcade">★</span><strong>Retro Arcade</strong><small>Neón arcade</small></button><button type="button" class="basic-alert-item" data-grena-theme="royal" aria-pressed="false"><span class="basic-art basic-art-royal">♛</span><strong>Royal Relic</strong><small>Corona y brillo dorado</small></button><button type="button" class="basic-alert-item" data-grena-theme="void" aria-pressed="false"><span class="basic-art basic-art-void">◉</span><strong>Void Portal</strong><small>Portal dimensional</small></button></div><p style="color:#aeb9d4;font-size:12px">El estilo elegido usa los mismos enlaces OBS. Sonidos por evento con el control de volumen existente.</p></details><div id="styleSaveStatus" role="status" aria-live="polite">Cargando estilo activo…</div>
 <div class="style-tool-row">
 <a class="style-catalog-link" href="/gift-catalog.html" target="_blank" rel="noopener">▶ Probar alertas desde el Catálogo</a>
-<a class="style-studio-link" href="/afterglow-studio.html" data-grena-studio-open="1">⚙ Ajustar sonidos y colores</a>
+<a class="style-studio-link" href="/afterglow-studio.html" data-grena-studio-open="1" style="display:none" aria-hidden="true" tabindex="-1">⚙ Ajustar sonidos y colores (compatibilidad)</a>
+<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 18px;padding:14px;border:1px solid #477f9d;border-radius:14px;background:#12273d">
+  <div style="flex:1;min-width:210px"><strong style="font-size:15px">🔊 Editar sonido por alerta</strong><div style="font-size:12px;opacity:.82;margin-top:5px">Cambia el MP3, WAV u OGG de Seguidor, Regalo, Suscripción, Raid, Compartir y Tap Taps. Escúchalo y guárdalo en Afterglow.</div></div>
+  <a class="style-studio-link" href="/afterglow-studio.html#sonidos-personalizados" data-grena-studio-open="1" style="font-weight:800">🎧 ABRIR EDITOR DE SONIDOS</a>
 </div>
+</div>
+<section id="grenaSoundEditor" style="margin:16px 0;padding:18px;border:1px solid #4d708c;border-radius:16px;background:#0e1a2b" aria-label="Editor de audio por alerta">
+ <h3 style="margin:0 0 8px">🎧 Editar sonido de cada alerta</h3>
+ <p style="font-size:13px;margin:0 0 15px;opacity:.85">Elige un evento, comprueba qué audio tienes y cambia solo su sonido. Los demás ajustes se conservan.</p>
+ <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+  <label for="grenaSoundType">Tipo de alerta</label>
+  <select id="grenaSoundType" style="padding:9px;border-radius:9px;color:#fff;background:#17263b;border:1px solid #516883">
+   <option value="follow">Nuevo seguidor</option><option value="gift">Regalo</option><option value="sub">Suscripción</option>
+   <option value="raid">Raid</option><option value="share">Compartir</option><option value="likes">Tap Taps</option>
+  </select>
+ </div>
+ <p id="grenaSoundCurrent" role="status" style="font-size:13px">Consultando audio actual…</p>
+ <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center">
+  <label for="grenaSoundUpload" style="font-size:13px">Nuevo archivo MP3, WAV u OGG (máximo 6 MB)</label>
+  <input id="grenaSoundUpload" type="file" accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg" style="max-width:100%;font-size:12px"/>
+ </div>
+ <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:13px 0">
+  <label for="grenaSoundVolume">Volumen: <output id="grenaSoundVolumeValue">54%</output></label>
+  <input id="grenaSoundVolume" type="range" min="0" max="100" value="54" />
+  <button class="btn" id="grenaSoundPreview" type="button">▶ Escuchar</button>
+  <button class="btn" id="grenaSoundReset" type="button">Restaurar original</button>
+  <button class="btn btn-primary" id="grenaSoundSave" type="button">Guardar sonido y volumen</button>
+ </div>
+ <p id="grenaSoundResult" role="status" style="font-size:12px;margin:6px 0 0"></p>
+</section>
 <p class="style-alert-note">Mantienes los mismos enlaces vertical y horizontal de OBS. No necesitas añadir otras fuentes.</p>
 </section>
 <div class="welcome"><div><div class="eyebrow">TU STREAM, TU ESTILO</div><h2>Todo tu show.<br/><span>Una sola experiencia.</span></h2><p>Administra tus alertas de TikTok, Twitch, Kick, YouTube y  desde un solo panel.</p></div><div class="orb">✦</div></div>
@@ -281,4 +309,67 @@ html.grena-embedded .home-link{display:none!important}
 })();
 </script>
 <script src="/ui-v2.js"></script>
+<script>
+/* Controles directos de audio en Alertas: comparten el ajuste de AFTERGLOW con OBS. */
+(()=>{
+ const byId=id=>document.getElementById(id);
+ const type=byId('grenaSoundType'),fileInput=byId('grenaSoundUpload'),vol=byId('grenaSoundVolume');
+ const output=byId('grenaSoundCurrent'),result=byId('grenaSoundResult');
+ const keys=['follow','gift','sub','raid','share','likes'];
+ let config={},pending=null,preview=null,ready=false;
+ const notify=message=>{result.textContent=message};
+ function render(){
+  const k=type.value;const url=String((pending&&pending.type===k?pending.url:config.audioFiles?.[k])||'');
+  output.textContent=url?'🔊 Audio personalizado activo para '+type.selectedOptions[0].textContent:'🔔 Sonido predeterminado para '+type.selectedOptions[0].textContent;
+  vol.value=Number(config.eventLevels?.[k]??config.volume??54);byId('grenaSoundVolumeValue').textContent=vol.value+'%';
+  fileInput.value='';
+ }
+ async function load(){
+  try{
+   const r=await fetch('/api/afterglow-settings',{cache:'no-store'});if(!r.ok)throw Error('No se pudieron leer los sonidos');
+   config=(await r.json()).settings||{};ready=true;render();
+  }catch(e){notify('Error: '+e.message);output.textContent='No se pudo consultar el audio actual.'}
+ }
+ type.addEventListener('change',()=>{pending=null;render();notify('')});
+ vol.addEventListener('input',()=>byId('grenaSoundVolumeValue').textContent=vol.value+'%');
+ fileInput.addEventListener('change',async()=>{
+  if(!ready)return;const file=fileInput.files?.[0];if(!file)return;
+  const k=type.value,ext=file.name.split('.').pop().toLowerCase(),mime={mp3:'audio/mpeg',wav:'audio/wav',ogg:'audio/ogg'}[ext];
+  if(!mime||!file.size||file.size>6*1024*1024){notify('Formato inválido o audio mayor de 6 MB.');return}
+  fileInput.disabled=true;notify('Subiendo audio…');
+  try{
+   const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||'').split(',')[1]);reader.onerror=()=>reject(Error('No se pudo leer el archivo'));reader.readAsDataURL(file)});
+   const r=await fetch('/api/custom-alerts/media',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({mime,data})});
+   const response=await r.json().catch(()=>({}));if(!r.ok||!response.url)throw Error(response.error||'No se pudo subir el sonido');
+   pending={type:k,url:response.url};notify('Archivo listo. Pulsa Guardar sonido y volumen.');render();
+  }catch(e){notify('Error al subir: '+e.message)}
+  finally{fileInput.disabled=false}
+ });
+ byId('grenaSoundReset').addEventListener('click',()=>{pending={type:type.value,url:''};notify('Se restaurará el sonido predeterminado cuando guardes.');render()});
+ byId('grenaSoundPreview').addEventListener('click',()=>{
+  const k=type.value,url=String((pending&&pending.type===k?pending.url:config.audioFiles?.[k])||'');
+  if(!url){notify('No hay audio personalizado; el sonido original se escucha al probar la alerta.');return}
+  if(preview)preview.pause();preview=new Audio(url);preview.volume=Number(vol.value)/100;
+  preview.play().catch(()=>notify('No se pudo reproducir el audio seleccionado.'));
+ });
+ byId('grenaSoundSave').addEventListener('click',async()=>{
+  if(!ready){notify('Primero carga las configuraciones.');return}
+  const btn=byId('grenaSoundSave');btn.disabled=true;
+  try{
+   const k=type.value;
+   // Lectura justo antes del guardado para no sobrescribir otros cambios recientes en Afterglow.
+   const latest=await fetch('/api/afterglow-settings',{cache:'no-store'});if(!latest.ok)throw Error('No se pudo actualizar la configuración');
+   const settings=(await latest.json()).settings||{};
+   settings.audioFiles={...(settings.audioFiles||{})};
+   settings.eventLevels={...(settings.eventLevels||{}),[k]:Number(vol.value)};
+   if(pending&&pending.type===k)settings.audioFiles[k]=pending.url;
+   const r=await fetch('/api/afterglow-settings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(settings)});
+   const data=await r.json().catch(()=>({}));if(!r.ok||data.ok===false)throw Error(data.error||'No se guardó el sonido');
+   config=settings;pending=null;render();notify('✓ Sonido y volumen guardados para '+type.selectedOptions[0].textContent+'. Actualiza la fuente OBS si no cambia inmediatamente.');
+  }catch(e){notify('No se pudo guardar: '+e.message)}
+  finally{btn.disabled=false}
+ });
+ load();
+})();
+</script>
 </body></html>

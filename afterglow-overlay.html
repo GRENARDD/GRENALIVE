@@ -155,7 +155,7 @@ function fitLongNames(){root.querySelectorAll('.dynamic-name,.dynamic-gift').for
 
 function mapAlert(a={}){
   const p=String(a.platform||'').toLowerCase();
-  platform=(['tiktok','twitch','kick','starvios','youtube'].find(k=>p.includes(k)))||'tiktok';
+  platform=(['tiktok','twitch','kick','youtube'].find(k=>p.includes(k)))||'tiktok';
   const raw=String(a.event||a.eventKind||'follow').toLowerCase(),kind=String(a.eventKind||a.giftKind||'').toLowerCase();
   let event=raw==='like'||raw==='likes'||raw==='tap'?'likes':raw==='cheer'||raw==='bits'||raw==='donation'?'gift':raw==='subrenew'||raw==='milestone'?'sub':raw==='giftsub'||raw==='shower'||raw==='superchat'||raw==='supersticker'?'gift':raw;
   if(['giftsub','membergift','membershipgift','kicks','shower','superchat','supersticker'].includes(kind))event='gift';
@@ -172,7 +172,7 @@ function normalizedSettings(src={}){
  const audioFiles=Object.fromEntries(events.map(e=>[e,/^\/api\/custom-alerts\/media\/[A-Za-z0-9_-]{10,80}\.(mp3|wav|ogg)$/.test(String(src.audioFiles?.[e]||''))?src.audioFiles[e]:'']));
  const eventLevels=Object.fromEntries(events.map(e=>[e,Math.min(100,Math.max(0,Number(src.eventLevels?.[e]??src.volume??54)||0))]));
  const eventIntensity=Object.fromEntries(events.map(e=>[e,Math.min(100,Math.max(0,Number(src.eventIntensity?.[e]??src.intensity??65)||0))]));
- return {streamerNames:Object.fromEntries(Object.entries(src.streamerNames||{}).filter(([k])=>['tiktok','twitch','kick','starvios','youtube'].includes(k)).map(([k,v])=>[k,String(v||'').trim().slice(0,64)])),theme:['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','grena_grenito','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(src.theme)?src.theme:'minecraft',mascotCharacter:['zp','pg','bm','sk','dg'].includes(src.mascotCharacter)?src.mascotCharacter:'zp',intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
+ return {streamerNames:Object.fromEntries(Object.entries(src.streamerNames||{}).filter(([k])=>['tiktok','twitch','kick','youtube'].includes(k)).map(([k,v])=>[k,String(v||'').trim().slice(0,64)])),theme:['minecraft','domino','ascension','grena_catalog','grena_fullscreen','grena_mascots','grena_grenito','celestial','sakura','comic','hologram','inferno','arcade','royal','void'].includes(src.theme)?src.theme:'minecraft',mascotCharacter:['zp','pg','bm','sk','dg'].includes(src.mascotCharacter)?src.mascotCharacter:'zp',intensity:Math.min(100,Math.max(0,Number(src.intensity??65)||0)),volume:Math.min(100,Math.max(0,Number(src.volume??54)||0)),
  soundEnabled:src.soundEnabled!==false,audioRoute:['both','vertical','horizontal','muted'].includes(src.audioRoute)?src.audioRoute:'both',sounds,audioFiles,eventLevels,eventIntensity,fontFamily:['Inter','Segoe UI','Arial','Impact','Trebuchet MS'].includes(src.fontFamily)?src.fontFamily:'Inter',
  textColor:color(src.textColor),accentMode:src.accentMode==='custom'?'custom':'platform',accent:color(src.accent||'#caff5f')};
 }
@@ -251,7 +251,7 @@ function drain(){if(working||!pending.length)return;working=true;const next=pend
       scene.addEventListener('load',()=>{
         forceMascotTransparentSurface(scene);
         scene.contentWindow?.postMessage({type:mascotType,user:data.name,amount:data.amount,
-          gift:data.gift,platform:platform==='starvios'?'tiktok':platform},location.origin);
+          gift:data.gift,platform:platform},location.origin);
       },{once:true});
       root.replaceChildren(scene);
     }else if(cfg.theme==='grena_catalog'||cfg.theme==='grena_fullscreen'){
@@ -314,7 +314,7 @@ let settingsSyncTimer=null;
 async function syncSettingsFromServer(){
  try{const r=await fetch('/api/afterglow-settings'+obsQuery,{cache:'no-store',credentials:'same-origin'});
  if(r.ok){const d=await r.json();if(d?.settings)applySettings(d.settings)}}catch{}
- try{const r=await fetch('/api/social-settings'+obsQuery,{cache:'no-store',credentials:'same-origin'});if(r.ok){const d=await r.json();const x=d.settings||{};socialOwnerNames=Object.fromEntries(['tiktok','twitch','kick','starvios','youtube'].map(k=>[k,String(x[k+'User']||'').slice(0,64)]));}}catch{}
+ try{const r=await fetch('/api/social-settings'+obsQuery,{cache:'no-store',credentials:'same-origin'});if(r.ok){const d=await r.json();const x=d.settings||{};socialOwnerNames=Object.fromEntries(['tiktok','twitch','kick','youtube'].map(k=>[k,String(x[k+'User']||'').slice(0,64)]));}}catch{}
 }
 async function load(){
  await syncSettingsFromServer();

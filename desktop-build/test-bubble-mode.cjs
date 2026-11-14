@@ -60,12 +60,12 @@ test('Electron bubble stays isolated and can restore original app',()=>{
  assert.match(p,/grenaBubbleQuitting/);
 });
 
-test('Starvios supports instantaneous messages and removes optimistic exclusion',()=>{
- const p=load('starvios-reader.mjs');
- assert.match(p,/new MutationObserver/);
- assert.match(p,/state\.queued\.splice\(0\)/);
- assert.match(p,/this\.deliverChat\(\{\.\.\.directChat,source:'Starvios WebSocket'\}\)/);
- assert.doesNotMatch(p,/if\(id\.startsWith\('tmp-'\)\) continue/);
+test('Starvios reader is removed and cannot start from GREÑA Chat',()=>{
+ const fs=require('node:fs');
+ assert.equal(fs.existsSync(join(__dirname,'..','starvios-reader.mjs')),false);
+ const chat=load('chat-server.mjs');
+ assert.doesNotMatch(chat,/import .*starvios-reader\.mjs/);
+ assert.doesNotMatch(chat,/new StarviosReader\(/);
 });
 
 test('Kick uses officially recommended OAuth redirect workaround',()=>{

@@ -11,7 +11,7 @@ button{border:0;border-radius:10px;padding:12px 17px;background:linear-gradient(
 @media(max-width:670px){.cards{grid-template-columns:1fr}main{margin:15px auto}.qr{width:220px;height:220px}}
 </style></head><body>
 <header><div><h1>📱 GREÑA LIVE · Versión móvil</h1><p style="margin:4px 0">Vincula tu teléfono con GREÑA ID</p></div><a href="/">← Volver a GREÑA Desktop</a></header>
-<main><p>Dos QR diferentes: el primero abre la experiencia móvil. El segundo autoriza temporalmente este teléfono con la sesión de GREÑA ID de tu PC, sin desconectarte del programa.</p>
+<main><p>Dos QR diferentes: el primero abre la experiencia móvil. El segundo autoriza temporalmente este teléfono con la sesión de GREÑA ID de tu PC, sin desconectarte del programa.</p><p style="border:1px solid #8b7541;background:#302914;padding:12px;border-radius:11px"><strong>⚠ Estado de conexión móvil:</strong> por ahora, el teléfono debe estar en la misma red Wi-Fi que la PC y debes activar «Habilitar acceso por Wi-Fi local» cuando aparezca. La conexión desde otra red aún no está implementada; el código QR no crea por sí solo un servidor público seguro.</p>
 <div class="cards">
 <section class="card"><h2>1. Instalar GREÑA Live Mobile</h2><p class="note">Abre la versión web en tu teléfono y agrégala a la pantalla de inicio cuando el navegador lo permita. No es un APK.</p><div class="qr" id="installQr">Preparando QR…</div><div class="link" id="installLink"></div><button id="copyInstall" type="button" disabled>Copiar enlace</button></section>
 <section class="card"><h2>2. Vincular dispositivo</h2><p class="note">Código exclusivo, de un solo uso y válido durante 2 minutos. Escanéalo con tu teléfono para iniciar sesión.</p><div class="qr" id="pairQr">Genera un QR privado</div><div id="timer">Sin código activo</div><p><button id="pairButton" type="button">Generar QR de vinculación</button></p><div class="link" id="pairLink"></div></section>
@@ -39,9 +39,17 @@ async function generate(){
   const r=await fetch('/api/mobile/pair/create',{method:'POST',headers:{'content-type':'application/json'},body:'{}',credentials:'same-origin'});
   const d=await r.json();if(!r.ok)throw Error(d.error||'No fue posible crear la vinculación.');
   installUrl=d.installationUrl;pairUrl=d.pairUrl;expiresAt=d.expiresAt;
-  qr($('installQr'),installUrl);$('installLink').textContent=installUrl;$('copyInstall').disabled=false;
-  qr($('pairQr'),pairUrl);$('pairLink').textContent='QR privado generado. No compartas este enlace.';
-  warning(d);$('feedback').textContent='Vinculación lista. Escanea el segundo código.';
+  // 127.0.0.1 desde el teléfono apunta al propio teléfono: nunca mostrar un QR de loopback como si funcionara.
+  const accessible=d.publicAccess||d.lanEnabled;
+  if(accessible){
+   qr($('installQr'),installUrl);$('installLink').textContent=installUrl;$('copyInstall').disabled=false;
+   qr($('pairQr'),pairUrl);$('pairLink').textContent='QR privado generado. No compartas este enlace.';
+  }else{
+   $('installQr').textContent='Activa el acceso Wi-Fi local para generar QR';
+   $('pairQr').textContent='Todavía no disponible desde el teléfono';
+   $('installLink').textContent='Esta PC solo escucha en 127.0.0.1';$('pairLink').textContent='';$('copyInstall').disabled=true;
+  }
+  warning(d);$('feedback').textContent=accessible?'Vinculación lista. Escanea el segundo código.':'Pulsa Habilitar acceso por Wi-Fi local y después escanea los códigos.';
   clearInterval(tick);tick=setInterval(()=>{const s=Math.max(0,Math.ceil((expiresAt-Date.now())/1000));$('timer').textContent=s?'Caduca en '+s+' s':'Caducado · genera otro QR';if(!s){$('pairQr').replaceChildren(document.createTextNode('QR caducado'));$('pairButton').disabled=false;clearInterval(tick)}},1000);
  }catch(e){$('feedback').textContent='Error: '+e.message}
  finally{$('pairButton').disabled=false}
