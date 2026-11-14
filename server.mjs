@@ -1061,7 +1061,7 @@ function alert(platform,event,name,message='',extra={}){
  recentAlerts.set(key,now);for(const [k,t] of recentAlerts)if(now-t>2*60*1000)recentAlerts.delete(k);
  noteBridgeSignal(platform,event,{name:a.name,event,source:extra.tiktokSource||extra.kickEvent||extra.source||'alert'});pushEventHealth();
  rememberActivity(a);
- if(['TikTok','Twitch','Kick'].includes(platform)&&event!=='like'&&!['GREÑA_FAN','USUARIO_PRUEBA'].includes(String(a.name||'').toUpperCase()))recordLoyaltyEvent({platform,kind:event,user:a.name,nickname:a.name,avatar:a.avatar||'',count:a.count,totalDiamonds:a.totalDiamonds,bits:a.bits,amount:a.amount,viewers:a.viewers});
+ if(['TikTok','Twitch','Kick','YouTube'].includes(platform)&&event!=='like'&&!['GREÑA_FAN','USUARIO_PRUEBA'].includes(String(a.name||'').toUpperCase()))recordLoyaltyEvent({platform,kind:event,user:a.name,nickname:a.name,avatar:a.avatar||'',count:a.count,totalDiamonds:a.totalDiamonds,bits:a.bits,amount:a.amount,viewers:a.viewers});
  if(event==='follow')followerGoalFollow(platform,platform==='Starvios'?extra.count:1);
  const custom=findCustomRule(customAlerts,a,Date.now(),customAlertCooldowns);
   if(custom){a.customRuleId=custom.id;a.customAction=custom.action}
