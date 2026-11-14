@@ -1706,6 +1706,16 @@ async function connectYouTube(input){
  const existing=youtubeReaders.get(videoId);
  if(existing?.running)return {videoId,chatId:existing.chatId};
  const reader=new YouTubeLiveReader({
+  // Obtiene un token temporal solo mediante el puente local autenticado.
+  // Nunca se entrega al navegador, a OBS ni a extensiones de terceros.
+  getStreamToken:async()=>{
+   const u=new URL(MAIN_ORIGIN+'/api/internal/youtube/data');
+   u.searchParams.set('resource','session');
+   const response=await fetch(u,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:AbortSignal.timeout(12000)});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||!data.accessToken)throw Error('YouTube OAuth: '+String(data.error||response.status));
+   return data.accessToken;
+  },
   // Usa el OAuth real del GREÑA ID; la clave Google nunca sale al navegador.
   requestProxy:async(resource,params)=>{
    const u=new URL(MAIN_ORIGIN+'/api/internal/youtube/data');
