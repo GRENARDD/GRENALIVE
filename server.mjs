@@ -2157,7 +2157,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
      let value=null;
      if(action==='enable'){minecraftSettings.set(me.id,{enabled:!!input.enabled});minecraftDynamics.enable({roomId:room.id,userId:me.id,value:!!input.enabled})}
      else if(action==='invite'){value=minecraftDynamics.invite({roomId:room.id,fromId:me.id,toId:String(input.friendId||'').trim()})}
-     else if(action==='respond'){value=minecraftDynamics.respond({invitationId:String(input.invitationId||''),userId:me.id,accept:!!input.accept,gamertag:String(input.gamertag||'')})}
+     else if(action==='respond'){value=minecraftDynamics.respond({invitationId:String(input.invitationId||''),userId:me.id,accept:!!input.accept,gamertag:String(input.gamertag||'')});if(input.accept)minecraftRoomsByUser.set(me.id,value.id)}
      else if(action==='test-follow'){if(!minecraftSettings.get(me.id)?.enabled)return json(res,409,{ok:false,error:'Activa la dinámica'});minecraftFollow(String(input.platform||'TikTok'),String(input.name||'Prueba'),String(Date.now()))}
      else if(action==='test-vote'){minecraftVoteFromChat({platform:String(input.platform||'TikTok'),userId:'test-'+String(input.userId||'1'),text:String(input.vote||'A')})}
      else return json(res,400,{ok:false,error:'Acción desconocida'});
