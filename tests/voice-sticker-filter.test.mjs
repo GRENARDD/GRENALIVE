@@ -30,6 +30,6 @@ test('Normal chat text stays untouched and is not classified as sticker',()=>{
 });
 test('Fish and system voices receive human text, not visual token placeholders',()=>{
  assert.match(html,/const humanText=stripStickerAndInternalCodes\(m\.text\|\|''\)/);
- assert.match(html,/isFishVoiceSelected\(\)\s*\?\s*humanText\s*:\s*cleanTextForVoice\(humanText\)/);
+ assert.match(html,/isFishVoiceSelected\(\)\s*\?\s*stripEmojisForVoice\(humanText\)\s*:\s*cleanTextForVoice\(humanText\)/);
  assert.match(html,/addMessage\(m\);[\s\S]{0,180}queueVoice\(m\);/);
 });
