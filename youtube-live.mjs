@@ -22,13 +22,13 @@ export function normalizeYouTubeMessage(item){
   if(type==='memberMilestoneChatEvent')return {...base,kind:'membermilestone',event:'sub',months:s.memberMilestoneChatDetails?.memberMonth||0,message:s.memberMilestoneChatDetails?.userComment||base.message};
   if(type==='membershipGiftingEvent')return {...base,kind:'membershipgift',event:'gift',count:Number(s.membershipGiftingDetails?.giftMembershipsCount||0)};
   if(type==='giftMembershipReceivedEvent')return {...base,kind:'membershipreceived',event:'sub'};
-  if(type==='giftEvent')return {...base,kind:'jewelgift',event:'gift',giftName:s.giftDetails?.giftName||'Regalo',giftDetails:s.giftDetails||{}};
+  if(type==='giftEvent')return {...base,kind:'jewelgift',event:'gift',giftName:s.giftDetails?.giftName||'Regalo',giftDetails:s.giftDetails||{},count:Math.max(1,Number(s.giftDetails?.comboCount)||1)};
   return null;
 }
 export class YouTubeLiveReader {
   constructor({apiKey=process.env.GRENA_YOUTUBE_API_KEY,requestProxy=null,onMessage=()=>{},onStatus=()=>{},onViewers=()=>{}}={}){
     this.apiKey=String(apiKey||'').trim();this.requestProxy=requestProxy;this.onMessage=onMessage;this.onStatus=onStatus;this.onViewers=onViewers;
-    this.running=false;this.timer=null;this.nextPageToken='';this.seen=new Set();this.chatId='';this.videoId='';this.backoff=0;this.pollCount=0;
+    this.running=false;this.timer=null;this.nextPageToken='';this.seen=new Set();this.giftCombos=new Map();this.chatId='';this.videoId='';this.backoff=0;this.pollCount=0;
   }
   async request(resource,params){
     if(this.requestProxy)return this.requestProxy(resource,params);
@@ -41,7 +41,7 @@ export class YouTubeLiveReader {
     await this.stop();
     if(!this.apiKey&&!this.requestProxy)throw new Error('Necesitas vincular YouTube con Google o configurar la clave de YouTube Data API.');
     const id=youtubeVideoId(input);if(!id)throw new Error('Introduce el enlace público de YouTube (Compartir → Copiar enlace), no el enlace de Studio.');
-    this.videoId=id;this.running=true;this.nextPageToken='';this.seen.clear();this.backoff=0;
+    this.videoId=id;this.running=true;this.nextPageToken='';this.seen.clear();this.giftCombos.clear();this.backoff=0;
     try {await this.discoverChat();} catch(e){await this.stop();throw e}
     return {videoId:id,chatId:this.chatId,waiting:!this.chatId};
   }
@@ -53,7 +53,7 @@ export class YouTubeLiveReader {
       if(!v)throw new Error('No se encuentra este vídeo. Comprueba que es público o no listado y que la URL es correcta.');
       const chat=v.liveStreamingDetails?.activeLiveChatId||'';
       if(chat){
-        this.chatId=chat;this.nextPageToken='';this.seen.clear();
+        this.chatId=chat;this.nextPageToken='';this.seen.clear();this.giftCombos.clear();
         this.onStatus({connected:true,videoId:this.videoId,title:v.snippet?.title||''});
         void this.poll();return;
       }
@@ -71,18 +71,27 @@ export class YouTubeLiveReader {
       if(this.pollCount<=3||this.pollCount%12===0)console.log('[YouTube CHAT POLL]',JSON.stringify({videoId:this.videoId,chatFound:!!this.chatId,items:(data.items||[]).length,initial,hasNextPage:!!data.nextPageToken,poll:this.pollCount}));
       this.nextPageToken=data.nextPageToken||this.nextPageToken;
       for(const item of data.items||[]){
-        if(!item.id||this.seen.has(item.id))continue;this.seen.add(item.id);
+        if(!item.id)continue;
+        // YouTube reutiliza el mismo ID al aumentar la cantidad de un combo
+        // Jewels: emitir solo el incremento, no repetir todo el regalo.
+        const combo=item.snippet?.type==='giftEvent';
+        const total=combo?Math.max(1,Number(item.snippet?.giftDetails?.comboCount)||1):0;
+        const previous=combo?(this.giftCombos.get(item.id)||0):0;
+        if(this.seen.has(item.id)&&(!combo||total<=previous))continue;
+        this.seen.add(item.id);
+        if(combo)this.giftCombos.set(item.id,total);
         // Show the most recent messages when joining a live chat; skip older history.
         const items=data.items||[];
         const displayOnInitial=!initial||items.indexOf(item)>=Math.max(0,items.length-25);
         if(displayOnInitial){
           const mapped=normalizeYouTubeMessage(item);
+          if(mapped&&combo)mapped.count=Math.max(1,total-previous);
           // Al reconectar se recuperan comentarios recientes para el chat,
           // pero nunca se vuelven a lanzar alertas de pagos o membresías antiguos.
           if(mapped&&(!initial||mapped.kind==='chat'))this.onMessage(mapped);
         }
       }
-      if(this.seen.size>1500)this.seen=new Set([...this.seen].slice(-700));
+      if(this.seen.size>1500){this.seen=new Set([...this.seen].slice(-700));for(const id of this.giftCombos.keys())if(!this.seen.has(id))this.giftCombos.delete(id)}
       interval=Math.max(2000,Number(data.pollingIntervalMillis)||5000);
       this.backoff=0;
       this.onStatus({connected:true,videoId:this.videoId});
@@ -99,6 +108,6 @@ export class YouTubeLiveReader {
   }
   async stop(){
     this.running=false;if(this.timer)clearTimeout(this.timer);this.timer=null;
-    this.nextPageToken='';this.seen.clear();this.videoId='';this.chatId='';
+    this.nextPageToken='';this.seen.clear();this.giftCombos.clear();this.videoId='';this.chatId='';
   }
 }
