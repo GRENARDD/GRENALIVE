@@ -109,7 +109,7 @@ permissions:
   contents: write
 concurrency:
   group: grena-windows-build-${{ github.event_name }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   windows:
     runs-on: windows-latest
