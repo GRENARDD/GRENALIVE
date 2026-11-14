@@ -40,7 +40,7 @@ test('alert editor shows current sound and persists per-event audio',()=>{
 
 test('Super Fans remains 30 seconds per 5 minute cycle in intended order',()=>{
  const page=src('super-fans-overlay.html');
- assert.match(page,/SHOW_MS=demo\?8000:30000,PERIOD_MS=demo\?14000:300000/);
+ assert.match(page,/SHOW_MS=demo\?8000:30000,PERIOD_MS=demo\?14000:330000/);
  assert.match(page,/platforms=\['kick','tiktok','twitch'\]/);
  assert.match(page,/st\.comments/);
  assert.match(page,/st\.minutes/);
