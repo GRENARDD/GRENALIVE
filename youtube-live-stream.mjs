@@ -57,7 +57,7 @@ export function openYouTubeLiveStream({token,chatId,pageToken='',onBatch,onError
       items:(batch.items||[]).map(normalizeGrpcLiveChatItem)})}
     catch(e){onError?.(e)}
   });
-  stream.on('error',e=>{if(cancelled)return;close();onError?.(e)});
-  stream.on('end',()=>{if(cancelled)return;close();onEnd?.()});
+  stream.on('error',e=>{if(cancelled||finished)return;close();onError?.(e)});
+  stream.on('end',()=>{if(cancelled||finished)return;close();onEnd?.()});
   return {cancel(){cancelled=true;try{stream.cancel()}catch{}close()}};
 }
