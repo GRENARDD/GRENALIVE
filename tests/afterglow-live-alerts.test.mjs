@@ -12,7 +12,7 @@ test('studio and overlays expose two independent OBS sources with retained accou
  assert.match(overlay,/obsQuery/);assert.match(overlay,/new WebSocket/);
  assert.match(panel,/overlayUrlHorizontal2/);
 });
-test('the four supported platforms map to visual palettes and live events',()=>{
+test('only active platforms map to visual palettes and live events',()=>{
  for(const platform of ['tiktok','twitch','kick','youtube']){assert.match(overlay,new RegExp(platform+':\\['));assert.match(studio,new RegExp('data-platform="'+platform+'"'))}
  const start=overlay.indexOf('function mapAlert('),end=overlay.indexOf('function normalizedSettings(',start);
  assert.ok(start>0&&end>start);
@@ -23,8 +23,6 @@ test('the four supported platforms map to visual palettes and live events',()=>{
    [{platform:'Twitch',event:'giftsub',name:'mod',count:3},'gift','twitch'],
    [{platform:'Twitch',event:'raid',viewers:75},'raid','twitch'],
    [{platform:'Kick',event:'cheer',bits:50},'gift','kick'],
-   [{platform:'Starvios',event:'gift',eventKind:'shower'},'gift','starvios'],
-   [{platform:'Starvios',event:'subrenew'},'sub','starvios'],
    [{platform:'YouTube',event:'gift',giftKind:'superchat'},'gift','youtube']
  ];
  for(const[input,event,p]of cases){const result=local.mapAlert(input);assert.equal(result.event,event);assert.equal(local.platform(),p)}
