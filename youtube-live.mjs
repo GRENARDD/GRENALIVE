@@ -26,11 +26,12 @@ export function normalizeYouTubeMessage(item){
   return null;
 }
 export class YouTubeLiveReader {
-  constructor({apiKey=process.env.GRENA_YOUTUBE_API_KEY,onMessage=()=>{},onStatus=()=>{},onViewers=()=>{}}={}){
-    this.apiKey=String(apiKey||'').trim();this.onMessage=onMessage;this.onStatus=onStatus;this.onViewers=onViewers;
+  constructor({apiKey=process.env.GRENA_YOUTUBE_API_KEY,requestProxy=null,onMessage=()=>{},onStatus=()=>{},onViewers=()=>{}}={}){
+    this.apiKey=String(apiKey||'').trim();this.requestProxy=requestProxy;this.onMessage=onMessage;this.onStatus=onStatus;this.onViewers=onViewers;
     this.running=false;this.timer=null;this.nextPageToken='';this.seen=new Set();this.chatId='';this.videoId='';this.backoff=0;this.pollCount=0;
   }
   async request(resource,params){
+    if(this.requestProxy)return this.requestProxy(resource,params);
     const u=new URL(API+'/'+resource);for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null&&v!=='')u.searchParams.set(k,String(v));
     u.searchParams.set('key',this.apiKey);
     const ac=new AbortController(),t=setTimeout(()=>ac.abort(),12000);
@@ -38,7 +39,7 @@ export class YouTubeLiveReader {
   }
   async start(input){
     await this.stop();
-    if(!this.apiKey)throw new Error('Falta GRENA_YOUTUBE_API_KEY en Railway.');
+    if(!this.apiKey&&!this.requestProxy)throw new Error('Necesitas vincular YouTube con Google o configurar la clave de YouTube Data API.');
     const id=youtubeVideoId(input);if(!id)throw new Error('Introduce el enlace público de YouTube (Compartir → Copiar enlace), no el enlace de Studio.');
     this.videoId=id;this.running=true;this.nextPageToken='';this.seen.clear();this.backoff=0;
     try {await this.discoverChat();} catch(e){await this.stop();throw e}
