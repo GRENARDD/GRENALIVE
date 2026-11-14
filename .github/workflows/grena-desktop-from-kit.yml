@@ -98,6 +98,7 @@ on:
       - 'tests/**'
       - 'desktop-build/**'
       - '.github/workflows/grena-release-v5125.yml'
+      - '.github/workflows/grena-release-v5126.yml'
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
       - '.github/workflows/grena-desktop-from-kit.yml'
@@ -241,16 +242,16 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Set official 5.1.25 version on main (never on pull requests)
+      - name: Set official 5.1.26 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
           if ($pkg.version -ne "5.1.19") { throw "Versión base inesperada; se cancela publicación estable." }
-          $pkg.version = "5.1.25"
+          $pkg.version = "5.1.26"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Versión oficial verificada: 5.1.25"
+          Write-Host "Versión oficial verificada: 5.1.26"
       - name: Verify pack logic
         shell: pwsh
         run: |
@@ -358,6 +359,6 @@ jobs:
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.26-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.25' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.26-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.26' }}
           path: dist/*.exe
           if-no-files-found: error
