@@ -39,9 +39,17 @@ async function generate(){
   const r=await fetch('/api/mobile/pair/create',{method:'POST',headers:{'content-type':'application/json'},body:'{}',credentials:'same-origin'});
   const d=await r.json();if(!r.ok)throw Error(d.error||'No fue posible crear la vinculación.');
   installUrl=d.installationUrl;pairUrl=d.pairUrl;expiresAt=d.expiresAt;
-  qr($('installQr'),installUrl);$('installLink').textContent=installUrl;$('copyInstall').disabled=false;
-  qr($('pairQr'),pairUrl);$('pairLink').textContent='QR privado generado. No compartas este enlace.';
-  warning(d);$('feedback').textContent='Vinculación lista. Escanea el segundo código.';
+  // 127.0.0.1 desde el teléfono apunta al propio teléfono: nunca mostrar un QR de loopback como si funcionara.
+  const accessible=d.publicAccess||d.lanEnabled;
+  if(accessible){
+   qr($('installQr'),installUrl);$('installLink').textContent=installUrl;$('copyInstall').disabled=false;
+   qr($('pairQr'),pairUrl);$('pairLink').textContent='QR privado generado. No compartas este enlace.';
+  }else{
+   $('installQr').textContent='Activa el acceso Wi-Fi local para generar QR';
+   $('pairQr').textContent='Todavía no disponible desde el teléfono';
+   $('installLink').textContent='Esta PC solo escucha en 127.0.0.1';$('pairLink').textContent='';$('copyInstall').disabled=true;
+  }
+  warning(d);$('feedback').textContent=accessible?'Vinculación lista. Escanea el segundo código.':'Pulsa Habilitar acceso por Wi-Fi local y después escanea los códigos.';
   clearInterval(tick);tick=setInterval(()=>{const s=Math.max(0,Math.ceil((expiresAt-Date.now())/1000));$('timer').textContent=s?'Caduca en '+s+' s':'Caducado · genera otro QR';if(!s){$('pairQr').replaceChildren(document.createTextNode('QR caducado'));$('pairButton').disabled=false;clearInterval(tick)}},1000);
  }catch(e){$('feedback').textContent='Error: '+e.message}
  finally{$('pairButton').disabled=false}
