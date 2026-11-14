@@ -1632,7 +1632,7 @@ async function beginTwitchDeviceOAuth(res,ownerId,req){
   const id=b64url(randomBytes(24)),session={id,userId:ownerId,deviceCode:d.device_code,userCode:d.user_code||'',verificationUri:d.verification_uri||`https://www.twitch.tv/activate?public=true&device-code=${encodeURIComponent(d.user_code||'')}`,interval:Math.max(2,Number(d.interval||5)),expiresAt:Date.now()+Math.max(60,Number(d.expires_in||1800))*1000,status:'pending',message:'Esperando que autorices GREÑA en Twitch…'};
  twitchDeviceSessions.set(id,session);void pollTwitchDeviceSession(id);return twitchDevicePage(res,session);
 }
-async function beginOAuth(platform,req,res){
+async async function beginOAuth(platform,req,res){
  const currentOwner=sessionUser(req);if(!currentOwner||currentOwner.id!==activeUserId)return callbackPage(res,false,'Inicia sesión en tu propia cuenta GREÑA antes de vincular plataformas.');
  if(platform==='youtube'){
   // Comprobar la configuración REAL cada vez: evita un estado OAuth obsoleto si el Worker fue activado con GREÑA abierta.
@@ -1707,7 +1707,10 @@ async function finishBrokerOAuth(platform,code,s,res){
  }
  throw Error('Plataforma no compatible con GREÑA Auth.');
 }
-async function finishOAuth(platform,url,res,req){const code=url.searchParams.get('code'),state=url.searchParams.get('state'),err=url.searchParams.get('error');if(err)throw Error(url.searchParams.get('error_description')||err);const s=oauthState.get(state);oauthState.delete(state);if(!s||s.platform!==platform||Date.now()-s.created>10*60e3)throw Error('La sesión de autorización expiró. Inténtalo de nuevo.');const owner=sessionUser(req);if(!s.userId||!owner||owner.id!==s.userId||owner.id!==activeUserId)throw Error('La autorización pertenece a otra sesión GREÑA. Inicia de nuevo desde tu cuenta.');if(s.mode==='grena-auth')return await finishBrokerOAuth(platform,code,s,res);const redirect=s.redirect||oauthRedirectFor(platform);if(platform==='youtube'){
+async function finishOAuth(platform,url,res,req){const code=url.searchParams.get('code'),state=url.searchParams.get('state'),err=url.searchParams.get('error');if(err)throw Error(url.searchParams.get('error_description')||err);const s=oauthState.get(state);oauthState.delete(state);if(!s||s.platform!==platform||Date.now()-s.created>10*60e3)throw Error('La sesión de autorización expiró. Inténtalo de nuevo.');const owner=sessionUser(req);// OAuth abierto en Chrome: Chrome no comparte las cookies de Electron. El state impredecible, de un solo uso,
+ // con caducidad y asociado al GREÑA ID activo autoriza este callback únicamente para YouTube por broker.
+ const browserYoutube=platform==='youtube'&&s.mode==='grena-auth'&&s.userId===activeUserId;
+ if(!s.userId||s.userId!==activeUserId||(!browserYoutube&&(!owner||owner.id!==s.userId)))throw Error('La autorización pertenece a otra sesión GREÑA. Inicia de nuevo desde tu cuenta.');if(s.mode==='grena-auth')return await finishBrokerOAuth(platform,code,s,res);const redirect=s.redirect||oauthRedirectFor(platform);if(platform==='youtube'){
   const tok=await postForm('https://oauth2.googleapis.com/token',{code,client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,redirect_uri:redirect,grant_type:'authorization_code'});
   const response=await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',{headers:{Authorization:'Bearer '+tok.access_token}});
   const details=await response.json();if(!response.ok||!details.items?.length)throw Error('No se pudo consultar tu canal de YouTube.');
