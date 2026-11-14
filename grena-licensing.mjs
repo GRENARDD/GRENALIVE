@@ -487,10 +487,10 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
  // Never accept a cloud token from a browser. Use the verified session cache.
  async function requestDynamics(userId,path,method='GET',payload){
    const allowed=new Set(['/api/dynamics/rooms','/api/dynamics/rooms/inbox','/api/dynamics/rooms/invite','/api/dynamics/rooms/respond']);
-   const match=/^\\/api\\/dynamics\\/rooms\\/[0-9a-f-]{36}$/i.test(path);
+   const match=/^\/api\/dynamics\/rooms\/[0-9a-f-]{36}$/i.test(path);
    if(!allowed.has(path)&&!match)throw Object.assign(Error('Ruta de Dinámicas no permitida'),{status:400});
    if(!['GET','POST'].includes(method))throw Object.assign(Error('Método no permitido'),{status:405});
-   if(!remoteUrl||!/^https:\\/\\//.test(remoteUrl))throw Object.assign(Error('Servicio GREÑA ID central no configurado'),{status:503});
+   if(!remoteUrl||!/^https:\/\//.test(remoteUrl))throw Object.assign(Error('Servicio GREÑA ID central no configurado'),{status:503});
    const c=await getCached(userId);
    if(!c?.token||!c.centralUserId)throw Object.assign(Error('Vincula tu GREÑA ID con Cloudflare primero'),{status:401});
    return fetchCentral(path,method,payload,c.token);
