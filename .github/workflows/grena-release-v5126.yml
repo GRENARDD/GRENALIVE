@@ -1,0 +1,110 @@
+name: GREÑA · Publicar Desktop v5.1.26 estable
+on:
+  workflow_run:
+    workflows:
+      - GREÑA LIVE Desktop (kit de integración)
+    types:
+      - completed
+    branches:
+      - main
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: '5.1.26'
+      TESTED_RUN: ${{ github.event.workflow_run.id }}
+      TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Skip when v5.1.26 is already official
+        id: existing_release
+        shell: bash
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION ya está publicada. Los cambios siguientes deben salir como una nueva versión."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify Windows build, current HEAD and release identity
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TESTED_SHA" || { echo 'El código de main cambió después de compilar; no publicar un instalador antiguo'; exit 1; }
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_sha)" = "$TESTED_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .event)" = push
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_branch)" = main
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'v5.1.26 ya existe. No sobrescribir una versión oficial.'
+            exit 1
+          fi
+      - name: Verify production GREÑA ID Worker has secure shared rooms
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker='https://grena-live-licenses.omelicolon18.workers.dev'
+          code="$(curl --max-time 15 -sS -o /tmp/grena-health.json -w '%{http_code}' "$worker/health")"
+          test "$code" = 200 || { echo "GREÑA Worker health failed: $code"; exit 1; }
+          grep -q '"ok":true' /tmp/grena-health.json
+          code="$(curl --max-time 15 -sS -o /tmp/grena-rooms.json -w '%{http_code}' "$worker/api/dynamics/rooms")"
+          test "$code" = 401 || { echo "Rooms API is not deployed or not protected: $code"; exit 1; }
+          grep -q '"ok":false' /tmp/grena-rooms.json
+      - name: Download and verify compiled 5.1.26 Windows installer
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-release
+          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v5.1.26 --dir dist-release
+          mapfile -t installers < <(find dist-release -maxdepth 2 -type f -iname '*5.1.26.exe' -size +60000k)
+          test "${#installers[@]}" -eq 1 || { echo "Se esperaba exactamente un instalador estable 5.1.26 (encontrados: ${#installers[@]})"; exit 1; }
+          installer="${installers[0]}"
+          test -s "$installer"
+          mv "$installer" dist-release/GRENA.LIVE.Setup.5.1.26.exe
+          exe='GRENA.LIVE.Setup.5.1.26.exe'
+          size="$(stat -c '%s' "dist-release/$exe")"
+          hash="$(openssl dgst -sha512 -binary "dist-release/$exe" | base64 -w0)"
+          test "${#hash}" -ge 70
+          printf 'version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %s\npath: %s\nsha512: %s\nreleaseDate: %s\n' "$VERSION" "$exe" "$hash" "$size" "$exe" "$hash" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist-release/latest.yml
+          ( cd dist-release && sha256sum "$exe" > SHA256SUMS.txt )
+          test -s dist-release/latest.yml
+      - name: Publish official v5.1.26 release (not Cloudflare rollout)
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'EOF'
+          GREÑA Live Desktop v5.1.26 — ESTABLE
+
+          DINÁMICAS MULTISTREAMER:
+          - Salas compartidas con invitaciones y aceptación entre GREÑA ID.
+          - Preguntas de Minecraft A/B generadas por follows reales; votos por chat separados por streamer.
+          - Cola de votaciones y resultados compartidos en Cloudflare D1.
+          - Registro de gamertags y recuentos centralizados con deduplicación de eventos.
+
+          PUENTE MINECRAFT BEDROCK PARA ATERNOS:
+          - El jugador de Windows con permisos de operador conecta Minecraft a GREÑA Live escribiendo
+            /connect ws://127.0.0.1:19135 en el chat del juego.
+          - No requiere modificar el Worker de Aternos ni instalar un addon server-net.
+          - Los resultados envían títulos y efectos TEMPORALES de velocidad/salto a los gamertags
+            registrados, sin tocar construcciones, inventarios o bloques.
+          - Es necesaria la conexión WebSocket del cliente durante la partida; algunos clientes
+            o servidores pueden rechazar /connect, por lo que debe confirmarse en juego.
+          - Los efectos de los 200 retos todavía no se ejecutan individualmente según su descripción;
+            esta versión solo implementa los efectos seguros indicados.
+
+          Se mantienen las funciones de GREÑA Live v5.1.25. Windows SmartScreen puede advertir
+          si el instalador no está firmado. Se requiere GREÑA ID vinculado y Worker central activo.
+          EOF
+          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.5.1.26.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" --title "GREÑA Live Desktop v$VERSION" --notes-file release-notes.md

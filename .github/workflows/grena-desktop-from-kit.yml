@@ -28,6 +28,8 @@ on:
       - 'mode.html'
       - 'login.html'
       - 'index.html'
+      - 'dynamics.html'
+      - 'dynamics/**'
       - 'live-panel.html'
       - 'mobile.html'
       - 'custom-alerts.html'
@@ -96,6 +98,7 @@ on:
       - 'tests/**'
       - 'desktop-build/**'
       - '.github/workflows/grena-release-v5125.yml'
+      - '.github/workflows/grena-release-v5126.yml'
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
       - '.github/workflows/grena-desktop-from-kit.yml'
@@ -212,14 +215,14 @@ jobs:
             node --check $path
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Set distinct v5.1.25 beta version for preview installer
+      - name: Set distinct v5.1.26 beta version for preview installer
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "5.1.25-beta.1"
+          $pkg.version = "5.1.26-beta.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 5.1.25-beta.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 5.1.26-beta.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -239,16 +242,16 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Set official 5.1.25 version on main (never on pull requests)
+      - name: Set official 5.1.26 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
           if ($pkg.version -ne "5.1.19") { throw "Versión base inesperada; se cancela publicación estable." }
-          $pkg.version = "5.1.25"
+          $pkg.version = "5.1.26"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Versión oficial verificada: 5.1.25"
+          Write-Host "Versión oficial verificada: 5.1.26"
       - name: Verify pack logic
         shell: pwsh
         run: |
@@ -277,6 +280,16 @@ jobs:
         run: |
           foreach ($file in @('live-panel.html','mobile.html','mobile-device.html')) {
             if (!(Test-Path (Join-Path 'dist/win-unpacked/resources/app' $file))) { throw "Falta $file en la aplicación empaquetada" }
+          }
+      - name: Verify Minecraft dynamics and shared room files in Windows package
+        shell: pwsh
+        run: |
+          node --check cloudflare/licenses/src/dynamics.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($path in @('dynamics.html','dynamics/questions.mjs','dynamics/shared-rooms.mjs','dynamics/bedrock-websocket.mjs')) {
+            if (!(Test-Path (Join-Path 'dist/win-unpacked/resources/app' $path))) {
+              throw "Missing Minecraft dynamics packaged file: $path"
+            }
           }
       - name: Verify Windows installer Authenticode and SHA256
         shell: pwsh
@@ -346,6 +359,6 @@ jobs:
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.25-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.25' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.26-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.26' }}
           path: dist/*.exe
           if-no-files-found: error

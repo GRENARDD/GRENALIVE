@@ -12,6 +12,9 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { TikTokLiveConnection, WebcastEvent, RoomIdRouteConfig, IsLiveRouteConfig } from 'tiktok-live-connector';
 import { chromium } from 'playwright-core';
 import { createKickViewerStabilizer } from './kick-viewer-stabilizer.mjs';
+import {createSharedDynamics} from './dynamics/shared-rooms.mjs';
+import {MINECRAFT_QUESTIONS} from './dynamics/questions.mjs';
+import {makeBedrockClientBridge} from './dynamics/bedrock-websocket.mjs';
 
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 import { makeLicensing } from './grena-licensing.mjs';
@@ -603,6 +606,141 @@ function clearExpiredRecovery(){const now=Date.now();for(const [id,r] of Object.
 function invalidateUserSessions(userId){for(const [k,v] of Object.entries(sessionsStore.sessions||{}))if(v?.userId===userId)delete sessionsStore.sessions[k]}
 
 function broadcast(payload){const m=JSON.stringify(payload);for(const ws of clients)if(ws.readyState===1)ws.send(m)}
+ // ===== GREÑA DINÁMICAS (experimental, en esta instancia de servidor) =====
+ const minecraftBridgeToken=String(process.env.GRENA_MINECRAFT_BRIDGE_TOKEN||'');
+ const minecraftBedrockBridge=makeBedrockClientBridge();
+ minecraftBedrockBridge.start();
+  const minecraftGameEvents=[];
+ let minecraftGameSeq=0;
+ function minecraftQueueEvent(type,info){
+   minecraftGameEvents.push({id:++minecraftGameSeq,type,ts:Date.now(),...info});
+   minecraftBedrockBridge.dispatch({type,...info});
+   while(minecraftGameEvents.length>300)minecraftGameEvents.shift();
+ }
+ const minecraftDynamics = createSharedDynamics({notify:event=>{
+   broadcast({type:'dynamics',event});
+   if(event.type==='vote-start'&&event.room?.active&&!minecraftCentralRoomCache.get(event.room.ownerId)?.room){
+     const a=event.room.active;
+     minecraftQueueEvent('vote_open',{roomId:event.roomId,user:a.followerName||'Seguidor',platform:a.platform||'TikTok',pregunta:a.questionId,duration:Math.max(10,Math.ceil((a.endsAt-Date.now())/1000))});
+   }
+   if(event.type==='result'&&event.result&&!minecraftCentralRoomCache.get(event.result.streamerId)?.room){
+     const r=event.result;
+     minecraftQueueEvent('voted_result',{roomId:event.roomId,user:r.followerName||'Seguidor',platform:r.platform,pregunta:r.questionId,choice:r.winner,a:r.votes.A,b:r.votes.B});
+   }
+ }});
+ const minecraftRoomsByUser=new Map();
+ const minecraftResults=[];
+ const minecraftSettings=new Map();
+ const minecraftCentralRoomCache=new Map();
+ const minecraftCentralRoomPending=new Map();
+ async function minecraftCentralRoom(userId,{create=false}={}){
+   const rec=minecraftCentralRoomCache.get(userId);
+   if(rec?.room&&Date.now()-rec.at<10000)return rec.room;
+   if(minecraftCentralRoomPending.has(userId))return minecraftCentralRoomPending.get(userId);
+   const work=(async()=>{
+     try{
+       const answer=await licensing.requestDynamics(userId,'/api/dynamics/rooms');
+       let room=answer.rooms?.[0]?.id||null;
+       if(!room&&create){
+         const created=await licensing.requestDynamics(userId,'/api/dynamics/rooms','POST',{});
+         room=created.roomId;
+       }
+       minecraftCentralRoomCache.set(userId,{room,at:Date.now()});
+       return room;
+     }catch(e){
+       minecraftCentralRoomCache.delete(userId);
+       if(create)console.warn('[Dinámicas] No se pudo crear la sala compartida:',String(e.message||e).slice(0,120));
+       return null;
+     }
+   })();
+   minecraftCentralRoomPending.set(userId,work);
+   try{return await work}finally{minecraftCentralRoomPending.delete(userId)}
+ }
+ async function minecraftForwardFollow(userId,platform,followerName,eventId,question){
+   if(!eventId)return; // No event identity: do not produce duplicate remote challenges.
+   const roomId=await minecraftCentralRoom(userId,{create:true});if(!roomId)return;
+   try{
+     await licensing.requestDynamics(userId,'/api/dynamics/rooms/follow','POST',{
+       roomId,platform:String(platform||'').toLowerCase(),followerName,
+       eventId:String(eventId).slice(0,128),questionId:question.id,
+       optionA:question.optionA,optionB:question.optionB
+     });
+   }catch(e){console.warn('[Dinámicas] No se pudo sincronizar follow remoto:',String(e.message||e).slice(0,100))}
+ }
+ async function minecraftForwardVote(userId,platform,viewerId,choice){
+   const roomId=await minecraftCentralRoom(userId);if(!roomId)return;
+   try{await licensing.requestDynamics(userId,'/api/dynamics/rooms/vote','POST',{roomId,platform,viewerId,choice})}
+   catch(e){console.warn('[Dinámicas] No se pudo sincronizar voto remoto:',String(e.message||e).slice(0,100))}
+ }
+
+ function minecraftRoomFor(userId){
+   if(!userId)return null;
+   const existing=minecraftRoomsByUser.get(userId);
+   if(existing){try{return minecraftDynamics.getRoom(existing)}catch{minecraftRoomsByUser.delete(userId)}}
+   const room=minecraftDynamics.create({ownerId:userId,voteSeconds:20});
+   minecraftRoomsByUser.set(userId,room.id);
+   return room;
+ }
+ function minecraftFollow(platform,name,id='',isTest=false){
+   if(!activeUserId)return;
+   const room=minecraftRoomFor(activeUserId);
+   if(!minecraftSettings.get(activeUserId)?.enabled)return;
+   const questionId=1+Math.floor(Math.random()*MINECRAFT_QUESTIONS.length);
+   const question=MINECRAFT_QUESTIONS[questionId-1];
+   const accepted=minecraftDynamics.follow({roomId:room.id,streamerId:activeUserId,platform:String(platform||'').toLowerCase(),followerName:String(name||'Seguidor').slice(0,64),questionId,optionA:question.optionA.replaceAll('{user}',String(name||'Seguidor').slice(0,64)),optionB:question.optionB.replaceAll('{user}',String(name||'Seguidor').slice(0,64)),eventId:id});
+   if(accepted.accepted){
+     broadcast({type:'dynamics-follow',streamerId:activeUserId,platform,name,questionId});
+     if(!isTest)void minecraftForwardFollow(activeUserId,platform,String(name||'Seguidor').slice(0,64),id,question);
+   }
+ }
+ function minecraftVoteFromChat(data,isTest=false){
+   if(!activeUserId||!minecraftSettings.get(activeUserId)?.enabled)return;
+   const room=minecraftRoomsByUser.get(activeUserId);if(!room)return;
+   const platform=String(data.platform||'').toLowerCase();
+   if(!['tiktok','twitch','kick','youtube'].includes(platform))return;
+   const viewerId=String(data.userId||data.user||'').slice(0,128);
+   const choice=String(data.text||'').trim().toUpperCase();
+   minecraftDynamics.vote({roomId:room,streamerId:activeUserId,platform,userId:viewerId,message:choice});
+   if(!isTest&&viewerId&&['A','B'].includes(choice))void minecraftForwardVote(activeUserId,platform,viewerId,choice);
+ }
+ const minecraftDynamicsTicker=setInterval(()=>{
+   for(const result of minecraftDynamics.tick()){
+     minecraftResults.push({...result,at:Date.now()});
+     if(minecraftResults.length>100)minecraftResults.shift();
+     broadcast({type:'dynamics-result',result});
+   }
+ },500);
+ minecraftDynamicsTicker.unref?.();
+
+ // Bring the shared result feed from Cloudflare back to the local Minecraft bridge.
+ const minecraftRemoteSeen=new Map();
+ let minecraftRemoteSyncBusy=false;
+ const minecraftRemoteTicker=setInterval(async()=>{
+   if(minecraftRemoteSyncBusy||!activeUserId||!minecraftSettings.get(activeUserId)?.enabled)return;
+   minecraftRemoteSyncBusy=true;
+   try{
+     const roomId=await minecraftCentralRoom(activeUserId);if(!roomId)return;
+     const data=await licensing.requestDynamics(activeUserId,'/api/dynamics/rooms/'+roomId);
+     for(const event of (data.events||[]).slice().reverse()){
+       if(!event?.id||minecraftRemoteSeen.has(event.id))continue;
+       minecraftRemoteSeen.set(event.id,Date.now());
+       if(Date.now()-Number(event.created_at)>60000)continue;
+       const p=event.payload||{};
+       if(event.event_type==='vote_open'){
+         minecraftQueueEvent('vote_open',{roomId,user:p.followerName||'Seguidor',platform:p.platform,pregunta:p.questionId,optionA:p.optionA,optionB:p.optionB,duration:Math.max(1,Math.ceil((Number(p.endsAt)-Date.now())/1000)),challengeId:p.challengeId});
+       }else if(event.event_type==='voted_result'){
+         minecraftQueueEvent('voted_result',{roomId,user:p.followerName||'Seguidor',platform:p.platform,pregunta:p.questionId,choice:p.choice,a:p.a,b:p.b,players:Array.isArray(p.players)?p.players:[],challengeId:p.challengeId});
+       }
+     }
+     if(minecraftRemoteSeen.size>400){
+       for(const [id,t] of minecraftRemoteSeen)if(Date.now()-t>180000)minecraftRemoteSeen.delete(id);
+     }
+   }catch(e){/* Remote offline: keep the local UI available without mutating licenses. */}
+   finally{minecraftRemoteSyncBusy=false}
+ },2500);
+ minecraftRemoteTicker.unref?.();
+
+ 
 
 // ===== GREÑA FIDELIDAD =====
 // Ranking separado por plataforma. El "tiempo" es tiempo activo estimado entre señales del usuario,
@@ -1070,6 +1208,13 @@ function alert(platform,event,name,message='',extra={}){
  if(event==='follow')followerGoalFollow(platform,platform==='Starvios'?extra.count:1);
  const custom=findCustomRule(customAlerts,a,Date.now(),customAlertCooldowns);
   if(custom){a.customRuleId=custom.id;a.customAction=custom.action}
+  if(event==='follow'){
+   const sourceKey=String(extra.eventId||extra.event_id||extra.messageId||extra.message_id||extra.id||'');
+   // Some connectors omit stable IDs. Dedup normalized follower within a minute
+   // rather than inventing an ID that would make every webhook retry a new challenge.
+   const fallback=createHash('sha256').update(String(platform).toLowerCase()+':'+String(a.name||'').toLowerCase()+':'+Math.floor(Date.now()/60000)).digest('hex');
+   minecraftFollow(platform,a.name,sourceKey||fallback);
+  }
   broadcast({type:'alert',alert:a});broadcast({type:'activity',activity:a})
 }
 function json(res,code,obj){res.writeHead(code,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(obj))}
@@ -2105,7 +2250,69 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     if(chatOverlay)assignObsCookie(req,res);
     return proxyChatHttp(req,res,url);
   }
+ 
+
+ 
+ if(pathname==='/mc/poll'&&req.method==='GET'){
+   if(!minecraftBridgeToken||minecraftBridgeToken.length<24)return json(res,503,{ok:false,error:'Puente Minecraft desactivado. Configura GRENA_MINECRAFT_BRIDGE_TOKEN.'});
+   const token=url.searchParams.get('token')||'';
+   if(!safeTokenEqual(token,minecraftBridgeToken))return json(res,401,{ok:false,error:'Token Minecraft incorrecto'});
+   const rawAfter=url.searchParams.get('after');
+   if(rawAfter===null)return json(res,200,{events:[],last:minecraftGameSeq});
+   const after=Math.max(0,Math.trunc(Number(rawAfter)||0));
+   const roomId=String(url.searchParams.get('room')||'').slice(0,80);
+   const events=minecraftGameEvents.filter(x=>x.id>after&&(!roomId||x.roomId===roomId));
+   return json(res,200,{events,last:minecraftGameSeq});
+ }
+
  if(!panelGuard(req,res,pathname))return;
+// GREÑA ID central proxy: only trusted local GREÑA session tokens can relay.
+ if(pathname.startsWith('/api/dynamics/central/rooms')&&(req.method==='GET'||req.method==='POST')){
+   const me=sessionUser(req);if(!me)return json(res,401,{ok:false,error:'Inicia sesión con tu GREÑA ID'});
+   const centralPath=pathname.replace('/api/dynamics/central/','/api/dynamics/');
+   let input;
+   if(req.method==='POST'){
+     try{input=JSON.parse(await readBody(req,4096)||'{}')}
+     catch{return json(res,400,{ok:false,error:'JSON inválido'})}
+   }
+   try{
+     const result=await licensing.requestDynamics(me.id,centralPath,req.method,input);
+     return json(res,200,result);
+   }catch(e){
+     const code=Number(e.status)||503;
+     return json(res,code>=400&&code<600?code:503,{ok:false,error:String(e.message||e).slice(0,190)});
+   }
+ }
+
+ if(pathname==='/api/dynamics/minecraft' && (req.method==='GET'||req.method==='POST')){
+   const me=sessionUser(req);if(!me)return json(res,401,{ok:false,error:'Se requiere GREÑA ID'});
+   const room=minecraftRoomFor(me.id);
+   if(req.method==='GET')return json(res,200,{ok:true,enabled:!!minecraftSettings.get(me.id)?.enabled,bedrockBridge:minecraftBedrockBridge.status(),room,invitations:minecraftDynamics.pendingInvitations(me.id),results:minecraftResults.filter(x=>x.streamerId===me.id).slice(-10)});
+   let input;try{input=JSON.parse(await readBody(req,8192)||'{}')}catch{return json(res,400,{ok:false,error:'JSON inválido'})}
+   try {
+     const action=String(input.action||'');
+     let value=null;
+     if(action==='enable'){
+       minecraftSettings.set(me.id,{enabled:!!input.enabled});
+       minecraftDynamics.enable({roomId:room.id,userId:me.id,value:!!input.enabled});
+       if(input.enabled){
+         const sharedRoom=await minecraftCentralRoom(me.id,{create:true});
+         if(!sharedRoom){
+           minecraftSettings.set(me.id,{enabled:false});
+           minecraftDynamics.enable({roomId:room.id,userId:me.id,value:false});
+           return json(res,503,{ok:false,error:'No se pudo conectar a GREÑA ID. Dinámicas central no activada.'});
+         }
+       }
+     }
+     else if(action==='invite'){value=minecraftDynamics.invite({roomId:room.id,fromId:me.id,toId:String(input.friendId||'').trim()})}
+     else if(action==='respond'){value=minecraftDynamics.respond({invitationId:String(input.invitationId||''),userId:me.id,accept:!!input.accept,gamertag:String(input.gamertag||'')});if(input.accept)minecraftRoomsByUser.set(me.id,value.id)}
+     else if(action==='test-follow'){if(!minecraftSettings.get(me.id)?.enabled)return json(res,409,{ok:false,error:'Activa la dinámica'});minecraftFollow(String(input.platform||'TikTok'),String(input.name||'Prueba'),String(Date.now()),true)}
+     else if(action==='test-vote'){minecraftVoteFromChat({platform:String(input.platform||'TikTok'),userId:'test-'+String(input.userId||'1'),text:String(input.vote||'A')},true)}
+     else return json(res,400,{ok:false,error:'Acción desconocida'});
+     return json(res,200,{ok:true,value,room:minecraftDynamics.getRoom(room.id)});
+   } catch(error){return json(res,400,{ok:false,error:String(error.message||error)})}
+ }
+
  // Re-sync an existing GREÑA ID without destroying the desktop session. Verify
  // the account password locally before sending it to the central identity service.
  if(pathname==='/api/license/identity/sync'&&req.method==='POST'&&!CLOUD_MODE){
@@ -2557,6 +2764,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(bridgeMessageDuplicate(body.bridgeEventId))return json(res,200,{ok:true,duplicate:true});
   noteBridgeSignal(p,String(body.kind||body.event||'loyalty'),{user:body.user||'',amount:Number(body.amount||0)||0});
   if(p==='tiktok'&&String(body.kind||body.event||'').toLowerCase()==='like')recordTapTap(body);
+  if(String(body.kind||'').toLowerCase()==='chat')minecraftVoteFromChat(body);
   const result=recordLoyaltyEvent(body);return json(res,200,{ok:true,result,taptap:p==='tiktok'?publicTapTapState():undefined});
  }
  if(pathname==='/api/loyalty'&&req.method==='GET'){
@@ -2812,7 +3020,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
- const interactive=new Set(['/','/index.html','/live-panel.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/mobile-device.html','/license.html','/license-admin.html']);
+ const interactive=new Set(['/','/index.html','/live-panel.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/mobile-device.html','/license.html','/license-admin.html','/dynamics.html']);
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);const pairingLanding=pathname==='/mobile.html'&&/^[A-Za-z0-9_-]{40,60}$/.test(url.searchParams.get('pair')||'');if(!su&&!pairingLanding){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(su&&!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}
