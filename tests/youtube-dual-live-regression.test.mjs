@@ -16,7 +16,7 @@ test('Both YouTube livestreams receive independent chat, events and viewer colle
  assert.match(chat,/for\(const id of activeIds\)/);
  assert.match(chat,/youtubeReaders\.set\(videoId,reader\)/);
  assert.match(chat,/type:'chat',videoId,user:m\.user/);
- assert.match(chat,/type:'event',videoId,event,eventKind:m\.kind/);
+ assert.match(chat,/broadcastPlatform\('youtube',\{type:'event',\.\.\.details\}\)/);
  assert.match(chat,/bridgeEventId:stableId/);
  assert.match(chat,/bridgeViewers\('youtube',known\.reduce/);
  assert.doesNotMatch(chat,/youtube:youtubeReader\.running/);
@@ -51,4 +51,24 @@ test('YouTube Chat Reader uses the owner OAuth proxy without an independent API 
  assert.match(server,/pathname==='\/api\/internal\/youtube\/data'/);
  assert.match(server,/if\(!requireInternalBridge\(req,res\)\)return/);
  assert.match(server,/Authorization:'Bearer '\+token/);
+});
+
+test('YouTube membership gifts, milestones and jewels are normalized for real alerts',()=>{
+ const make=(id,type,details)=>normalizeYouTubeMessage({id,snippet:{type,...details},authorDetails:{channelId:'UC987',displayName:'Fan'}});
+ const gifted=make('gifted','membershipGiftingEvent',{membershipGiftingDetails:{giftMembershipsCount:10}});
+ assert.equal(gifted.kind,'membershipgift');
+ assert.equal(gifted.count,10);
+ assert.equal(gifted.event,'gift');
+ const received=make('received','giftMembershipReceivedEvent',{});
+ assert.equal(received.kind,'membershipreceived');
+ assert.equal(received.event,'sub');
+ const milestone=make('milestone','memberMilestoneChatEvent',{memberMilestoneChatDetails:{memberMonth:12,userComment:'Un año!'}});
+ assert.equal(milestone.months,12);
+ assert.equal(milestone.message,'Un año!');
+ const jewel=make('jewel','giftEvent',{giftDetails:{giftName:'Celebración',comboCount:7,jewelsAmount:24}});
+ assert.equal(jewel.kind,'jewelgift');
+ assert.equal(jewel.count,7);
+ assert.match(chat,/const comboRevision=kind==='jewelgift'/);
+ assert.match(chat,/bridgeEventId:stableId/);
+ assert.match(chat,/action:detail/);
 });
