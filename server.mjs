@@ -249,7 +249,7 @@ function upsertCatalogItem(raw,{preferName=false}={}){
 function ensureBuiltInGiftCatalog(){
  const now=Date.now();
  // Identidades ilustrativas de eventos. No equivalen a regalos comprables oficiales.
- for(const x of STARVIOS_SUPPORT_CATALOG)upsertCatalogItem({platform:'Starvios',id:'starvios:'+x.id,name:x.label,nameEs:x.label,category:x.kind==='gift'?'support':'event',giftKind:x.kind,amount:0,unit:x.unit,image:x.image,source:'GREÑA · ilustración de evento, no regalo oficial',updatedAt:now});
+ for(const x of [])upsertCatalogItem({platform:'Starvios',id:'starvios:'+x.id,name:x.label,nameEs:x.label,category:x.kind==='gift'?'support':'event',giftKind:x.kind,amount:0,unit:x.unit,image:x.image,source:'GREÑA · ilustración de evento, no regalo oficial',updatedAt:now});
  // Catalog event categories supported by YouTube, not an inventory of all paid stickers.
  {
   for(const [id,name,unit] of [['superchat','Super Chat','USD'],['supersticker','Super Sticker','USD'],['membership','Nueva membresía','membership'],['membershipgift','Membresías regaladas','membership'],['membermilestone','Hito de membresía','membership'],['membershipreceived','Membresía recibida','membership']]){
@@ -713,7 +713,7 @@ function tapTapPreviewState(amount=0){const names=['GreñaFan','TapMaster','Luna
 const activityHistory=[];
 const recentAlerts=new Map();
 function accountFromAuth(p){if(p==='youtube')return savedAuth.youtube?.displayName||savedAuth.youtube?.channelId||'';if(p==='tiktok')return savedAuth.tiktok?.username||'';if(p==='twitch')return twitchCfg?.displayName||twitchCfg?.login||savedAuth.twitch?.displayName||savedAuth.twitch?.login||'';if(p==='kick')return savedAuth.kick?.username||savedAuth.kick?.slug||'';if(p==='starvios')return status.starvios?.account||'';return ''}
-function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube','starvios']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected){const showTikTokWait=p==='tiktok'&&/reconexi[oó]n|límite temporal|conectando al LIVE|LIVE no disponible/i.test(runtimeLabel);if(!showTikTokWait)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;}out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,configured:p==='starvios'?!!account:authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel,...(p==='starvios'?{live:starviosLive.known?starviosLive.live:null,liveKnown:starviosLive.known}:{})}}return out}
+function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected){const showTikTokWait=p==='tiktok'&&/reconexi[oó]n|límite temporal|conectando al LIVE|LIVE no disponible/i.test(runtimeLabel);if(!showTikTokWait)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;}out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,configured:p==='starvios'?!!account:authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel,...(p==='starvios'?{live:starviosLive.known?starviosLive.live:null,liveKnown:starviosLive.known}:{})}}return out}
 function pushStatus(){broadcast({type:'platform-status',status:publicStatus()})}
 function normalizeCounterWidgetSettings(input={}){
  const style=['classic','trio','vertical'].includes(String(input.counterStyle||input.style||''))?String(input.counterStyle||input.style):'classic';
@@ -724,7 +724,7 @@ function normalizeCounterWidgetSettings(input={}){
  return {style,counterCardColor,edge,edgeOffset};
 }
 function publicCounterSettings(){return normalizeCounterWidgetSettings({counterStyle:autoPrefs.counterStyle,counterCardColor:autoPrefs.counterCardColor,counterEdge:autoPrefs.counterEdge,counterEdgeOffset:autoPrefs.counterEdgeOffset})}
-function currentViewers(){return viewerTest.enabled?{tiktok:viewerTest.tiktok,twitch:viewerTest.twitch,kick:viewerTest.kick,youtube:viewers.youtube,starvios:viewers.starvios}:{...viewers}}
+function currentViewers(){return viewerTest.enabled?{tiktok:viewerTest.tiktok,twitch:viewerTest.twitch,kick:viewerTest.kick,youtube:viewers.youtube}:{tiktok:viewers.tiktok,twitch:viewers.twitch,kick:viewers.kick,youtube:viewers.youtube}}
 function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,meta:viewerMeta,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,updatedAt:Date.now()})}
 function tiktokViewerSourceFamily(source=''){
  const x=String(source||'').toLowerCase();
