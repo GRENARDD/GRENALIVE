@@ -2434,8 +2434,11 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    const response=await fetch(uri,{headers:{Authorization:'Bearer '+token}});
    const payload=await response.json().catch(()=>({}));
    if(!response.ok)throw Error('YouTube '+response.status+': '+String(payload.error?.message||'Error API'));
-   const live=(payload.items||[]).find(x=>x.id&&(x.status?.lifeCycleStatus==='live'||x.snippet?.actualStartTime)&&!x.snippet?.actualEndTime);
-   return json(res,200,{ok:true,linked:true,live:!!live,videoId:live?.id||'',channel:yt.displayName||''});
+   // Dos directos independientes pueden convivir (horizontal y vertical Shorts).
+   const lives=(payload.items||[])
+    .filter(x=>x.id&&(x.status?.lifeCycleStatus==='live'||x.snippet?.actualStartTime)&&!x.snippet?.actualEndTime)
+    .map(x=>({videoId:String(x.id),title:String(x.snippet?.title||'').slice(0,120)}));
+   return json(res,200,{ok:true,linked:true,live:lives.length>0,videoId:lives[0]?.videoId||'',lives,channel:yt.displayName||''});
   }catch(e){console.warn('[YouTube detection]',e.message);return json(res,200,{ok:false,linked:true,live:false,error:String(e.message||e).slice(0,180)})}
  }
  if(pathname==='/api/internal/status'&&req.method==='POST'){
