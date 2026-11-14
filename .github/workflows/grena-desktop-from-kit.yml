@@ -278,6 +278,16 @@ jobs:
           foreach ($file in @('live-panel.html','mobile.html','mobile-device.html')) {
             if (!(Test-Path (Join-Path 'dist/win-unpacked/resources/app' $file))) { throw "Falta $file en la aplicación empaquetada" }
           }
+      - name: Verify Minecraft dynamics and shared room files in Windows package
+        shell: pwsh
+        run: |
+          node --check cloudflare/licenses/src/dynamics.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($path in @('dynamics.html','dynamics/questions.mjs','dynamics/shared-rooms.mjs')) {
+            if (!(Test-Path (Join-Path 'dist/win-unpacked/resources/app' $path))) {
+              throw "Missing Minecraft dynamics packaged file: $path"
+            }
+          }
       - name: Verify Windows installer Authenticode and SHA256
         shell: pwsh
         env:
