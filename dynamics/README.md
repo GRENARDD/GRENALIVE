@@ -48,5 +48,15 @@ Se requiere un servicio central autenticado por GREÑA ID con almacenamiento tra
 - `cloudflare-d1-migration.sql`: nuevas tablas para salas, miembros, invitaciones, eventos y votos.
 - `cloudflare-rooms.js`: rutas de crear sala, invitar, bandeja de invitaciones, aceptar/rechazar y consultar miembros.
 - Debe llamarse desde el Worker de autenticación **solo después** de validar el Bearer de GREÑA ID y entregar su ID autenticado.
-- El Worker debe conectar `env.DB` y proporcionar el callback fiable `verifyRecipient(userId)` desde su propia consulta de identidad; nunca confiar en IDs enviados desde la ventana web.
+- El Worker debe conectar `env.DB` y proporcionar el callback fiable `resolveRecipient(username)` desde su propia consulta de identidad que devuelva `{id}` canónico; nunca confiar en IDs enviados desde la ventana web.
 - Todavía falta desplegar Worker, enlazar las PC y transmitir alertas/votos hacia este backend. Por eso no se ofrece como multistreamer operativo ni v5.1.26 estable.
+
+## Comprobación obligatoria para declarar la 5.1.26 estable
+- Cloudflare Worker de GREÑA ID desplegado con identidad autenticada por token, `resolveRecipient(username)` y las rutas `/api/dynamics/rooms/*`.
+- Invitación recibida y aceptada con dos GREÑA ID auténticos desde **dos PC separadas**, no solo una simulación local.
+- Sala y votos compartidos en el backend central; actualmente los votos y la cola se administran en memoria local por instancia.
+- Seguimiento de followers reales de cada plataforma, sin incluir mensajes del otro streamer en su votación.
+- Puente HTTPS alcanzable desde Bedrock Dedicated Server con addon configurado, sin claves de prueba en el archivo distribuido.
+- Dos gamertags reciben y completan el mismo reto, sin pérdidas de inventario ni modificaciones permanentes.
+- Prueba de actualización con datos existentes de 5.1.25 y build firmado o advertencia explícita si no está firmado.
+- Solo después: etiqueta 5.1.26, publicación de Windows installer y pruebas finales.
