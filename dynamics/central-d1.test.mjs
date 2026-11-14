@@ -8,11 +8,16 @@ function mockDb(){
  sqlite.exec('CREATE TABLE users(id TEXT PRIMARY KEY,username TEXT NOT NULL,disabled INTEGER NOT NULL DEFAULT 0)');
  for(const [id,username] of [['host','hostrd'],['friend','amigard'],['outsider','intruso']])
   sqlite.prepare('INSERT INTO users(id,username) VALUES(?,?)').run(id,username);
- const wrap=sql=>({bind(...args){const stmt=sqlite.prepare(sql);return {
-  async run(){const result=stmt.run(...args);return {success:true,meta:{changes:Number(result.changes)}}},
-  async first(){return stmt.get(...args)||null},
-  async all(){return {results:stmt.all(...args)}}}
- }});
+ const wrap=sql=>{
+  const stmt=sqlite.prepare(sql);
+  const withArgs=(args=[])=>({
+   bind(...values){return withArgs(values)},
+   async run(){const result=stmt.run(...args);return {success:true,meta:{changes:Number(result.changes)}}},
+   async first(){return stmt.get(...args)||null},
+   async all(){return {results:stmt.all(...args)}}
+  });
+  return withArgs();
+ };
  return {sqlite,api:{prepare:wrap,async batch(stmts){return Promise.all(stmts.map(s=>s.run()))}}};
 }
 const req=(route,body)=>new Request('https://central.example'+route,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
