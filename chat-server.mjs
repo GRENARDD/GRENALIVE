@@ -468,7 +468,10 @@ const send = (ws, data) => {
 };
 
 const recentChatHistory = [];
-const CHAT_HISTORY_LIMIT = 300;
+// Retain enough events to replay a busy LIVE after temporary UI or proxy outages.
+const CHAT_HISTORY_LIMIT = 3000;
+const CHAT_HISTORY_EPOCH = randomBytes(8).toString('hex');
+let chatHistorySequence = 0;
 let voiceControlState = null; // null = usa la preferencia local del navegador; boolean = orden del Preview LIVE
 
 const broadcast = data => {
@@ -476,7 +479,7 @@ const broadcast = data => {
   // no quede vacío hasta que llegue el siguiente mensaje. Esto es especialmente
   // útil para OBS, que puede recargar la Fuente de navegador en cualquier momento.
   if (data?.type === 'chat' && ['tiktok','twitch','kick','youtube'].includes(String(data?.platform||'').toLowerCase())) {
-    const item = {...data, _historyId: data._historyId || `${Date.now()}-${Math.random().toString(36).slice(2,9)}`};
+    const item = {...data, _historyId: data._historyId || `${Date.now()}-${Math.random().toString(36).slice(2,9)}`, _historyCursor: `${CHAT_HISTORY_EPOCH}.${++chatHistorySequence}`};
     recentChatHistory.push(item);
     if (recentChatHistory.length > CHAT_HISTORY_LIMIT) recentChatHistory.splice(0, recentChatHistory.length - CHAT_HISTORY_LIMIT);
     data = item;
@@ -2727,8 +2730,17 @@ const server =
 
 
         if(url.pathname==='/api/live-messages' && request.method==='GET'){
+          // First request shows the most recent messages; subsequent requests page
+          // forward from a cursor, so temporary WS/proxy outages do not skip chats.
+          const after=String(url.searchParams.get('after')||'').slice(0,100);
+          const limit=Math.max(1,Math.min(300,Number(url.searchParams.get('limit')||300)||300));
+          const found=after?recentChatHistory.findIndex(item=>item._historyCursor===after):-1;
+          const gap=!!after&&found<0;
+          const start=!after?Math.max(0,recentChatHistory.length-limit):found>=0?found+1:0;
+          const messages=recentChatHistory.slice(start,start+limit);
+          const cursor=messages.length?messages[messages.length-1]._historyCursor:(gap?'':after);
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-          response.end(JSON.stringify({ok:true,messages:recentChatHistory.slice(-300)}));
+          response.end(JSON.stringify({ok:true,messages,cursor,more:start+messages.length<recentChatHistory.length,gap}));
           return;
         }
 
