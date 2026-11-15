@@ -44,11 +44,12 @@ test('chat recovery is part of the 5.1.29 stable Windows build',()=>{
  const server=source('chat-server.mjs');
  const guard=source('chat-realtime-guard.mjs');
  assert.match(ci,/chat-realtime-guard\.mjs/);
+ assert.match(source('desktop-build/fix_startup.py'),/chat-realtime-guard\.mjs/);
  assert.match(server,/createRealtimeTikTokChatRouter/);
  assert.match(server,/createRealtimeSocketWatchdog/);
  assert.match(guard,/onDecoded\(method,decoded\)/);
  assert.match(server,/CHAT_HISTORY_LIMIT = 3000/);
  assert.match(server,/ttSocialLooksLikeFollow/);
- assert.match(server,/emitFollow\\(data,'social-fallback'\\)/);
- assert.match(server,/WebcastEvent\\.FOLLOW/);
+ assert.match(server,/emitFollow\(data,'social-fallback'\)/);
+ assert.match(server,/WebcastEvent\.FOLLOW/);
 });
