@@ -293,7 +293,7 @@ jobs:
       - name: Verify mobile dashboard and live panel are packaged
         shell: pwsh
         run: |
-          foreach ($file in @('live-panel.html','mobile.html','mobile-device.html')) {
+          foreach ($file in @('live-panel.html','mobile.html','mobile-device.html','chat-realtime-guard.mjs')) {
             if (!(Test-Path (Join-Path 'dist/win-unpacked/resources/app' $file))) { throw "Falta $file en la aplicación empaquetada" }
           }
       - name: Verify Minecraft dynamics and shared room files in Windows package
