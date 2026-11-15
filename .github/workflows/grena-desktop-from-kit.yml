@@ -8,7 +8,6 @@ on:
       - 'grena-gamer.css'
       - 'favicon.svg'
       - 'chat-server.mjs'
-      - 'favicon.svg'
       - 'chat-realtime-guard.mjs'
       - 'assets/grena-g-icon.png.base64'
       - 'server.mjs'
@@ -138,7 +137,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v5.1.17 -> v5.1.25 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v5.1.27 -> v5.1.29 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -395,7 +394,8 @@ jobs:
       - name: Smoke test compiled Windows backend
         shell: pwsh
         run: ./desktop-build/smoke.ps1
-      - name: Verify installed upgrade from GREÑA 5.1.17 preserves user data
+      - name: Verify installed upgrade from GREÑA 5.1.27 preserves user data
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: ./desktop-build/verify-upgrade-5127-to-5129.ps1
