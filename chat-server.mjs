@@ -1996,11 +1996,11 @@ async function connectTikTok(input,{automatic=false}={}) {
         tiktokChatStats.empty++;tiktokChatStats.sessionEmpty++;
         // Sin cuerpo: guardar solamente el tipo de estructura, nunca los datos del espectador.
         if(tiktokChatStats.empty<=3||tiktokChatStats.empty%50===0)console.warn('[GREÑA TikTok] comentario sin texto reconocido', {total:tiktokChatStats.empty});
-        return;
+        return false;
       }
       if(isLocallyMuted('tiktok',chat.user||chat.nickname)){
         tiktokChatStats.muted++;tiktokChatStats.sessionMuted++;
-        return; // Silenciamiento solicitado explícitamente por el creador.
+        return true; // Silenciamiento solicitado explícitamente por el creador.
       }
       // No registrar texto/nombres del público. Confirmar volumen sin filtrar información sensible.
       tiktokChatStats.forwarded++;tiktokChatStats.sessionForwarded++;
@@ -2047,10 +2047,12 @@ async function connectTikTok(input,{automatic=false}={}) {
             chat.isBroadcaster || String(chat.user||'').replace(/^@/,'').toLowerCase()===String(currentTikTokUser||'').replace(/^@/,'').toLowerCase()
         }
       );
+      return true;
       } catch(error) {
         // Un evento malformado no debe romper la conexión ni interrumpir a otros usuarios.
         tiktokChatStats.errors++;
         logChatFault('TikTok chat decode',error);
+        return false;
       }
   };
   const tiktokCommentRouter=createRealtimeTikTokChatRouter({
