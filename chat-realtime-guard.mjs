@@ -19,17 +19,25 @@ export function createRealtimeTikTokChatRouter({
   }
   function send(data,source,observedAt){
     if(!data||typeof data!=='object')return false;
-    const at=now(),id=String(getId(data)||''),sig=String(signature(data)||'');
+    const at=now();
+    let id='',sig='';
+    // Malformed or partially decoded metadata must never prevent delivery.
+    try{id=String(getId(data)||'')}catch{}
+    try{sig=String(signature(data)||'')}catch{}
     if(id&&deliveredIds.has(id)){stats.duplicates++;return false}
     // Only the delayed decoded fallback uses text matching: never suppress
     // repeated legitimate CHAT events from a viewer.
     if(source==='decoded'&&!id&&sig&&(namedSignatures.get(sig)||-1)>=observedAt){
       stats.duplicates++;return false;
     }
+    let accepted=false;
+    try{accepted=deliver(data,source)!==false}catch{return false}
+    // A parsed-but-empty comment was not actually shown. A richer decoded
+    // payload with the same ID may still rescue it.
+    if(!accepted)return false;
     if(id)deliveredIds.set(id,at);
     if(source==='named'&&sig)namedSignatures.set(sig,at);
     if(deliveredIds.size>5000||namedSignatures.size>500)prune(at);
-    deliver(data,source);
     if(source==='decoded')stats.fallbackDelivered++;
     return true;
   }
