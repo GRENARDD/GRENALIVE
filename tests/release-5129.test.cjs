@@ -53,3 +53,10 @@ test('chat recovery is part of the 5.1.29 stable Windows build',()=>{
  assert.match(server,/emitFollow\(data,'social-fallback'\)/);
  assert.match(server,/WebcastEvent\.FOLLOW/);
 });
+
+test('5.1.29 PR preview does not run the official-only in-place Windows upgrade gate',()=>{
+ const workflow=source('.github/workflows/grena-desktop-from-kit.yml');
+ assert.match(workflow,/Verify installed upgrade from GREÑA 5\.1\.27 preserves user data\s*\n\s*if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
+ assert.match(workflow,/Set distinct v5\.1\.29 beta version for preview installer/);
+ assert.match(workflow,/Set official 5\.1\.29 version on main/);
+});
