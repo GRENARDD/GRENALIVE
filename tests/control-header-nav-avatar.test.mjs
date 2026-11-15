@@ -24,14 +24,17 @@ test('only one image exists inside the large account avatar',()=>{
  assert.match(css,/width:46px!important;height:46px!important/);
 });
 
-test('official v5.1.27 release gate is not the PR preview artifact',()=>{
+test('official v5.1.29 release gate is separate from PR previews and keeps historical 5.1.27 release',()=>{
  const workflow=file('.github/workflows/grena-desktop-from-kit.yml');
- const release=file('.github/workflows/grena-release-v5127.yml');
- const upgrade=file('desktop-build/verify-upgrade-5117-to-5127.ps1');
- assert.match(workflow,/Set official 5\.1\.27 version on main/);
- assert.match(workflow,/GRENA-LIVE-Installer-Windows-v5\.1\.27/);
- assert.match(workflow,/verify-upgrade-5117-to-5127\.ps1/);
- assert.match(release,/Publish official v5\.1\.27 release/);
+ const release=file('.github/workflows/grena-release-v5129.yml');
+ const upgrade=file('desktop-build/verify-upgrade-5127-to-5129.ps1');
+ const previousRelease=file('.github/workflows/grena-release-v5127.yml');
+ assert.match(workflow,/Set official 5\\.1\\.29 version on main/);
+ assert.match(workflow,/GRENA-LIVE-Installer-Windows-v5\\.1\\.29/);
+ assert.match(workflow,/verify-upgrade-5127-to-5129\\.ps1/);
+ assert.match(release,/Publish official v5\\.1\\.29 release/);
  assert.match(release,/Verify production GREÑA ID Worker has secure shared rooms/);
- assert.match(upgrade,/\$newVersion='5\.1\.27'/);
+ assert.match(upgrade,/\\$oldVersion='5\\.1\\.27'/);
+ assert.match(upgrade,/\\$newVersion='5\\.1\\.29'/);
+ assert.match(previousRelease,/VERSION: '5\\.1\\.27'/);
 });
