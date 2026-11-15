@@ -84,3 +84,26 @@ test('watchdog detects closed sockets without waiting for a chat message',()=>{
   health.tick();
   assert.deepEqual(stale,['socket-closed']);
 });
+
+test('a failed named decode does not block a richer decoded copy with the same message ID',()=>{
+  const delivered=[],scheduled=[];
+  const router=createRealtimeTikTokChatRouter({
+    deliver:(m,source)=>{if(!m.text)return false;delivered.push({text:m.text,source});return true},
+    getId:m=>m.id,
+    signature:m=>m.user+'|'+(m.text||''),
+    now:()=>100,
+    defer:fn=>scheduled.push(fn)
+  });
+  router.onNamed({id:'partial-1',user:'viewer'});
+  router.onDecoded('WebcastChatMessage',{data:{id:'partial-1',user:'viewer',text:'ahora sí'}});
+  scheduled.shift()();
+  assert.deepEqual(delivered,[{text:'ahora sí',source:'decoded'}]);
+});
+
+test('Kick does not suppress legitimate rapid repeat comments from its same live source',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const source=readFileSync(new URL('../chat-server.mjs',import.meta.url),'utf8');
+  assert.match(source,/sameText\.origin!==origin/);
+  assert.match(source,/deliverKickChat\(msg,'webhook'\)/);
+  assert.match(source,/consumeKickRealtimeFrame\(frame\.payload,'browser'\)/);
+});
