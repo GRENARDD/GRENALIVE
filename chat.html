@@ -5910,9 +5910,10 @@ async function pollTikTokDelivery(){
   if(!response.ok)return;
   const data=await response.json(),diag=data.tiktokDiagnostics||{},c=diag.comments||{};
   if(!diag.connected){label.textContent='TikTok: chat sin conexión · espera reconexión';return}
+  if(diag.transport?.socketOpen===false){label.textContent='TikTok: conexión de comentarios interrumpida · reconectando';return}
   const received=Number(c.sessionReceived||0),forwarded=Number(c.sessionForwarded||0);
   const empty=Number(c.sessionEmpty||0),muted=Number(c.sessionMuted||0),errors=Number(c.errors||0);
-  label.textContent='TikTok LIVE: '+received+' recibidos · '+forwarded+' al chat'+(empty?' · '+empty+' sin texto':'')+(muted?' · '+muted+' silenciados':'')+(errors?' · '+errors+' errores':'');
+  label.textContent='TikTok LIVE: '+received+' recibidos · '+forwarded+' al chat'+(empty?' · '+empty+' sin texto':'')+(muted?' · '+muted+' silenciados':'')+(errors?' · '+errors+' errores':'')+(Number(c.decodedRecovered||0)?' · '+Number(c.decodedRecovered||0)+' rescatados en vivo':'');
  }catch{}
 }
 setInterval(pollTikTokDelivery,12000);pollTikTokDelivery();
