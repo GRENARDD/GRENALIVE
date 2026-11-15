@@ -1117,11 +1117,13 @@ function normalizeKickChatPayload(raw){
   return null;
 }
 
-async function deliverKickChat(msg){
+async function deliverKickChat(msg,origin='realtime'){
   if(!msg?.text||!msg?.user)return false;
   // El mismo mensaje llega por Kick Pusher, WebSocket del navegador y webhook oficial.
   // Los tres caminos comparten este filtro: ID estable cuando existe; si no,
-  // coincidencia de usuario + texto durante un corto intervalo.
+  // coincidencia de usuario + texto solo entre canales independientes durante un corto intervalo.
+  // El mismo usuario puede escribir el mismo texto dos veces: nunca descartarlo
+  // si ambas entradas vienen del mismo canal de tiempo real.
   const userKey=String(msg.user).trim().toLowerCase();
   const contentKey=`text:${userKey}|${String(msg.text).trim()}`;
   const messageId=String(msg.messageId||'').trim();
@@ -1130,8 +1132,8 @@ async function deliverKickChat(msg){
   const sameId=idKey?kickSeenMessages.get(idKey):null;
   const sameText=kickSeenMessages.get(contentKey);
   if((sameId&&now-sameId.at<120000)||
-     (sameText&&now-sameText.at<1500&&(!messageId||!sameText.id||sameText.id===messageId)))return false;
-  const record={at:now,id:messageId};
+     (sameText&&now-sameText.at<1500&&sameText.origin!==origin&&(!messageId||!sameText.id||sameText.id===messageId)))return false;
+  const record={at:now,id:messageId,origin};
   kickSeenMessages.set(contentKey,record);
   if(idKey)kickSeenMessages.set(idKey,record);
   for(const [k,t] of kickSeenMessages) if(now-Number(t?.at||0)>120000)kickSeenMessages.delete(k);
@@ -1186,7 +1188,7 @@ async function deliverKickChat(msg){
   return true;
 }
 
-function consumeKickRealtimeFrame(payload){
+function consumeKickRealtimeFrame(payload,origin='realtime'){
   const items=decodeKickRealtimeFrames(payload);let handled=false;
   for(const ev of items){
     if(!ev||typeof ev!=='object')continue;
@@ -1208,7 +1210,7 @@ function consumeKickRealtimeFrame(payload){
     }
 
     if(/ChatMessage(?:Sent)?Event$/i.test(name)||name==='chat.message.sent'||dataType==='message'||dataType==='chat_message'){
-      const m=normalizeKickChatPayload(d);if(m){kickBrowserChatReady=true;void deliverKickChat(m);handled=true}continue;
+      const m=normalizeKickChatPayload(d);if(m){kickBrowserChatReady=true;void deliverKickChat(m,origin);handled=true}continue;
     }
 
     if(/GiftedSubscriptionsEvent$/i.test(name)||name==='channel.subscription.gifts'||dataType==='gifted_subscriptions'){
@@ -1269,7 +1271,7 @@ function kickPerson(d={}){
     'Usuario'
   )
 }
-function handleKickPusherEvent(ev){consumeKickRealtimeFrame(JSON.stringify(ev))}
+function handleKickPusherEvent(ev){consumeKickRealtimeFrame(JSON.stringify(ev),'pusher')}
 
 function kickFollowerRows(payload){
   if(Array.isArray(payload))return payload;
@@ -1417,7 +1419,7 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
             kickChatroomId=Number(String(reply.push.channel).match(/[0-9]+/)?.[0])||kickChatroomId;
           }
         }
-        consumeKickRealtimeFrame(frame.payload);
+        consumeKickRealtimeFrame(frame.payload,'browser');
         if(!wasReady&&kickBrowserChatReady)hasChatSubscription=true;
       });
       socket.on('close',()=>{if(hasChatSubscription&&kickPage===page){kickBrowserChatReady=false;if(!kickPusherReady&&kickConnected){kickConnected=false;bridgeStatus('kick',false,'Kick · chat realtime desconectado',currentKickChannel,{lastError:'Se cerró el WebSocket del navegador'});}}});
@@ -3168,7 +3170,7 @@ const server =
           };
           // No emitir directamente: reutiliza exactamente la misma deduplicación
           // del lector realtime para que el webhook no produzca un segundo chat/voz.
-          const delivered=await deliverKickChat(msg);
+          const delivered=await deliverKickChat(msg,'webhook');
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
           response.end(JSON.stringify({ok:true,delivered:!!delivered}));
           return;
