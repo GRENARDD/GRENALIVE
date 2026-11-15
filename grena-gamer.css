@@ -466,3 +466,22 @@ body.grena-control::after{
  .grena-control .primary-nav .top-link .gx-nav-icon{font-size:20px!important}
  .grena-control .primary-nav .top-link .gx-nav-label{font-size:9px!important}
 }
+
+/* GREÑA LIVE 5.1.29 · Same original G in the installer and in-app branding.
+   Do not target profile-avatar: the creator's uploaded photo must remain intact. */
+.grena-logo-mark,
+.grena-control .brand-mark.grena-logo-mark,
+.grena-login .mark.grena-logo-mark,
+.grena-alerts .brand-mark.grena-logo-mark,
+.grena-catalog .brand-mark.grena-logo-mark{
+  display:grid!important;place-items:center!important;
+  background:none!important;box-shadow:none!important;border:0!important;
+  clip-path:none!important;transform:none!important;padding:0!important;
+  overflow:visible!important;color:inherit!important;
+}
+.grena-logo-mark .grena-logo-image{
+  display:block!important;width:100%!important;height:100%!important;
+  max-width:100%!important;max-height:100%!important;
+  object-fit:contain!important;filter:drop-shadow(0 2px 8px rgba(0,176,255,.27));
+}
+.grena-control .brand-mark.grena-logo-mark::before{content:none!important;display:none!important}
