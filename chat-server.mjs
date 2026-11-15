@@ -20,6 +20,7 @@ import tmi from 'tmi.js';
 import {YouTubeLiveReader,youtubeVideoId} from './youtube-live.mjs';
 import { chromium } from 'playwright-core';
 import {kickRealtimeFrames as decodeKickRealtimeFrames,kickRealtimeSubscriptionRequest} from './kick-realtime.mjs';
+import {createRealtimeTikTokChatRouter,createRealtimeSocketWatchdog} from './chat-realtime-guard.mjs';
 
 import fishNaturalVoice from './fish-natural-voice.cjs';
 const {prepareFishNaturalRequest} = fishNaturalVoice;
@@ -332,6 +333,11 @@ let tiktokViewerLastSignalAt = 0;
 let tiktokViewerLastPositiveAt = 0;
 let tiktokViewerPollBusy=false,tiktokViewerPollFailures=0,tiktokViewerNextPollAt=0;
 let tiktokConnectionReady=false;
+let tiktokRealtimeTimer=null,tiktokRealtimeWatchdog=null,tiktokLastFrameAt=0,tiktokTransportRestarts=0;
+function stopTikTokRealtimeMonitor(){
+  if(tiktokRealtimeTimer){clearInterval(tiktokRealtimeTimer);tiktokRealtimeTimer=null;}
+  tiktokRealtimeWatchdog=null;
+}
 const TIKTOK_CONNECTION_LOG=join(CHAT_LOG_DIR,'tiktok-connection.log');
 const tiktokRetry={failures:0,nextAt:0,kind:'',lastOutcome:'',lastAt:0,connectedAt:0};
 // Diagnóstico sin nombres, comentarios ni datos privados. Cuenta mensajes que el
@@ -376,7 +382,9 @@ function tiktokConnectionDiagnostics(){
  return {connected:tiktokConnectionReady&&!!tiktokConn,connecting:!!tiktokConn&&!tiktokConnectionReady,
   retryAt:tiktokRetry.nextAt,retryReason:tiktokRetry.kind,retryCount:tiktokRetry.failures,
   lastOutcome:tiktokRetry.lastOutcome,lastAttemptAt:tiktokRetry.lastAt,lastConnectedAt:tiktokRetry.connectedAt,
-  lastViewerSignalAt:tiktokViewerLastSignalAt,viewerFallbackFailures:tiktokViewerPollFailures,comments:{...tiktokChatStats,websocketClients:[...clients].filter(ws=>ws.readyState===1).length}};
+  lastViewerSignalAt:tiktokViewerLastSignalAt,viewerFallbackFailures:tiktokViewerPollFailures,
+  transport:{socketOpen:!!tiktokConn?.wsClient?.open,lastFrameAt:tiktokLastFrameAt,watchdogRestarts:tiktokTransportRestarts,lastHealthyAt:tiktokRealtimeWatchdog?.getState().lastHealthyAt||0},
+  comments:{...tiktokChatStats,websocketClients:[...clients].filter(ws=>ws.readyState===1).length}};
 }
 let twitchClient = null;
 let kickConnected = false;
@@ -1628,6 +1636,7 @@ function timeout(
 // =====================================
 
 async function disconnectTikTok() {
+  stopTikTokRealtimeMonitor();
   if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}
   tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;
   tiktokViewerPollFailures=0;tiktokViewerNextPollAt=0;tiktokConnectionReady=false;
@@ -1937,9 +1946,10 @@ async function connectTikTok(input,{automatic=false}={}) {
   // COMENTARIOS
   // =================================
 
-  connection.on(
-    WebcastEvent.CHAT,
-    data => {
+  // Every official CHAT event is delivered immediately. If the connector decodes
+  // a TikTok chat but skips named dispatch, rescue that event on the next tick.
+  // Repeated identical messages remain valid: only provider message IDs are deduped.
+  const receiveTikTokComment = data => {
       if(tiktokConn!==connection)return;
       try {
       tiktokChatStats.received++;tiktokChatStats.sessionReceived++;tiktokChatStats.lastReceivedAt=Date.now();
@@ -2042,7 +2052,40 @@ async function connectTikTok(input,{automatic=false}={}) {
         logChatFault('TikTok chat decode',error);
       }
     }
-  );
+  };
+  const tiktokCommentRouter=createRealtimeTikTokChatRouter({
+    deliver:receiveTikTokComment,
+    getId:data=>extractTikTokChat(data).messageId,
+    signature:data=>{const c=extractTikTokChat(data);return c.text?`${c.user}|${c.text}`:''}
+  });
+  connection.on(WebcastEvent.CHAT,data=>tiktokCommentRouter.onNamed(data));
+  connection.on(ControlEvent.DECODED_DATA,(method,decoded)=>tiktokCommentRouter.onDecoded(method,decoded));
+  connection.on(ControlEvent.WEBSOCKET_DATA,()=>{
+    if(tiktokConn!==connection)return;
+    tiktokLastFrameAt=Date.now();
+    tiktokRealtimeWatchdog?.markHealthy();
+  });
+  connection.on(ControlEvent.WEBSOCKET_CONNECTED,socket=>{
+    if(tiktokConn!==connection)return;
+    stopTikTokRealtimeMonitor();
+    const watchdog=createRealtimeSocketWatchdog({
+      socket,
+      active:()=>tiktokConn===connection,
+      stale:reason=>{
+        if(tiktokConn!==connection)return;
+        tiktokTransportRestarts++;
+        tiktokConnectionLog('transport-stalled',{username,reason,watchdogRestarts:tiktokTransportRestarts});
+        broadcastPlatform('tiktok',{type:'error',message:'TikTok dejó de responder; reconectando el chat para no perder mensajes nuevos.'});
+        // A dead socket can stay flagged as connected. Force its regular
+        // disconnected path, which applies backoff and connects again.
+        try{socket.terminate()}catch{Promise.resolve(connection.disconnect()).catch(()=>{})}
+      }
+    });
+    tiktokRealtimeWatchdog=watchdog;
+    socket.on('pong',()=>{if(tiktokConn===connection)watchdog.markHealthy()});
+    tiktokRealtimeTimer=setInterval(()=>watchdog.tick(),15000);
+    tiktokRealtimeTimer.unref?.();
+  });
 
     // =================================
   // ALERTAS REALES + VIEWERS (MISMA CONEXIÓN DEL CHAT)
@@ -2183,6 +2226,7 @@ async function connectTikTok(input,{automatic=false}={}) {
     WebcastEvent.STREAM_END,
     () => {
       if(tiktokConn!==connection)return;
+      stopTikTokRealtimeMonitor();
       if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;tiktokConn=null;currentTikTokUser='';tiktokConnectionReady=false;
       tiktokConnectionLog('stream-ended',{username});tiktokScheduleRetry('ended');
       // Cerrar el WebSocket del LIVE terminado; los eventos posteriores son obsoletos.
@@ -2210,6 +2254,7 @@ async function connectTikTok(input,{automatic=false}={}) {
     ControlEvent.DISCONNECTED,
     () => {
       if(tiktokConn!==connection)return;
+      stopTikTokRealtimeMonitor();
       if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;tiktokConn=null;currentTikTokUser='';
       const wasConnected=tiktokConnectionReady;tiktokConnectionReady=false;
       tiktokConnectionLog('disconnected',{username,wasConnected});
@@ -2310,6 +2355,7 @@ async function connectTikTok(input,{automatic=false}={}) {
     const limitedFor=tiktokRateLimitBackoff(error);
     // Invalida primero; desconectar genera eventos y no debe duplicar los reintentos.
     if(tiktokConn===connection){
+      stopTikTokRealtimeMonitor();
       tiktokConn=null;currentTikTokUser='';tiktokConnectionReady=false;
       tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;
       if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}
