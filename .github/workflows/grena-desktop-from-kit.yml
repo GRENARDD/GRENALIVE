@@ -396,7 +396,6 @@ jobs:
         run: ./desktop-build/smoke.ps1
       - name: Verify installed upgrade from GREÑA 5.1.27 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: ./desktop-build/verify-upgrade-5127-to-5129.ps1
       - name: Upload the Windows installer
