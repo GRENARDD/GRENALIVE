@@ -20,6 +20,7 @@ import tmi from 'tmi.js';
 import {YouTubeLiveReader,youtubeVideoId} from './youtube-live.mjs';
 import { chromium } from 'playwright-core';
 import {kickRealtimeFrames as decodeKickRealtimeFrames,kickRealtimeSubscriptionRequest} from './kick-realtime.mjs';
+import {createRealtimeTikTokChatRouter,createRealtimeSocketWatchdog} from './chat-realtime-guard.mjs';
 
 import fishNaturalVoice from './fish-natural-voice.cjs';
 const {prepareFishNaturalRequest} = fishNaturalVoice;
@@ -332,11 +333,16 @@ let tiktokViewerLastSignalAt = 0;
 let tiktokViewerLastPositiveAt = 0;
 let tiktokViewerPollBusy=false,tiktokViewerPollFailures=0,tiktokViewerNextPollAt=0;
 let tiktokConnectionReady=false;
+let tiktokRealtimeTimer=null,tiktokRealtimeWatchdog=null,tiktokLastFrameAt=0,tiktokTransportRestarts=0;
+function stopTikTokRealtimeMonitor(){
+  if(tiktokRealtimeTimer){clearInterval(tiktokRealtimeTimer);tiktokRealtimeTimer=null;}
+  tiktokRealtimeWatchdog=null;
+}
 const TIKTOK_CONNECTION_LOG=join(CHAT_LOG_DIR,'tiktok-connection.log');
 const tiktokRetry={failures:0,nextAt:0,kind:'',lastOutcome:'',lastAt:0,connectedAt:0};
 // Diagnóstico sin nombres, comentarios ni datos privados. Cuenta mensajes que el
 // conector realmente emitió, versus omitidos localmente por bloqueo o texto vacío.
-const tiktokChatStats={received:0,forwarded:0,empty:0,muted:0,unidentified:0,errors:0,socketFailures:0,lastReceivedAt:0,lastForwardedAt:0,sessionReceived:0,sessionForwarded:0,sessionEmpty:0,sessionMuted:0};
+const tiktokChatStats={received:0,forwarded:0,empty:0,muted:0,unidentified:0,errors:0,socketFailures:0,decodedRecovered:0,lastReceivedAt:0,lastForwardedAt:0,sessionReceived:0,sessionForwarded:0,sessionEmpty:0,sessionMuted:0};
 const TIKTOK_BACKOFF_MS=[15000,30000,60000,120000,240000,480000,600000];
 function tiktokConnectionLog(event,details={}){
  const line=JSON.stringify({at:new Date().toISOString(),event,...details});
@@ -376,7 +382,9 @@ function tiktokConnectionDiagnostics(){
  return {connected:tiktokConnectionReady&&!!tiktokConn,connecting:!!tiktokConn&&!tiktokConnectionReady,
   retryAt:tiktokRetry.nextAt,retryReason:tiktokRetry.kind,retryCount:tiktokRetry.failures,
   lastOutcome:tiktokRetry.lastOutcome,lastAttemptAt:tiktokRetry.lastAt,lastConnectedAt:tiktokRetry.connectedAt,
-  lastViewerSignalAt:tiktokViewerLastSignalAt,viewerFallbackFailures:tiktokViewerPollFailures,comments:{...tiktokChatStats,websocketClients:[...clients].filter(ws=>ws.readyState===1).length}};
+  lastViewerSignalAt:tiktokViewerLastSignalAt,viewerFallbackFailures:tiktokViewerPollFailures,
+  transport:{socketOpen:!!tiktokConn?.wsClient?.open,lastFrameAt:tiktokLastFrameAt,watchdogRestarts:tiktokTransportRestarts,lastHealthyAt:tiktokRealtimeWatchdog?.getState().lastHealthyAt||0},
+  comments:{...tiktokChatStats,websocketClients:[...clients].filter(ws=>ws.readyState===1).length}};
 }
 let twitchClient = null;
 let kickConnected = false;
@@ -468,7 +476,10 @@ const send = (ws, data) => {
 };
 
 const recentChatHistory = [];
-const CHAT_HISTORY_LIMIT = 300;
+// Retain enough events to replay a busy LIVE after temporary UI or proxy outages.
+const CHAT_HISTORY_LIMIT = 3000;
+const CHAT_HISTORY_EPOCH = randomBytes(8).toString('hex');
+let chatHistorySequence = 0;
 let voiceControlState = null; // null = usa la preferencia local del navegador; boolean = orden del Preview LIVE
 
 const broadcast = data => {
@@ -476,7 +487,7 @@ const broadcast = data => {
   // no quede vacío hasta que llegue el siguiente mensaje. Esto es especialmente
   // útil para OBS, que puede recargar la Fuente de navegador en cualquier momento.
   if (data?.type === 'chat' && ['tiktok','twitch','kick','youtube'].includes(String(data?.platform||'').toLowerCase())) {
-    const item = {...data, _historyId: data._historyId || `${Date.now()}-${Math.random().toString(36).slice(2,9)}`};
+    const item = {...data, _historyId: data._historyId || `${Date.now()}-${Math.random().toString(36).slice(2,9)}`, _historyCursor: `${CHAT_HISTORY_EPOCH}.${++chatHistorySequence}`};
     recentChatHistory.push(item);
     if (recentChatHistory.length > CHAT_HISTORY_LIMIT) recentChatHistory.splice(0, recentChatHistory.length - CHAT_HISTORY_LIMIT);
     data = item;
@@ -1107,10 +1118,13 @@ function normalizeKickChatPayload(raw){
 }
 
 async function deliverKickChat(msg){
+  const origin=String(arguments[1]||'realtime');
   if(!msg?.text||!msg?.user)return false;
   // El mismo mensaje llega por Kick Pusher, WebSocket del navegador y webhook oficial.
   // Los tres caminos comparten este filtro: ID estable cuando existe; si no,
-  // coincidencia de usuario + texto durante un corto intervalo.
+  // coincidencia de usuario + texto solo entre canales independientes durante un corto intervalo.
+  // El mismo usuario puede escribir el mismo texto dos veces: nunca descartarlo
+  // si ambas entradas vienen del mismo canal de tiempo real.
   const userKey=String(msg.user).trim().toLowerCase();
   const contentKey=`text:${userKey}|${String(msg.text).trim()}`;
   const messageId=String(msg.messageId||'').trim();
@@ -1119,8 +1133,8 @@ async function deliverKickChat(msg){
   const sameId=idKey?kickSeenMessages.get(idKey):null;
   const sameText=kickSeenMessages.get(contentKey);
   if((sameId&&now-sameId.at<120000)||
-     (sameText&&now-sameText.at<1500&&(!messageId||!sameText.id||sameText.id===messageId)))return false;
-  const record={at:now,id:messageId};
+     (sameText&&now-sameText.at<1500&&sameText.origin!==origin&&(!messageId||!sameText.id||sameText.id===messageId)))return false;
+  const record={at:now,id:messageId,origin};
   kickSeenMessages.set(contentKey,record);
   if(idKey)kickSeenMessages.set(idKey,record);
   for(const [k,t] of kickSeenMessages) if(now-Number(t?.at||0)>120000)kickSeenMessages.delete(k);
@@ -1176,6 +1190,7 @@ async function deliverKickChat(msg){
 }
 
 function consumeKickRealtimeFrame(payload){
+  const origin=String(arguments[1]||'realtime');
   const items=decodeKickRealtimeFrames(payload);let handled=false;
   for(const ev of items){
     if(!ev||typeof ev!=='object')continue;
@@ -1197,7 +1212,7 @@ function consumeKickRealtimeFrame(payload){
     }
 
     if(/ChatMessage(?:Sent)?Event$/i.test(name)||name==='chat.message.sent'||dataType==='message'||dataType==='chat_message'){
-      const m=normalizeKickChatPayload(d);if(m){kickBrowserChatReady=true;void deliverKickChat(m);handled=true}continue;
+      const m=normalizeKickChatPayload(d);if(m){kickBrowserChatReady=true;void deliverKickChat(m,origin);handled=true}continue;
     }
 
     if(/GiftedSubscriptionsEvent$/i.test(name)||name==='channel.subscription.gifts'||dataType==='gifted_subscriptions'){
@@ -1258,7 +1273,7 @@ function kickPerson(d={}){
     'Usuario'
   )
 }
-function handleKickPusherEvent(ev){consumeKickRealtimeFrame(JSON.stringify(ev))}
+function handleKickPusherEvent(ev){consumeKickRealtimeFrame(JSON.stringify(ev),'pusher')}
 
 function kickFollowerRows(payload){
   if(Array.isArray(payload))return payload;
@@ -1406,7 +1421,7 @@ async function resolveKickPageState(channel,{keepBrowser=true}={}){
             kickChatroomId=Number(String(reply.push.channel).match(/[0-9]+/)?.[0])||kickChatroomId;
           }
         }
-        consumeKickRealtimeFrame(frame.payload);
+        consumeKickRealtimeFrame(frame.payload,'browser');
         if(!wasReady&&kickBrowserChatReady)hasChatSubscription=true;
       });
       socket.on('close',()=>{if(hasChatSubscription&&kickPage===page){kickBrowserChatReady=false;if(!kickPusherReady&&kickConnected){kickConnected=false;bridgeStatus('kick',false,'Kick · chat realtime desconectado',currentKickChannel,{lastError:'Se cerró el WebSocket del navegador'});}}});
@@ -1625,6 +1640,7 @@ function timeout(
 // =====================================
 
 async function disconnectTikTok() {
+  stopTikTokRealtimeMonitor();
   if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}
   tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;
   tiktokViewerPollFailures=0;tiktokViewerNextPollAt=0;tiktokConnectionReady=false;
@@ -1934,12 +1950,14 @@ async function connectTikTok(input,{automatic=false}={}) {
   // COMENTARIOS
   // =================================
 
-  connection.on(
-    WebcastEvent.CHAT,
-    data => {
+  // Every official CHAT event is delivered immediately. If the connector decodes
+  // a TikTok chat but skips named dispatch, rescue that event on the next tick.
+  // Repeated identical messages remain valid: only provider message IDs are deduped.
+  const receiveTikTokComment = (data,source='named') => {
       if(tiktokConn!==connection)return;
       try {
       tiktokChatStats.received++;tiktokChatStats.sessionReceived++;tiktokChatStats.lastReceivedAt=Date.now();
+      if(source==='decoded')tiktokChatStats.decodedRecovered++;
       const chat =
         extractTikTokChat(
           data
@@ -1982,11 +2000,11 @@ async function connectTikTok(input,{automatic=false}={}) {
         tiktokChatStats.empty++;tiktokChatStats.sessionEmpty++;
         // Sin cuerpo: guardar solamente el tipo de estructura, nunca los datos del espectador.
         if(tiktokChatStats.empty<=3||tiktokChatStats.empty%50===0)console.warn('[GREÑA TikTok] comentario sin texto reconocido', {total:tiktokChatStats.empty});
-        return;
+        return false;
       }
       if(isLocallyMuted('tiktok',chat.user||chat.nickname)){
         tiktokChatStats.muted++;tiktokChatStats.sessionMuted++;
-        return; // Silenciamiento solicitado explícitamente por el creador.
+        return true; // Silenciamiento solicitado explícitamente por el creador.
       }
       // No registrar texto/nombres del público. Confirmar volumen sin filtrar información sensible.
       tiktokChatStats.forwarded++;tiktokChatStats.sessionForwarded++;
@@ -2033,13 +2051,47 @@ async function connectTikTok(input,{automatic=false}={}) {
             chat.isBroadcaster || String(chat.user||'').replace(/^@/,'').toLowerCase()===String(currentTikTokUser||'').replace(/^@/,'').toLowerCase()
         }
       );
+      return true;
       } catch(error) {
         // Un evento malformado no debe romper la conexión ni interrumpir a otros usuarios.
         tiktokChatStats.errors++;
         logChatFault('TikTok chat decode',error);
+        return false;
       }
-    }
-  );
+  };
+  const tiktokCommentRouter=createRealtimeTikTokChatRouter({
+    deliver:receiveTikTokComment,
+    getId:data=>extractTikTokChat(data).messageId,
+    signature:data=>{const c=extractTikTokChat(data);return c.text?`${c.user}|${c.text}`:''}
+  });
+  connection.on(WebcastEvent.CHAT,data=>tiktokCommentRouter.onNamed(data));
+  connection.on(ControlEvent.DECODED_DATA,(method,decoded)=>tiktokCommentRouter.onDecoded(method,decoded));
+  connection.on(ControlEvent.WEBSOCKET_DATA,()=>{
+    if(tiktokConn!==connection)return;
+    tiktokLastFrameAt=Date.now();
+    tiktokRealtimeWatchdog?.markHealthy();
+  });
+  connection.on(ControlEvent.WEBSOCKET_CONNECTED,socket=>{
+    if(tiktokConn!==connection)return;
+    stopTikTokRealtimeMonitor();
+    const watchdog=createRealtimeSocketWatchdog({
+      socket,
+      active:()=>tiktokConn===connection,
+      stale:reason=>{
+        if(tiktokConn!==connection)return;
+        tiktokTransportRestarts++;
+        tiktokConnectionLog('transport-stalled',{username,reason,watchdogRestarts:tiktokTransportRestarts});
+        broadcastPlatform('tiktok',{type:'error',message:'TikTok dejó de responder; reconectando el chat para no perder mensajes nuevos.'});
+        // A dead socket can stay flagged as connected. Force its regular
+        // disconnected path, which applies backoff and connects again.
+        try{socket.terminate()}catch{Promise.resolve(connection.disconnect()).catch(()=>{})}
+      }
+    });
+    tiktokRealtimeWatchdog=watchdog;
+    socket.on('pong',()=>{if(tiktokConn===connection)watchdog.markHealthy()});
+    tiktokRealtimeTimer=setInterval(()=>watchdog.tick(),15000);
+    tiktokRealtimeTimer.unref?.();
+  });
 
     // =================================
   // ALERTAS REALES + VIEWERS (MISMA CONEXIÓN DEL CHAT)
@@ -2180,6 +2232,7 @@ async function connectTikTok(input,{automatic=false}={}) {
     WebcastEvent.STREAM_END,
     () => {
       if(tiktokConn!==connection)return;
+      stopTikTokRealtimeMonitor();
       if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;tiktokConn=null;currentTikTokUser='';tiktokConnectionReady=false;
       tiktokConnectionLog('stream-ended',{username});tiktokScheduleRetry('ended');
       // Cerrar el WebSocket del LIVE terminado; los eventos posteriores son obsoletos.
@@ -2207,6 +2260,7 @@ async function connectTikTok(input,{automatic=false}={}) {
     ControlEvent.DISCONNECTED,
     () => {
       if(tiktokConn!==connection)return;
+      stopTikTokRealtimeMonitor();
       if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;tiktokConn=null;currentTikTokUser='';
       const wasConnected=tiktokConnectionReady;tiktokConnectionReady=false;
       tiktokConnectionLog('disconnected',{username,wasConnected});
@@ -2307,6 +2361,7 @@ async function connectTikTok(input,{automatic=false}={}) {
     const limitedFor=tiktokRateLimitBackoff(error);
     // Invalida primero; desconectar genera eventos y no debe duplicar los reintentos.
     if(tiktokConn===connection){
+      stopTikTokRealtimeMonitor();
       tiktokConn=null;currentTikTokUser='';tiktokConnectionReady=false;
       tiktokViewerLastSignalAt=0;tiktokViewerLastPositiveAt=0;
       if(tiktokViewerPollTimer){clearInterval(tiktokViewerPollTimer);tiktokViewerPollTimer=null;}
@@ -2727,8 +2782,17 @@ const server =
 
 
         if(url.pathname==='/api/live-messages' && request.method==='GET'){
+          // First request shows the most recent messages; subsequent requests page
+          // forward from a cursor, so temporary WS/proxy outages do not skip chats.
+          const after=String(url.searchParams.get('after')||'').slice(0,100);
+          const limit=Math.max(1,Math.min(300,Number(url.searchParams.get('limit')||300)||300));
+          const found=after?recentChatHistory.findIndex(item=>item._historyCursor===after):-1;
+          const gap=!!after&&found<0;
+          const start=!after?Math.max(0,recentChatHistory.length-limit):found>=0?found+1:0;
+          const messages=recentChatHistory.slice(start,start+limit);
+          const cursor=messages.length?messages[messages.length-1]._historyCursor:(gap?'':after);
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
-          response.end(JSON.stringify({ok:true,messages:recentChatHistory.slice(-300)}));
+          response.end(JSON.stringify({ok:true,messages,cursor,more:start+messages.length<recentChatHistory.length,gap}));
           return;
         }
 
@@ -3108,7 +3172,7 @@ const server =
           };
           // No emitir directamente: reutiliza exactamente la misma deduplicación
           // del lector realtime para que el webhook no produzca un segundo chat/voz.
-          const delivered=await deliverKickChat(msg);
+          const delivered=await deliverKickChat(msg,'webhook');
           response.writeHead(200,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});
           response.end(JSON.stringify({ok:true,delivered:!!delivered}));
           return;
