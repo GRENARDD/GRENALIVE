@@ -320,7 +320,7 @@ jobs:
             }
           }
           $manifest = Get-Content -LiteralPath (Join-Path $root 'assets/mobile.webmanifest') -Raw -Encoding UTF8 | ConvertFrom-Json
-          if (!$(@($manifest.icons) | Where-Object { $_.src -eq '/favicon.svg' }).Count) {
+          if (@($manifest.icons | Where-Object { $_.src -eq '/favicon.svg' }).Count -lt 1) {
             throw 'GREÑA Mobile no usa el ícono unificado.'
           }
           Write-Host 'OK: ejecutable, favicon, pantallas y experiencia móvil usan la misma G.'
