@@ -1117,7 +1117,8 @@ function normalizeKickChatPayload(raw){
   return null;
 }
 
-async function deliverKickChat(msg,origin='realtime'){
+async function deliverKickChat(msg){
+  const origin=String(arguments[1]||'realtime');
   if(!msg?.text||!msg?.user)return false;
   // El mismo mensaje llega por Kick Pusher, WebSocket del navegador y webhook oficial.
   // Los tres caminos comparten este filtro: ID estable cuando existe; si no,
@@ -1188,7 +1189,8 @@ async function deliverKickChat(msg,origin='realtime'){
   return true;
 }
 
-function consumeKickRealtimeFrame(payload,origin='realtime'){
+function consumeKickRealtimeFrame(payload){
+  const origin=String(arguments[1]||'realtime');
   const items=decodeKickRealtimeFrames(payload);let handled=false;
   for(const ev of items){
     if(!ev||typeof ev!=='object')continue;
