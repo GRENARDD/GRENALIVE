@@ -342,7 +342,7 @@ const TIKTOK_CONNECTION_LOG=join(CHAT_LOG_DIR,'tiktok-connection.log');
 const tiktokRetry={failures:0,nextAt:0,kind:'',lastOutcome:'',lastAt:0,connectedAt:0};
 // Diagnóstico sin nombres, comentarios ni datos privados. Cuenta mensajes que el
 // conector realmente emitió, versus omitidos localmente por bloqueo o texto vacío.
-const tiktokChatStats={received:0,forwarded:0,empty:0,muted:0,unidentified:0,errors:0,socketFailures:0,lastReceivedAt:0,lastForwardedAt:0,sessionReceived:0,sessionForwarded:0,sessionEmpty:0,sessionMuted:0};
+const tiktokChatStats={received:0,forwarded:0,empty:0,muted:0,unidentified:0,errors:0,socketFailures:0,decodedRecovered:0,lastReceivedAt:0,lastForwardedAt:0,sessionReceived:0,sessionForwarded:0,sessionEmpty:0,sessionMuted:0};
 const TIKTOK_BACKOFF_MS=[15000,30000,60000,120000,240000,480000,600000];
 function tiktokConnectionLog(event,details={}){
  const line=JSON.stringify({at:new Date().toISOString(),event,...details});
@@ -1949,10 +1949,11 @@ async function connectTikTok(input,{automatic=false}={}) {
   // Every official CHAT event is delivered immediately. If the connector decodes
   // a TikTok chat but skips named dispatch, rescue that event on the next tick.
   // Repeated identical messages remain valid: only provider message IDs are deduped.
-  const receiveTikTokComment = data => {
+  const receiveTikTokComment = (data,source='named') => {
       if(tiktokConn!==connection)return;
       try {
       tiktokChatStats.received++;tiktokChatStats.sessionReceived++;tiktokChatStats.lastReceivedAt=Date.now();
+      if(source==='decoded')tiktokChatStats.decodedRecovered++;
       const chat =
         extractTikTokChat(
           data
