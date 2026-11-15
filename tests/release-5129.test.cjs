@@ -48,4 +48,7 @@ test('chat recovery is part of the 5.1.29 stable Windows build',()=>{
  assert.match(server,/createRealtimeSocketWatchdog/);
  assert.match(guard,/onDecoded\(method,decoded\)/);
  assert.match(server,/CHAT_HISTORY_LIMIT = 3000/);
+ assert.match(server,/ttSocialLooksLikeFollow/);
+ assert.match(server,/emitFollow\\(data,'social-fallback'\\)/);
+ assert.match(server,/WebcastEvent\\.FOLLOW/);
 });
