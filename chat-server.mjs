@@ -2051,7 +2051,6 @@ async function connectTikTok(input,{automatic=false}={}) {
         tiktokChatStats.errors++;
         logChatFault('TikTok chat decode',error);
       }
-    }
   };
   const tiktokCommentRouter=createRealtimeTikTokChatRouter({
     deliver:receiveTikTokComment,
