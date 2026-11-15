@@ -56,7 +56,7 @@ on:
       - 'desktop-build/smoke-chat.mjs'
       - 'live-panel.html'
       - 'mobile.html'
-      - 'desktop-build/verify-upgrade-5117-to-5129.ps1'
+      - 'desktop-build/verify-upgrade-5127-to-5129.ps1'
       - '.github/workflows/grena-release-v5115.yml'
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
@@ -128,7 +128,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5117-to-5129.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5127-to-5129.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -370,7 +370,7 @@ jobs:
       - name: Verify installed upgrade from GREÑA 5.1.17 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
-        run: ./desktop-build/verify-upgrade-5117-to-5129.ps1
+        run: ./desktop-build/verify-upgrade-5127-to-5129.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
