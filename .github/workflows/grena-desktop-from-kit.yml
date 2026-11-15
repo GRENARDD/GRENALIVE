@@ -6,7 +6,9 @@ on:
       - main
     paths:
       - 'grena-gamer.css'
+      - 'favicon.svg'
       - 'chat-server.mjs'
+      - 'favicon.svg'
       - 'chat-realtime-guard.mjs'
       - 'assets/grena-g-icon.png.base64'
       - 'server.mjs'
@@ -296,6 +298,32 @@ jobs:
           foreach ($file in @('live-panel.html','mobile.html','mobile-device.html','chat-realtime-guard.mjs')) {
             if (!(Test-Path (Join-Path 'dist/win-unpacked/resources/app' $file))) { throw "Falta $file en la aplicación empaquetada" }
           }
+      - name: Verify bundled GREÑA G branding
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = 'dist/win-unpacked/resources/app'
+          $master = (Get-Content -LiteralPath 'assets/grena-g-icon.png.base64' -Raw -Encoding UTF8).Trim()
+          $faviconPath = Join-Path $root 'favicon.svg'
+          if (!(Test-Path -LiteralPath $faviconPath)) { throw 'Falta favicon.svg dentro del instalador Windows.' }
+          $favicon = Get-Content -LiteralPath $faviconPath -Raw -Encoding UTF8
+          if (!$favicon.Contains('data:image/png;base64,' + $master)) {
+            throw 'El favicon del instalador no es la misma G que usa el exe.'
+          }
+          $pages = @('index.html','login.html','mode.html','alerts.html','gift-catalog.html','afterglow-studio.html','desktop-bubble.html','mobile.html','mobile-device.html')
+          foreach ($file in $pages) {
+            $target = Join-Path $root $file
+            if (!(Test-Path -LiteralPath $target)) { throw "Falta la pantalla: $file" }
+            $html = Get-Content -LiteralPath $target -Raw -Encoding UTF8
+            if (!$html.Contains('src="/favicon.svg?v=529"')) {
+              throw "Esta pantalla conserva un logo antiguo: $file"
+            }
+          }
+          $manifest = Get-Content -LiteralPath (Join-Path $root 'assets/mobile.webmanifest') -Raw -Encoding UTF8 | ConvertFrom-Json
+          if (@($manifest.icons | Where-Object { $_.src -eq '/favicon.svg' }).Count -lt 1) {
+            throw 'GREÑA Mobile no usa el ícono unificado.'
+          }
+          Write-Host 'OK: ejecutable, favicon, pantallas y experiencia móvil usan la misma G.'
       - name: Verify Minecraft dynamics and shared room files in Windows package
         shell: pwsh
         run: |
