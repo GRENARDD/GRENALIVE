@@ -2910,7 +2910,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/api/chat/live-messages'&&req.method==='GET'){
   try{
    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),1600);
-   try{const upstream=await fetch('http://127.0.0.1:8788/api/live-messages',{signal:controller.signal,cache:'no-store'});
+   try{const upstream=await fetch('http://127.0.0.1:8788/api/live-messages'+url.search,{signal:controller.signal,cache:'no-store'});
     if(!upstream.ok)throw Error('chat offline');const payload=await upstream.json();return json(res,200,payload);
    }finally{clearTimeout(timeout)}
   }catch{return json(res,503,{ok:false,messages:[],error:'El motor de chat está reconectando'})}
