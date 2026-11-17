@@ -1,8 +1,8 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA · Configurar widget</title><style>
 *{box-sizing:border-box}html,body{margin:0;background:#100d09;color:#f1e2c8;font:13px "Segoe UI",system-ui,Arial,sans-serif;min-height:100%}
-main{padding:12px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(230px,.85fr);gap:14px;align-items:start}
-.preview{min-height:248px;border:1px solid #72552b;background:radial-gradient(ellipse at 60% 20%,#302316,#0a0908 70%);border-radius:13px;overflow:hidden;position:relative}
-.preview iframe{width:100%;height:248px;border:0;background:transparent;pointer-events:none}
+main{padding:12px;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(250px,.88fr);gap:14px;align-items:start;max-width:100%;overflow:hidden}main>*{min-width:0}
+.preview{height:250px;min-height:210px;border:1px solid #72552b;background:radial-gradient(ellipse at 60% 20%,#302316,#0a0908 70%);border-radius:13px;overflow:hidden;position:relative}
+.preview iframe{display:block;width:100%;height:100%;border:0;background:transparent;pointer-events:none}
 .heading{font-size:10px;font-weight:800;color:#d6a956;letter-spacing:2px;margin:0 0 8px}
 .controls{border:1px solid #5d4524;border-radius:13px;padding:14px;background:#18120c}
 label{display:flex;flex-direction:column;gap:5px;margin:0 0 11px;color:#d7c5a5;font-size:11px;font-weight:700}
@@ -15,7 +15,7 @@ button{border:1px solid #80602e;border-radius:9px;background:#251a0e;color:#f3d9
 button.primary{background:linear-gradient(125deg,#f1ce7a,#ad7830);color:#231707;border:0}
 .status{font-size:11px;color:#d1ac69;line-height:1.4;min-height:16px;margin-top:10px}
 .hidden{display:none!important}
-@media(max-width:700px){main{grid-template-columns:1fr}.preview,.preview iframe{min-height:180px;height:180px}}
+@media(max-width:700px){main{grid-template-columns:minmax(0,1fr)}.preview{height:175px;min-height:175px}.controls{padding:12px}}
 </style></head><body><main>
 <div><p class="heading">VISTA PREVIA · GREÑA LIVE</p><div class="preview"><iframe id="preview" title="Vista previa del widget"></iframe></div><p id="help" class="status"></p></div>
 <div class="controls"><p class="heading" id="heading">PERSONALIZAR WIDGET</p><div id="fields"></div><div id="actions" class="actions"></div><p role="status" id="status" class="status"></p></div>
@@ -34,7 +34,7 @@ const sel=(id,options)=>'<select id="'+id+'">'+options.map(x=>'<option value="'+
 const number=(id,defaultValue,min,max)=>'<input id="'+id+'" type="number" value="'+defaultValue+'" min="'+min+'" max="'+max+'" step="1">';
 const clamp=(id,min,max,defaultValue)=>Math.max(min,Math.min(max,Number.isFinite(Number($(id)?.value))?Math.round(Number($(id).value)):defaultValue));
 const renderInputs={
-minecraft:()=>'<p class="status">Personajes Minecraft · modelo actual. Se conserva tal cual, con su fondo transparente.</p>',
+minecraft:()=>'<p class="status">Personajes Minecraft · modelo actual, hasta 10 participantes. La demostración no afecta a OBS.</p>',
 counter:()=>field('Seleccionar estilo','style',sel('style',[['classic','Tarjetas GREÑA'],['trio','Trío Live'],['vertical','Vertical'],['grena-viewers','GREÑA Viewers · sin Total']]))+
 '<div class="row">'+field('Pegado al borde','edge',sel('edge',[['left','Izquierda'],['right','Derecha']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>',
 multichat:()=>field('Estilo del chat','theme',sel('theme',[['clean','Minimal PRO'],['blossom','Blossom Glass'],['comicpop','Comic Pop'],['timeline','Timeline Premium']]))+
@@ -46,10 +46,27 @@ social:()=>field('Diseño de redes','socialLayout',sel('socialLayout',[['classic
 superfans:()=>'<p class="status">El Super Fan activo aparece en esta vista previa. Sin controles ni opciones adicionales.</p>'
 };
 function button(label,fn,primary){const b=document.createElement('button');b.textContent=label;b.type='button';if(primary)b.classList.add('primary');b.onclick=fn;actions.append(b)}
+let minecraftPreviewTest=0;
+function demoMinecraft(){
+ if(type!=='minecraft')return;
+ const id=++minecraftPreviewTest;
+ const nickname='GREÑA Prueba '+id;
+ preview.contentWindow?.postMessage({type:'chat',platform:'twitch',user:'grena_preview_'+id,nickname,text:'¡Personaje de Twitch en prueba!'},location.origin);
+ $('status').textContent='✓ Prueba '+id+' enviada únicamente a la vista previa (Twitch).';
+}
+function previewVisual(){
+ const actual=read();
+ if(type!=='social')return actual;
+ // No inventar cuentas en OBS: los ejemplos solo viven dentro de esta ventana.
+ const names={tiktok:'TikTok · prueba',twitch:'Twitch · prueba',kick:'Kick · prueba',youtube:'YouTube · prueba'};
+ const labels={};for(const p of actual.enabledNetworks){if(!actual[p+'User']&&!actual.socialNameOverrides?.[p])labels[p]=names[p];}
+ return {...actual,linkedNetworks:[...new Set([...(actual.linkedNetworks||[]),...actual.enabledNetworks])],socialNameOverrides:{...labels,...(actual.socialNameOverrides||{})}};
+}
+
 function emitPreview(){
  if(type==='counter')preview.contentWindow?.postMessage({type:'grena-counter-preview',settings:read()},location.origin);
  if(type==='multichat')preview.contentWindow?.postMessage({type:'grena-multichat-settings',settings:read()},location.origin);
- if(type==='social')preview.contentWindow?.postMessage({type:'grena-social-preview',settings:read()},location.origin);
+ if(type==='social')preview.contentWindow?.postMessage({type:'grena-social-preview',settings:previewVisual()},location.origin);
 }
 function read(){
  if(type==='counter')return {...base,style:$('style').value,edge:$('edge').value,edgeOffset:clamp('edgeOffset',0,80,0)};
@@ -83,6 +100,10 @@ async function init(){
  if(!views[type]||!renderInputs[type]){$('status').textContent='Editor no disponible';return}
  $('heading').textContent=({minecraft:'PERSONAJES MINECRAFT',counter:'CONTADOR',multichat:'MULTICHAT',social:'REDES SOCIALES',superfans:'SUPER FANS'})[type];
  preview.src=views[type];fields.innerHTML=renderInputs[type]();
+ if(type==='minecraft'){
+  button('▶ Probar personaje de Twitch',demoMinecraft,true);
+  $('help').textContent='Pulsa Probar para ver el personaje caminar y reaccionar dentro del cuadro.';
+ }
  if(type==='counter'||type==='social'||type==='multichat'){
   try{
     const route=type==='counter'?'/api/counter-settings':type==='social'?'/api/social-settings':'/chat/api/multichat-settings';
@@ -95,7 +116,7 @@ async function init(){
   if(type==='social')button('Restablecer',reset);
   fields.addEventListener('input',emitPreview);fields.addEventListener('change',emitPreview);
  }
- preview.addEventListener('load',emitPreview);
+ preview.addEventListener('load',()=>{emitPreview();if(type==='minecraft')demoMinecraft()});
  emitPreview();
 }
 init();
