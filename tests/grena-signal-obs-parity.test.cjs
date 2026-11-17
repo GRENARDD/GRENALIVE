@@ -20,7 +20,7 @@ test('Signal OBS text size is independent from other themes and survives setting
  assert.match(editor,/signalFontSize:clamp\('signalFontSize',18,120,42\)/);
  assert.match(editor,/id="signalSizeField"/);
  assert.match(editor,/\$\('theme'\)\?\.value!=='signal'/);
- assert.match(editor,/value="42"/);
+ assert.match(editor,/number\('signalFontSize',42,18,120\)/);
  assert.match(legacy,/id="mcSignalFontSize"/);
  assert.match(legacy,/signalFontSize:Math\.max\(18,Math\.min\(120/);
  assert.match(server,/signalFontSize:\[18,120\]/);
