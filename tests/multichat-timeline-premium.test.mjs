@@ -12,7 +12,7 @@ test('Timeline Premium is selectable and persisted without changing default them
   assert.match(widgets,/<option value="timeline">✦ Timeline Premium/);
   assert.match(widgets,/\['clean','blossom','comicpop','timeline','signal'\]\.includes\(v\.theme\)/);
   assert.match(chat,/\['clean','blossom','comicpop','timeline','signal'\]\.includes\(v\)\?v:'clean'/);
-  assert.match(overlay,/\['clean','blossom','comicpop','timeline'\]\.includes\(v\)\?v:'clean'/);
+  assert.match(overlay,/\['clean','blossom','comicpop','timeline','signal'\]\.includes\(v\)\?v:'clean'/);
   assert.match(overlay,/showPlatform:true,theme:'clean'/);
   assert.match(overlay,/renderTimeline\(el,d,nickname\)/);
   assert.match(overlay,/previousTheme==='timeline'\|\|nextTheme==='timeline'/);
