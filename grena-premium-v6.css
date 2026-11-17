@@ -231,3 +231,5 @@ body.grena-alerts .grena-v6-sound-fields input[type=range]{accent-color:#d9a441!
 body.grena-alerts .grena-v6-sound-fields button{background:#1b1816!important;color:#f5efe3!important;border:1px solid rgba(255,235,200,.17)!important}
 body.grena-alerts .grena-v6-sound-fields button:hover{border-color:#f6d98a!important}
 body.grena-alerts #grenaSoundSave{background:linear-gradient(145deg,#f6d98a,#d9a441)!important;color:#1a1204!important}
+
+body.grena-chat .cc-filter-tabs [data-chat-filter][hidden],body.grena-chat .msg.grena-v6-unlinked{display:none!important}
