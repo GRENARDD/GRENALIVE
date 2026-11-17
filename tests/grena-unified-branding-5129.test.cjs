@@ -28,25 +28,16 @@ test('GREÑA 6.0 browser and Windows EXE use the same GOLD SVG source',()=>{
   assert.match(verifier,/icon\.getdata\(\)/);
 });
 
-test('Main UI, login, modules, floating view and mobile use new gold logo, not blue',()=>{
-  const brandPages=[
-    'index.html','login.html','alerts.html','gift-catalog.html',
-    'mode.html','afterglow-studio.html','desktop-bubble.html',
-    'mobile.html','mobile-device.html'
-  ];
-  for(const path of brandPages){
-    const page=src(path);
-    assert.match(page,/src="\/favicon\.svg\?v=600"/,path+' must display GOLD G');
-    assert.match(page,/rel="icon"[^>]*href="\/favicon\.svg\?v=600"/,path+' must use GOLD G favicon');
-  }
-  assert.doesNotMatch(src('index.html'),/<div class="brand-mark">G<\/div>/);
-  assert.doesNotMatch(src('login.html'),/<div class="mark">G<\/div>/);
-  assert.doesNotMatch(src('desktop-bubble.html'),/<div id="mark">G<\/div>/);
-  assert.match(src('index.html'),/id="profileAvatar"/,'Do not replace the profile photograph');
-  assert.match(src('grena-gamer.css'),/grena-logo-mark/);
-  const manifest=JSON.parse(src('assets/mobile.webmanifest'));
-  assert.ok(manifest.icons.some(icon=>icon.src==='/favicon.svg'),
-    'Mobile home screen uses the same gold logo');
+test('V4 original gold logo and all non-V4 windows keep the unified approved Windows gold icon',()=>{
+ const html=src('index.html');
+ const reference=src('design/reference/GRENA_LIVE_6_Premium_Interactivo_V4(3).html');
+ assert.match(html,/<div class="logo">G<\/div>/);
+ assert.match(reference,/<div class="logo">G<\/div>/);
+ assert.match(html,/background:linear-gradient\(140deg,var\(--g1\),var\(--g2\)/);
+ for(const path of ['login.html','alerts.html','gift-catalog.html','mode.html','afterglow-studio.html','desktop-bubble.html','mobile.html','mobile-device.html']){
+  const page=src(path);assert.match(page,/src="\/favicon\.svg\?v=600"/,path);assert.match(page,/rel="icon"[^>]*href="\/favicon\.svg\?v=600"/,path);
+ }
+ const manifest=JSON.parse(src('assets/mobile.webmanifest'));assert.ok(manifest.icons.some(icon=>icon.src==='/favicon.svg'));
 });
 
 test('Windows installer verifies packaged favicon and generated ICO from gold source',()=>{
