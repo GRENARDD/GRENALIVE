@@ -2373,7 +2373,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/license-admin.html'&&(req.method==='GET'||req.method==='HEAD')){
    const u=sessionUser(req);
    if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA ID.'});
-   if(!await licensing.isOwner(u.id))return json(res,403,{ok:false,error:'Administración reservada para el propietario.'});
+   if(!await licensing.isAdministrator(u.id))return json(res,403,{ok:false,error:'Administración reservada a cuentas administradoras verificadas por GREÑA ID.'});
  }
  if(pathname==='/favicon.ico'&&(req.method==='GET'||req.method==='HEAD')){res.writeHead(302,{location:'/favicon.svg','cache-control':'public, max-age=3600'});return res.end()}
  if(CHAT_HTTP_ROUTES.has(pathname))return proxyChatHttp(req,res,url,false);
