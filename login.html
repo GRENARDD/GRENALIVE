@@ -21,11 +21,38 @@
 <link rel="stylesheet" href="/grena-gamer.css">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=600">
 <link rel="stylesheet" href="/grena-premium-v6.css?v=6-preview">
+<style id="grena-black-gold-login">
+/* Premium V4 black and gold. Preserve original authentication forms and listeners. */
+:root{color-scheme:dark;--g-cyan:#e7bc66}
+body.grena-login{background:#080706!important;color:#f4ead8!important}
+body.grena-login:before{background:radial-gradient(ellipse at 14% 5%,rgba(192,138,42,.16),transparent 37%),radial-gradient(ellipse at 88% 90%,rgba(104,68,25,.17),transparent 44%),linear-gradient(180deg,#130e09,#080706 74%)!important}
+body.grena-login:after{background-image:linear-gradient(rgba(214,170,90,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(214,170,90,.025) 1px,transparent 1px)!important}
+.grena-login .shell{border:1px solid #66502f!important;background:#100e0c!important;box-shadow:0 30px 90px #000a,0 0 0 1px #c89b3f18!important}
+.grena-login .hero{background:linear-gradient(155deg,#352613 0%,#18120d 40%,#0e0b08 100%)!important;border-right:1px solid #684b24!important}
+.grena-login .mark{background:linear-gradient(145deg,#d8a74a,#6f4b19)!important;box-shadow:0 8px 26px #d1a24922!important}
+.grena-login .brand b,.grena-login .hero h1,.grena-login .auth h2{color:#f8e8c4!important}
+.grena-login .brand small,.grena-login .hero p,.grena-login .auth>p,.grena-login .feature,.grena-login .hint{color:#ae9e86!important}
+.grena-login .eyebrow,.grena-login .field label{color:#d5af62!important}
+.grena-login .feature i{background:#59401c75!important;color:#f5d98f!important}
+.grena-login .migration,.grena-login .recovery-note{background:#2c211356!important;border-color:#94703555!important;color:#c9b79a!important}
+.grena-login .tabs{background:#0c0a08!important;border:1px solid #4a3620!important}
+.grena-login .tabs button{color:#ad9b81!important}
+.grena-login .tabs button.on{background:#4a3215!important;color:#ffe6aa!important;box-shadow:inset 0 0 0 1px #b88738!important}
+.grena-login .field input{background:#0b0a08!important;color:#fff1d6!important;border:1px solid #5b462b!important}
+.grena-login .field input:focus{border-color:#e2b65e!important;box-shadow:0 0 0 3px #d7ab4b22!important}
+.grena-login .primary{background:linear-gradient(120deg,#f1cd7a,#be8e3a 58%,#8c5b23)!important;color:#241606!important;box-shadow:0 8px 28px #c9964033!important}
+.grena-login .secondary,.grena-login .pw-toggle{background:#241a10!important;color:#f0d29a!important;border:1px solid #715128!important}
+.grena-login .link{color:#e5b95f!important}
+.grena-login .msg.ok{background:#28311f!important;color:#d5edb9!important;border-color:#506a36!important}
+.grena-login .msg.error{background:#391e1b!important;color:#ffb4a5!important;border-color:#865048!important}
+.grena-login button:focus-visible{outline:2px solid #eac170!important;outline-offset:2px}
+@media(max-width:780px){.grena-login .hero{border-right:0!important;border-bottom:1px solid #684b24!important}}
+</style>
 </head>
 <body class="grena-login">
 <div class="shell">
  <section class="hero">
-  <div class="brand"><div class="mark grena-logo-mark" role="img" aria-label="GREÑA LIVE"><img class="grena-logo-image" src="/favicon.svg?v=600" alt="" width="64" height="64"></div><div><b>GREÑA</b><small>GREÑA LIVE PRO · 4.0</small></div></div>
+  <div class="brand"><div class="mark grena-logo-mark" role="img" aria-label="GREÑA LIVE"><img class="grena-logo-image" src="/favicon.svg?v=600" alt="" width="64" height="64"></div><div><b>GREÑA</b><small>GREÑA LIVE PRO · PREMIUM V4</small></div></div>
   <div class="hero-copy"><div class="eyebrow">GREÑA ID</div><h1>Tu directo.<br>Tu cuenta.</h1><p>Cada creador tiene su propio perfil. Ahora GREÑA también vincula un correo de recuperación para proteger el acceso.</p><div class="features"><div class="feature"><i>✓</i><span>Perfiles y configuraciones separados</span></div><div class="feature"><i>✉</i><span>Recuperación por correo con código temporal</span></div><div class="feature"><i>↻</i><span>Autoconexión, chat de voz, alertas y OBS</span></div></div></div>
   <div class="migration">GREÑA nunca envía ni guarda tu contraseña en texto visible. Si la olvidas, recibirás tu usuario y un código temporal para crear una nueva.</div>
  </section>
