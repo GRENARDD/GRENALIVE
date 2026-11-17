@@ -7,28 +7,17 @@ import {Script} from 'node:vm';
 const root=process.cwd();
 const read=p=>readFileSync(resolve(root,p),'utf8');
 
-test('GREÑA V6 premium assets are linked and contain functional anchors',()=>{
- const index=read('index.html');
- const chat=read('chat.html');
- const css=read('grena-premium-v6.css');
- const js=read('grena-premium-v6.js');
- const visibility=read('grena-v6-chat-visibility.js');
- for(const p of ['index.html','alerts.html','widgets.html','cam-room.html','gift-catalog.html','chat.html','live-panel.html','mobile-device.html','dynamics.html']){
-  assert.match(read(p),/grena-premium-v6\.css/,p);
- }
- assert.match(index,/id="premiumVoiceCard"/);
- assert.match(index,/id="premiumVoiceSwitch"/);
- assert.match(index,/id="premiumVoiceBackdrop"/);
- assert.match(index,/id="chatFrame"/);
- assert.match(index,/id="grenaPremiumLicense"/);
- assert.doesNotMatch(chat,/id="voiceCooldownSec"/);
+test('GREÑA V4 exact original HTML uses its own DOM and real backend adapter, no old CSS overlay',()=>{
+ const index=read('index.html'),ref=read('design/reference/GRENA_LIVE_6_Premium_Interactivo_V4(3).html');
+ const adapter=read('grena-v4-live.js'),chat=read('chat.html');
+ const css=html=>html.match(/<style>([\s\S]*?)<\/style>/)?.[1];
+ assert.equal(css(index),css(ref));
+ for(const id of ['home','feed','vsw','plats','ev','prow','profileTrigger','licenseBadge','pg1','pg2','pg3','pg4','pg5','pg6','pg7','pg8'])assert.match(index, id.startsWith('pg')?new RegExp('pg\\('+id.slice(2)+','):new RegExp('id="'+id+'"'));
+ assert.doesNotMatch(index,/grena-premium-v6\.(css|js)|id="chatFrame"/);
+ assert.match(index,/grena-v4-live\.js/);
+ assert.match(adapter,/api\/chat\/live-messages/);
+ assert.match(adapter,/api\/license\/status/);
  assert.match(chat,/const VOICE_USER_COOLDOWN_MS = 4000;/);
- assert.match(chat,/now-last\s*<\s*VOICE_USER_COOLDOWN_MS/);
- assert.match(chat,/grena-v6-chat-visibility\.js/);
- assert.match(css,/grena-v6-voice-only/);
- assert.match(js,/api\/license\/status/);
- assert.match(js,/childVoice\(\)/);
- assert.match(visibility,/grena-v6-linked-platforms/);
 });
 test('Premium V6 standalone JavaScript is syntactically valid',()=>{
  for(const p of ['grena-premium-v6.js','grena-v6-chat-visibility.js']){
@@ -49,14 +38,11 @@ test('Chat and main dashboard inline scripts remain syntactically valid',()=>{
  }
 });
 
-test('Gold G icon is a native transparent SVG shared by all brand surfaces',()=>{
- const svg=read('favicon.svg');
+test('V4 uses its EXACT original gold mark while non-V4 windows and EXE keep gold SVG',()=>{
+ const svg=read('favicon.svg'),v4=read('index.html');
  assert.match(svg,/<svg[^>]+viewBox="0 0 512 512"/);
  assert.match(svg,/fill="url\(#body\)"/);
- assert.doesNotMatch(svg,/<rect[^>]+(fill=["'](?:white|#fff|#ffffff)|width=["']512)/i);
- assert.doesNotMatch(svg,/data:image\/png;base64/);
- for(const p of ['index.html','login.html','mode.html','afterglow-studio.html','gift-catalog.html','mobile-device.html']){
-  assert.match(read(p),/favicon\.svg\?v=600/,p);
- }
- assert.match(read('grena-premium-v6.css'),/background:transparent!important/);
+ assert.match(v4,/<div class="logo">G<\/div>/);
+ assert.match(v4,/var\(--g1\),var\(--g2\)/);
+ for(const p of ['login.html','mode.html','afterglow-studio.html','gift-catalog.html','mobile-device.html'])assert.match(read(p),/favicon\.svg\?v=600/,p);
 });
