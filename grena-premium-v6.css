@@ -110,3 +110,24 @@ body.grena-v6-standalone .card{padding:14px!important}
 body.grena-v6-standalone .qr{background:#fff!important;color:#333!important;border-color:#fff!important}
 body.grena-v6-standalone #error{color:#ff6482!important}
 @media(min-width:1120px){body.grena-v6-standalone main{margin-top:12px!important;margin-bottom:12px!important;padding:8px 16px!important}}
+
+/* Popup verdadero: reutiliza el iframe EXISTENTE, nunca crea otra conexión ni TTS. */
+body.grena-control #premiumVoiceBackdrop[hidden]{display:none!important}
+body.grena-control #premiumVoiceBackdrop{position:fixed;inset:0;background:rgba(3,3,3,.75);backdrop-filter:blur(8px);z-index:298}
+body.grena-control #premiumVoiceClose{position:fixed;right:max(22px,calc(50% - 380px));top:max(10px,calc(50% - min(360px,45vh) - 47px));z-index:310;padding:9px 14px;border-radius:10px;background:#1b1816;border:1px solid rgba(246,217,138,.35);color:#f6d98a;cursor:pointer;font-weight:750}
+body.grena-control.grena-voice-popup #chatFrame{position:fixed!important;inset:auto!important;top:50%!important;left:50%!important;transform:translate(-50%,-50%)!important;z-index:305!important;width:min(790px,calc(100vw - 45px))!important;height:min(720px,calc(100vh - 110px))!important;max-height:calc(100vh - 110px)!important;border:1px solid rgba(246,217,138,.28)!important;border-radius:19px!important;background:#0a0908!important;box-shadow:0 35px 100px rgba(0,0,0,.82)!important;overflow:hidden}
+body.grena-control.grena-voice-popup #premiumVoiceCard{border-color:rgba(246,217,138,.6)!important}
+html.grena-v6-voice-only body.grena-chat{margin:0!important;overflow:auto!important;min-height:100%;background:#0a0908!important;color:#f5efe3!important}
+html.grena-v6-voice-only body.grena-chat .app{max-width:none!important;width:100%!important;margin:0!important;padding:14px!important}
+html.grena-v6-voice-only body.grena-chat main.app > :not(.voice-panel){display:none!important}
+html.grena-v6-voice-only body.grena-chat .voice-panel{margin:0!important;max-width:none!important;padding:12px!important;border:0!important;background:#131110!important;border-radius:15px!important}
+html.grena-v6-voice-only body.grena-chat .voice-title h2{color:#f6d98a!important}
+html.grena-v6-voice-only body.grena-chat .voice-settings-hub{background:#131110!important;border-color:rgba(255,235,200,.12)!important}
+html.grena-v6-voice-only body.grena-chat .voice-settings-card{background:#1b1816!important;border-color:rgba(255,235,200,.10)!important;color:#f5efe3!important}
+html.grena-v6-voice-only body.grena-chat .voice-settings-card:hover{border-color:#d9a441!important}
+html.grena-v6-voice-only body.grena-chat .voice-settings-dialog{background:#131110!important;color:#f5efe3!important;border-color:rgba(255,235,200,.2)!important}
+html.grena-v6-voice-only body.grena-chat .voice-settings-dialog button{border-radius:10px!important}
+html.grena-v6-voice-only body.grena-chat .v6-cooldown{padding:11px 14px;border:1px solid rgba(246,217,138,.2);border-radius:12px;background:rgba(217,164,65,.06)}
+html.grena-v6-voice-only body.grena-chat .v6-cooldown input{width:100%;accent-color:#d9a441}
+html.grena-v6-voice-only body.grena-chat .v6-cooldown small{color:#9b9283;display:block;margin-top:6px}
+@media(max-width:800px){body.grena-control #premiumVoiceClose{top:4px;right:8px}body.grena-control.grena-voice-popup #chatFrame{height:calc(100vh - 92px)!important;top:54%!important}}
