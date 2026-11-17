@@ -109,7 +109,7 @@ async function openMyLicense(){
     '<div class="prem-tile" style="cursor:default"><b>Tiempo restante</b><small>'+(owner||beta?'Ilimitado':remaining===null?'—':remaining+' días')+'</small></div>'+
     '</div><p class="prem-note">Información verificada desde GREÑA ID. Las licencias de tiempo extendido muestran su duración registrada, sin inventar un plan de pago.</p>';
   const actions=[{label:'Cerrar',primary:true,action:hideDialog}];
-  if(owner)actions.unshift({label:'Gestionar usuarios y licencias',action:()=>{hideDialog();window.open('/license-admin.html','_blank','noopener')}});
+  if(owner)actions.unshift({label:'Gestionar usuarios y licencias',action:()=>{location.assign('/license-admin.html')}});
   dialog('Mi licencia GREÑA','Estado y vigencia de tu acceso',content,actions);
 }
 function profileModal(){
@@ -128,10 +128,9 @@ function profileModal(){
     if(a==='fish'){openFishCredentials();return}
     if(a==='license'){await openMyLicense();return}
     if(a==='admin'){
-      // A visual condition never grants privileges: the server verifies GREÑA ID ownership.
-      const status=await api('/api/license/status');
-      if(status.permanentAccess!==true)throw Error('Administración reservada al propietario GREÑA ID');
-      window.open('/license-admin.html','_blank','noopener');return
+      // Navigate in this same GREÑA window. A delayed window.open is blocked by
+      // Chromium/Electron. The server checks the authenticated owner's GREÑA ID.
+      location.assign('/license-admin.html');return
     }
     if(a==='exit'){
       hideDialog();if(!confirm('¿Quieres cerrar GREÑA Live?'))return;
