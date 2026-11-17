@@ -706,8 +706,8 @@ body.voice-settings-modal-open{overflow:hidden!important}
 </style>
 <link rel="stylesheet" href="/aurora-ui.css">
 <link rel="stylesheet" href="/grena-gamer.css">
-<style>/* Plataforma retirada: mantener entradas legacy solo para migrar preferencias sin romper voz. */ #starviosStatus,.connection-box:has(#connectStarvios),.voice-box:has(#starviosVoiceEnabled),[data-platform="starvios"]{display:none!important}</style><link rel="stylesheet" href="/grena-premium-v6.css?v=6-preview"><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=600">
-</head>
+<style>/* Plataforma retirada: mantener entradas legacy solo para migrar preferencias sin romper voz. */ #starviosStatus,.connection-box:has(#connectStarvios),.voice-box:has(#starviosVoiceEnabled),[data-platform="starvios"]{display:none!important}</style><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=600">
+<link rel="stylesheet" href="/grena-premium-v6.css?v=6-preview"></head>
 
 <body class="grena-chat">
 
@@ -802,7 +802,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 
     <div class="voice-box">
 
-      <h3>🎙️ Configuración de voz</h3><div class="voice-field v6-cooldown"><label for="voiceCooldownSec">Cola inteligente · espera por usuario: <b id="voiceCooldownValue">7 s</b></label><input id="voiceCooldownSec" type="range" min="0" max="60" step="1" value="7" aria-label="Segundos antes de volver a leer al mismo usuario"><small>0 s permite leer mensajes seguidos. No afecta a otras personas ni al chat escrito.</small></div>
+      <h3>🎙️ Configuración de voz</h3>
 
       <div class="voice-field">
 
@@ -1398,8 +1398,7 @@ const VOICE_QUEUE_SOFT_LIMIT = 8;
 const VOICE_QUEUE_HARD_LIMIT = 16;
 const VOICE_STALE_MS = 15000;
 const VOICE_STALE_OVERLOAD_MS = 8000;
-const VOICE_USER_COOLDOWN_MS = 7000;
-let voiceUserCooldownMs = VOICE_USER_COOLDOWN_MS;
+const VOICE_USER_COOLDOWN_MS = 4000;
 const voiceUserLastQueuedAt = new Map();
 let voiceDroppedOverload = 0;
 
@@ -1486,8 +1485,6 @@ function saveSettings(){
 
       voiceEnabled:
         $('voiceEnabled').checked,
-
-      voiceCooldownSeconds:Math.round(voiceUserCooldownMs/1000),
 
       voiceRate:
         $('voiceRate').value,
@@ -1643,7 +1640,6 @@ function restoreSettings(){
     return;
 
   }
-  if(Number.isFinite(Number(settings.voiceCooldownSeconds))){voiceUserCooldownMs=Math.max(0,Math.min(60000,Math.round(Number(settings.voiceCooldownSeconds))*1000));$('voiceCooldownSec').value=String(voiceUserCooldownMs/1000);$('voiceCooldownValue').textContent=String(voiceUserCooldownMs/1000)+' s';}
 
   if(typeof settings.youtubeUrl==='string')$('youtubeUrl').value=settings.youtubeUrl;
   if(typeof settings.starviosUrl==='string')$('starviosUrl').value=settings.starviosUrl;
@@ -3574,7 +3570,7 @@ function userVoiceRateLimited(m={}){
   if(speaking && activeVoiceMessage && voiceUserRateKey(activeVoiceMessage)===key)return true;
   const last=Number(voiceUserLastQueuedAt.get(key)||0);
   // Consultar NO reinicia el turno: un comentario rechazado no castiga al usuario.
-  return !!last && now-last < (typeof voiceUserCooldownMs==='number'?voiceUserCooldownMs:VOICE_USER_COOLDOWN_MS);
+  return !!last && now-last < VOICE_USER_COOLDOWN_MS;
 }
 function markUserVoiceQueued(m={}){
   if(m.__voiceTest)return;
@@ -4651,7 +4647,7 @@ function updateVoiceStatus(){
   if(voiceQueue.length){
 
     $('voiceStatus').textContent =
-      `⏳ Preparando voz · ${voiceQueue.length} comentarios pendientes · turno cada ${Math.round(voiceUserCooldownMs/1000)} s por usuario.`;
+      `⏳ Preparando voz · ${voiceQueue.length} comentarios pendientes · turno cada 4 s por usuario.`;
 
     return;
 
@@ -4660,8 +4656,8 @@ function updateVoiceStatus(){
   if(isFishVoiceSelected()){
     const count = getConfiguredFishModels().length;
     $('voiceStatus').textContent = count === 5
-      ? `🟢 Fish Audio: 5 voces naturales · cola inteligente · ${Math.round(voiceUserCooldownMs/1000)} s por usuario.`
-      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · ${Math.round(voiceUserCooldownMs/1000)} s por usuario.`;
+      ? '🟢 Fish Audio: 5 voces naturales · cola inteligente · 4 s por usuario.'
+      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · 4 s por usuario.`;
     return;
   }
 
@@ -4676,7 +4672,6 @@ function updateVoiceStatus(){
 ===================================================== */
 
 $('voiceReadUsername')?.addEventListener('change',saveSettings);
-$('voiceCooldownSec')?.addEventListener('input',e=>{voiceUserCooldownMs=Math.max(0,Math.min(60000,Number(e.target.value||0)*1000));$('voiceCooldownValue').textContent=String(voiceUserCooldownMs/1000)+' s';saveSettings();updateVoiceStatus()});
 
 $('voiceEnabled').addEventListener(
   'change',
