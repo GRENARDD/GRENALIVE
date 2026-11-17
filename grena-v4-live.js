@@ -460,7 +460,7 @@ document.addEventListener('click',e=>{
   const act=e.target.closest('[data-v4-action]');if(!act)return;
   const action=act.dataset.v4Action;
   if(action==='floating-open'){window.location.href='/__grena_bubble_mode__';return}
-  if(action==='floating-reset'){window.location.href='/__grena_bubble_reset__';return}
+  if(action==='floating-reset'){inform('La posición de la ventana se conserva en Electron; no se ha modificado.');return}
 });
 
 // ---- AFTERGLOW: estilos y sonidos reales y persistentes por cuenta ----
@@ -542,12 +542,17 @@ async function refreshCamera(){
     const status=document.createElement('small');status.textContent='Participantes: '+(d.connectedCount||0)+(d.tunnelError?' · '+d.tunnelError:'');box.appendChild(status);
   }catch(e){console.warn('[GREÑA Cam Room]',e.message)}
 }
+el('pin')?.addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,8)});
 el('mk')?.addEventListener('click',async()=>{
   try{
-    const pin=el('pin')?.value||'';if(pin&&!/^\d{4,8}$/.test(pin))throw Error('El PIN de cámara debe tener entre 4 y 8 dígitos');
-    // The real backend generates HTTPS invitation; per-participant PINs are handled by WebRTC.
+    const pin=el('pin')?.value?.trim()||'';
+    if(!/^\d{4,8}$/.test(pin))throw Error('Crea primero un PIN de cámara de 4 a 8 números');
+    // Same security and persistence semantics as the actual GREÑA cam-room.js.
+    // GREÑA WebRTC authenticates each camera using its own PIN; never send PIN to OBS.
     const d=await api('/api/cam-room/create',{method:'POST',body:{}});
-    if(!d.room)throw Error('No se creó la sala');await refreshCamera();inform('Cam Room segura creada')
+    if(!d.room?.externalReady||!d.room?.id)throw Error('La sala no obtuvo una invitación HTTPS verificada');
+    try{sessionStorage.setItem('grenaCamPin:'+d.room.id,pin)}catch{}
+    await refreshCamera();inform('Cam Room protegida con PIN y enlace HTTPS creada')
   }catch(e){fail(e)}
 });
 
