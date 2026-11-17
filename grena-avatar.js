@@ -18,6 +18,8 @@
   const menu=document.createElement('div'); menu.className='gx-avatar-menu'; menu.hidden=true; menu.setAttribute('role','menu');
   menu.innerHTML='<button type="button" role="menuitem" data-a="pick">📷 Cambiar foto</button><button type="button" role="menuitem" data-a="clear">🗑 Quitar foto</button><button type="button" role="menuitem" data-a="settings">⚙ Configuración</button><button type="button" role="menuitem" data-a="switch">🔄 Cambiar GREÑA ID</button><button type="button" role="menuitem" data-a="new-account">➕ Crear otro GREÑA ID</button><button type="button" role="menuitem" data-a="logout">↪ Cerrar sesión</button>';
   document.body.append(input,menu);
+  // Only the owner verified by the licensing API receives an admin entry.
+  fetch('/api/license/status',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(d=>{if(d?.permanentAccess===true&&!menu.querySelector('[data-a="admin"]')){const b=document.createElement('button');b.type='button';b.dataset.a='admin';b.setAttribute('role','menuitem');b.textContent='✦ Administración';menu.append(b)}}).catch(()=>{});
   const logout=document.getElementById('logoutBtn');
   if(logout) logout.style.display='none';
   const pill=document.getElementById('profilePill');
@@ -184,6 +186,7 @@
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.hidden=true;av.setAttribute('aria-expanded','false')}});
   menu.addEventListener('click',async e=>{
     const a=e.target.closest('button')?.dataset.a; if(!a) return; menu.hidden=true;
+    if(a==='admin'){location.href='/license-admin.html';return}
     if(a==='pick') input.click();
     if(a==='settings'){settings.showModal();fishRefresh()}
     if(a==='logout') logout?.click();
