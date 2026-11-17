@@ -1,6 +1,6 @@
 {
   "name": "grena-live-pro-web-tiktok",
-  "version": "5.1.19",
+  "version": "6.0.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,5 +15,5 @@
     "@grpc/grpc-js": "^1.14.0",
     "@grpc/proto-loader": "^0.8.0"
   },
-  "description": "GREÑA LIVE PRO WEB · FIX14 completo · TikTok, Twitch, Kick, chat de voz inteligente, alertas, widgets OBS, contador, fidelidad, Tap Tap, Radar y Cam Room."
+  "description": "GREÑA Live 6.0.1 Clásica · Restauración del diseño y funcionamiento verificados de la versión 5.1.29."
 }
