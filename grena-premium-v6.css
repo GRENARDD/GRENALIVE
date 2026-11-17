@@ -233,3 +233,32 @@ body.grena-alerts .grena-v6-sound-fields button:hover{border-color:#f6d98a!impor
 body.grena-alerts #grenaSoundSave{background:linear-gradient(145deg,#f6d98a,#d9a441)!important;color:#1a1204!important}
 
 body.grena-chat .cc-filter-tabs [data-chat-filter][hidden],body.grena-chat .msg.grena-v6-unlinked{display:none!important}
+
+/* Identidad G dorada 3D · SVG con alfa real, nunca caja blanca ni dorada. */
+body.grena-control .brand-block .brand-mark.grena-logo-mark,
+body.grena-login .brand .mark.grena-logo-mark,
+body.grena-catalog .brand-mark.grena-logo-mark,
+body.grena-cam-room .grena-logo-mark,
+body.grena-alerts .grena-logo-mark,
+body.grena-widgets .grena-logo-mark,
+body.grena-v6-standalone .grena-logo-mark{
+ background:transparent!important;background-image:none!important;
+ box-shadow:none!important;border:0!important;border-radius:0!important;
+ padding:0!important;clip-path:none!important;transform:none!important;
+}
+body.grena-control .brand-block .grena-logo-image,
+body.grena-login .grena-logo-image,
+body.grena-catalog .grena-logo-image,
+body.grena-alerts .grena-logo-image,
+body.grena-widgets .grena-logo-image,
+body.grena-cam-room .grena-logo-image{
+ width:100%!important;height:100%!important;object-fit:contain!important;
+ display:block!important;filter:drop-shadow(0 2px 7px rgba(217,164,65,.22))!important;
+ background:transparent!important;
+}
+body.grena-control .brand-block .brand-mark.grena-logo-mark{overflow:visible!important}
+body.grena-control .brand-block .brand-mark.grena-logo-mark:before,
+body.grena-login .mark.grena-logo-mark:before,
+body.grena-catalog .brand-mark.grena-logo-mark:before{
+ display:none!important;content:none!important
+}
