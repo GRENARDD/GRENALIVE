@@ -27,15 +27,15 @@ test('V4 profile stores one GREÑA ID photograph inside the original profile cir
 
 test('official v5.1.29 release gate is separate from PR previews and keeps historical 5.1.27 release',()=>{
  const workflow=file('.github/workflows/grena-desktop-from-kit.yml');
- const release=file('.github/workflows/grena-release-v6002.yml');
- const upgrade=file('desktop-build/verify-upgrade-6001-to-6002.ps1');
+ const release=file('.github/workflows/grena-release-v6003.yml');
+ const upgrade=file('desktop-build/verify-upgrade-6002-to-6003.ps1');
  const previousRelease=file('.github/workflows/grena-release-v5127.yml');
- assert.match(workflow,/Verify official GREÑA Live 6\.0\.2 version on main/);
- assert.match(workflow,/GRENA-LIVE-Installer-Windows-v6\.0\.2/);
+ assert.match(workflow,/Verify official GREÑA Live 6\.0\.3 version on main/);
+ assert.match(workflow,/GRENA-LIVE-Installer-Windows-v6\.0\.3/);
  assert.match(workflow,/verify-upgrade-6001-to-6002\.ps1/);
- assert.match(release,/Publish official v6\.0\.2 release/);
+ assert.match(release,/Publish official v6\.0\.3 release/);
  assert.match(release,/Verify production GREÑA ID Worker has secure shared rooms/);
- assert.match(upgrade,/\$oldVersion='6\.0\.1'/);
- assert.match(upgrade,/\$newVersion='6\.0\.2'/);
+ assert.match(upgrade,/\$oldVersion='6\.0\.2'/);
+ assert.match(upgrade,/\$newVersion='6\.0\.3'/);
  assert.match(previousRelease,/VERSION: '5\.1\.27'/);
 });
