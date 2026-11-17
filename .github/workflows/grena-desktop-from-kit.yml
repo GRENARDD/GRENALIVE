@@ -359,7 +359,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($referenceCSS) -or $packageCSS -cne $referenceCSS) {
             throw 'La interfaz empaquetada modificó el CSS original V4 del usuario.'
           }
-          if (!$v4.Contains('<nav class="rail" id="nav"') -or !$v4.Contains('src="/grena-v4-live.js?v=6004"')) {
+          if (!$v4.Contains('<nav class="rail" id="nav"') -or !$v4.Contains('src="/grena-v4-live.js?v=6005"')) {
             throw 'La estructura original V4 o el adaptador real no se empaquetaron.'
           }
           Write-Host 'OK: la interfaz V4 conserva el CSS original sin inyectar el viejo logotipo.'
