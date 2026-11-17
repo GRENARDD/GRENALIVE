@@ -706,7 +706,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 </style>
 <link rel="stylesheet" href="/aurora-ui.css">
 <link rel="stylesheet" href="/grena-gamer.css">
-<style>/* Plataforma retirada: mantener entradas legacy solo para migrar preferencias sin romper voz. */ #starviosStatus,.connection-box:has(#connectStarvios),.voice-box:has(#starviosVoiceEnabled),[data-platform="starvios"]{display:none!important}</style></head>
+<style>/* Plataforma retirada: mantener entradas legacy solo para migrar preferencias sin romper voz. */ #starviosStatus,.connection-box:has(#connectStarvios),.voice-box:has(#starviosVoiceEnabled),[data-platform="starvios"]{display:none!important}</style><link rel="stylesheet" href="/grena-premium-v6.css?v=6-preview"></head>
 
 <body class="grena-chat">
 
@@ -801,7 +801,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 
     <div class="voice-box">
 
-      <h3>🎙️ Configuración de voz</h3>
+      <h3>🎙️ Configuración de voz</h3><div class="voice-field v6-cooldown"><label for="voiceCooldownSec">Cola inteligente · espera por usuario: <b id="voiceCooldownValue">7 s</b></label><input id="voiceCooldownSec" type="range" min="0" max="60" step="1" value="7" aria-label="Segundos antes de volver a leer al mismo usuario"><small>0 s permite leer mensajes seguidos. No afecta a otras personas ni al chat escrito.</small></div>
 
       <div class="voice-field">
 
@@ -1397,7 +1397,7 @@ const VOICE_QUEUE_SOFT_LIMIT = 8;
 const VOICE_QUEUE_HARD_LIMIT = 16;
 const VOICE_STALE_MS = 15000;
 const VOICE_STALE_OVERLOAD_MS = 8000;
-const VOICE_USER_COOLDOWN_MS = 7000;
+let VOICE_USER_COOLDOWN_MS = 7000;
 const voiceUserLastQueuedAt = new Map();
 let voiceDroppedOverload = 0;
 
@@ -1484,6 +1484,8 @@ function saveSettings(){
 
       voiceEnabled:
         $('voiceEnabled').checked,
+
+      voiceCooldownSeconds:Math.round(VOICE_USER_COOLDOWN_MS/1000),
 
       voiceRate:
         $('voiceRate').value,
@@ -1639,6 +1641,7 @@ function restoreSettings(){
     return;
 
   }
+  if(Number.isFinite(Number(settings.voiceCooldownSeconds))){VOICE_USER_COOLDOWN_MS=Math.max(0,Math.min(60000,Math.round(Number(settings.voiceCooldownSeconds))*1000));$('voiceCooldownSec').value=String(VOICE_USER_COOLDOWN_MS/1000);$('voiceCooldownValue').textContent=String(VOICE_USER_COOLDOWN_MS/1000)+' s';}
 
   if(typeof settings.youtubeUrl==='string')$('youtubeUrl').value=settings.youtubeUrl;
   if(typeof settings.starviosUrl==='string')$('starviosUrl').value=settings.starviosUrl;
@@ -4646,7 +4649,7 @@ function updateVoiceStatus(){
   if(voiceQueue.length){
 
     $('voiceStatus').textContent =
-      `⏳ Preparando voz · ${voiceQueue.length} comentarios pendientes · turno cada 7 s por usuario.`;
+      `⏳ Preparando voz · ${voiceQueue.length} comentarios pendientes · turno cada ${Math.round(VOICE_USER_COOLDOWN_MS/1000)} s por usuario.`;
 
     return;
 
@@ -4655,8 +4658,8 @@ function updateVoiceStatus(){
   if(isFishVoiceSelected()){
     const count = getConfiguredFishModels().length;
     $('voiceStatus').textContent = count === 5
-      ? '🟢 Fish Audio: 5 voces naturales · cola inteligente · 7 s por usuario.'
-      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · 7 s por usuario.`;
+      ? `🟢 Fish Audio: 5 voces naturales · cola inteligente · ${Math.round(VOICE_USER_COOLDOWN_MS/1000)} s por usuario.`
+      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · ${Math.round(VOICE_USER_COOLDOWN_MS/1000)} s por usuario.`;
     return;
   }
 
@@ -4671,6 +4674,7 @@ function updateVoiceStatus(){
 ===================================================== */
 
 $('voiceReadUsername')?.addEventListener('change',saveSettings);
+$('voiceCooldownSec')?.addEventListener('input',e=>{VOICE_USER_COOLDOWN_MS=Math.max(0,Math.min(60000,Number(e.target.value||0)*1000));$('voiceCooldownValue').textContent=String(VOICE_USER_COOLDOWN_MS/1000)+' s';saveSettings();updateVoiceStatus()});
 
 $('voiceEnabled').addEventListener(
   'change',
