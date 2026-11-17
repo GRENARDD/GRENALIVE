@@ -8,7 +8,7 @@ test('5.1.29 uses a unique artifact and does not silently publish a tag build',(
  assert.match(flow,/GRENA-LIVE-Installer-Windows-v6\.0\.1/);
  assert.match(flow,/electron-builder --win nsis --x64 --publish never/);
  assert.doesNotMatch(flow,/electron-builder --win nsis --x64 --publish always/);
- assert.match(flow,/verify-upgrade-5127-to-6000\.ps1/);
+ assert.match(flow,/verify-upgrade-6000-to-6001\.ps1/);
  assert.match(flow,/Language\.Parser\]::ParseFile/);
  assert.match(src('desktop-build/verify-upgrade-5112-to-5113.ps1'),/OK \$\{stage\}: perfil/);
 });
@@ -81,7 +81,7 @@ test('v5.1.17 upgrade gate installs over v5.1.16 without losing account, Fish or
  assert.match(script,/Get-FileHash -Algorithm SHA256/);
  assert.match(script,/Assert-ProfilePreserved '5\.1\.16'/);
  assert.match(script,/Assert-ProfilePreserved '5\.1\.17'/);
- assert.match(flow,/verify-upgrade-5127-to-6000\.ps1/);
+ assert.match(flow,/verify-upgrade-6000-to-6001\.ps1/);
  assert.match(flow,/Verify official GREÑA Live 6\.0\.1 version on main/);
 });
 
@@ -95,7 +95,7 @@ test('v5.1.23 installs over official v5.1.17 while preserving profiles, Fish and
  assert.match(script,/Assert-ProfilePreserved '5\.1\.17'/);
  assert.match(script,/Assert-ProfilePreserved '5\.1\.23'/);
  assert.match(script,/Get-FileHash -Algorithm SHA256/);
- assert.match(flow,/verify-upgrade-5127-to-6000\.ps1/);
+ assert.match(flow,/verify-upgrade-6000-to-6001\.ps1/);
  assert.match(flow,/Verify official GREÑA Live 6\.0\.1 version on main/);
  assert.match(release,/VERSION: '5\.1\.23'/);
  assert.match(release,/git rev-parse HEAD/);
