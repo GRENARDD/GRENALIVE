@@ -898,7 +898,7 @@ function initCommunityTicker(){
     setInterval(()=>refreshChat(),1250);
     setInterval(()=>refreshStatus(),7000);
     const lazy={4:()=>getAlertSettings(),5:()=>refreshObsLinks(),6:()=>refreshMinecraft(),7:()=>refreshCamera(),8:()=>refreshCatalog()};
-    QA('#nav .nb').forEach((btn,i)=>btn.addEventListener('click',()=>{if(lazy[i])lazy[i]().catch(fail)}));
+    QA('#nav .nb').forEach(btn=>btn.addEventListener('click',()=>{const page=Number(btn.dataset.page);if(lazy[page])lazy[page]().catch(fail)}));
   }catch(e){console.warn('[GREÑA V4]',e?.message||e)}
 })();
 })();
