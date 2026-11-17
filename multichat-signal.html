@@ -281,9 +281,11 @@ let signalWS=null,signalReconnect=null,signalDraft=false;
 const normPlatform={tiktok:'tt',twitch:'tw',kick:'kk',youtube:'yt'};
 function signalSettings(cfg={}){
   if(!cfg||typeof cfg!=='object')return;
-  const n=Number(cfg.fontSize);
+  // Signal has its own OBS-sized typography; keep the original animations and markup.
+  // Normal multichat fontSize remains unchanged for other themes.
+  const n=Number(cfg.signalFontSize ?? 42);
   if(Number.isFinite(n)&&n>0){
-    CFG.size=Math.max(10,Math.min(56,Math.round(n)));
+    CFG.size=Math.max(18,Math.min(120,Math.round(n)));
     document.documentElement.style.setProperty('--size',CFG.size+'px');
   }
   CFG.max=Math.max(1,Math.min(30,Number(cfg.maxMessages)||12));
