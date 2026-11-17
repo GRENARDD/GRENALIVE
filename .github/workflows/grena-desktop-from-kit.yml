@@ -51,6 +51,9 @@ on:
       - 'gift-catalog.html'
       - 'cloudflare/licenses/**'
       - 'desktop-build/fix_startup.py'
+      - 'desktop-build/fix_soundboard_hotkeys.py'
+      - 'grena-v4-fixes.css'
+      - 'grena-admin-v4.css'
       - 'assets/grena-fullscreen-gift-obs.html'
       - 'assets/grena-premium-catalog-obs.html'
       - 'desktop-build/verify-premium-alpha.cjs'
@@ -201,6 +204,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_bubble.py .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/fix_soundboard_hotkeys.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_official_updates.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
