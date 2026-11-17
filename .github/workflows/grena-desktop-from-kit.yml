@@ -257,9 +257,11 @@ jobs:
           $pkg.version = "5.1.29"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
           Write-Host "Versión oficial verificada: 5.1.29"
-      - name: Generate and verify original GREÑA G icon for Windows
+      - name: Generate and verify GOLD GREÑA G icon for Windows
         shell: pwsh
         run: |
+          npm install --no-save --no-audit --no-fund @resvg/resvg-js@2.6.2
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m pip install --disable-pip-version-check --no-input pillow
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/build-grena-icon.py .
@@ -302,27 +304,37 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $root = 'dist/win-unpacked/resources/app'
-          $master = (Get-Content -LiteralPath 'assets/grena-g-icon.png.base64' -Raw -Encoding UTF8).Trim()
           $faviconPath = Join-Path $root 'favicon.svg'
           if (!(Test-Path -LiteralPath $faviconPath)) { throw 'Falta favicon.svg dentro del instalador Windows.' }
+          $original = (Get-FileHash -LiteralPath 'favicon.svg' -Algorithm SHA256).Hash
+          $bundled = (Get-FileHash -LiteralPath $faviconPath -Algorithm SHA256).Hash
+          if ($original -ne $bundled) { throw 'El favicon empaquetado es distinto de la G dorada aprobada.' }
           $favicon = Get-Content -LiteralPath $faviconPath -Raw -Encoding UTF8
-          if (!$favicon.Contains('data:image/png;base64,' + $master)) {
-            throw 'El favicon del instalador no es la misma G que usa el exe.'
+          if (!$favicon.Contains('G Dorada') -or !$favicon.Contains('<linearGradient id="body"')) {
+            throw 'Se empaquetó el logotipo equivocado: debe ser la G dorada.'
           }
+          if ($favicon.Contains('data:image/png;base64,')) {
+            throw 'La G azul antigua no debe permanecer incrustada en el favicon.'
+          }
+          foreach ($file in @('build/grena-g.png','build/grena-g.ico')) {
+            if (!(Test-Path -LiteralPath $file)) { throw "Falta el icono generado desde la G dorada: $file" }
+          }
+          python desktop-build/verify-grena-g-alpha.py build/grena-g.png build/grena-g.ico
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $pages = @('index.html','login.html','mode.html','alerts.html','gift-catalog.html','afterglow-studio.html','desktop-bubble.html','mobile.html','mobile-device.html')
           foreach ($file in $pages) {
             $target = Join-Path $root $file
             if (!(Test-Path -LiteralPath $target)) { throw "Falta la pantalla: $file" }
             $html = Get-Content -LiteralPath $target -Raw -Encoding UTF8
-            if (!$html.Contains('src="/favicon.svg?v=529"')) {
-              throw "Esta pantalla conserva un logo antiguo: $file"
+            if (!$html.Contains('src="/favicon.svg?v=600"')) {
+              throw "Esta pantalla no muestra la G dorada: $file"
             }
           }
           $manifest = Get-Content -LiteralPath (Join-Path $root 'assets/mobile.webmanifest') -Raw -Encoding UTF8 | ConvertFrom-Json
           if (@($manifest.icons | Where-Object { $_.src -eq '/favicon.svg' }).Count -lt 1) {
             throw 'GREÑA Mobile no usa el ícono unificado.'
           }
-          Write-Host 'OK: ejecutable, favicon, pantallas y experiencia móvil usan la misma G.'
+          Write-Host 'OK: EXE, instalador, favicon, pantallas y móvil usan la G dorada transparente.'
       - name: Verify Minecraft dynamics and shared room files in Windows package
         shell: pwsh
         run: |
