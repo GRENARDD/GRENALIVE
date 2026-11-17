@@ -515,9 +515,16 @@ function soundConfig(slot){
 
 // ---- GREÑA Mobile: QR y enlaces generados exclusivamente por el servidor ----
 function drawRealQR(id,url){
-  const target=el(id);target.replaceChildren();
+  const target=el(id);if(!target)return;
+  target.replaceChildren();
   if(typeof QRCode!=='function')throw Error('Falta el generador QR local de GREÑA');
-  new QRCode(target,{text:url,width:160,height:160,colorDark:'#111111',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  // The reference used a 112px display box while generating a 160px QR:
+  // that cropped the image and overlaid the expiry and action buttons.
+  target.style.boxSizing='border-box';
+  target.style.width='176px';target.style.height='176px';
+  target.style.minWidth='176px';target.style.minHeight='176px';
+  target.style.padding='8px';target.style.overflow='hidden';
+  new QRCode(target,{text:url,width:152,height:152,colorDark:'#111111',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
   target.dataset.url=url;
 }
 function setMobileLink(url){persistent.lanUrl=url;drawRealQR('q1',new URL('/mobile.html',url).href);el('cp1').disabled=false;el('cp1').style.opacity='1';}
