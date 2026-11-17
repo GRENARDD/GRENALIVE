@@ -60,7 +60,7 @@ function previewVisual(){
  // No inventar cuentas en OBS: los ejemplos solo viven dentro de esta ventana.
  const names={tiktok:'TikTok · prueba',twitch:'Twitch · prueba',kick:'Kick · prueba',youtube:'YouTube · prueba'};
  const labels={};for(const p of actual.enabledNetworks){if(!actual[p+'User']&&!actual.socialNameOverrides?.[p])labels[p]=names[p];}
- return {...actual,linkedNetworks:[...new Set([...(actual.linkedNetworks||[]),...actual.enabledNetworks])],socialNameOverrides:{...labels,...(actual.socialNameOverrides||{})}};
+ return {...actual,preview:true,linkedNetworks:[...new Set([...(actual.linkedNetworks||[]),...actual.enabledNetworks])],liveNetworks:actual.enabledNetworks,socialNameOverrides:{...labels,...(actual.socialNameOverrides||{})}};
 }
 
 function emitPreview(){
