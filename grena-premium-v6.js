@@ -28,6 +28,43 @@
   }
  }
  refreshLicense();setInterval(refreshLicense,60000);
+
+ // El chat REAL ya vive en el iframe único de Creator Control.
+ // Abrir los ajustes no carga una segunda instancia ni roba su sesión.
+ const card=$('premiumVoiceCard'),switchButton=$('premiumVoiceSwitch');
+ const frame=$('chatFrame'),shade=$('premiumVoiceBackdrop'),close=$('premiumVoiceClose');
+ function childVoice(){
+  try{return frame?.contentDocument?.getElementById('voiceEnabled')||null}catch{return null}
+ }
+ function voiceSync(){
+  const cb=childVoice();
+  if(switchButton){switchButton.classList.toggle('on',cb?.checked===true);switchButton.setAttribute('aria-pressed',String(cb?.checked===true));switchButton.title=cb?'Alternar voz real':'Esperando motor de voz'}
+  if(card)card.setAttribute('aria-disabled',String(!cb));
+ }
+ function voiceOpen(){
+  const cb=childVoice();if(!cb){window.alert('El motor del chat de voz todavía está cargando.');return}
+  try{frame.contentDocument.documentElement.classList.add('grena-v6-voice-only')}catch{return}
+  document.body.classList.add('grena-voice-popup');shade.hidden=false;close.focus();
+ }
+ function voiceClose(){
+  document.body.classList.remove('grena-voice-popup');
+  if(shade)shade.hidden=true;
+  try{frame?.contentDocument?.documentElement.classList.remove('grena-v6-voice-only')}catch{}
+  card?.focus();
+ }
+ card?.addEventListener('click',event=>{if(event.target.closest('#premiumVoiceSwitch'))return;voiceOpen()});
+ card?.addEventListener('keydown',event=>{if(event.target===card&&(event.key==='Enter'||event.key===' ')){event.preventDefault();voiceOpen()}});
+ switchButton?.addEventListener('click',event=>{
+  event.preventDefault();event.stopPropagation();const cb=childVoice();
+  if(!cb){window.alert('Todavía no está listo el motor de voz.');return}
+  cb.click();voiceSync();
+ });
+ close?.addEventListener('click',voiceClose);
+ shade?.addEventListener('click',event=>{if(event.target===shade)voiceClose()});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!shade?.hidden)voiceClose()});
+ frame?.addEventListener('load',voiceSync);
+ setInterval(voiceSync,1300);
+
  // Refleja vinculación real en los contadores, pero conserva filas para conectar.
  const visibility=()=>{
   for(const p of ['tiktok','twitch','kick','youtube']){
