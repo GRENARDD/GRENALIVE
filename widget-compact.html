@@ -64,9 +64,10 @@ function previewVisual(){
  return {...actual,preview:true,linkedNetworks:[...new Set([...(actual.linkedNetworks||[]),...actual.enabledNetworks])],liveNetworks:actual.enabledNetworks,socialNameOverrides:{...labels,...(actual.socialNameOverrides||{})}};
 }
 
+let syncObsPreview=()=>{};
 function emitPreview(){
  if(type==='counter')preview.contentWindow?.postMessage({type:'grena-counter-preview',settings:read()},location.origin);
- if(type==='multichat'){preview.contentWindow?.postMessage({type:'grena-multichat-settings',settings:read()},location.origin);const field=$('signalSizeField');if(field)field.classList.toggle('hidden',$('theme')?.value!=='signal');}
+ if(type==='multichat'){preview.contentWindow?.postMessage({type:'grena-multichat-settings',settings:read()},location.origin);const field=$('signalSizeField');if(field)field.classList.toggle('hidden',$('theme')?.value!=='signal');syncObsPreview();}
  if(type==='social')preview.contentWindow?.postMessage({type:'grena-social-preview',settings:previewVisual()},location.origin);
 }
 function read(){
@@ -102,18 +103,25 @@ async function init(){
  $('heading').textContent=({minecraft:'PERSONAJES MINECRAFT',counter:'CONTADOR',multichat:'MULTICHAT',social:'REDES SOCIALES',superfans:'SUPER FANS'})[type];
  preview.src=views[type];fields.innerHTML=renderInputs[type]();
  if(type==='multichat'){
-   preview.classList.add('obs-sized');
    const fitObsPreview=()=>{
+     const signal=$('theme')?.value==='signal';
+     preview.classList.toggle('obs-sized',signal);
+     if(!signal){
+       preview.style.transform='';preview.style.left='';preview.style.top='';
+       $('help').textContent='Vista previa ampliada de los estilos anteriores; Signal utiliza escala OBS real.';
+       return;
+     }
      const holder=preview.parentElement;
      const scale=Math.min(holder.clientWidth/1920,holder.clientHeight/1080);
      if(!(scale>0))return;
      preview.style.transform='scale('+scale+')';
      preview.style.left=Math.max(0,(holder.clientWidth-1920*scale)/2)+'px';
      preview.style.top=Math.max(0,(holder.clientHeight-1080*scale)/2)+'px';
+     $('help').textContent='Vista OBS real: 1920 × 1080, reducida proporcionalmente. En OBS usa 1920 × 1080 en la fuente de navegador.';
    };
+   syncObsPreview=fitObsPreview;
    new ResizeObserver(fitObsPreview).observe(preview.parentElement);
    fitObsPreview();
-   $('help').textContent='Vista OBS real: 1920 × 1080, reducida proporcionalmente. En OBS usa 1920 × 1080 en la fuente de navegador.';
  }
  if(type==='minecraft'){
   button('▶ Probar personaje de Twitch',demoMinecraft,true);
