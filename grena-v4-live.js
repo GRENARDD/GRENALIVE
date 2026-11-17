@@ -855,7 +855,15 @@ function initCommunityTicker(){
     let avatar='';
     const image=el('userAvatar')?.style.backgroundImage||'';
     const match=/url\(["']?(data:image\/jpeg;base64,[A-Za-z0-9+/=]+)["']?\)/.exec(image);
-    if(match)avatar=match[1];
+    if(match){
+      // Cloudflare presence accepts a small thumbnail, not the original user photo.
+      avatar=await new Promise(resolve=>{
+        const preview=new Image();
+        preview.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=canvas.height=80;canvas.getContext('2d').drawImage(preview,0,0,80,80);resolve(canvas.toDataURL('image/jpeg',0.72))}catch{resolve('')}};
+        preview.onerror=()=>resolve('');
+        preview.src=match[1];
+      });
+    }
     // Zero viewers is a valid LIVE count. Only active platform runtime is proof of a live.
     await api('/api/license/presence',{method:'POST',body:{share:true,live:active.length>0,platforms:active,viewers,avatar}}).catch(()=>{});
   }
