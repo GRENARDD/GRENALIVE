@@ -562,7 +562,7 @@ $("#gg").innerHTML=L.map(g=>`<div class="card gift"><div class="tp"><span class=
 }
 $("#gq2").oninput=e=>{gq=e.target.value.toLowerCase();gr()};
 $$("#gt button").forEach(b=>b.onclick=()=>{$$("#gt button").forEach(x=>x.classList.toggle("on",x===b));gp=b.dataset.p;gr()});
-$("#ga").onclick=e=>{e.currentTarget.classList.toggle("on");gan^=1;gr()};gr();
+$("#ga").onclick=e=>{e.currentTarget.classList.toggle("on");gan^=1;gr()};// The real GREÑA adapter fills the catalog from /api/gift-catalog; do not show demo cards in production.
 
 /* navegación completa */
 $$("#nav .nb").forEach((b,i)=>b.addEventListener("click",()=>{$("#soon").style.display="none";$$(".pg").forEach(p=>p.classList.toggle("on",p.id==="pg"+i))}));
