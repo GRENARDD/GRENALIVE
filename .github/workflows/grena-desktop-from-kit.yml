@@ -129,7 +129,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5127-to-5129.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5127-to-6000.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -137,7 +137,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v5.1.27 -> v5.1.29 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v5.1.27 -> v6.0.0 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
