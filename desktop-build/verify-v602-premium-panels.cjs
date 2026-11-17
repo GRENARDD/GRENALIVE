@@ -58,9 +58,9 @@ const server=http.createServer((req,res)=>{
   await page.goto(base+'/index.html',{waitUntil:'domcontentloaded'});
   await page.waitForSelector('#profileName');
   await page.waitForTimeout(450);
-  assert.equal(await page.locator('#nav .nb').count(),9,'Nine original V4 sections must remain');
+  assert.equal(await page.locator('#nav .nb').count(),8,'Only the user-selected En vivo section is removed');
   // Gift catalog must be legible, scrollable and animated.
-  await page.locator('#nav .nb').nth(8).click();
+  await page.locator('#nav .nb').nth(7).click();
   await page.waitForSelector('#pg8.on .gift',{timeout:8000});
   const giftsLayout=await page.locator('#gg').evaluate(feed=>{
     const cards=[...feed.querySelectorAll('.gift')];
@@ -88,7 +88,7 @@ const server=http.createServer((req,res)=>{
   assert.ok(mobile.cd.bottom<=mobile.gq.top+2,'Pairing button overlaps expiry');
   await page.screenshot({path:path.join(screenshots,'movil-qr-1920.png')});
   // Widget Configurar must show the ACTUAL saved model selectors and previews.
-  await page.locator('#nav .nb').nth(5).click();
+  await page.locator('#nav .nb').nth(4).click();
   await page.locator('#pg5 [data-v4-action="widget-config"]').nth(1).click();
   const focused=page.frameLocator('iframe[src*="type=counter"]');
   await focused.locator('#style').waitFor({timeout:12000});
