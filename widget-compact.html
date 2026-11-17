@@ -68,6 +68,7 @@ async function request(url,settings){
  return data;
 }
 async function save(){
+ if(type==='multichat'&&!loaded){$('status').textContent='⚠ Motor de multichat desconectado. No se sobrescribirán tus ajustes.';return}
  $('status').textContent='Aplicando…';
  try{
   const route=type==='counter'?'/api/counter-settings':type==='social'?'/api/social-settings':'/chat/api/multichat-settings';
@@ -83,8 +84,12 @@ async function init(){
  $('heading').textContent=({minecraft:'PERSONAJES MINECRAFT',counter:'CONTADOR',multichat:'MULTICHAT',social:'REDES SOCIALES',superfans:'SUPER FANS'})[type];
  preview.src=views[type];fields.innerHTML=renderInputs[type]();
  if(type==='counter'||type==='social'||type==='multichat'){
-  if(type==='multichat')base={...original.multichat};
-  else {try{const r=await request(type==='counter'?'/api/counter-settings':'/api/social-settings');base={...original[type],...(r.settings||{})}}catch{base={...original[type]}}}
+  try{
+    const route=type==='counter'?'/api/counter-settings':type==='social'?'/api/social-settings':'/chat/api/multichat-settings';
+    const result=await request(route);
+    if(type==='multichat'&&!result.settings)throw Error('No se pudieron cargar los ajustes del chat');
+    base={...original[type],...(result.settings||{})};loaded=true;
+  }catch(error){base={...original[type]};loaded=type!=='multichat';$('status').textContent='⚠ '+error.message}
   setValues(base);button('Aplicar cambios',save,true);
   if(type==='multichat'){button('Mensaje de prueba',testMessage);button('Restablecer',reset)}
   if(type==='social')button('Restablecer',reset);
