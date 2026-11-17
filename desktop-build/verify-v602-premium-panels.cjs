@@ -92,7 +92,7 @@ const server=http.createServer((req,res)=>{
   await page.locator('#pg5 [data-v4-action="widget-config"]').nth(1).click();
   const focused=page.frameLocator('iframe[src*="type=counter"]');
   await focused.locator('#style').waitFor({timeout:12000});
-  assert.ok(await focused.locator('#counterStyle option').count() >=4,'Counter models missing');
+  assert.ok(await focused.locator('#style option').count() >=4,'Counter models missing');
   assert.equal(await page.locator('#premiumBody > iframe:visible').count(),1,'Only selected widget editor should appear');
   await page.screenshot({path:path.join(screenshots,'widgets-1920.png')});
   // Long press on soundboard opens V4 settings and volume without playback.
