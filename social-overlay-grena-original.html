@@ -115,8 +115,8 @@ function apply(settings){
   const linked=Array.isArray(settings.linkedNetworks)?settings.linkedNetworks:[];
   const item=document.querySelector('.item.'+platform);
   const enabled=Array.isArray(settings.enabledNetworks)?settings.enabledNetworks:linked;
-  item.style.display=linked.includes(platform)&&enabled.includes(platform)?'flex':'none';
   const value=String(overrides[platform]||settings[key]||'').trim().replace(/^@/,'').slice(0,80);
+  item.style.display=enabled.includes(platform)&&(linked.includes(platform)||value)?'flex':'none';
   document.querySelector('[data-network="'+platform+'"]').textContent=value;
  }
  document.querySelector('.wrap').style.visibility='visible';
