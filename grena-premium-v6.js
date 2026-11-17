@@ -86,6 +86,7 @@
 
  // Refleja vinculación real en los contadores, pero conserva filas para conectar.
  const visibility=()=>{
+  const linkedPlatforms=[];
   for(const p of ['tiktok','twitch','kick','youtube']){
    const chip=$(p+'Auth'),card=document.querySelector('.viewer-grid .viewer-card.'+p);
    const row=document.querySelector('.platform-row[data-platform="'+p+'"]');
@@ -93,6 +94,7 @@
    const auth=chip.classList.contains('on');
    const live=Boolean(row?.querySelector('.state-chip:not(#'+p+'Auth).on'));
    const linked=auth||live;
+   if(linked)linkedPlatforms.push(p);
    card.style.display=linked?'':'none';
    const test=document.querySelectorAll('.test-grid [data-test]');
    for(const b of test){
@@ -101,7 +103,9 @@
     if(platform===p)b.hidden=!linked;
    }
   }
+  try{frame?.contentWindow?.postMessage({type:'grena-v6-linked-platforms',linked:linkedPlatforms},location.origin)}catch{}
  };
+ frame?.addEventListener('load',visibility);
  const observer=new MutationObserver(()=>{requestAnimationFrame(visibility)});
  const chips=['tiktok','twitch','kick','youtube'].map(p=>$(p+'Auth')).filter(Boolean);
  for(const chip of chips)observer.observe(chip,{attributes:true,attributeFilter:['class']});
