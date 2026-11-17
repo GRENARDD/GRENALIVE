@@ -116,7 +116,8 @@ function apply(settings){
   const item=document.querySelector('.item.'+platform);
   const enabled=Array.isArray(settings.enabledNetworks)?settings.enabledNetworks:linked;
   const value=String(overrides[platform]||settings[key]||'').trim().replace(/^@/,'').slice(0,80);
-  item.style.display=enabled.includes(platform)&&(linked.includes(platform)||value)?'flex':'none';
+  const isLive=Array.isArray(settings.liveNetworks)&&settings.liveNetworks.includes(platform);
+  item.style.display=enabled.includes(platform)&&(settings.preview===true||isLive)&&(linked.includes(platform)||value)?'flex':'none';
   document.querySelector('[data-network="'+platform+'"]').textContent=value;
  }
  document.querySelector('.wrap').style.visibility='visible';
