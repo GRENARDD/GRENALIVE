@@ -39,7 +39,7 @@ window.__GRENA_V4_LIVE_READONLY__=()=>JSON.parse(JSON.stringify(stateSnapshot())
 
 // Dialogs are constructed with the template's own premium-shade / premium-dialog DOM and CSS.
 const modal=el('premiumOverlay'),mbody=el('premiumBody'),mfooter=el('premiumFooter');
-function hideDialog(){modal.hidden=true;mbody.replaceChildren();mfooter.replaceChildren()}
+function hideDialog(){modal.hidden=true;const widgetDialog=Q('#premiumOverlay .premium-dialog');if(widgetDialog){widgetDialog.style.width='';widgetDialog.style.maxWidth=''}mbody.replaceChildren();mfooter.replaceChildren()}
 function dialog(title,subtitle,html,actions=[]){
   text(el('premiumTitle'),title);text(el('premiumSub'),subtitle||'GREÑA Live · configuración real');
   el('premiumBack').hidden=true;mbody.innerHTML=html;mfooter.replaceChildren();
@@ -730,15 +730,31 @@ QA('#gt button').forEach(btn=>btn.onclick=()=>{QA('#gt button').forEach(b=>b.cla
 el('ga').onclick=e=>{onlyAnimated=!onlyAnimated;badge(e.currentTarget,onlyAnimated);renderCatalog()};
 
 // ---- Widgets: V4 cards retain their exact markup; links and settings come from GREÑA ----
+
 async function openWidgetConfig(card){
-  const widget=card?.querySelector('b')?.textContent||'Widget',code=card?.querySelector('.code')?.textContent?.trim()||'';
-  const fields=widget==='Contador'?'<p class="prem-note">El contador toma los espectadores verificados de GREÑA en tiempo real.</p>':widget==='Multichat'?'<p class="prem-note">El multichat OBS se actualiza desde el motor de GREÑA, independiente de Fish Audio.</p>':'<p class="prem-note">El widget sigue utilizando su enlace OBS y configuración guardada en GREÑA.</p>';
-  dialog('Configurar · '+widget,'Enlace real de OBS y editor original de este widget',fields+`<div class="prem-preview"><strong>${widget.replace(/[<>]/g,'')}</strong><small>Conectado al motor GREÑA</small></div><label class="prem-field">Enlace OBS<input id="v4WidgetUrl" readonly></label>`,[
+  const widget=card?.querySelector('b')?.textContent?.trim()||'Widget';
+  const models={
+    'Personajes Minecraft':'minecraft','Contador':'counter','Multichat':'multichat',
+    'Redes Sociales':'social','Tap Tap Top':'taptap','Super Fans':'superfans','Índice de Fidelidad':'loyalty'
+  };
+  const focus=models[widget];
+  if(!focus){inform('Editor no disponible para este widget');return}
+  const code=card?.querySelector('.code')?.textContent?.trim()||'';
+  const html=[
+    '<p class="prem-note">Elige entre los modelos originales de GREÑA. Los cambios se previsualizan y se aplican usando su configuración real; el enlace de OBS se conserva.</p>',
+    '<iframe title="Modelos y previsualización de '+widget.replace(/[<>"]/g,'')+'" src="/widgets.html?focus='+encodeURIComponent(focus)+'&embed=1" ',
+    'style="display:block;width:100%;height:min(64vh,610px);min-height:350px;border:1px solid #a6814338;border-radius:13px;background:#0b0907"></iframe>',
+    '<label class="prem-field">Enlace seguro OBS<input id="v4WidgetUrl" readonly></label>'
+  ].join('');
+  dialog('Configurar · '+widget,'Modelos reales, vista previa y botón APLICAR',html,[
     {label:'Cerrar',action:hideDialog},
-    {label:'Copiar enlace',action:()=>copyLink(el('v4WidgetUrl').value)},
-    {label:'Abrir configuración avanzada',primary:true,action:()=>{hideDialog();window.open('/widgets.html?embed=1','_blank','noopener')}}
-  ]);el('v4WidgetUrl').value=code;
+    {label:'Copiar enlace OBS',primary:true,action:()=>copyLink(el('v4WidgetUrl').value)}
+  ]);
+  const dialogBox=Q('#premiumOverlay .premium-dialog');
+  if(dialogBox){dialogBox.style.width='min(1080px,96vw)';dialogBox.style.maxWidth='96vw'}
+  el('v4WidgetUrl').value=code;
 }
+
 QA('#pg5 [data-v4-action="widget-config"]').forEach(btn=>btn.addEventListener('click',()=>openWidgetConfig(btn.closest('.wd'))));
 
 // ---- Actual initialization ----
