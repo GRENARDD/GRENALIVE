@@ -74,24 +74,65 @@ async function loadIdentity(){
   pill.classList.add(kind);pill.textContent=label;
   startVoiceEngine(u.id);
 }
+
+function licenseDuration(license){
+  const since=Number(license?.activatedAt),until=Number(license?.expiresAt);
+  if(!Number.isFinite(since)||!Number.isFinite(until)||until<=since)return 'Duración registrada en GREÑA ID';
+  const days=Math.round((until-since)/86400000);
+  if(days>=28&&days<=32)return '1 mes (30 días)';
+  if(days>=58&&days<=62)return '2 meses (60 días)';
+  if(days>=88&&days<=92)return '3 meses (90 días)';
+  if(days>=358&&days<=372)return '1 año';
+  return days+' días de vigencia asignados';
+}
+async function openMyLicense(){
+  // Always refresh from the authenticated backend; do not trust cached UI or editable storage.
+  const status=await api('/api/license/status');
+  persistent.license=status;
+  const license=status.license||{};
+  const owner=status.permanentAccess===true;
+  const beta=!owner&&status.allowed===true&&license.kind==='beta'&&license.active===true;
+  const active=owner||beta||status.allowed===true&&license.active===true;
+  const expiry=Number(license.expiresAt);
+  const validDate=Number.isFinite(expiry)&&expiry>0;
+  const dateText=validDate?new Date(expiry).toLocaleDateString('es-DO',{year:'numeric',month:'long',day:'numeric'}):'No tiene vencimiento';
+  const remaining=validDate?Math.max(0,Math.ceil((expiry-Date.now())/86400000)):null;
+  const kind=owner?'Propietario · Acceso permanente':beta?'Licencia BETA · Acceso ilimitado':license.kind==='trial'?'Licencia de prueba':license.kind==='license'?'Licencia temporal':status.connected===false?'Sin licencia sincronizada':'Sin licencia activa';
+  const period=owner||beta?'Sin límite de duración':active?licenseDuration(license):'—';
+  const display=active?'ACTIVA':'NO ACTIVA';
+  const content='<div class="prem-preview" style="min-height:120px;display:grid;align-content:center;gap:8px">'+
+    '<small class="prem-note">ESTADO DE TU GREÑA ID</small><strong style="font-size:22px;color:var(--g1)">'+kind+'</strong>'+
+    '<span class="tag">'+display+'</span></div>'+
+    '<div class="prem-grid">'+
+    '<div class="prem-tile" style="cursor:default"><b>Duración</b><small>'+period+'</small></div>'+
+    '<div class="prem-tile" style="cursor:default"><b>Vencimiento</b><small>'+dateText+'</small></div>'+
+    '<div class="prem-tile" style="cursor:default"><b>Tiempo restante</b><small>'+(owner||beta?'Ilimitado':remaining===null?'—':remaining+' días')+'</small></div>'+
+    '</div><p class="prem-note">Información verificada desde GREÑA ID. Las licencias de tiempo extendido muestran su duración registrada, sin inventar un plan de pago.</p>';
+  const actions=[{label:'Cerrar',primary:true,action:hideDialog}];
+  if(owner)actions.unshift({label:'Gestionar usuarios y licencias',action:()=>{hideDialog();window.open('/license-admin.html','_blank','noopener')}});
+  dialog('Mi licencia GREÑA','Estado y vigencia de tu acceso',content,actions);
+}
 function profileModal(){
   const u=persistent.account?.user;if(!u)return;
   const name=String(u.displayName||u.username||'Usuario');
   dialog('Mi GREÑA ID','Cuenta autenticada · '+name,`<div class="prem-grid">
     <button class="prem-tile" data-profile="photo"><span class="emoji">📷</span><b>Foto del perfil</b><small>Actualizar la imagen dentro del círculo</small></button>
     <button class="prem-tile" data-profile="fish"><span class="emoji">🎙️</span><b>Fish Audio</b><small>API personal, cifrada en GREÑA</small></button>
-    <button class="prem-tile" data-profile="license"><span class="emoji">✦</span><b>Licencia</b><small>Ver tu suscripción y renovación</small></button>
-    <button class="prem-tile" data-profile="switch"><span class="emoji">👥</span><b>Cambiar cuenta</b><small>Inicio de sesión con otro GREÑA ID</small></button>
-    ${persistent.license?.permanentAccess===true?'<button class="prem-tile" data-profile="admin"><span class="emoji">🛡️</span><b>Administración</b><small>Administrar usuarios y licencias</small></button>':''}
+    <button class="prem-tile" data-profile="license"><span class="emoji">✦</span><b>Mi licencia</b><small>Tipo, duración y vencimiento de tu GREÑA ID</small></button>
+    ${persistent.license?.permanentAccess===true?'<button class="prem-tile" data-profile="admin"><span class="emoji">🛡️</span><b>Administración GREÑA</b><small>Solo propietario · usuarios, licencias y actualizaciones</small></button>':''}
     <button class="prem-tile" data-profile="exit"><span class="emoji">🚪</span><b>Salir de GREÑA</b><small>Cerrar sesión o aplicación</small></button>
   </div>`);
   QA('[data-profile]',mbody).forEach(btn=>btn.addEventListener('click',async()=>{
     const a=btn.dataset.profile;
     if(a==='photo'){choosePhoto();return}
     if(a==='fish'){openFishCredentials();return}
-    if(a==='license'){window.open('/license.html','_blank','noopener');return}
-    if(a==='admin'){window.open('/license-admin.html','_blank','noopener');return}
-    if(a==='switch'){location.assign('/login.html?switch=1');return}
+    if(a==='license'){await openMyLicense();return}
+    if(a==='admin'){
+      // A visual condition never grants privileges: the server verifies GREÑA ID ownership.
+      const status=await api('/api/license/status');
+      if(status.permanentAccess!==true)throw Error('Administración reservada al propietario GREÑA ID');
+      window.open('/license-admin.html','_blank','noopener');return
+    }
     if(a==='exit'){
       hideDialog();if(!confirm('¿Quieres cerrar GREÑA Live?'))return;
       try{await api('/api/app/exit',{method:'POST',body:{}})}catch{await api('/api/account/logout',{method:'POST'});location.assign('/login.html')}
