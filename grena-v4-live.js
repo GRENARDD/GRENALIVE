@@ -809,31 +809,16 @@ el('ga').onclick=e=>{onlyAnimated=!onlyAnimated;giftLimit=24;badge(e.currentTarg
 // ---- Widgets: V4 cards retain their exact markup; links and settings come from GREÑA ----
 
 async function openWidgetConfig(card){
-  const widget=card?.querySelector('b')?.textContent?.trim()||'Widget';
-  const models={
-    'Personajes Minecraft':'minecraft','Contador':'counter','Multichat':'multichat',
-    'Redes Sociales':'social','Tap Tap Top':'taptap','Super Fans':'superfans','Índice de Fidelidad':'loyalty'
-  };
-  const focus=models[widget];
-  if(!focus){inform('Editor no disponible para este widget');return}
-  const code=card?.querySelector('.code')?.textContent?.trim()||'';
-  const html=[
-    '<p class="prem-note">Elige entre los modelos originales de GREÑA. Los cambios se previsualizan y se aplican usando su configuración real; el enlace de OBS se conserva.</p>',
-    '<iframe title="Modelos y previsualización de '+widget.replace(/[<>"]/g,'')+'" src="/widgets.html?focus='+encodeURIComponent(focus)+'&embed=1" ',
-    'style="display:block;width:100%;height:min(64vh,610px);min-height:350px;border:1px solid #a6814338;border-radius:13px;background:#0b0907"></iframe>',
-    '<label class="prem-field">Enlace seguro OBS<input id="v4WidgetUrl" readonly></label>'
-  ].join('');
-  dialog('Configurar · '+widget,'Modelos reales, vista previa y botón APLICAR',html,[
-    {label:'Cerrar',action:hideDialog},
-    {label:'Copiar enlace OBS',primary:true,action:()=>copyLink(el('v4WidgetUrl').value)}
-  ]);
-  const dialogBox=Q('#premiumOverlay .premium-dialog');
-  if(dialogBox){dialogBox.style.width='min(1080px,96vw)';dialogBox.style.maxWidth='96vw'}
-  el('v4WidgetUrl').value=code;
+  const name=card?.querySelector('b')?.textContent?.trim()||'Widget';
+  const types={'Personajes Minecraft':'minecraft','Contador':'counter','Multichat':'multichat','Redes Sociales':'social','Super Fans':'superfans'};
+  const type=types[name];
+  if(!type){inform('No hay configuraciones adicionales para este widget');return}
+  dialog('Configurar · '+name,'Vista previa y ajustes compactos · GREÑA Premium V4',
+    '<iframe title="Editor compacto de '+name.replace(/[<>"']/g,'')+'" src="/widget-compact.html?type='+encodeURIComponent(type)+'" style="display:block;width:100%;height:min(60vh,520px);min-height:345px;border:1px solid #88642f;border-radius:13px;background:#100d09"></iframe>',
+    [{label:'Cerrar',primary:true,action:hideDialog}]);
+  const box=Q('#premiumOverlay .premium-dialog');if(box){box.style.width='min(930px,96vw)';box.style.maxWidth='96vw'}
 }
-
 QA('#pg5 [data-v4-action="widget-config"]').forEach(btn=>btn.addEventListener('click',()=>openWidgetConfig(btn.closest('.wd'))));
-
 
 // ---- Comunidad GREÑA: ticker real de canales activos, sin datos simulados. ----
 function initCommunityTicker(){
