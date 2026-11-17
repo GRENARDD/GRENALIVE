@@ -16,7 +16,7 @@ test('EXACT source: original V4(3) CSS is byte-for-byte identical',()=>{
  assert.ok(style(reference),'V4 source must include original CSS');
  assert.equal(style(live),style(reference),'No extra overrides, CSS overlays or layout compression are allowed');
  // The user explicitly removed ONLY the En vivo sidebar button.
- const buttons=html=>[...nav(html).matchAll(/<button class="nb(?: on)?" data-l="[^"]+"[\\s\\S]*?<\\/button>/g)].map(m=>m[0]);
+ const buttons=html=>[...nav(html).matchAll(/<button class="nb(?: on)?" data-l="[^"]+"[\s\S]*?<\/button>/g)].map(m=>m[0]);
  assert.deepEqual(buttons(live),buttons(reference).filter(x=>!x.includes('data-l="En vivo"')),'Other icons and their markup must stay identical');
 });
 
