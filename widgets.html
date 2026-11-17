@@ -165,4 +165,35 @@ async function counterConnect(platform){const id=platform==='tiktok'?'ttLink':pl
  };
  document.getElementById('minecraftTestChat')?.addEventListener('click',()=>send('chat'));
  document.getElementById('minecraftTestGift')?.addEventListener('click',()=>send('gift'));
-})();</script></body></html>
+})();</script>
+<style>
+/* Dedicated PREMIUM V4 widget editor; only active with ?focus=..., never touches main V4 CSS. */
+html.v4-widget-focus,html.v4-widget-focus body{background:#0b0907!important;color:#eee6d4!important}
+html.v4-widget-focus body{margin:0;padding:0}
+html.v4-widget-focus main.wrap{width:100%;max-width:none;margin:0;padding:8px}
+html.v4-widget-focus .widgets-hero{display:none!important}
+html.v4-widget-focus section.grid{display:block!important;margin:0}
+html.v4-widget-focus .widget-module{width:100%;margin:0;background:linear-gradient(145deg,#19140e,#0b0908);border:1px solid #ba915338!important;border-radius:15px;box-shadow:none!important}
+html.v4-widget-focus .widget-module-body{grid-template-rows:1fr!important;opacity:1!important;border-color:#dbad5e20!important}
+html.v4-widget-focus .widget-module-body-inner{padding:14px!important}
+html.v4-widget-focus .widget-module-head{padding:12px}
+html.v4-widget-focus .btn{background:linear-gradient(115deg,#f8de98,#d4a344)!important;color:#221606!important}
+html.v4-widget-focus .btn.alt{background:#2a2218!important;color:#f0dfbe!important;border-color:#7b5c39!important}
+html.v4-widget-focus input,html.v4-widget-focus select{accent-color:#ddb45a}
+html.v4-widget-focus .preview{background:#080807}
+</style>
+<script>
+(()=>{'use strict';
+const name=new URLSearchParams(location.search).get('focus');
+if(!name)return;
+const types=new Set(['minecraft','counter','multichat','social','taptap','superfans','loyalty']);
+if(!types.has(name))return;
+document.documentElement.classList.add('v4-widget-focus');
+document.querySelectorAll('[data-widget-module]').forEach(node=>{
+ if(node.dataset.widgetModule!==name){node.style.display='none';return}
+ node.classList.add('open');
+ node.querySelector('.widget-module-head')?.setAttribute('aria-expanded','true');
+});
+})();
+</script>
+</body></html>
