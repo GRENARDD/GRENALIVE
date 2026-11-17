@@ -2,7 +2,7 @@
 *{box-sizing:border-box}html,body{margin:0;background:#100d09;color:#f1e2c8;font:13px "Segoe UI",system-ui,Arial,sans-serif;min-height:100%}
 main{padding:12px;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(250px,.88fr);gap:14px;align-items:start;max-width:100%;overflow:hidden}main>*{min-width:0}
 .preview{height:250px;min-height:210px;border:1px solid #72552b;background:radial-gradient(ellipse at 60% 20%,#302316,#0a0908 70%);border-radius:13px;overflow:hidden;position:relative}
-.preview iframe{display:block;width:100%;height:100%;border:0;background:transparent;pointer-events:none}
+.preview iframe{display:block;width:100%;height:100%;border:0;background:transparent;pointer-events:none}.preview iframe.obs-sized{position:absolute;width:1920px;height:1080px;max-width:none;max-height:none;top:0;left:0;transform-origin:top left}
 .heading{font-size:10px;font-weight:800;color:#d6a956;letter-spacing:2px;margin:0 0 8px}
 .controls{border:1px solid #5d4524;border-radius:13px;padding:14px;background:#18120c}
 label{display:flex;flex-direction:column;gap:5px;margin:0 0 11px;color:#d7c5a5;font-size:11px;font-weight:700}
@@ -25,7 +25,7 @@ const $=id=>document.getElementById(id);const fields=$('fields'),actions=$('acti
 const views={minecraft:'/personajes-minecraft.html?clean=1&preview=1',counter:'/viewers.html?preview=1',multichat:'/chat/multichat-overlay.html?preview=1',social:'/social-overlay.html?preview=1',superfans:'/super-fans-overlay.html?preview=1'};
 const original={
 counter:{style:'classic',edge:'left',edgeOffset:0,counterCardColor:'#18232c'},
-multichat:{theme:'clean',direction:'left',edgeOffset:0,iconSize:24,readability:'both',shadowStrength:70},
+multichat:{theme:'clean',direction:'left',edgeOffset:0,iconSize:24,readability:'both',shadowStrength:70,signalFontSize:42},
 social:{socialLayout:'classic',enabledNetworks:['tiktok','twitch','kick','youtube'],socialNameOverrides:{}}
 };
 let base={};let loaded=false;
@@ -40,7 +40,8 @@ counter:()=>field('Seleccionar estilo','style',sel('style',[['classic','Tarjetas
 multichat:()=>field('Estilo del chat','theme',sel('theme',[['clean','Minimal PRO'],['blossom','Blossom Glass'],['comicpop','Comic Pop'],['timeline','Timeline Premium'],['signal','MultiChat Signal · original']]))+
 '<div class="row">'+field('Dirección','direction',sel('direction',[['left','Izquierda'],['right','Derecha / invertido']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>'+
 '<div class="row">'+field('Tamaño del icono · px','iconSize',number('iconSize',24,10,96))+field('Legibilidad','readability',sel('readability',[['both','Borde y sombra'],['shadow','Sombra suave'],['outline','Borde fino'],['none','Sin efecto']]))+'</div>'+
-field('Intensidad de sombra · %','shadowStrength',number('shadowStrength',70,0,100)),
+field('Intensidad de sombra · %','shadowStrength',number('shadowStrength',70,0,100))+
+'<div id="signalSizeField" class="hidden">'+field('Tamaño del texto Signal en OBS · px','signalFontSize',number('signalFontSize',42,18,120))+'</div>',
 social:()=>field('Diseño de redes','socialLayout',sel('socialLayout',[['classic','Clásico'],['animated','Minimalista animado'],['grena-original','GREÑA Redes original']]))+
 '<p class="heading">REDES QUE APARECERÁN EN OBS</p><div class="checks">'+['tiktok','twitch','kick','youtube'].map(id=>'<label><input type="checkbox" data-network="'+id+'" checked>'+id[0].toUpperCase()+id.slice(1)+'</label>').join('')+'</div>',
 superfans:()=>'<p class="status">El Super Fan activo aparece en esta vista previa. Sin controles ni opciones adicionales.</p>'
@@ -65,12 +66,12 @@ function previewVisual(){
 
 function emitPreview(){
  if(type==='counter')preview.contentWindow?.postMessage({type:'grena-counter-preview',settings:read()},location.origin);
- if(type==='multichat')preview.contentWindow?.postMessage({type:'grena-multichat-settings',settings:read()},location.origin);
+ if(type==='multichat'){preview.contentWindow?.postMessage({type:'grena-multichat-settings',settings:read()},location.origin);const field=$('signalSizeField');if(field)field.classList.toggle('hidden',$('theme')?.value!=='signal');}
  if(type==='social')preview.contentWindow?.postMessage({type:'grena-social-preview',settings:previewVisual()},location.origin);
 }
 function read(){
  if(type==='counter')return {...base,style:$('style').value,edge:$('edge').value,edgeOffset:clamp('edgeOffset',0,80,0)};
- if(type==='multichat')return {...base,theme:$('theme').value,direction:$('direction').value,edgeOffset:clamp('edgeOffset',0,80,0),iconSize:clamp('iconSize',10,96,24),readability:$('readability').value,shadowStrength:clamp('shadowStrength',0,100,70)};
+ if(type==='multichat')return {...base,theme:$('theme').value,direction:$('direction').value,edgeOffset:clamp('edgeOffset',0,80,0),iconSize:clamp('iconSize',10,96,24),readability:$('readability').value,shadowStrength:clamp('shadowStrength',0,100,70),signalFontSize:clamp('signalFontSize',18,120,42)};
  if(type==='social')return {...base,socialLayout:$('socialLayout').value,enabledNetworks:[...document.querySelectorAll('[data-network]:checked')].map(el=>el.dataset.network)};
  return {};
 }
@@ -100,6 +101,20 @@ async function init(){
  if(!views[type]||!renderInputs[type]){$('status').textContent='Editor no disponible';return}
  $('heading').textContent=({minecraft:'PERSONAJES MINECRAFT',counter:'CONTADOR',multichat:'MULTICHAT',social:'REDES SOCIALES',superfans:'SUPER FANS'})[type];
  preview.src=views[type];fields.innerHTML=renderInputs[type]();
+ if(type==='multichat'){
+   preview.classList.add('obs-sized');
+   const fitObsPreview=()=>{
+     const holder=preview.parentElement;
+     const scale=Math.min(holder.clientWidth/1920,holder.clientHeight/1080);
+     if(!(scale>0))return;
+     preview.style.transform='scale('+scale+')';
+     preview.style.left=Math.max(0,(holder.clientWidth-1920*scale)/2)+'px';
+     preview.style.top=Math.max(0,(holder.clientHeight-1080*scale)/2)+'px';
+   };
+   new ResizeObserver(fitObsPreview).observe(preview.parentElement);
+   fitObsPreview();
+   $('help').textContent='Vista OBS real: 1920 × 1080, reducida proporcionalmente. En OBS usa 1920 × 1080 en la fuente de navegador.';
+ }
  if(type==='minecraft'){
   button('▶ Probar personaje de Twitch',demoMinecraft,true);
   $('help').textContent='Pulsa Probar para ver el personaje caminar y reaccionar dentro del cuadro.';
