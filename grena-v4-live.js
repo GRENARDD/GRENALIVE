@@ -196,7 +196,7 @@ function openVoiceModal(){
   const options=[...voiceChoices].map(o=>`<option value="${String(o.value).replaceAll('"','&quot;')}">${String(o.textContent).replace(/[<>]/g,'')}</option>`).join('');
   dialog('Chat de voz · Fish Audio','Configuración real del motor actual · 4 segundos fijos por usuario',`<div class="prem-note">Este panel controla el chat de voz existente, sin crear una segunda voz ni modificar la espera fija de 4 s.</div>
     
-    <style>.v4-voice-platforms{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:13px 0}.v4-voice-platform{min-width:0;min-height:100px;padding:8px 3px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;border-radius:14px;border:1px solid #394054;color:#a4aabb;background:#111723;opacity:.56;cursor:pointer;transition:box-shadow .15s,opacity .15s}.v4-voice-platform.on{opacity:1;border-color:var(--v4glow);color:white;box-shadow:0 0 0 1px var(--v4glow),0 0 23px -5px var(--v4glow)}.v4-voice-platform img{width:30px;height:30px;object-fit:contain}.v4-voice-platform span{font-size:11px;font-weight:800}.v4-voice-platform small{font-size:9px}.v4-voice-platform .youtube-logo{font-size:28px;font-weight:900;color:#ff4545}.v4-voice-audience{padding:12px;margin:10px 0;border:1px solid #394054;border-radius:12px}.v4-voice-audience[hidden]{display:none}.v4-voice-caption{font-size:11px;color:#9aa6b8;line-height:1.5}@media(max-width:480px){.v4-voice-platforms{gap:4px}.v4-voice-platform{min-height:82px}.v4-voice-platform img{width:24px;height:24px}}</style><div class="v4-voice-caption">Iluminada = lee mensajes. Apagada = silenciada. Los mensajes siguen visibles en el chat escrito.</div><div class="v4-voice-platforms">${V4_VOICE_PLATFORMS.map(p=>'<button type="button" data-v4-voice-platform="'+p.id+'" class="v4-voice-platform '+(checked(p.id+'VoiceEnabled')?'on':'')+'" aria-pressed="'+String(checked(p.id+'VoiceEnabled'))+'" style="--v4glow:'+p.glow+'">'+(p.icon?'<img src="'+p.icon+'" alt="">':'<b class="youtube-logo">▶</b>')+'<span>'+p.label+'</span><small>'+(checked(p.id+'VoiceEnabled')?'ACTIVA':'APAGADA')+'</small></button>').join('')}</div><button id="v4ConfigurePlatforms" type="button" class="prem-btn" style="width:100%">⚙ Configurar lectura por plataforma</button><div id="v4VoiceAudiencePanel" class="v4-voice-audience" hidden><label class="prem-field">Plataforma<select id="v4AudiencePlatform">${V4_VOICE_PLATFORMS.map(p=>'<option value="'+p.id+'">'+p.label+'</option>').join('')}</select></label><label class="prem-field">Leer mensajes de<select id="v4AudienceMode"><option value="all">Todos los usuarios</option><option value="followers">Solo seguidores</option><option value="subscribers">Solo suscriptores o miembros</option><option value="selected">Solo usuarios seleccionados</option></select></label><label class="prem-field">Usuarios seleccionados<textarea id="v4AudienceUsers" rows="3" placeholder="@usuario1"></textarea></label><p class="v4-voice-caption">Los modos seguidores y miembros solo leen roles confirmados por la plataforma.</p></div><div class="prem-row"><span><b>Leer nombre del usuario</b></span><button id="v4ReadName" type="button" class="sw ${checked('voiceReadUsername')?'on':''}" aria-label="Leer nombre del usuario"></button></div>
+    <div class="prem-row" style="gap:12px;align-items:center"><span><b>Configuración avanzada</b><small style="display:block;font-size:11px;color:#b2a186;margin-top:4px">Plataformas, audiencia y palabras bloqueadas</small></span><button type="button" id="v4VoiceAdvancedButton" class="prem-btn">⚙ Configurar</button></div><div class="prem-row"><span><b>Leer nombre del usuario</b></span><button id="v4ReadName" type="button" class="sw ${checked('voiceReadUsername')?'on':''}" aria-label="Leer nombre del usuario"></button></div>
     <label class="prem-field">Motor y voz<select id="v4VoiceSelect">${options}</select></label>
     <label class="prem-field">Velocidad de voz<input type="range" id="v4VoiceRate" min="0.6" max="1.6" step="0.05" value="${value('voiceRate')||1}"></label>
     <label class="prem-field">Volumen<input type="range" id="v4VoiceVolume" min="0" max="1" step="0.05" value="${value('voiceVolume')||1}"></label>
@@ -216,16 +216,35 @@ function openVoiceModal(){
   el('v4VoiceSelect').value=value('voiceSelect');el('v4VoiceLang').value=['all','es','en','es-en'].includes(value('voiceLanguageFilter'))?value('voiceLanguageFilter'):'all';
   for(let i=1;i<=5;i++)text(el('v4FishModel'+i),'');
   for(let i=1;i<=5;i++)el('v4FishModel'+i).value=value('fishModelId'+i);
-  for(const button of QA('[data-v4-voice-platform]'))button.addEventListener('click',()=>{try{const id=button.dataset.v4VoicePlatform,control=voiceControl(id+'VoiceEnabled');if(!control)throw Error('Red no disponible: '+id);setVoiceControl(control.id,!control.checked);button.classList.toggle('on',control.checked);button.setAttribute('aria-pressed',String(control.checked));button.querySelector('small').textContent=control.checked?'ACTIVA':'APAGADA';}catch(error){fail(error)}});
-  const platformChoice=el('v4AudiencePlatform'),modeChoice=el('v4AudienceMode'),userChoice=el('v4AudienceUsers');let selectedPlatform=platformChoice.value;
-  function saveAudience(){setV4VoiceMode(selectedPlatform,modeChoice.value);setVoiceControl(selectedPlatform+'SelectedUsers',userChoice.value)}
-  function loadAudience(){selectedPlatform=platformChoice.value;modeChoice.value=v4VoiceMode(selectedPlatform);userChoice.value=voiceControl(selectedPlatform+'SelectedUsers')?.value||''}
-  loadAudience();
-  el('v4ConfigurePlatforms').addEventListener('click',()=>{try{const panel=el('v4VoiceAudiencePanel');if(!panel.hidden)saveAudience();panel.hidden=!panel.hidden;}catch(error){fail(error)}});
-  platformChoice.addEventListener('change',()=>{try{saveAudience();loadAudience()}catch(error){fail(error)}});
-  modeChoice.addEventListener('change',()=>{try{saveAudience()}catch(error){fail(error)}});
-  userChoice.addEventListener('input',()=>{try{saveAudience()}catch(error){fail(error)}});
+  el('v4VoiceAdvancedButton').addEventListener('click',openVoiceAdvanced);
+}
 
+
+function openVoiceAdvanced(){
+  const esc=value=>String(value||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+  const opts=[['all','Todos los usuarios'],['followers','Solo seguidores'],['subscribers','Solo suscriptores o miembros'],['selected','Solo usuarios seleccionados']];
+  const style='<style>.vadv{color:#f3e4c7}.vadv .networks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 18px}.vadv .network{display:grid;place-items:center;gap:6px;background:#17120d;color:#ac9a7e;border:1px solid #604626;border-radius:12px;min-width:0;padding:11px 3px;cursor:pointer;opacity:.65}.vadv .network.on{opacity:1;background:#292010;border-color:#f0c16d;box-shadow:0 0 18px #e8bc642b;color:#f4d38c}.vadv .network img{width:28px;height:28px;object-fit:contain}.vadv .network b{font-size:11px}.vadv .card{padding:15px;border:1px solid #67502e;border-radius:13px;background:#15110c;display:grid;gap:13px}.vadv label{color:#e8cd95;font-size:12px;display:grid;gap:6px}.vadv textarea,.vadv select{color:#f7ecd5;background:#0b0a08;border:1px solid #70522a;border-radius:9px;padding:10px;width:100%;box-sizing:border-box;font:inherit}.vadv .hint{color:#aa9980;font-size:11px;line-height:1.5}@media(max-width:470px){.vadv .networks{gap:4px}.vadv .network{padding:9px 2px}.vadv .network img{width:22px;height:22px}}</style>';
+  const nets=V4_VOICE_PLATFORMS.map(p=>'<button type="button" data-vadv-platform="'+p.id+'" class="network'+(voiceControl(p.id+'VoiceEnabled')?.checked?' on':'')+'" aria-pressed="'+String(voiceControl(p.id+'VoiceEnabled')?.checked===true)+'">'+(p.icon?'<img src="'+p.icon+'" alt="">':'<span style="font-size:26px;color:#f44">▶</span>')+'<b>'+p.label+'</b></button>').join('');
+  const html=style+'<div class="vadv"><div class="hint">Pulsa una red para encender o apagar su lectura. El chat escrito no se silencia.</div><div class="networks">'+nets+'</div><div class="card"><label>Configurar plataforma<select id="vadvPlatform">'+V4_VOICE_PLATFORMS.map(p=>'<option value="'+p.id+'">'+p.label+'</option>').join('')+'</select></label><label>Quién puede hablar<select id="vadvMode">'+opts.map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join('')+'</select></label><label>Usuarios seleccionados<textarea id="vadvUsers" rows="2" placeholder="@usuario1, @usuario2"></textarea></label><label>Palabras bloqueadas · separar por comas<textarea id="vadvWords" rows="3" placeholder="palabra1, palabra2, palabra3"></textarea></label><div class="hint">Las palabras bloqueadas no se enviarán a Fish Audio. No se eliminan mensajes del chat visual. Los modos seguidores y miembros exigen que la plataforma confirme el rol.</div></div></div>';
+  let current='tiktok',wordDraft=voiceControl('blockedWords')?.value||'';
+  const readCurrent=()=>{el('vadvMode').value=v4VoiceMode(current);el('vadvUsers').value=voiceControl(current+'SelectedUsers')?.value||''};
+  const saveCurrent=()=>{setV4VoiceMode(current,el('vadvMode').value);setVoiceControl(current+'SelectedUsers',el('vadvUsers').value)};
+  dialog('Configuración avanzada · Chat de voz','GREÑA Live Premium V4 · Redes y filtros',html,[{label:'Volver al chat de voz',action:()=>{try{saveCurrent();setVoiceControl('blockedWords',wordDraft);openVoiceModal()}catch(error){fail(error)}}},{label:'Guardar cambios',primary:true,action:()=>{try{saveCurrent();setVoiceControl('blockedWords',el('vadvWords').value);hideDialog();inform('Filtros de voz guardados')}catch(error){fail(error)}}}]);
+  el('vadvWords').value=wordDraft;
+  readCurrent();
+  for(const button of QA('[data-vadv-platform]',mbody))button.addEventListener('click',()=>{try{
+    const id=button.dataset.vadvPlatform,input=voiceControl(id+'VoiceEnabled');
+    if(!input)throw Error('El motor de voz está conectándose');
+    setVoiceControl(id+'VoiceEnabled',!input.checked);
+    button.classList.toggle('on',input.checked);
+    button.setAttribute('aria-pressed',String(input.checked));
+  }catch(error){fail(error)}});
+  el('vadvPlatform').addEventListener('change',()=>{
+    try{wordDraft=el('vadvWords').value;saveCurrent();current=el('vadvPlatform').value;readCurrent()}
+    catch(error){fail(error)}
+  });
+  el('vadvMode').addEventListener('change',()=>{try{saveCurrent()}catch(error){fail(error)}});
+  el('vadvUsers').addEventListener('change',()=>{try{saveCurrent()}catch(error){fail(error)}});
 }
 
 // ---- Conexiones reales, espectadores, mensajes y eventos ----
