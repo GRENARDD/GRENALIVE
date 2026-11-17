@@ -12,7 +12,8 @@ permissions:
   actions: read
 jobs:
   release:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    # v6.0.0 already published. Never recreate from new 6.0.1 code.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
