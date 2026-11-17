@@ -8,18 +8,19 @@ test('GREÑA Premium V4 voice has one master toggle and four luminous network sw
  const main=read('grena-v4-live.js'),section=main.split('function openVoiceModal(){')[1]?.split('// ---- Conexiones reales')[0];
  assert.ok(section,'voice modal present');
  for(const network of ['tiktok','twitch','kick','youtube']) assert.match(main,new RegExp("id:'"+network+"'"));
- assert.match(section,/data-v4-voice-platform/);
- assert.match(section,/aria-pressed/);
- assert.match(section,/v4VoiceAudiencePanel/);
- assert.match(section,/setVoiceControl\(control\.id,!control\.checked\)/);
+ assert.match(section,/v4VoiceAdvancedButton/);
+ assert.match(main,/data-vadv-platform/);
+ assert.match(main,/aria-pressed/);
+ assert.match(main,/vadvWords/);
+ assert.match(main,/setVoiceControl\(id\+'VoiceEnabled',!input\.checked\)/);
  assert.doesNotMatch(section,/id="v4VoiceEnabled"/);
  assert.doesNotMatch(section,/setVoiceControl\('voiceEnabled'/);
  assert.match(main,/vsw\.addEventListener\('click'/);
 });
 test('individual platform choices persist using the original voice engine',()=>{
  const main=read('grena-v4-live.js');
- assert.match(main,/setV4VoiceMode\(selectedPlatform,modeChoice\.value\)/);
- assert.match(main,/setVoiceControl\(selectedPlatform\+'SelectedUsers',userChoice\.value\)/);
+ assert.match(main,/setV4VoiceMode\(current,el\('vadvMode'\)\.value\)/);
+ assert.match(main,/setVoiceControl\(current\+'SelectedUsers',el\('vadvUsers'\)\.value\)/);
  const chat=read('chat.html');
  for(const network of ['tiktok','twitch','kick','youtube']){
   assert.match(chat,new RegExp('id="'+network+'VoiceEnabled"'));
