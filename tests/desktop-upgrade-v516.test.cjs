@@ -4,8 +4,8 @@ const {readFileSync}=require('node:fs'),{join}=require('node:path');
 const src=file=>readFileSync(join(__dirname,'..',file),'utf8');
 test('5.1.29 uses a unique artifact and does not silently publish a tag build',()=>{
  const flow=src('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(flow,/Verify official GREÑA Live 6\.0\.1 version on main/);
- assert.match(flow,/GRENA-LIVE-Installer-Windows-v6\.0\.1/);
+ assert.match(flow,/Verify official GREÑA Live 6\.0\.2 version on main/);
+ assert.match(flow,/GRENA-LIVE-Installer-Windows-v6\.0\.2/);
  assert.match(flow,/electron-builder --win nsis --x64 --publish never/);
  assert.doesNotMatch(flow,/electron-builder --win nsis --x64 --publish always/);
  assert.match(flow,/verify-upgrade-6000-to-6001\.ps1/);
@@ -37,7 +37,7 @@ test('release 5.1.19 requires successful build at current commit and owner still
  assert.match(flow,/gh run download/);
  assert.match(flow,/sha512/);
  assert.match(flow,/gh release create/);
- assert.match(up,/tag\[1:\] if tag else '6\.0\.1'/);
+ assert.match(up,/tag\[1:\] if tag else '6\.0\.2'/);
  assert.match(up,/const releaseBase='https:\/\/grena-live-licenses/);
  assert.match(up,/autoUpdater\.autoDownload=false/);
  assert.match(up,/autoUpdater\.checkForUpdates\(\)/);
@@ -82,7 +82,7 @@ test('v5.1.17 upgrade gate installs over v5.1.16 without losing account, Fish or
  assert.match(script,/Assert-ProfilePreserved '5\.1\.16'/);
  assert.match(script,/Assert-ProfilePreserved '5\.1\.17'/);
  assert.match(flow,/verify-upgrade-6000-to-6001\.ps1/);
- assert.match(flow,/Verify official GREÑA Live 6\.0\.1 version on main/);
+ assert.match(flow,/Verify official GREÑA Live 6\.0\.2 version on main/);
 });
 
 
@@ -96,7 +96,7 @@ test('v5.1.23 installs over official v5.1.17 while preserving profiles, Fish and
  assert.match(script,/Assert-ProfilePreserved '5\.1\.23'/);
  assert.match(script,/Get-FileHash -Algorithm SHA256/);
  assert.match(flow,/verify-upgrade-6000-to-6001\.ps1/);
- assert.match(flow,/Verify official GREÑA Live 6\.0\.1 version on main/);
+ assert.match(flow,/Verify official GREÑA Live 6\.0\.2 version on main/);
  assert.match(release,/VERSION: '5\.1\.23'/);
  assert.match(release,/git rev-parse HEAD/);
  assert.match(release,/gh release create/);
