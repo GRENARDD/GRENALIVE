@@ -444,7 +444,7 @@ jobs:
       - name: Smoke test compiled Windows backend
         shell: pwsh
         run: ./desktop-build/smoke.ps1
-      - name: Verify installed upgrade from GREÑA 6.0.1 to 6.0.3 preserves user data
+      - name: Verify installed upgrade from GREÑA 6.0.2 to 6.0.3 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: ./desktop-build/verify-upgrade-6002-to-6003.ps1
