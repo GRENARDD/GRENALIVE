@@ -131,3 +131,61 @@ html.grena-v6-voice-only body.grena-chat .v6-cooldown{padding:11px 14px;border:1
 html.grena-v6-voice-only body.grena-chat .v6-cooldown input{width:100%;accent-color:#d9a441}
 html.grena-v6-voice-only body.grena-chat .v6-cooldown small{color:#9b9283;display:block;margin-top:6px}
 @media(max-width:800px){body.grena-control #premiumVoiceClose{top:4px;right:8px}body.grena-control.grena-voice-popup #chatFrame{height:calc(100vh - 92px)!important;top:54%!important}}
+
+/* Orden premium del Centro de mando: héroe, chat, lateral y soundboard. */
+@media(min-width:981px){
+ body.grena-control .workspace:has(#premiumHero){
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) clamp(340px,28vw,420px)!important;
+  grid-template-rows:minmax(112px,18vh) minmax(0,1fr) 68px!important;
+  grid-template-areas:"v6-hero v6-side" "v6-chat v6-side" "v6-pads v6-pads"!important;
+  gap:10px!important;overflow:hidden!important
+ }
+ body.grena-control #premiumHero{grid-area:v6-hero;display:flex;flex-direction:column;min-width:0;min-height:0;padding:8px 14px!important}
+ body.grena-control #premiumHero .panel-head{flex:0 0 auto;height:auto!important;min-height:28px;padding:0 4px 7px!important;border:0!important;justify-content:space-between}
+ body.grena-control #premiumHero .panel-head .eyebrow{color:#3ddc97!important}
+ body.grena-control #premiumHero .viewer-total{display:flex;align-items:center;gap:12px;min-width:0;background:none!important;border:0!important;padding:0!important;box-shadow:none!important}
+ body.grena-control #premiumHero #totalViewers{font-size:clamp(38px,4.4vw,64px)!important;line-height:1!important;color:var(--v6-gold)!important}
+ body.grena-control #premiumHero .viewer-sparkline{width:clamp(150px,30vw,420px)!important;height:50px!important;max-width:45vw!important}
+ body.grena-control #premiumHero .viewer-grid{display:flex!important;flex:1;align-items:center;justify-content:flex-end;gap:8px!important;margin:0!important;min-width:0;padding:0!important}
+ body.grena-control #premiumHero .viewer-card{min-width:0!important;padding:5px 9px!important;border:0!important;background:transparent!important;box-shadow:none!important}
+ body.grena-control #premiumHero .viewer-card small{font-size:10px!important}
+ body.grena-control #premiumHero .viewer-card b{font-size:14px!important}
+ body.grena-control #premiumHero .viewer-card .platform-glyph{width:17px!important;height:17px!important}
+ body.grena-control .workspace .chat-zone{grid-area:v6-chat;min-height:0!important;overflow:hidden}
+ body.grena-control .workspace .chat-zone .compact-head{height:46px!important;flex-basis:46px!important}
+ body.grena-control .workspace .chat-zone .main-title-wrap .eyebrow{display:none!important}
+ body.grena-control .workspace .chat-zone .main-title-row span{font-size:10px!important}
+ body.grena-control .workspace .ops-zone{grid-area:v6-side;min-height:0!important;display:flex!important;flex-direction:column!important;gap:9px!important;overflow:hidden}
+ body.grena-control .workspace .ops-zone .overview-panel{flex:0 1 auto!important;min-height:0!important;overflow:auto!important;scrollbar-width:thin}
+ body.grena-control .workspace .ops-zone .overview-panel>.platform-section-head{padding-top:9px!important}
+ body.grena-control .workspace .ops-zone .activity-panel{flex:1 1 auto!important;min-height:105px!important;overflow:hidden}
+ body.grena-control .workspace .ops-zone .activity-feed{min-height:0!important;overflow:auto!important}
+ body.grena-control .workspace .ops-zone .quick-panel{flex:none!important;min-height:0!important}
+ body.grena-control .workspace #soundboardStrip{grid-area:v6-pads;min-height:0!important;flex:initial!important;border:1px solid var(--v6-line)!important;border-radius:15px!important;overflow:hidden!important;padding:7px 12px!important}
+ body.grena-control .workspace #soundboardStrip .soundboard-meta{min-height:10px!important}
+ body.grena-control .workspace #soundboardStrip .sound-pad{height:41px!important}
+ body.grena-control .workspace .platform-section-head{margin-top:0!important}
+ body.grena-control .workspace .platform-row{padding:5px 7px!important;gap:8px!important}
+ body.grena-control .workspace .platform-states{display:none!important}
+ body.grena-control .workspace .platform-stack{gap:2px!important}
+ body.grena-control .workspace .platform-logo{width:28px!important;height:28px!important}
+ body.grena-control .workspace .platform-action{height:27px!important}
+ body.grena-control .workspace .activity-panel .panel-head{height:39px!important;flex-basis:39px!important}
+ body.grena-control .workspace .quick-panel .panel-head{height:33px!important;flex-basis:33px!important}
+ body.grena-control .workspace .test-grid{gap:5px!important;padding:5px 9px!important}
+ body.grena-control .workspace .test-grid button{height:27px!important;font-size:10px!important}
+ body.grena-control .workspace .obs-row{padding:5px 10px!important}
+ body.grena-control .workspace #premiumVoiceCard{flex:0 0 auto!important;min-height:60px!important}
+}
+@media(max-height:760px) and (min-width:981px){
+ body.grena-control .workspace:has(#premiumHero){grid-template-rows:105px minmax(0,1fr) 62px!important}
+ body.grena-control #premiumHero .viewer-sparkline{height:34px!important}
+ body.grena-control .workspace .ops-zone{gap:6px!important}
+ body.grena-control .workspace .test-grid button{height:24px!important}
+ body.grena-control .workspace .platform-row{padding:3px 6px!important}
+}
+@media(max-width:980px){
+ body.grena-control #premiumHero{padding:10px!important}
+ body.grena-control .workspace #soundboardStrip{flex:none!important}
+}
