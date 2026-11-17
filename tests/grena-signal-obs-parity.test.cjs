@@ -9,7 +9,8 @@ test('MultiChat Signal preview uses the identical 1920x1080 layout as the real O
  assert.match(c,/const fitObsPreview=\(\)=>\{/);
  assert.match(c,/holder\.clientWidth\/1920,holder\.clientHeight\/1080/);
  assert.match(c,/preview\.style\.transform='scale\('/);
- assert.match(c,/preview\.classList\.add\('obs-sized'\)/);
+ assert.match(c,/preview\.classList\.toggle\('obs-sized',signal\)/);
+ assert.match(c,/const signal=\$\('theme'\)\?\.value==='signal'/);
  assert.match(c,/Vista OBS real: 1920 × 1080/);
  assert.match(c,/new ResizeObserver\(fitObsPreview\)\.observe\(preview\.parentElement\)/);
  assert.match(c,/type:'grena-multichat-settings',settings:read\(\)/);
