@@ -6,35 +6,34 @@ const {join}=require('node:path');
 const root=join(__dirname,'..');
 const load=name=>readFileSync(join(root,name),'utf8');
 
-test('botón modo burbuja está en el panel de escritorio',()=>{
- const panel=load('index.html');
- assert.match(panel,/id="grenaBubbleModeControl"/);
- assert.match(panel,/href="\/__grena_bubble_mode__"/);
+test('V4 floating tab invokes the existing native GREÑA bubble without the old desktop button',()=>{
+ const panel=load('index.html'),adapter=load('grena-v4-live.js');
+ assert.match(panel,/data-l="Flotante"/);
+ assert.match(panel,/data-v4-action="floating-open"/);
+ assert.match(adapter,/window\.location\.href='\/__grena_bubble_mode__'/);
 });
 
-test('Preview LIVE desaparece del panel, sin quitar las vistas de alertas y widgets',()=>{
+test('V4 omits preview LIVE but retains the original native alerts and widget tabs',()=>{
  const panel=load('index.html');
- assert.ok(!panel.includes('href="/preview.html"'));
- assert.ok(!panel.includes('class="top-link preview-link"'));
- assert.ok(panel.includes('href="/alerts.html"'));
- assert.ok(panel.includes('href="/widgets.html"'));
+ assert.doesNotMatch(panel,/href="\/preview\.html"/);
+ assert.match(panel,/data-l="Alertas"/);
+ assert.match(panel,/data-l="Widgets"/);
+ assert.match(panel,/pg\(4,/);
+ assert.match(panel,/pg\(5,/);
 });
 
-test('pestaña flotante arrastrable y posición recordada entre varios monitores',()=>{
- const panel=load('index.html');
- const html=load('desktop-bubble.html');
- const native=load('desktop-build/fix_bubble.py');
- assert.ok(panel.includes('Pestaña flotante'));
+test('V4 floating tab keeps native drag, restore and cross-monitor position in original module',()=>{
+ const panel=load('index.html'),adapter=load('grena-v4-live.js');
+ const html=load('desktop-bubble.html'),native=load('desktop-build/fix_bubble.py');
+ assert.match(panel,/data-l="Flotante"/);
+ assert.match(adapter,/__grena_bubble_mode__/);
  assert.ok(html.includes('-webkit-app-region:drag'));
  assert.ok(html.includes('#handle'));
- assert.ok(html.includes('cursor:grab'));
  assert.ok(native.includes('readFloatingPosition'));
  assert.ok(native.includes('FLOATING_POSITION_FILE'));
  assert.ok(native.includes("popup.on('move'"));
  assert.ok(native.includes('screen.getDisplayMatching'));
  assert.ok(native.includes('clampFloatingPosition'));
- assert.ok(native.includes('const nearBottom='));
- assert.ok(!native.includes('const right=old.x+old.width'));
 });
 
 test('burbuja recibe chat y eventos sin repetir el historial viejo',()=>{

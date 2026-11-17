@@ -1,217 +1,576 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#080a10">
-<title>GREÑA LIVE PRO · Centro de Control</title>
-<link rel="stylesheet" href="/grena-tokens.css">
-<link rel="stylesheet" href="/control-center.css">
-<link rel="stylesheet" href="/ui-refresh.css">
-<link rel="stylesheet" href="/ui-v2.css">
-<link rel="stylesheet" href="/aurora-ui.css">
-<link rel="stylesheet" href="/grena-gamer.css">
-<style id="grena-profile-name-photo-style">
-/* One profile image only: the main, accessible avatar circle. */
-.grena-control .profile-copy b.gx-profile-name-inline{display:flex;align-items:center;max-width:165px;min-width:0;overflow:hidden}
-.grena-control .gx-profile-name-inline #profileName{min-width:0;overflow:hidden;text-overflow:ellipsis}
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GREÑA LIVE 6.0 · Vista previa premium V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0a0908;--s1:#131110;--s2:#1b1816;--line:rgba(255,235,200,.09);--t:#f5efe3;--m:#9b9283;--g1:#f6d98a;--g2:#d9a441;--g3:#8a5f1c;--ink:#1a1204;--ok:#3ddc97;--warn:#ffb84a;--bad:#ff6482;--tw:#a77bff;--kk:#53fc18;--tt:#25f4ee;--yt:#ff4d4d;--glow:rgba(217,164,65,.22);
+--f:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;--fd:"Bricolage Grotesque","Inter",system-ui,sans-serif;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f6f1e8;--s1:#fffdf8;--s2:#f0e9db;--line:rgba(60,40,10,.12);--t:#201a10;--m:#7a6f5c;--g1:#c8962f;--g2:#a8741a;--g3:#6b4a10;--ink:#fff8e6;--glow:rgba(168,116,26,.14);color-scheme:light}}
+:root[data-theme="dark"]{color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--t);font:14px/1.45 var(--f);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(700px 420px at 85% -5%,var(--glow),transparent 70%),radial-gradient(600px 400px at 0 100%,var(--glow),transparent 70%)}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+svg{display:block;flex:none}
+.shell{position:relative;display:grid;grid-template-columns:76px 1fr;min-height:100vh}
+/* rail */
+.rail{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 0;border-right:1px solid var(--line);background:color-mix(in srgb,var(--s1) 80%,transparent);backdrop-filter:blur(14px)}
+.logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;margin-bottom:14px;font:800 22px var(--fd);font-style:italic;color:var(--ink);background:linear-gradient(140deg,var(--g1),var(--g2) 60%,var(--g3));box-shadow:0 8px 24px var(--glow),inset 0 1px 0 rgba(255,255,255,.5)}
+.nb{position:relative;width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--m);transition:.2s}
+.nb svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.nb:hover{color:var(--t);background:var(--s2)}
+.nb.on{color:var(--ink);background:linear-gradient(140deg,var(--g1),var(--g2));box-shadow:0 6px 20px var(--glow)}
+.nb::after{content:attr(data-l);position:absolute;left:58px;white-space:nowrap;padding:5px 10px;border-radius:8px;background:var(--s2);border:1px solid var(--line);font-size:12px;font-weight:600;opacity:0;transform:translateX(-4px);pointer-events:none;transition:.15s;z-index:9}
+.nb:hover::after{opacity:1;transform:none}
+.sp{flex:1}
+/* main */
+.wrap{padding:22px clamp(16px,3vw,36px) 40px;max-width:1500px;width:100%;margin:0 auto}
+.bar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.bar h1{margin:0;font:800 26px/1.1 var(--fd);letter-spacing:-.5px}
+.bar p{margin:3px 0 0;color:var(--m);font-size:13px}
+.bar .r{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:var(--s1);border:1px solid var(--line);font-weight:600;font-size:12.5px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--m);flex:none}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 0 var(--ok);animation:ping 2s infinite}.dot.warn{background:var(--warn)}
+@keyframes ping{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.me{display:flex;align-items:center;gap:10px;padding:5px 14px 5px 5px;border-radius:999px;background:var(--s1);border:1px solid var(--line)}
+.av{width:32px;height:32px;border-radius:50%;background:conic-gradient(from 200deg,var(--g1),var(--g3),var(--g1));display:grid;place-items:center;font:800 13px var(--fd);color:var(--ink)}
+.me b{display:block;font-size:12.5px;line-height:1.1}.me small{color:var(--m);font-size:11px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.card{position:relative;background:linear-gradient(180deg,var(--s1),color-mix(in srgb,var(--s1) 70%,var(--bg)));border:1px solid var(--line);border-radius:22px;padding:20px;overflow:hidden;animation:rise .6s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}}
+.eb{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:var(--m)}
+.h2{font:700 17px var(--fd);letter-spacing:-.2px;margin:0}
+.head{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.head .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+/* hero */
+.hero{grid-column:span 8;display:grid;grid-template-columns:auto 1fr;gap:8px 34px;align-items:center;min-height:230px;border-color:color-mix(in srgb,var(--g2) 35%,var(--line))}
+.hero::before{content:"";position:absolute;inset:0;background:radial-gradient(500px 240px at 0 0,var(--glow),transparent 70%);pointer-events:none}
+.livebadge{display:inline-flex;align-items:center;gap:8px;color:var(--ok);font-weight:700;font-size:12px;letter-spacing:.12em}
+.big{font:800 clamp(60px,8vw,104px)/.95 var(--fd);letter-spacing:-3px;background:linear-gradient(180deg,var(--t) 20%,var(--g1));-webkit-background-clip:text;background-clip:text;color:transparent;font-variant-numeric:tabular-nums;margin:8px 0 4px}
+.delta{display:inline-flex;gap:6px;align-items:center;color:var(--ok);font-weight:700;font-size:13px}
+.chart{height:150px;width:100%}
+.chart path{vector-effect:non-scaling-stroke}
+.split{grid-column:1/-1;display:flex;height:8px;border-radius:99px;overflow:hidden;gap:3px;margin-top:6px}
+.split i{display:block;height:100%;transition:flex .8s ease}
+.legend{grid-column:1/-1;display:flex;gap:22px;flex-wrap:wrap;font-weight:600;font-size:13px}
+.legend span{display:flex;align-items:center;gap:8px}.legend svg{width:15px;height:15px;fill:currentColor}.legend em{font-style:normal;color:var(--m);font-weight:500}
+.tt{color:var(--tt)}.tw{color:var(--tw)}.kk{color:var(--kk)}.yt{color:var(--yt)}
+/* voz */
+.voice{grid-column:span 4;display:flex;flex-direction:column;gap:14px}
+.vrow{display:flex;align-items:center;justify-content:space-between}
+.sw{width:50px;height:28px;border-radius:99px;background:var(--s2);border:1px solid var(--line);position:relative;transition:.25s;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--m);transition:.25s}
+.sw.on{background:linear-gradient(140deg,var(--g1),var(--g2));border-color:transparent;box-shadow:0 0 18px var(--glow)}.sw.on::after{left:25px;background:var(--ink)}
+.wave{display:flex;align-items:center;gap:3px;height:54px;padding:0 4px}
+.wave i{flex:1;border-radius:3px;background:linear-gradient(var(--g1),var(--g2));height:12%;opacity:.35;transition:height .25s,opacity .3s}
+.wave.on i{opacity:1;animation:eq 1s ease-in-out infinite alternate}
+@keyframes eq{to{height:var(--h)}}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{padding:6px 11px;border-radius:99px;background:var(--s2);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--m)}
+/* chat */
+.chat{grid-column:span 8;display:flex;flex-direction:column;height:560px}
+.seg{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--s2);border:1px solid var(--line);flex-wrap:wrap}
+.seg button{display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:10px;font-weight:600;font-size:12.5px;color:var(--m);transition:.2s}
+.seg button svg{width:14px;height:14px;fill:currentColor}
+.seg button.on{background:var(--t);color:var(--bg)}
+.inp{background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:9px 13px;color:var(--t);font:inherit;font-size:13px;outline:0;width:190px;transition:.2s}
+.inp:focus{border-color:var(--g2);width:230px}
+.feed{flex:1;overflow:auto;margin:0 -10px;padding:0 10px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin;scrollbar-color:var(--s2) transparent}
+.msg{display:flex;gap:12px;padding:10px 12px;border-radius:14px;animation:pop .35s ease both;transition:background .2s}
+.msg:hover{background:var(--s2)}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}}
+.mav{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;background:var(--s2);border:1px solid var(--line);flex:none}
+.mav svg{width:17px;height:17px;fill:currentColor}
+.msg b{font-weight:700}.msg small{color:var(--m);margin-left:8px;font-size:11px}
+.msg p{margin:1px 0 0;color:color-mix(in srgb,var(--t) 88%,transparent)}
+.mod{margin-left:auto;opacity:0;align-self:center;font-size:11px;font-weight:700;padding:5px 9px;border-radius:8px;border:1px solid var(--line);color:var(--m)}
+.msg:hover .mod{opacity:1}.mod:hover{color:var(--bad);border-color:var(--bad)}
+.empty{margin:auto;text-align:center;color:var(--m)}
+/* side */
+.side{grid-column:span 4;display:flex;flex-direction:column;gap:16px}
+.pr{display:flex;align-items:center;gap:13px;padding:11px 0;border-top:1px solid var(--line)}
+.pr:first-of-type{border-top:0}
+.pi{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--s2);border:1px solid var(--line)}
+.pi svg{width:19px;height:19px;fill:currentColor}
+.pt{flex:1;min-width:0}.pt b{display:flex;align-items:center;gap:7px}.pt small{display:block;color:var(--m);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{padding:8px 13px;border-radius:11px;font-weight:700;font-size:12.5px;background:var(--s2);border:1px solid var(--line);transition:.2s}
+.btn:hover{border-color:var(--g2)}
+.btn.go{background:linear-gradient(140deg,var(--g1),var(--g2));color:var(--ink);border-color:transparent;box-shadow:0 6px 18px var(--glow)}
+.ev{max-height:176px;overflow:auto;display:flex;flex-direction:column;gap:8px;scrollbar-width:thin}
+.evi{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:14px;background:var(--s2);animation:pop .4s both;border:1px solid var(--line)}
+.evi .e{font-size:18px}.evi b{display:block;font-size:13px}.evi small{color:var(--m)}
+.tests{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.tests .btn{font-size:12px;padding:7px 11px}
+/* pads */
+.pads{grid-column:1/-1}
+.prow{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.pad{position:relative;text-align:left;padding:16px;border-radius:18px;background:var(--s2);border:1px solid var(--line);display:flex;flex-direction:column;gap:14px;overflow:hidden;transition:.2s}
+.pad:hover{transform:translateY(-3px);border-color:var(--g2)}
+.pad .k{font:700 11px var(--f);color:var(--m);letter-spacing:.1em}
+.pad b{font:700 15px var(--fd)}
+.pad .play{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--bg);border:1px solid var(--line);font-size:13px;transition:.2s}
+.pad .bars{position:absolute;right:14px;bottom:16px;display:flex;gap:3px;align-items:end;height:26px}
+.pad .bars i{width:4px;height:5px;border-radius:2px;background:var(--g2);opacity:.4}
+.pad.on{border-color:var(--g2);background:linear-gradient(160deg,color-mix(in srgb,var(--g2) 22%,var(--s2)),var(--s2));box-shadow:0 10px 30px var(--glow)}
+.pad.on .play{background:var(--g2);color:var(--ink);border-color:transparent}
+.pad.on .bars i{opacity:1;animation:eq .7s ease-in-out infinite alternate;--h:26px}
+.pad.on .bars i:nth-child(2){animation-delay:.15s}.pad.on .bars i:nth-child(3){animation-delay:.3s}.pad.on .bars i:nth-child(4){animation-delay:.1s}
+.soon{grid-column:1/-1;display:none;text-align:center;padding:90px 20px}
+.soon .big2{font:800 54px var(--fd);margin-bottom:6px}
+.toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--t);color:var(--bg);padding:11px 20px;border-radius:99px;font-weight:700;font-size:13px;z-index:30;animation:pop .3s both;box-shadow:0 12px 40px rgba(0,0,0,.4)}
+@media(max-width:1100px){.hero,.voice,.chat,.side{grid-column:1/-1}.prow{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr}}
+@media(max-width:700px){.shell{grid-template-columns:1fr;padding-bottom:70px}
+.rail{position:fixed;bottom:0;top:auto;left:0;right:0;height:auto;flex-direction:row;justify-content:space-around;padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px));border-right:0;border-top:1px solid var(--line);z-index:20;overflow-x:auto}
+.logo,.sp,.nb::after{display:none}.nb{width:42px;height:42px;flex:none}.chat{height:480px}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Insignia real de cuenta: separada del botón de perfil. */
+.license-status{font-weight:800;font-size:11.5px;letter-spacing:.045em;white-space:nowrap;transition:background .2s,border-color .2s;color:.2s}
+.license-status.license-admin{color:#f6d98a;border-color:rgba(246,217,138,.36);background:linear-gradient(115deg,rgba(246,217,138,.17),rgba(217,164,65,.045));box-shadow:inset 0 1px 0 rgba(246,217,138,.08)}
+.license-status.license-beta{color:#a9e9ff;border-color:rgba(119,209,255,.32);background:rgba(100,180,255,.08)}
+.license-status.license-user{color:var(--g1);border-color:var(--line);background:var(--s1)}
+.license-status.license-expired{color:var(--bad);border-color:rgba(255,100,130,.36);background:rgba(255,100,130,.08)}
+@media(max-width:700px){.license-status{padding:5px 9px;font-size:10px}}
+
+/* ===== ENCAJE EN PANTALLA (sin scroll) ===== */
+@media(min-width:1101px){
+html,body{height:100%;overflow:hidden}
+.shell{height:100vh;height:100dvh;min-height:0;grid-template-columns:68px minmax(0,1fr)}
+.rail{height:100%;padding:12px 0;gap:4px}.logo{width:40px;height:40px;margin-bottom:8px;font-size:20px}.nb{width:42px;height:42px}
+.wrap{display:flex;flex-direction:column;height:100%;padding:12px 16px 14px;max-width:none;min-height:0}
+.bar{margin:0 0 10px;gap:12px;flex:none}.bar h1{font-size:19px}.pill{padding:6px 12px;font-size:12px}.me{padding:3px 12px 3px 3px}.av{width:28px;height:28px}
+.grid{flex:1;min-height:0;gap:10px;grid-template-columns:minmax(0,1fr) clamp(340px,28vw,420px);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"hero side" "chat side" "pads pads"}
+.card{padding:14px;border-radius:18px}
+.hero{grid-area:hero;grid-column:auto;min-height:0;grid-template-columns:auto minmax(120px,1fr) auto;grid-template-rows:auto auto;gap:6px 22px;align-items:center}
+.hero>div:first-child{grid-row:1}
+.big{font-size:clamp(44px,5.4vw,76px);margin:2px 0;letter-spacing:-2px}
+.livebadge{font-size:11px}.delta{font-size:12px}
+.chart{height:clamp(70px,11vh,110px);grid-row:1}
+.split{grid-column:1/-1;grid-row:2;margin:0;height:6px}
+.legend{grid-column:3;grid-row:1;display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;font-size:12.5px}
+.chat{grid-area:chat;grid-column:auto;height:auto;min-height:0}
+.head{margin-bottom:8px;gap:10px;flex-wrap:nowrap}.head .h2{white-space:nowrap}
+.seg{padding:3px;border-radius:12px}.seg button{padding:5px 10px;font-size:12px}
+.inp{width:150px;padding:7px 11px;font-size:12.5px}.inp:focus{width:190px}
+.msg{padding:7px 10px;gap:10px}.mav{width:30px;height:30px;border-radius:9px}.mav svg{width:15px;height:15px}
+.side{grid-area:side;grid-column:auto;min-height:0;gap:10px}
+.side>.card{flex:none}
+.side .voice{grid-column:auto;flex-direction:row;align-items:center;gap:12px;padding:10px 14px}
+.voice .vrow{flex:1;gap:12px}.voice .h2{font-size:14px}.voice .wave{display:none}.voice .chips{display:none}
+.side .voice::after{content:"Cola configurable · Anti-spam";color:var(--m);font-size:11px;font-weight:600;order:3}
+.side .voice .vrow{order:1}
+.side>.card:nth-child(3){flex:1;min-height:0;display:flex;flex-direction:column}
+.pr{padding:7px 0;gap:11px}.pi{width:34px;height:34px;border-radius:10px}.pi svg{width:16px;height:16px}.pt small{font-size:11.5px}
+.btn{padding:6px 11px;font-size:12px}
+.side .head{margin-bottom:6px}
+.ev{flex:1;max-height:none;min-height:0}
+.evi{padding:7px 10px}.tests{margin-top:10px;gap:6px}.tests .btn{padding:6px 9px;font-size:11.5px}
+.pads{grid-area:pads;grid-column:auto;padding:10px 14px;display:flex;align-items:center;gap:16px}
+.pl{flex:none;min-width:120px}
+.prow{flex:1;gap:8px}
+.pad{flex-direction:row;align-items:center;gap:10px;padding:8px 12px;border-radius:14px}
+.pad:hover{transform:none}.pad .play{width:30px;height:30px;border-radius:9px;font-size:11px;flex:none}
+.pad b{font-size:13px;display:block}.pad small{color:var(--m);font-size:11px}
+.pad .bars{position:static;margin-left:auto;height:18px}
+.soon{padding:60px 20px;margin:auto}
+}
+@media(min-width:1101px) and (max-height:700px){.bar{margin-bottom:6px}.hero .chart{height:60px}.msg{padding:5px 10px}.pr{padding:5px 0}.evi small{display:none}}
+@media(max-width:1100px){.pad{flex-direction:row;align-items:center;gap:10px;padding:10px 12px}.pad b{display:block}.pad small{color:var(--m);font-size:11px}.pads{grid-column:1/-1}.pl{margin-bottom:10px}.side{display:flex}}
+/* ===== LUZ QUE SIGUE AL PUNTERO ===== */
+@property --o{syntax:"<number>";inherits:false;initial-value:0}
+.card{--o:0;transition:--o .35s ease;border-color:transparent!important;
+background:radial-gradient(360px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--g1) calc(var(--o)*15%),transparent),transparent 70%) padding-box,linear-gradient(180deg,var(--s1),color-mix(in srgb,var(--s1) 70%,var(--bg))) padding-box,radial-gradient(280px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--g1) calc(var(--o)*95%),var(--line)),var(--line) 75%) border-box}
+.card:hover{--o:1}
+.btn:not(.go),.pad,.msg,.nb:not(.on),.seg button:not(.on){--o:0;transition:--o .3s ease,background-color .2s,border-color .2s,color .2s,transform .2s;background-image:radial-gradient(110px circle at var(--mx,50%) var(--my,50%),color-mix(in srgb,var(--g1) calc(var(--o)*26%),transparent),transparent 75%)}
+.btn:not(.go):hover,.pad:hover,.msg:hover,.nb:not(.on):hover,.seg button:not(.on):hover{--o:1}
+.btn.go,.nb.on{background-image:linear-gradient(140deg,var(--g1),var(--g2))}
+@media(hover:none){.card{--o:0}}
+/* ===== OTRAS PESTAÑAS ===== */
+.pg{display:none;flex:1;min-height:0;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--s2) transparent}
+.pg.on{display:block;animation:rise .4s both}
+.pw{max-width:1120px;margin:0 auto;padding-bottom:20px;display:flex;flex-direction:column;gap:12px}
+.ph h2{margin:0;font:800 24px var(--fd);letter-spacing:-.5px}.ph p{margin:3px 0 0;color:var(--m)}
+.g2,.g3,.gx{display:grid;gap:12px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.gx{grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:10px}
+.fld{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--m);font-weight:600}
+.fld input,.fld select,.in2{background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;color:var(--t);font:inherit;font-size:13px;outline:0;width:100%}
+.fld input:focus,.in2:focus{border-color:var(--g2)}
+.tag{padding:3px 8px;border-radius:8px;font-size:10.5px;font-weight:700;background:var(--s2);border:1px solid var(--line);color:var(--m)}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.row .sp2{margin-left:auto}
+.code{flex:1;min-width:0;font:12px ui-monospace,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--g1)}
+.note{padding:11px 14px;border-radius:14px;border:1px solid color-mix(in srgb,var(--warn) 40%,transparent);background:color-mix(in srgb,var(--warn) 9%,transparent);color:var(--warn);font-size:13px}
+.note.ok{border-color:color-mix(in srgb,var(--ok) 40%,transparent);background:color-mix(in srgb,var(--ok) 8%,transparent);color:var(--ok)}
+.pg p.m,.pg small{color:var(--m)}.pg h3{margin:0 0 4px;font:700 16px var(--fd)}
+.sel{box-shadow:0 0 0 2px var(--ok),0 10px 30px var(--glow)}
+.stat b{font:800 30px var(--fd);display:block;line-height:1.1}.stat small{font-size:12px}
+.gift{padding:12px;display:flex;flex-direction:column;gap:8px}.gift .em{height:78px;border-radius:12px;display:grid;place-items:center;font-size:42px;background:radial-gradient(circle,var(--s2),transparent 80%)}
+.gift .tp{display:flex;gap:6px;justify-content:space-between}.gift b{font-size:14px}
+input[type=range]{accent-color:var(--g2);flex:1;min-width:120px}
+.styl{padding:0;display:flex;flex-direction:column}.styl .pv{height:96px;display:grid;place-items:center;font-size:38px}.styl .bd{padding:12px 14px;display:flex;flex-direction:column;gap:5px}
+.wd{display:flex;flex-direction:column;gap:10px}
+.mini{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:#0b0d1a;border:1px solid rgba(255,255,255,.1);color:#f5efe3;width:max-content;max-width:100%}
+.qr{width:170px;height:170px;border-radius:14px;background:#fff;display:grid;place-items:center;text-align:center;padding:14px;color:#444;font-size:13px;margin:0 auto}
+.qr svg{width:100%;height:100%}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.steps .n{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--g2);color:var(--ink);font-weight:800;font-size:12px}
+@media(max-width:900px){.g2,.g3,.steps{grid-template-columns:1fr}}
+/* ===== PESTAÑAS COMPACTAS: TODO EN UNA PANTALLA ===== */
+@media(min-width:1101px){
+.pg{overflow:auto}
+.pw{max-width:none;gap:8px;padding:0 2px 4px;min-height:100%}
+.ph{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid var(--line);position:relative}
+.ph::after{content:"";position:absolute;left:0;bottom:-1px;width:84px;height:2px;background:linear-gradient(90deg,var(--g1),transparent)}
+.ph h2{font-size:20px;background:linear-gradient(180deg,var(--t) 30%,var(--g1));-webkit-background-clip:text;background-clip:text;color:transparent}
+.ph p{margin:0;font-size:12.5px}
+.pg .card{padding:11px 14px;border-radius:16px}.pg .card.styl{padding:0}
+.pg .g2,.pg .g3,.pg .steps{gap:8px}
+.pg h3{font-size:14px;margin-bottom:2px}.pg .btn{padding:6px 11px;font-size:12px}
+.pg .note{padding:7px 12px;font-size:12px;border-radius:12px}
+.pg .code{padding:7px 10px;font-size:11.5px}
+.pg p.m{margin:4px 0 0;font-size:12px!important}
+.pg .fld input,.pg .fld select{padding:8px 11px}
+/* móvil */
+.qr{width:132px;height:132px;padding:8px;font-size:11.5px}
+#pg2 .card p{margin:2px 0 8px}
+/* alertas */
+#stl{grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+#stl .pv{height:50px;font-size:26px}#stl .bd{padding:8px 10px;gap:4px}#stl .bd small{display:none}
+#stl b{font-size:12px;line-height:1.2;min-height:28px}#stl .btn{margin-top:2px!important;padding:5px 8px}
+/* widgets */
+#pg5 .g2{grid-template-columns:repeat(4,minmax(0,1fr))}
+#pg5 .wd{gap:8px}#pg5 .wd .row:first-child{flex-wrap:wrap}
+#pg5 .wd small{font-size:11.5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#pg5 .wd .row:last-child{flex-direction:column;align-items:stretch}
+#pg5 .wd .btn.sp2{margin-left:0;padding:4px 9px}
+#pg5 .note{align-self:flex-start}
+/* cámaras */
+#pg7 .card[style*="min-height"]{min-height:80px!important}
+#pg7 h3[style]{font-size:17px!important}
+/* regalos */
+#pg8 .pw{height:100%;min-height:0}
+#pg8 .g3{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+#pg8 .stat{padding:7px 12px}#pg8 .stat b{font-size:21px}#pg8 .stat small:last-child{display:none}
+#pg8 .gx{flex:1;min-height:0;overflow:auto;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));align-content:start;padding-right:4px;scrollbar-width:thin;scrollbar-color:var(--s2) transparent}
+#pg8 .gift{padding:9px;gap:5px}#pg8 .gift .em{height:52px;font-size:30px}#pg8 .gift b{font-size:13px}
+#pg8 .gift .btn{padding:5px 8px;font-size:11.5px}
+#pg8 #pg8{overflow:hidden}
+}
+#pg8{overflow:hidden}
+@media(min-width:1101px) and (max-height:760px){.pg .ph p{display:none}.qr{width:112px;height:112px}#pg5 .wd small{-webkit-line-clamp:1}.pg .card{padding:9px 12px}}
+/* ===== FIX: etiquetas de la barra lateral siempre encima ===== */
+.rail{z-index:50}
+.nb::after{z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.45);color:var(--t)}
+.nb:focus-visible::after,.nb:hover::after{opacity:1;transform:none}
+@media(min-width:1101px){.shell{overflow:hidden}}
+
+/* Edición de prueba: continuidad visual en todas las ventanas */
+.demo-pill{color:var(--g1);font-size:10px;letter-spacing:.03em;border-color:color-mix(in srgb,var(--g2) 32%,var(--line))}
+#home{min-height:0}.pg .card{transition:box-shadow .2s,border-color .2s}.pg .card:hover{box-shadow:0 8px 30px rgba(0,0,0,.17)}
+.pg .pw{padding-bottom:12px}.pg .head{margin-bottom:8px}
+.floating-config{position:fixed;z-index:500;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.72);backdrop-filter:blur(8px)}
+.floating-config[hidden]{display:none!important}
+.config-panel{width:min(570px,100%);max-height:min(650px,92vh);overflow:auto;background:var(--s1);border:1px solid color-mix(in srgb,var(--g2) 40%,var(--line));border-radius:22px;padding:22px;box-shadow:0 30px 100px rgba(0,0,0,.65)}
+.config-title{font:800 22px var(--fd);margin:0 0 5px}.config-sub{font-size:12px;color:var(--m);margin:0 0 18px}.config-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.config-panel label{font-size:12px;font-weight:650;color:var(--m);display:flex;flex-direction:column;gap:6px}
+.config-panel input,.config-panel select{width:100%;border:1px solid var(--line);background:var(--s2);border-radius:10px;padding:9px 10px;color:var(--t);font:inherit}
+.config-panel input[type=range]{padding:5px 0;accent-color:var(--g2)}
+.config-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.previewbox{border:1px solid var(--line);background:var(--bg);border-radius:14px;padding:18px;text-align:center;min-height:82px;display:flex;align-items:center;justify-content:center;gap:20px;font-weight:700;flex-wrap:wrap}
+.previewbox b{font:800 23px var(--fd)}
+@media(max-width:700px){.config-row{grid-template-columns:1fr}.bar .r{width:100%;margin-left:0}.demo-pill{font-size:9px}}
+@media(min-width:1101px){.pg{scrollbar-gutter:stable}.pw{gap:7px}.pg .card{min-width:0}}
+
+
+/* GREÑA LIVE 6 · cuentas, modales premium y aislamiento visual */
+.profile-trigger{font:inherit;color:inherit;text-align:left;cursor:pointer;min-width:0;transition:border-color .2s,box-shadow .2s}
+.profile-trigger:hover{border-color:var(--g2);box-shadow:0 0 20px var(--glow)}
+.profile-trigger .av{overflow:hidden;background-size:cover;background-position:center}
+.license-pill{color:var(--g1);border-color:color-mix(in srgb,var(--g2) 38%,var(--line));font-size:11px}
+.premium-shade{position:fixed;inset:0;z-index:1000;background:rgba(4,3,3,.78);backdrop-filter:blur(9px);display:flex;align-items:center;justify-content:center;padding:16px}
+.premium-shade[hidden]{display:none!important}
+.premium-dialog{width:min(700px,100%);max-height:min(780px,94dvh);overflow:hidden;display:flex;flex-direction:column;border:1px solid color-mix(in srgb,var(--g2) 38%,var(--line));border-radius:24px;background:linear-gradient(150deg,var(--s2),var(--s1) 26%,var(--bg));box-shadow:0 30px 110px #000a}
+.premium-top{padding:16px 20px 13px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);flex:none}
+.premium-top h2{font:800 20px var(--fd);margin:0}.premium-top p{color:var(--m);font-size:12px;margin:3px 0 0}
+.premium-content{padding:18px 20px 22px;overflow:auto;scrollbar-width:thin;min-height:0}
+.premium-actions{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:12px 20px;border-top:1px solid var(--line)}
+.prem-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.prem-tile{padding:16px;border-radius:15px;border:1px solid var(--line);background:var(--s2);text-align:left;display:flex;flex-direction:column;gap:6px;transition:border-color .2s,transform .2s}
+.prem-tile:hover{border-color:var(--g2);transform:translateY(-1px)}
+.prem-tile .emoji{font-size:25px}.prem-tile b{font:700 15px var(--fd)}.prem-tile small{color:var(--m);font-size:12px}
+.prem-field{display:flex;flex-direction:column;gap:6px;color:var(--m);font-size:12px;font-weight:650;margin:9px 0}
+.prem-field input,.prem-field select{width:100%;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--s2);color:var(--t);font:inherit}
+.prem-field input[type=range]{padding:0;accent-color:var(--g2)}
+.prem-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0;border-bottom:1px solid var(--line)}
+.prem-row>span:first-child{flex:1;min-width:125px}.prem-row .sw{width:44px;height:26px}.prem-row .sw::after{width:18px;height:18px}.prem-row .sw.on::after{left:21px}
+.prem-note{font-size:12px;color:var(--m);background:var(--s2);border:1px solid var(--line);border-radius:12px;padding:11px;margin-top:12px}
+.prem-preview{min-height:120px;display:grid;place-items:center;text-align:center;gap:7px;padding:16px;border-radius:14px;border:1px dashed color-mix(in srgb,var(--g2) 45%,var(--line));background:var(--s1);margin:12px 0}
+.prem-preview strong{color:var(--g1);font:800 23px var(--fd)}
+.prem-label{font-size:11px;color:var(--g1);text-transform:uppercase;letter-spacing:.12em;font-weight:700}
+@media(max-width:650px){.prem-grid{grid-template-columns:1fr}.premium-top{padding:12px}.premium-content{padding:12px}.premium-actions{padding:10px}.license-pill{font-size:10px}}
+
 </style>
-
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=529">
 </head>
-<body class="grena-control">
-<div class="app-shell">
-  <header class="topbar">
-    <div class="brand-block">
-      <div class="brand-mark grena-logo-mark" role="img" aria-label="GREÑA LIVE"><img class="grena-logo-image" src="/favicon.svg?v=529" alt="" width="64" height="64"></div>
-      <div><strong>GREÑA LIVE PRO</strong><span>CREATOR CONTROL · 4.0</span></div>
-    </div>
-    <nav class="primary-nav" aria-label="Navegación principal">
-      <a class="top-link nav-home active" href="/" data-home="1" title="Inicio · Chat y Voz" aria-label="Inicio"><span class="gx-nav-icon" aria-hidden="true">⌂</span><span class="gx-nav-label">Inicio</span></a>
-      <a class="top-link grena-desktop-bubble-control" id="grenaBubbleModeControl" href="/__grena_bubble_mode__" style="display:none" title="Pestaña flotante · Abrir ventana que puedes arrastrar" aria-label="Ventana flotante"><span class="gx-nav-icon" aria-hidden="true">▣</span><span class="gx-nav-label">Flotante</span></a>
-      <a class="top-link" href="/mobile-device.html" title="Versión móvil" aria-label="Versión móvil"><span class="gx-nav-icon" aria-hidden="true">📱</span><span class="gx-nav-label">Móvil</span></a>
-      <a class="top-link" href="/live-panel.html" title="Panel en vivo" aria-label="Panel en vivo"><span class="gx-nav-icon" aria-hidden="true">💬</span><span class="gx-nav-label">En vivo</span></a>
-      <a class="top-link" href="/alerts.html" data-module="alerts" title="Editor de alertas" aria-label="Alertas"><span class="gx-nav-icon" aria-hidden="true">✦</span><span class="gx-nav-label">Alertas</span></a>
-      <a class="top-link" href="/widgets.html" data-module="widgets" title="Widgets para OBS" aria-label="Widgets OBS"><span class="gx-nav-icon" aria-hidden="true">▦</span><span class="gx-nav-label">Widgets</span></a>
-      <a class="top-link" href="/dynamics.html" data-module="dynamics" title="Dinámicas Minecraft" aria-label="Dinámicas Minecraft"><span class="gx-nav-icon" aria-hidden="true">🎮</span><span class="gx-nav-label">Juegos</span></a>
-      <a class="top-link" href="/cam-room.html" data-module="cam" title="Cámaras para OBS" aria-label="Cam Room"><span class="gx-nav-icon" aria-hidden="true">▣</span><span class="gx-nav-label">Cámaras</span></a>
-      <a class="top-link" href="/gift-catalog.html" data-module="catalog" title="Catálogo de regalos" aria-label="Catálogo de regalos"><span class="gx-nav-icon" aria-hidden="true">🎁</span><span class="gx-nav-label">Regalos</span></a>
-    </nav>
-    <div class="top-status">
-      <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
-      <a class="top-link" href="/mode.html" title="Elegir versión web o móvil">📱 Cambiar versión</a>
-      <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b class="gx-profile-name-inline"><span id="profileName">GREÑA ID</span><span id="betaLicenseBadge" hidden style="margin-left:7px;padding:2px 7px;background:#145568;color:#d7ffff;border:1px solid #52e2ec;border-radius:7px;font-size:10px;font-weight:900;letter-spacing:.7px" title="Licencia BETA sin fecha de vencimiento">✦ BETA</span></b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
-      <button id="exitAppBtn" class="app-exit-btn" type="button">Salir de GREÑA</button>
-    </div>
-  </header>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="tw" viewBox="0 0 24 24"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.43l-3 3v-3H6.857V1.714h13.714Z"/></symbol>
+<symbol id="kk" viewBox="0 0 24 24"><path d="M1.333 0h8v5.333H12V2.667h2.667V0h8v8H20v2.667h-2.667v2.666H20V16h2.667v8h-8v-2.667H12v-2.666H9.333V24h-8Z"/></symbol>
+<symbol id="tt" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></symbol>
+<symbol id="yt" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></symbol>
+</defs></svg>
 
-  <main class="workspace">
-    <section class="chat-zone panel-shell">
-      <div class="panel-head compact-head">
-        <div class="main-title-wrap">
-          <div class="eyebrow">OPERACIÓN PRINCIPAL</div>
-          <div class="main-title-row"><h1>Chat + Voz</h1><span>Controla tus canales, filtros y más. La inteligencia trabaja por ti.</span></div>
-        </div>
-        <div class="engine-state"><span id="chatEngineDot"></span><b id="chatEngineText">Conectando motor de chat…</b></div>
-      </div>
-      <div class="chat-frame-wrap">
-        <iframe id="chatFrame" title="GREÑA Chat" src="about:blank" allow="autoplay"></iframe>
-      </div>
-      <div class="soundboard-strip" id="soundboardStrip" aria-label="Audios rápidos">
-        <div class="soundboard-meta"><b>🎧 AUDIOS RÁPIDOS</b><span>Clic: reproducir/detener · Mantén 5 s: reemplazar · ⚙ Nombre y teclado · Fade individual</span></div>
-        <div class="soundboard-buttons">
-          <div class="sound-slot" data-sound-wrap="1">
-            <button class="sound-pad empty" type="button" data-sound-slot="1"><span class="sound-pad-icon">＋</span><b>Audio 1</b><small>Vacío · subir</small></button>
-            <button class="sound-slot-settings" type="button" data-sound-config="1" title="Nombre y atajo del botón 1" aria-label="Configurar botón 1">⚙</button>
-            <label class="sound-slot-fade" title="Desvanecido para Audio 1"><input type="checkbox" data-sound-fade="1" checked><i aria-hidden="true"></i><em>Fade</em></label>
-          </div>
-          <div class="sound-slot" data-sound-wrap="2">
-            <button class="sound-pad empty" type="button" data-sound-slot="2"><span class="sound-pad-icon">＋</span><b>Audio 2</b><small>Vacío · subir</small></button>
-            <button class="sound-slot-settings" type="button" data-sound-config="2" title="Nombre y atajo del botón 2" aria-label="Configurar botón 2">⚙</button>
-            <label class="sound-slot-fade" title="Desvanecido para Audio 2"><input type="checkbox" data-sound-fade="2" checked><i aria-hidden="true"></i><em>Fade</em></label>
-          </div>
-          <div class="sound-slot" data-sound-wrap="3">
-            <button class="sound-pad empty" type="button" data-sound-slot="3"><span class="sound-pad-icon">＋</span><b>Audio 3</b><small>Vacío · subir</small></button>
-            <button class="sound-slot-settings" type="button" data-sound-config="3" title="Nombre y atajo del botón 3" aria-label="Configurar botón 3">⚙</button>
-            <label class="sound-slot-fade" title="Desvanecido para Audio 3"><input type="checkbox" data-sound-fade="3" checked><i aria-hidden="true"></i><em>Fade</em></label>
-          </div>
-          <div class="sound-slot" data-sound-wrap="4">
-            <button class="sound-pad empty" type="button" data-sound-slot="4"><span class="sound-pad-icon">＋</span><b>Audio 4</b><small>Vacío · subir</small></button>
-            <button class="sound-slot-settings" type="button" data-sound-config="4" title="Nombre y atajo del botón 4" aria-label="Configurar botón 4">⚙</button>
-            <label class="sound-slot-fade" title="Desvanecido para Audio 4"><input type="checkbox" data-sound-fade="4" checked><i aria-hidden="true"></i><em>Fade</em></label>
-          </div>
-          <div class="sound-slot" data-sound-wrap="5">
-            <button class="sound-pad empty" type="button" data-sound-slot="5"><span class="sound-pad-icon">＋</span><b>Audio 5</b><small>Vacío · subir</small></button>
-            <button class="sound-slot-settings" type="button" data-sound-config="5" title="Nombre y atajo del botón 5" aria-label="Configurar botón 5">⚙</button>
-            <label class="sound-slot-fade" title="Desvanecido para Audio 5"><input type="checkbox" data-sound-fade="5" checked><i aria-hidden="true"></i><em>Fade</em></label>
-          </div>
-        </div>
-        <input id="soundboardFile" type="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.webm" hidden>
-        <dialog class="soundboard-replace-dialog" id="soundboardReplaceDialog">
-          <div class="soundboard-replace-card">
-            <span class="soundboard-replace-icon">🎧</span>
-            <div><b id="soundboardReplaceTitle">Reemplazar audio</b><small id="soundboardReplaceName">Elige un archivo nuevo para este botón.</small></div>
-            <div class="soundboard-replace-actions"><button type="button" id="soundboardReplaceCancel">Cancelar</button><button type="button" class="primary" id="soundboardReplaceConfirm">Reemplazar audio</button></div>
-          </div>
-        </dialog>
-        <dialog class="soundboard-replace-dialog" id="soundboardConfigDialog">
-          <div class="soundboard-config-card">
-            <b id="soundboardConfigTitle">Configurar botón</b>
-            <label>Nombre del botón <input type="text" id="soundboardCustomName" maxlength="32" placeholder="Ej.: Risa, Suspenso, Victoria"></label>
-            <label>Atajo de teclado (cuando GREÑA tiene foco) <input type="text" id="soundboardShortcut" readonly placeholder="Pulsa F8 o Ctrl + Alt + una tecla"></label>
-            <p>Pulsa el campo y luego tu combinación. Supr o Retroceso para borrar. Para atajos con Chrome minimizado, instala el complemento GREÑA y configura sus teclas globales en chrome://extensions/shortcuts.</p>
-            <div class="soundboard-replace-actions"><button type="button" id="soundboardClearShortcut">Quitar atajo</button><button type="button" id="soundboardConfigCancel">Cancelar</button><button type="button" class="primary" id="soundboardConfigSave">Guardar</button></div>
-          </div>
-        </dialog>
-      </div>
-    </section>
+<div class="shell">
+  <nav class="rail" id="nav" aria-label="Secciones">
+    <div class="logo">G</div>
+    <button class="nb on" data-l="Inicio"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg></button>
+    <button class="nb" data-l="Flotante"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="14" height="11" rx="2"/><path d="M8 20h13V9"/></svg></button>
+    <button class="nb" data-l="Móvil"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg></button>
+    <button class="nb" data-l="En vivo"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6.4 6.4 0 000 9M16.5 7.5a6.4 6.4 0 010 9M4.5 4.5a10.6 10.6 0 000 15M19.5 4.5a10.6 10.6 0 010 15"/></svg></button>
+    <button class="nb" data-l="Alertas"><svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 1112 0v6l2 2H4zM10 21h4"/></svg></button>
+    <button class="nb" data-l="Widgets"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></button>
+    <button class="nb" data-l="Juegos"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10v5M4.5 12.5h5M16 11h.01M18.5 14h.01"/></svg></button>
+    <button class="nb" data-l="Cámaras"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="3"/><path d="M16 10l6-3v10l-6-3"/></svg></button>
+    <button class="nb" data-l="Regalos"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v9h14v-9M12 8v13M12 8S10 3 7.500 4.500 9 8 12 8zm0 0s2-5 4.500-3.500S15 8 12 8z"/></svg></button>
+    <div class="sp"></div>
+  </nav>
 
-    <aside class="ops-zone">
-      <section class="panel-shell overview-panel">
-        <div class="panel-head">
-          <div><div class="eyebrow">ESTADO EN VIVO</div><h2>Directo</h2></div>
-          <div class="viewer-total" aria-label="Total de espectadores en vivo">
-            <span class="viewer-total-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" focusable="false"><path d="M12 5c5.4 0 9.4 4.6 10.5 6.1a1.5 1.5 0 0 1 0 1.8C21.4 14.4 17.4 19 12 19S2.6 14.4 1.5 12.9a1.5 1.5 0 0 1 0-1.8C2.6 9.6 6.6 5 12 5Zm0 2C8 7 4.7 10.3 3.5 12c1.2 1.7 4.5 5 8.5 5s7.3-3.3 8.5-5C19.3 10.3 16 7 12 7Zm0 2.2A2.8 2.8 0 1 1 12 14.8 2.8 2.8 0 0 1 12 9.2Z"/></svg>
-            </span>
-            <div class="viewer-total-copy"><small>TOTAL EN VIVO</small><b id="totalViewers">0</b></div>
-            <svg class="viewer-sparkline" id="viewerSparkline" viewBox="0 0 72 28" preserveAspectRatio="none" aria-hidden="true">
-              <path class="viewer-sparkline-grid" d="M0 22H72M0 14H72M0 6H72"></path>
-              <polyline id="viewerSparklineLine" points="0,22 8,22 16,22 24,22 32,22 40,22 48,22 56,22 64,22 72,22"></polyline>
-              <circle id="viewerSparklineDot" cx="72" cy="22" r="2.2"></circle>
-            </svg>
-          </div>
+  <div class="wrap">
+    <header class="bar">
+      <div><h1 id="ttl">Centro de mando</h1><p id="sub"></p></div>
+      <div class="r">
+        <span class="pill license-status license-admin" id="licenseBadge" aria-label="Estado de cuenta">✦ ADMINISTRADOR</span>
+        <button class="me profile-trigger" id="profileTrigger" title="Abrir ajustes de la cuenta"><span class="av" id="userAvatar">G</span><span><b id="profileName">Greña RD</b><small id="profileHandle">@grena_rd</small></span><span style="color:var(--g1)">⌄</span></button>
+      </div>
+    </header>
+
+    <main class="grid" id="home">
+      <section class="card hero">
+        <div>
+          <span class="livebadge"><i class="dot ok"></i>EN VIVO AHORA</span>
+          <div class="big" id="tot">0</div>
+          <span class="delta" id="dl">▲ +0 en el último minuto</span>
         </div>
-        <div class="viewer-grid">
-          <div class="viewer-card tiktok"><img class="platform-glyph" src="/assets/platforms/tiktok.webp" alt="TikTok"><div><small>TikTok</small><b id="tiktokViewers">0</b></div></div>
-          <div class="viewer-card twitch"><img class="platform-glyph" src="/assets/platforms/twitch.webp" alt="Twitch"><div><small>Twitch</small><b id="twitchViewers">0</b></div></div>
-          <div class="viewer-card kick"><img class="platform-glyph" src="/assets/platforms/kick.svg" alt="Kick"><div><small>Kick</small><b id="kickViewers">0</b></div></div><div class="viewer-card youtube"><span style="color:#ff3030;font-weight:900;font-size:24px">▶</span><div><small>YouTube</small><b id="youtubeViewers">0</b></div></div>
-        </div>
-        <div class="platform-section-head"><div class="platform-section-icon">◉</div><div><b>Plataformas</b><small>Gestiona tus conexiones y estado en tiempo real.</small></div></div>
-        <div class="platform-stack">
-          <article class="platform-row" data-platform="tiktok">
-            <div class="platform-id"><span class="platform-logo tt"><img src="/assets/platforms/tiktok.webp" alt="TikTok"></span><div><b>TikTok</b><small id="tiktokAccount">Cuenta no vinculada</small></div></div>
-            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="tiktokAuth">Cuenta</span><span class="state-chip" id="tiktokLive">LIVE</span><span class="state-chip" id="tiktokEvents">Eventos</span></div><button id="loginTikTok" class="platform-action">Conectar</button></div>
-          </article>
-          <article class="platform-row" data-platform="twitch">
-            <div class="platform-id"><span class="platform-logo tw"><img src="/assets/platforms/twitch.webp" alt="Twitch"></span><div><b>Twitch</b><small id="twitchAccount">Cuenta no vinculada</small></div></div>
-            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="twitchAuth">Cuenta</span><span class="state-chip" id="twitchLive">Chat</span><span class="state-chip" id="twitchEvents">Eventos</span></div><button id="loginTwitch" class="platform-action">Conectar</button></div>
-          </article>
-          <article class="platform-row" data-platform="youtube">
-            <div class="platform-id"><span class="platform-logo" style="color:#ff3030;font-weight:900">▶</span><div><b>YouTube</b><small id="youtubeAccount">Enlace LIVE no configurado</small></div></div>
-            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="youtubeAuth">Enlace</span><span class="state-chip" id="youtubeLive">Chat</span><span class="state-chip" id="youtubeEvents">Eventos</span></div><button id="loginYouTube" class="platform-action">Configurar</button></div>
-          </article>
-<article class="platform-row" data-platform="kick">
-            <div class="platform-id"><span class="platform-logo"><img src="/assets/platforms/kick.svg" alt="Kick"></span><div><b>Kick</b><small id="kickAccount">Cuenta no vinculada</small></div></div>
-            <div class="platform-controls"><div class="platform-states"><span class="state-chip" id="kickAuth">Cuenta</span><span class="state-chip" id="kickLive">Chat</span><span class="state-chip" id="kickEvents">Eventos</span></div><button id="loginKick" class="platform-action">Conectar</button></div>
-          </article>
-        </div>
+        <svg class="chart" viewBox="0 0 400 150" preserveAspectRatio="none">
+          <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9a441" stop-opacity=".5"/><stop offset="1" stop-color="#d9a441" stop-opacity="0"/></linearGradient>
+          <linearGradient id="lg" x1="0" x2="1"><stop offset="0" stop-color="#8a5f1c"/><stop offset="1" stop-color="#f6d98a"/></linearGradient></defs>
+          <path id="ca" fill="url(#ag)"/><path id="cl" fill="none" stroke="url(#lg)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="split" id="split"><i style="background:var(--tt);flex:45"></i><i style="background:var(--tw);flex:15"></i><i style="background:var(--kk);flex:20"></i><i style="background:var(--yt);flex:20"></i></div>
+        <div class="legend" id="leg"></div>
       </section>
 
-      <section class="panel-shell activity-panel" id="activity">
-        <div class="panel-head">
-          <div><div class="eyebrow">ALERTAS REALES</div><h2>Qué pasó en el LIVE</h2></div>
-          <span class="session-badge"><b id="eventCount">0</b> eventos</span>
+      <section class="card chat">
+        <div class="head">
+          <h2 class="h2">Chat unificado</h2>
+          <div class="seg" id="tabs">
+            <button class="on" data-p="all">Todos</button>
+            <button data-p="tt"><svg class="tt"><use href="#tt"/></svg>TikTok</button>
+            <button data-p="tw"><svg class="tw"><use href="#tw"/></svg>Twitch</button>
+            <button data-p="kk"><svg class="kk"><use href="#kk"/></svg>Kick</button>
+            <button data-p="yt"><svg class="yt"><use href="#yt"/></svg>YouTube</button>
+          </div>
+          <div class="r"><input class="inp" id="q" placeholder="Buscar…" aria-label="Buscar mensajes"></div>
         </div>
-        <div class="activity-feed" id="activityFeed">
-          <div class="empty-state"><span>⚡</span><b>Esperando actividad</b><small>Follows, regalos, compartidos, subs, Bits y raids aparecerán aquí con el detalle exacto.</small></div>
-        </div>
+        <div class="feed" id="feed"></div>
       </section>
 
-      <section class="panel-shell quick-panel">
-        <div class="panel-head slim"><div><div class="eyebrow">PRUEBA RÁPIDA</div><h2>Alertas</h2></div><a href="/alerts.html" class="mini-link" data-module="alerts">Personalizar →</a></div>
-        <div class="test-grid">
-          <button data-test="tt-follow"><span>＋</span>Follow</button>
-          <button data-test="tt-gift"><span>🎁</span>Rosa ×5</button>
-          <button data-test="tt-share"><span>↗</span>Share</button>
-          <button data-test="tw-sub"><span>★</span>Sub</button>
-          <button data-test="tw-bits"><span>◆</span>500 Bits</button>
-          <button data-test="ki-follow"><span>＋</span>Kick Follow</button>
-          <button data-test="ki-sub"><span>★</span>Kick Sub</button>
-        </div>
-        <div class="obs-row"><div><small>OVERLAY OBS</small><code id="overlayUrl">/overlay.html</code></div><button id="copyOverlay" class="copy-btn">Copiar</button></div>
+      <aside class="side">
+        <section class="card voice">
+        <div class="vrow"><div><div class="eb">Chat de voz</div><div class="h2" style="margin-top:3px">Fish Audio · 5 voces</div></div><button class="sw on" id="vsw" aria-label="Activar chat de voz"></button></div>
+        <div class="wave on" id="wave"></div>
+        <div class="chips"><span class="chip" id="delayChip">Cola inteligente · 7 s</span><span class="chip">Anti-spam</span><span class="chip">Ajustes de voz</span></div>
       </section>
-    </aside>
-  </main>
-</div>
-<div class="module-layer" id="moduleLayer" aria-hidden="true">
-  <div class="module-bar">
-    <div class="module-title"><span class="module-live-dot"></span><b id="moduleTitle">Módulo GREÑA</b><small>Chat, voz y conexiones siguen activos en segundo plano</small></div>
-    <div class="module-actions">
-      <button id="moduleAlertsBtn" type="button" data-module-switch="alerts">Alertas</button>
-      <button id="moduleWidgetsBtn" type="button" data-module-switch="widgets">Widgets</button>
-      <button id="moduleCamBtn" type="button" data-module-switch="cam">Cam Room</button>
-      <button id="moduleCatalogBtn" type="button" data-module-switch="catalog">Catálogo</button>
-      <button id="closeModuleBtn" type="button" class="module-close">← Chat + Voz</button>
-    </div>
+        <section class="card">
+          <div class="head"><h2 class="h2">Plataformas</h2><div class="r"><span class="eb" id="pc">3 de 4</span></div></div>
+          <div id="plats"></div>
+        </section>
+        <section class="card">
+          <div class="head"><h2 class="h2">Qué pasó en el live</h2><div class="r"><span class="chip" id="evc">0 eventos</span></div></div>
+          <div class="ev" id="ev"><div class="empty" id="emp" style="padding:18px 0">⚡<br>Esperando actividad.<br>Follows, regalos, subs y raids aparecerán aquí.</div></div>
+          <div class="tests" id="tg">
+            <button class="btn">Follow</button><button class="btn">Rosa ×5</button><button class="btn">Sub</button><button class="btn">500 Bits</button><button class="btn">Raid</button>
+            <button class="btn go" id="obs" style="margin-left:auto">Copiar overlay OBS</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="card pads">
+        <div class="pl"><div><div class="eb">Soundboard</div><div class="h2">Audios rápidos</div></div></div>
+        <div class="prow" id="prow"></div>
+      </section>
+    </main>
+
+    <section class="card soon" id="soon"><div class="big2" id="sn">·</div><div class="h2">Explora el menú lateral</div><p style="color:var(--m);max-width:420px;margin:8px auto 0">Esta pestaña mantiene su contenido original; el rediseño de esta primera entrega se centra en Inicio.</p></section>
   </div>
-  <iframe id="moduleFrame" title="Módulo GREÑA" src="about:blank" allow="autoplay; clipboard-write; camera; microphone"></iframe>
 </div>
-<div class="tiktok-link-backdrop" id="tiktokLinkModal" aria-hidden="true">
-  <section class="tiktok-link-card" role="dialog" aria-modal="true" aria-labelledby="tiktokLinkTitle">
-    <div class="tiktok-link-brand"><img src="/assets/platforms/tiktok.webp" alt=""><span>TIKTOK LIVE</span></div>
-    <h2 id="tiktokLinkTitle">Conectar por link del LIVE</h2>
-    <p>Pega el enlace del LIVE de TikTok. GREÑA usará ese mismo LIVE para chat, viewers, regalos, follows, compartidos, likes y alertas.</p>
-    <label for="tiktokLiveUrl">Link del LIVE</label>
-    <input id="tiktokLiveUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://www.tiktok.com/@grena_rd/live">
-    <small id="tiktokLinkHint">No necesitas iniciar sesión ni autorizar permisos de TikTok.</small>
-    <div class="tiktok-link-actions"><button type="button" id="tiktokLinkCancel" class="secondary">Cancelar</button><button type="button" id="tiktokLinkConnect" class="primary">Conectar LIVE</button></div>
+
+
+
+<!-- Controles adicionales de la vista previa, independientes del servidor -->
+<div id="demoModal" class="floating-config" hidden role="dialog" aria-modal="true" aria-labelledby="demoModalTitle">
+  <section class="config-panel">
+    <div class="row"><div style="flex:1"><h2 class="config-title" id="demoModalTitle">Configuración</h2><p id="demoModalSub" class="config-sub">Ajustes visuales de prueba.</p></div><button class="btn" id="modalClose">✕ Cerrar</button></div>
+    <div id="demoModalBody"></div>
+    <div class="config-actions"><button class="btn" id="modalReset">Restablecer</button><button class="btn go" id="modalApply">✓ Aplicar a vista previa</button></div>
   </section>
 </div>
-<div class="toast" id="toast"></div>
-<script src="/control-center.js"></script>
-<script>if(/Electron\/\d+/i.test(navigator.userAgent)){const b=document.getElementById('grenaBubbleModeControl');if(b)b.style.display='inline-flex'}</script>
-<script src="/ui-v2.js"></script>
-<script src="/grena-avatar.js"></script>
+
+
+<div id="premiumOverlay" class="premium-shade" hidden role="dialog" aria-modal="true" aria-labelledby="premiumTitle">
+ <div class="premium-dialog">
+  <div class="premium-top"><button class="btn" id="premiumBack" hidden>← Atrás</button><div style="flex:1"><h2 id="premiumTitle">Ajustes</h2><p id="premiumSub">GREÑA Live · Vista previa</p></div><button class="btn" id="premiumClose">✕</button></div>
+  <div id="premiumBody" class="premium-content"></div><div class="premium-actions" id="premiumFooter"></div>
+ </div>
+</div>
+
+
 <script>
-(()=>{const badge=document.getElementById('betaLicenseBadge');if(!badge)return;
- const check=async()=>{try{const r=await fetch('/api/license/status',{cache:'no-store'}),d=await r.json();badge.hidden=!(r.ok&&d.allowed===true&&d.license?.kind==='beta'&&d.license?.active===true)}
- catch{badge.hidden=true}};
- check();setInterval(check,60000);
-})();
+
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const NOM={tt:"TikTok",tw:"Twitch",kk:"Kick",yt:"YouTube"};
+const ic=k=>`<svg><use href="#${k}"/></svg>`;
+function toast(t){const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),1800)}
+
+/* navegación */
+const TT=["Centro de mando","Ventana flotante","Versión móvil","En vivo","Mis alertas","Widgets","Juegos","Cámaras","Regalos"];
+$$("#nav .nb").forEach((b,i)=>b.onclick=()=>{
+  $$("#nav .nb").forEach(x=>x.classList.toggle("on",x===b));
+  $("#ttl").textContent=TT[i];
+  $("#home").style.display=i?"none":"";$("#soon").style.display=i?"block":"none";
+  $("#sn").textContent=b.dataset.l;
+});
+
+/* voz */
+const w=$("#wave");for(let i=0;i<28;i++){const e=document.createElement("i");e.style.setProperty("--h",(20+Math.random()*80)+"%");e.style.animationDelay=(Math.random()*.8)+"s";e.style.animationDuration=(.5+Math.random()*.7)+"s";w.appendChild(e)}
+
+
+/* chat */
+let pf="all",qs="",n=0;
+function add(m,now){
+  const d=document.createElement("div");d.className="msg";d.dataset.p=m[0];
+  d.innerHTML=`<div class="mav ${m[0]}">${ic(m[0])}</div><div><b class="${m[0]}">${m[1]}</b><small>${now?"ahora":"hace un momento"}</small><p></p></div><button class="mod">Silenciar</button>`;
+  d.querySelector("p").textContent=m[2];
+  d.querySelector(".mod").onclick=()=>{d.remove();toast("Usuario silenciado")};
+  $("#feed").appendChild(d);filtrar();if(now)$("#feed").scrollTop=1e5;
+}
+function filtrar(){$$("#feed .msg").forEach(m=>m.style.display=(pf==="all"||m.dataset.p===pf)&&m.textContent.toLowerCase().includes(qs)?"":"none")}
+
+$$("#tabs button").forEach(t=>t.onclick=()=>{$$("#tabs button").forEach(x=>x.classList.toggle("on",x===t));pf=t.dataset.p;filtrar()});
+$("#q").oninput=e=>{qs=e.target.value.toLowerCase();filtrar()};
+
+/* plataformas */
+const PL=[["tt","Sin cuenta vinculada",0,""],["tw","Sin cuenta vinculada",0,""],["yt","Sin cuenta vinculada",0,""],["kk","Sin cuenta vinculada",0,""]];
+function pl(){$("#plats").innerHTML=PL.map((p,i)=>`<div class="pr"><div class="pi ${p[0]}">${ic(p[0])}</div><div class="pt"><b>${NOM[p[0]]}<i class="dot ${p[2]?p[3]:""}"></i></b><small>${p[2]?p[1]:"Desconectado"}</small></div><button class="btn ${p[2]?"":"go"}" data-i="${i}">${p[2]?"Desconectar":"Conectar"}</button></div>`).join("");
+  $("#pc").textContent=PL.filter(p=>p[2]).length+" de 4";
+}
+pl();
+
+/* alertas */
+const EV={"Follow":["💛","Nuevo follow"],"Rosa ×5":["🌹","Regalo: Rosa ×5"],"Sub":["⭐","Nueva suscripción"],"500 Bits":["💎","500 Bits"],"Raid":["🚀","Raid entrante"]};
+let ne=0;
+
+
+/* pads */
+$("#prow").innerHTML=[1,2,3,4,5].map(i=>`<button class="pad"><span class="play">▶</span><span><b>Audio ${i}</b><small>Vacío · subir</small></span><span class="bars"><i></i><i></i><i></i><i></i></span></button>`).join("");
+
+/* audiencia */
+const D=Array(30).fill(0);let cur=0,tgt=0;
+function draw(){const mx=Math.max(...D),mn=Math.min(...D)-20,p=D.map((v,i)=>[i*400/(D.length-1),140-(v-mn)/(mx-mn)*120]);
+  const l="M"+p.map(a=>a[0].toFixed(1)+" "+a[1].toFixed(1)).join(" L");$("#cl").setAttribute("d",l);$("#ca").setAttribute("d",l+" L400 150 L0 150Z")}
+setInterval(()=>{if(cur!==tgt){cur+=Math.sign(tgt-cur)*Math.max(1,Math.ceil(Math.abs(tgt-cur)/8));$("#tot").textContent=cur.toLocaleString("en-US")}},35);
+draw();
+/* luz que sigue al puntero */
+document.addEventListener("pointermove",e=>{
+  for(const s of [".card",".btn",".pad",".msg",".nb",".seg button"]){
+    const c=e.target.closest&&e.target.closest(s);
+    if(c){const r=c.getBoundingClientRect();c.style.setProperty("--mx",(e.clientX-r.left)+"px");c.style.setProperty("--my",(e.clientY-r.top)+"px")}
+  }
+},{passive:true});
+/* ===== OTRAS PESTAÑAS (JS) ===== */
+const WRAP=$(".wrap"),cp=(t)=>toast(t||"Enlace copiado");
+function pg(i,t,s,h){const d=document.createElement("section");d.className="pg";d.id="pg"+i;d.innerHTML=`<div class="pw"><div class="ph"><h2>${t}</h2><p>${s}</p></div>${h}</div>`;WRAP.appendChild(d)}
+const tg=(on)=>`<button class="sw${on?" on":""}" aria-label="Activar"></button>`;
+const CLR={tt:"TikTok",tw:"Twitch",kk:"Kick",yt:"YouTube"};
+
+/* 1 · Flotante */
+pg(1,"Ventana flotante","Mini panel siempre visible encima de tu juego o de OBS.",`
+<div class="g2"><div class="card"><div class="eb" style="margin-bottom:12px">Vista previa</div>
+<div class="mini"><div class="logo" style="width:40px;height:40px;margin:0;font-size:20px">G</div><div><b>GREÑA LIVE <i class="dot ok" style="display:inline-block"></i></b><div style="font-size:12px;color:#9b9283">Multichat activo</div></div><div style="text-align:right;margin-left:18px"><div style="font:800 26px var(--fd);color:var(--g1);line-height:1" id="fl">0</div><div style="font-size:10px;letter-spacing:.1em;color:#9b9283">EN VIVO</div></div></div>
+<div class="chip" style="margin-top:10px">Esperando espectadores de tus directos</div></div>
+<div class="card"><h3>Ajustes de la ventana</h3>
+<div class="row" style="justify-content:space-between;padding:8px 0"><span>Siempre al frente</span>${tg(1)}</div>
+<div class="row" style="justify-content:space-between;padding:8px 0"><span>Mostrar último mensaje</span>${tg(1)}</div>
+<div class="row" style="justify-content:space-between;padding:8px 0"><span>Ocultar al perder el foco</span>${tg(0)}</div>
+<div class="row" style="padding:8px 0"><span>Opacidad</span><input type="range" min="30" max="100" value="90"></div>
+<div class="row" style="margin-top:6px"><button class="btn go" data-v4-action="floating-open">Abrir ventana</button><button class="btn" data-v4-action="floating-reset">Restablecer posición</button></div></div></div>`);
+setInterval(()=>{const f=$("#fl");if(f)f.textContent=$("#tot").textContent},1000);
+
+/* 2 · Móvil */
+pg(2,"Versión móvil","Vincula tu teléfono con GREÑA ID.",`
+<div class="note">⚠ Por ahora el teléfono debe estar en la misma red Wi-Fi que la PC. La conexión desde otra red aún no está implementada.</div>
+<div class="g2"><div class="card" style="text-align:center"><h3>1. Instalar GREÑA Live Mobile</h3><p class="m" style="font-size:12.5px">Abre la versión web en tu teléfono y agrégala a la pantalla de inicio. No es un APK.</p><div class="qr" id="q1">Activa el acceso Wi-Fi local para generar QR</div><small style="display:block;margin:10px 0">Esta PC solo escucha en 127.0.0.1</small><button class="btn" id="cp1" disabled style="opacity:.5">Copiar enlace</button></div>
+<div class="card" style="text-align:center"><h3>2. Vincular dispositivo</h3><p class="m" style="font-size:12.5px">Código de un solo uso, válido 2 minutos.</p><div class="qr" id="q2">Todavía no disponible desde el teléfono</div><b style="display:block;margin:10px 0;color:var(--g1)" id="cd">Caduca en 120 s</b><button class="btn go" id="gq">Generar QR de vinculación</button></div></div>
+<div class="row"><button class="btn go" id="wf">📶 Habilitar acceso por Wi-Fi local</button><small>Pulsa y luego escanea los códigos.</small></div>`);
+
+/* 3 · En vivo */
+pg(3,"En vivo","Estado del motor de directos por plataforma.",`<div class="g2" id="lv"></div>`);
+const LV={tt:["Sin vincular",0,0],tw:["Sin vincular",0,0],kk:["Sin vincular",0,0],yt:["Sin vincular",0,0]};
+function lv(){$("#lv").innerHTML=Object.keys(LV).map(k=>`<div class="card"><div class="row"><div class="pi ${k}">${ic(k)}</div><div><b>${CLR[k]}</b><div><small>${LV[k][0]}</small></div></div><span class="tag sp2" style="${LV[k][1]?"color:var(--ok)":""}">${LV[k][1]?"● EN DIRECTO":"Sin directo"}</span></div><div class="row" style="margin-top:14px"><div class="stat"><b>${LV[k][1]?Number(LV[k][2]||0).toLocaleString("es-DO"):"—"}</b><small>espectadores</small></div><button class="btn ${LV[k][1]?"":"go"} sp2" data-k="${k}">${LV[k][1]?"Detener lectura":"Detectar directo"}</button></div></div>`).join("");
+}lv();
+
+/* 4 · Alertas */
+const ST=[["🧱","Minecraft · PixelCraft 2.0","Tipografía pixelada, bloques, partículas y barra XP."],["🁣","Dominó · Fichas animadas","Fichas y efectos propios para seguidores, regalos y subs."],["✦","Ascensión · Premium","Auras, anillos cinemáticos y sonidos para 6 eventos."],["🎁","Premium de Catálogo","Imagen o GIF real del regalo con brillo dinámico."],["💥","Pantalla Completa · Impacto","El regalo cae sobre el stream con ondas y vibración."],["🪄","GREÑITO · Ajolote Mágico","La alerta original chibi con expresiones y corazones."],["🦊","Mascot Alerts · Personajes Pixel","Cinco personajes pixel con partículas por evento."]];
+pg(4,"Mis alertas","Elige cómo se verán tus alertas en OBS, en vertical y horizontal.",`
+<div class="g3" id="stl">${ST.map((s,i)=>`<div class="card styl${i==6?" sel":""}"><div class="pv" style="background:linear-gradient(135deg,color-mix(in srgb,var(--g3) 55%,var(--s2)),var(--s2))">${s[0]}</div><div class="bd"><div class="row"><b>${s[1]}</b></div><small>${s[2]}</small><button class="btn sp3 ${i==6?"go":""}" style="margin-top:6px">${i==6?"✓ Activo":"Elegir estilo"}</button></div></div>`).join("")}</div>
+<div class="g2"><div class="card"><h3>Personaje de Mascot Alerts</h3><label class="fld"><select><option>🐶 Perro Pixel</option><option>🦊 Zorro Pixel</option><option>🐱 Gato Pixel</option><option>🐸 Rana Pixel</option><option>🐼 Panda Pixel</option></select></label></div>
+<div class="card"><h3>Editar sonidos por alerta</h3><p class="m">Sonidos independientes para follow, regalo, suscripción, raid, compartir y Tap Taps.</p><div class="row" style="margin-top:10px"><button class="btn go" id="openSoundEditor">🎵 Abrir editor compacto</button><span class="tag">6 eventos</span></div></div></div>
+<div class="g2"><div class="card"><h3>Estado de plataformas</h3>${[["tt","TikTok LIVE"],["tw","Twitch"],["kk","Kick"]].map(p=>`<div class="row" style="padding:8px 0;border-top:1px solid var(--line)"><div class="pi ${p[0]}" style="width:30px;height:30px">${ic(p[0])}</div><b>${p[1]}</b><span class="tag sp2" style="color:var(--bad)">No conectado</span></div>`).join("")}</div>
+<div class="card"><h3>Enlaces de OBS · Vertical y Horizontal</h3><small>Funcionan con todas las temáticas; cambiar de estilo no cambia las URLs.</small>${["vertical","horizontal"].map(l=>`<div class="row" style="margin-top:10px"><div class="code">http://127.0.0.1:8787/afterglow-overlay.html?layout=${l}</div><button class="btn" data-copy-near="1">Copiar ${l[0].toUpperCase()}</button></div>`).join("")}</div></div>`);
+
+
+/* 5 · Widgets */
+const WD=[["🟩","Personajes Minecraft","Máximo 10 activos; comentarios y niveles con regalos.","personajes-minecraft.html?clean=1"],["👁️","Contador","Espectadores de TikTok, Twitch, Kick y YouTube.","viewers.html"],["💬","Multichat","Chat unificado y transparente para OBS.","chat/multichat-overlay.html"],["📣","Redes Sociales","Tus redes en un overlay animado y transparente.","social-overlay.html"],["❤️","Tap Tap Top","Top 5 de Tap Taps reales de TikTok con carrera.","taptap-race.html"],["👑","Super Fans","Top diario de Kick, Twitch y TikTok.","super-fans-overlay.html"],["🏆","Índice de Fidelidad","Ranking automático de fidelidad multiplataforma.","loyalty-overlay.html"]];
+pg(5,"Widgets para OBS","Cada gadget conserva siempre el mismo enlace de OBS: elige el modelo y pulsa APLICAR.",`<div class="note ok">● WIDGETS LOCALES ACTIVOS</div><div class="g2">${WD.map(w=>`<div class="card wd"><div class="row"><div class="pi" style="font-size:18px">${w[0]}</div><div><b>${w[1]}</b><div><small>${w[2]}</small></div></div><button class="btn sp2" data-v4-action="widget-config">Configurar +</button></div><div class="row"><div class="code">http://127.0.0.1:8787/${w[3]}</div><button class="btn go" data-copy-near="1">Copiar link OBS</button></div></div>`).join("")}</div>`);
+
+/* 6 · Juegos */
+pg(6,"🎮 ¿Qué prefieres en Minecraft?","Tu chat decide A o B cuando recibes un follow. Los desafíos compartidos requieren un servidor y puente Minecraft compatible.",`
+<div class="g3"><div class="card"><h3>Control de la dinámica</h3><div class="row" style="justify-content:space-between;margin:10px 0"><span>Recibir nuevos retos</span>${tg(0)}</div><span class="tag">DESACTIVADA · Cola: 0</span><p class="m" style="font-size:12.5px">Apagado: no se aceptan nuevos follows ni votos para este perfil.</p></div>
+<div class="card"><h3>Pruebas internas (sin LIVE)</h3><div class="fld" style="margin:8px 0"><input value="PedroRD"></div><div class="row"><button class="btn go" data-v4-action="minecraft-test-follow">Simular follow</button><button class="btn" data-v4-action="minecraft-test-vote-a">Voto A</button><button class="btn" data-v4-action="minecraft-test-vote-b">Voto B</button></div><p class="m" style="font-size:12.5px">La prueba no publica un follow real.</p></div>
+<div class="card"><h3>Conectar Minecraft Bedrock PC</h3><small>Abre el chat de Minecraft con permisos de operador y pega el comando una vez por sesión.</small><div class="code" style="margin:10px 0">/connect ws://127.0.0.1:19135</div><button class="btn go" data-copy-near="1">Copiar comando</button><p class="m" style="font-size:12.5px">Puente listo · todavía no conectado.</p></div></div>
+<div class="g3"><div class="card"><h3>Jugar con amigos</h3><small>Sala GREÑA ID central: sin sala creada</small><label class="fld" style="margin:10px 0">Tu gamertag de Minecraft<input placeholder="Ejemplo: Sr Omi1524"></label><button class="btn go" data-v4-action="minecraft-save-gamertag">Guardar jugador</button><label class="fld" style="margin:10px 0">GREÑA ID de tu amigo<input placeholder="Usuario GREÑA ID"></label><button class="btn" data-v4-action="minecraft-invite">Enviar invitación</button></div>
+<div class="card"><h3>Votación activa</h3><p class="m">No hay votación activa.</p><div style="height:10px;border-radius:9px;background:var(--s2);margin:8px 0 18px"></div><h3>Resultados recientes</h3><p class="m">—</p></div></div>`);
+
+/* 7 · Cámaras */
+pg(7,"GREÑA Cam Room","Crea una sala, invita personas desde cualquier red y convierte cada webcam en una fuente individual para OBS.",`
+<div class="card"><div class="row"><div><div class="eb">Nueva sala</div><h3 style="font-size:20px;margin-top:3px">Crea tu grupo de cámaras</h3><small>GREÑA prepara un enlace HTTPS externo; cada cámara queda protegida por el PIN.</small></div><div class="row sp2"><div class="fld"><input id="pin" inputmode="numeric" maxlength="8" placeholder="PIN cámara · 4-8 números"></div><button class="btn go" id="mk">+ Crear sala</button></div></div><div id="room"></div></div>
+<div class="note ok">Cam Room verificará un enlace HTTPS externo cuando crees tu sala.</div>
+<div class="steps">${[["01","Crea la sala","Elige el PIN principal y GREÑA prepara el acceso seguro."],["02","Invita a tu gente","Comparte un enlace HTTPS; entran desde móvil, PC y otra red."],["03","Llévalo a OBS","Cada participante es una fuente independiente, con o sin audio."]].map(s=>`<div class="card"><div class="row"><span class="n">${s[0]}</span><b>${s[1]}</b></div><small>${s[2]}</small></div>`).join("")}</div>
+<div class="card"><div class="g2" style="align-items:center"><div style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;padding:14px;border-radius:16px;background:var(--bg);border:1px solid var(--line)"><div class="card" style="display:grid;place-items:center;min-height:130px;text-align:center"><div><div class="av" style="margin:auto">G</div><b>HOST</b><div><small>Tu cámara</small></div></div></div><div style="display:grid;gap:10px"><div class="card" style="text-align:center;padding:10px"><b>INVITADO 1</b><div><small>WebRTC</small></div></div><div class="card" style="text-align:center;padding:10px"><b>INVITADO 2</b><div><small>WebRTC</small></div></div></div></div><div><div class="eb">Cam Room · listo para directo</div><h3 style="font-size:24px;margin:6px 0">Una sala. Varias cámaras. Cada una lista para OBS.</h3><small>GREÑA mantiene el control en tu panel y entrega un enlace individual para cada participante.</small></div></div></div>`);
+
+/* 8 · Regalos */
+let GF=[];
+pg(8,"Regalos y apoyos","TikTok + Twitch + Kick + YouTube en una sola biblioteca visual para alertas.",`
+<div class="g3" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">${[["Total","—","catálogo de prueba"],["TikTok","—","regalos"],["Twitch","—","Bits / subs"],["Kick","—","KICKs / Gifts"],["YouTube","—","Super Chats"],["Animados","—","media disponible"]].map(s=>`<div class="card stat"><small>${s[0]}</small><b>${s[1]}</b><small>${s[2]}</small></div>`).join("")}</div>
+<div class="card row"><input class="inp" id="gq2" style="flex:1;width:auto" placeholder="Buscar Rosa, Galaxy, Bits, KICKs…"><div class="seg" id="gt"><button class="on" data-p="all">Todos</button><button data-p="tt">TikTok</button><button data-p="tw">Twitch</button><button data-p="kk">Kick</button><button data-p="yt">YouTube</button></div><span class="row"><button class="sw" id="ga"></button><small>Solo animados</small></span></div>
+<small id="gc"></small><div class="gx" id="gg"></div>`);
+let gp="all",gq="",gan=0;
+function gr(){const L=GF.filter(g=>(gp==="all"||g[1]===gp)&&(!gan||g[4])&&g[0].toLowerCase().includes(gq));$("#gc").textContent="Mostrando "+L.length+" elementos del catálogo real";
+$("#gg").innerHTML=L.map(g=>`<div class="card gift"><div class="tp"><span class="tag ${g[1]}">${CLR[g[1]]}</span><span class="tag">${g[4]?"ANIMADO":"ESTÁTICO"}</span></div><div class="em">${g[3]}</div><b>${g[0]}</b><small>${g[2]}</small><div class="row"><button class="btn go" style="flex:1" data-n="${g[0]}">▶ Probar alerta</button><button class="btn" data-copy-json="1">{ }</button></div></div>`).join("")||'<div class="empty">Sin resultados</div>';
+}
+$("#gq2").oninput=e=>{gq=e.target.value.toLowerCase();gr()};
+$$("#gt button").forEach(b=>b.onclick=()=>{$$("#gt button").forEach(x=>x.classList.toggle("on",x===b));gp=b.dataset.p;gr()});
+$("#ga").onclick=e=>{e.currentTarget.classList.toggle("on");gan^=1;gr()};gr();
+
+/* navegación completa */
+$$("#nav .nb").forEach((b,i)=>b.addEventListener("click",()=>{$("#soon").style.display="none";$$(".pg").forEach(p=>p.classList.toggle("on",p.id==="pg"+i))}));
+document.addEventListener("click",e=>{const s=e.target.closest(".pg .sw");if(s&&s.id!=="ga")s.classList.toggle("on")});
+
+
 </script>
-<script src="/grena-community.js"></script>
-<script src="/app-lifecycle.js"></script>
-<script>(()=>{const e=document.getElementById('overlayUrl');if(e)e.textContent=location.origin+'/overlay.html'})();</script>
+<script src="/assets/qr-code.min.js"></script>
+<script src="/grena-v4-live.js?v=6004" defer></script>
 </body>
 </html>

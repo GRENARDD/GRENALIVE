@@ -88,13 +88,13 @@ test('Fish retries preserve original timestamp and do not displace newer same-us
   assert.equal(ctx.retry({...msg,user:'stale',__voiceQueuedAt:Date.now()-16000}),false);
 });
 
-test('Per-user cooldown is 7 seconds and rejected checks cannot reset it',()=>{
+test('Per-user cooldown is 4 seconds and rejected checks cannot reset it',()=>{
   const a=html.indexOf('function userVoiceRateLimited(m={}){');
   const b=html.indexOf('function dropStaleVoiceMessages()',a);
   assert.ok(a>=0&&b>a);
   let now=1000;
   const ctx={
-    VOICE_USER_COOLDOWN_MS:7000,
+    VOICE_USER_COOLDOWN_MS:4000,
     speaking:false,activeVoiceMessage:null,
     voiceUserLastQueuedAt:new Map(),
     voiceUserRateKey:userKey,
@@ -107,15 +107,15 @@ test('Per-user cooldown is 7 seconds and rejected checks cannot reset it',()=>{
   assert.equal(ctx.limited(m),false);
   ctx.mark(m);
   assert.equal(ctx.limited(m),true);
-  now=7999;
+  now=4999;
   assert.equal(ctx.limited(m),true);
   assert.equal(ctx.limited(m),true);
   assert.equal(ctx.limited(different),false);
-  now=8000;
+  now=5000;
   assert.equal(ctx.limited(m),false);
   ctx.mark(m);
   assert.equal(ctx.limited(m),true);
-  now=15000;
+  now=9000;
   assert.equal(ctx.limited(m),false);
 });
 
@@ -123,7 +123,7 @@ test('The browser displays fresh chat before filtering for TTS, and HTTP restore
   assert.match(html,/const isNewLiveChat = addMessage\(m\);[\s\S]*?if\(isNewLiveChat\) queueVoice\(m\);/);
   assert.match(html,/const isNewLiveChat=addMessage\(item\);[\s\S]*?if\(bootstrapped && item\._historyId && isNewLiveChat\) queueVoice\(item\);/);
   assert.match(html,/const VOICE_QUEUE_HARD_LIMIT = 16;/);
-  assert.match(html,/const VOICE_USER_COOLDOWN_MS = 7000;/);
+  assert.match(html,/const VOICE_USER_COOLDOWN_MS = 4000;/);
   assert.match(html,/audio\.playbackRate = 1/);
   assert.match(html,/const FISH_VOICE_COUNT = 5/);
 });

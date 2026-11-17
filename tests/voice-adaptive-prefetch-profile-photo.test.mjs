@@ -52,12 +52,11 @@ test('The existing five stable Fish voices and natural waveform stay unchanged',
  assert.match(chat,/audio\.playbackRate = 1/);
  assert.match(chat,/const FISH_PREFETCH_CONCURRENCY = 3/);
 });
-test('GREÑA ID uses the locally scoped photo inside its single large main avatar',()=>{
- assert.match(index,/id="profileAvatar"/);
+test('GREÑA V4 uses one real GREÑA ID photo in the original V4 header circle',()=>{
+ const adapter=readFileSync(new URL('../grena-v4-live.js',import.meta.url),'utf8');
+ assert.match(index,/id="userAvatar"/);
  assert.match(index,/id="profileName"/);
+ assert.match(adapter,/grena-avatar:/);
+ assert.match(adapter,/avatar\.style\.backgroundImage/);
  assert.doesNotMatch(index,/id="profileNamePhoto"/);
- assert.match(avatar,/av\.style\.backgroundImage=d/);
- assert.doesNotMatch(avatar,/inlinePhoto/);
- assert.match(avatar,/key='grena-avatar:'\+d\.user\.id/);
- assert.match(avatar,/if\(d&&!OK\.test\(d\)\) d=null/);
 });
