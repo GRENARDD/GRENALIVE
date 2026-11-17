@@ -115,15 +115,15 @@ function apply(settings){
   const linked=Array.isArray(settings.linkedNetworks)?settings.linkedNetworks:[];
   const item=document.querySelector('.item.'+platform);
   const enabled=Array.isArray(settings.enabledNetworks)?settings.enabledNetworks:linked;
-  item.style.display=linked.includes(platform)&&enabled.includes(platform)?'flex':'none';
   const value=String(overrides[platform]||settings[key]||'').trim().replace(/^@/,'').slice(0,80);
+  item.style.display=enabled.includes(platform)&&(linked.includes(platform)||value)?'flex':'none';
   document.querySelector('[data-network="'+platform+'"]').textContent=value;
  }
  document.querySelector('.wrap').style.visibility='visible';
 }
 async function refresh(){
  if(draft)return;
- try{const obs=new URLSearchParams(location.search).get('obs');const url='/api/social-settings'+(obs?'?obs='+encodeURIComponent(obs):'');const r=await fetch(url,{cache:'no-store'});if(!r.ok)return;const j=await r.json();const s=JSON.stringify(j.settings||{});if(s!==previous){previous=s;apply(j.settings||{})}}catch{}
+ try{const obs=new URLSearchParams(location.search).get('obs');const url='/api/social-settings'+(obs?'?obs='+encodeURIComponent(obs):'');const r=await fetch(url,{cache:'no-store'});if(!r.ok)return;const j=await r.json();if(draft)return;const s=JSON.stringify(j.settings||{});if(s!==previous){previous=s;apply(j.settings||{})}}catch{}
 }
 window.addEventListener('message',e=>{if(e.origin!==location.origin)return;if(e.data?.type==='grena-social-preview'){draft=e.data.settings;apply(draft||{})}});
 refresh();setInterval(refresh,2000);

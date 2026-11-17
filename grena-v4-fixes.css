@@ -73,3 +73,20 @@
 @keyframes v4CommunityTicker{to{transform:translateX(-50%)}}
 @media(max-width:1100px){#home .v4-community{min-height:110px;max-height:136px}}
 @media(prefers-reduced-motion:reduce){#home .v4-community-scrolling{animation:none;max-width:100%;overflow-x:auto}}
+
+
+/* GREÑA 6.0.4 — tarjetas de Widgets legibles: contenido siempre dentro del borde. */
+#pg5 .g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;align-content:start}
+#pg5 .wd{min-width:0;max-width:100%;overflow:hidden;gap:10px!important;padding:16px!important}
+#pg5 .wd .row{min-width:0;width:100%;gap:9px}
+#pg5 .wd .row:first-child{display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;flex-wrap:nowrap}
+#pg5 .wd .row:first-child>.pi{margin:0}
+#pg5 .wd .row:first-child>div:nth-child(2){min-width:0;overflow-wrap:anywhere}
+#pg5 .wd .row:first-child .btn.sp2{margin:0;white-space:nowrap;max-width:100%;font-size:11px}
+#pg5 .wd .row:last-child{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+#pg5 .wd .row:last-child .code{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pg5 .wd .row:last-child [data-copy-near]{min-width:130px;max-width:100%;width:auto;white-space:nowrap;padding:10px!important}
+#pg5 .wd small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:normal;overflow-wrap:anywhere;line-height:1.4}
+@media(max-width:1300px){#pg5 .wd .row:first-child{grid-template-columns:38px minmax(0,1fr)}#pg5 .wd .row:first-child .btn.sp2{grid-column:1/-1;justify-self:start}#pg5 .wd .row:last-child{grid-template-columns:minmax(0,1fr)}#pg5 .wd .row:last-child [data-copy-near]{width:100%}}
+@media(max-width:900px){#pg5 .g2{grid-template-columns:minmax(0,1fr)!important}}
+@media(max-width:560px){#pg5 .wd{padding:12px!important}}

@@ -22,7 +22,7 @@ const Q=new URLSearchParams(location.search),MAX=Math.max(1,Math.min(10,Number(Q
 const activity=window.GrenaMinecraftActivity.createTracker();
 const OBS_KEY=String(Q.get('obs')||'local');let hkey=2166136261;for(const c of OBS_KEY)hkey=Math.imul(hkey^c.charCodeAt(0),16777619)>>>0;
 const STORAGE_KEY='grena-minecraft-ranking-v2-'+hkey.toString(16);
-try{activity.restore(JSON.parse(localStorage.getItem(STORAGE_KEY)||'null'))}catch{}
+if(Q.get('preview')!=='1'){try{activity.restore(JSON.parse(localStorage.getItem(STORAGE_KEY)||'null'))}catch{}}
 const COL={tiktok:'#fe2c55',kick:'#53fc18',twitch:'#9146ff',youtube:'#ff3030',starvios:'#ef5da8'};
 const cv=document.getElementById('c'),x=cv.getContext('2d');
 let w,h,B=new Map(),DPR=devicePixelRatio||1;
@@ -102,7 +102,7 @@ function syncRanking(){
    if(b){b.name=u.name;b.platform=u.platform;b.coins=u.xpTotal;b.last=u.lastSeen;b.out=0}
  }
 }
-function saveActivity(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(activity.exportState()))}catch{}}
+function saveActivity(){if(Q.get('preview')==='1')return;try{localStorage.setItem(STORAGE_KEY,JSON.stringify(activity.exportState()))}catch{}}
 function push(e){
  if(!e||typeof e!=='object')return;
  if(e.type==='reset'||e.type==='ended'){activity.reset();B.clear();saveActivity();return}

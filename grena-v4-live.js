@@ -813,8 +813,9 @@ async function openWidgetConfig(card){
   const types={'Personajes Minecraft':'minecraft','Contador':'counter','Multichat':'multichat','Redes Sociales':'social','Super Fans':'superfans'};
   const type=types[name];
   if(!type){inform('No hay configuraciones adicionales para este widget');return}
+  const sizes={minecraft:330,counter:400,multichat:450,social:370,superfans:315};
   dialog('Configurar · '+name,'Vista previa y ajustes compactos · GREÑA Premium V4',
-    '<iframe title="Editor compacto de '+name.replace(/[<>"']/g,'')+'" src="/widget-compact.html?type='+encodeURIComponent(type)+'" style="display:block;width:100%;height:min(60vh,520px);min-height:345px;border:1px solid #88642f;border-radius:13px;background:#100d09"></iframe>',
+    '<iframe title="Editor compacto de '+name.replace(/[<>"']/g,'')+'" src="/widget-compact.html?type='+encodeURIComponent(type)+'" style="display:block;width:100%;height:min(68vh,'+sizes[type]+'px);min-height:260px;border:1px solid #88642f;border-radius:13px;background:#100d09"></iframe>',
     [{label:'Cerrar',primary:true,action:hideDialog}]);
   const box=Q('#premiumOverlay .premium-dialog');if(box){box.style.width='min(930px,96vw)';box.style.maxWidth='96vw'}
 }
