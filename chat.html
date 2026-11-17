@@ -2511,10 +2511,11 @@ function blockedUsers(){
 
 function containsBlockedWord(text){
 
-  const words =
-    getList(
-      $('blockedWords').value
-    );
+  // The streamer may separate blocked words with commas or newlines.
+  const words = String($('blockedWords').value || '')
+    .split(/[,\r\n]+/)
+    .map(word=>word.trim().toLowerCase())
+    .filter(Boolean);
 
   const normalized =
     String(text || '')
