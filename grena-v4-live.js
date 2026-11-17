@@ -461,10 +461,24 @@ QA('#prow .pad').forEach((pad,index)=>{
   });
   pad.addEventListener('contextmenu',e=>{e.preventDefault();clear();longPressed=true;soundConfig(slot)});
 });
+let lastPadShortcut={slot:0,at:0};
+function triggerPadShortcut(slot){
+  if(!Number.isInteger(slot)||slot<1||slot>5)return;
+  // The native shortcut and a focused keydown may arrive from the same key press.
+  const stamp=Date.now();
+  if(lastPadShortcut.slot===slot&&stamp-lastPadShortcut.at<180)return;
+  lastPadShortcut={slot,at:stamp};
+  togglePad(slot);
+}
 document.addEventListener('keydown',e=>{
   if(e.repeat||['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)||e.target?.isContentEditable)return;
   const shortcut=(e.ctrlKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'')+(e.metaKey?'Meta+':'')+e.code;
-  for(const m of persistent.board){if(!m.empty&&m.shortcut===shortcut){e.preventDefault();togglePad(m.slot);return}}
+  for(const m of persistent.board){if(!m.empty&&m.shortcut===shortcut){e.preventDefault();triggerPadShortcut(m.slot);return}}
+});
+window.addEventListener('grena:soundboard:trigger',e=>{
+  // Electron sends only a slot number. The renderer always plays its own logged-in GREÑA ID profile.
+  const slot=Number(e.detail?.slot),meta=persistent.board.find(x=>x.slot===slot);
+  if(meta&&!meta.empty)triggerPadShortcut(slot);
 });
 function capturePadShortcut(e){
   if(e.code==='Escape'||e.code==='Backspace'){e.preventDefault();return ''}
