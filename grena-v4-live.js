@@ -763,7 +763,7 @@ function renderCatalog(){
   if(allowed.length>giftLimit){
     const more=document.createElement('button');more.className='btn go gift-more';
     more.textContent='Mostrar '+Math.min(24,allowed.length-giftLimit)+' regalos más';
-    more.onclick=()=>{giftLimit+=24;renderCatalog()};
+    more.onclick=()=>{const scroll=feed.scrollTop;giftLimit+=24;renderCatalog();el('gg').scrollTop=scroll};
     feed.appendChild(more);
   }
 }
