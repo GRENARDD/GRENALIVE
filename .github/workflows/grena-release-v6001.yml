@@ -13,7 +13,8 @@ permissions:
 jobs:
   release:
     # Publish only after the exact V4 PR is merged and the main Windows CI succeeds.
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    # Historical 6.0.1 was published: never republish it from 6.0.2 source.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
