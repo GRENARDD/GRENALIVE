@@ -29,17 +29,17 @@ multichat:{theme:'clean',direction:'left',edgeOffset:0,iconSize:24,readability:'
 social:{socialLayout:'classic',enabledNetworks:['tiktok','twitch','kick','youtube'],socialNameOverrides:{}}
 };
 let base={};let loaded=false;
-const field=(label,id,control)=>'<label>'+label+control.replace('<select','<select id="'+id+'"').replace('<input','<input id="'+id+'"')+'</label>';
+const field=(label,id,control)=>'<label>'+label+control+'</label>';
 const sel=(id,options)=>'<select id="'+id+'">'+options.map(x=>'<option value="'+x[0]+'">'+x[1]+'</option>').join('')+'</select>';
 const number=(id,defaultValue,min,max)=>'<input id="'+id+'" type="number" value="'+defaultValue+'" min="'+min+'" max="'+max+'" step="1">';
 const clamp=(id,min,max,defaultValue)=>Math.max(min,Math.min(max,Number.isFinite(Number($(id)?.value))?Math.round(Number($(id).value)):defaultValue));
 const renderInputs={
 minecraft:()=>'<p class="status">Personajes Minecraft · modelo actual. Se conserva tal cual, con su fondo transparente.</p>',
 counter:()=>field('Seleccionar estilo','style',sel('style',[['classic','Tarjetas GREÑA'],['trio','Trío Live'],['vertical','Vertical'],['grena-viewers','GREÑA Viewers · sin Total']]))+
-'<div class="row">'+field('Pegado al borde','edge',sel('edge',[['left','Izquierda'],['right','Derecha']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,200))+'</div>',
+'<div class="row">'+field('Pegado al borde','edge',sel('edge',[['left','Izquierda'],['right','Derecha']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>',
 multichat:()=>field('Estilo del chat','theme',sel('theme',[['clean','Minimal PRO'],['blossom','Blossom Glass'],['comicpop','Comic Pop'],['timeline','Timeline Premium']]))+
-'<div class="row">'+field('Dirección','direction',sel('direction',[['left','Izquierda'],['right','Derecha / invertido']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,200))+'</div>'+
-'<div class="row">'+field('Tamaño del icono · px','iconSize',number('iconSize',24,10,96))+field('Legibilidad','readability',sel('readability',[['both','Sombra y contraste'],['shadow','Sombra'],['contrast','Contraste'],['off','Sin realce']]))+'</div>'+
+'<div class="row">'+field('Dirección','direction',sel('direction',[['left','Izquierda'],['right','Derecha / invertido']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>'+
+'<div class="row">'+field('Tamaño del icono · px','iconSize',number('iconSize',24,10,96))+field('Legibilidad','readability',sel('readability',[['both','Borde y sombra'],['shadow','Sombra suave'],['outline','Borde fino'],['none','Sin efecto']]))+'</div>'+
 field('Intensidad de sombra · %','shadowStrength',number('shadowStrength',70,0,100)),
 social:()=>field('Diseño de redes','socialLayout',sel('socialLayout',[['classic','Clásico'],['animated','Minimalista animado'],['grena-original','GREÑA Redes original']]))+
 '<p class="heading">REDES QUE APARECERÁN EN OBS</p><div class="checks">'+['tiktok','twitch','kick','youtube'].map(id=>'<label><input type="checkbox" data-network="'+id+'" checked>'+id[0].toUpperCase()+id.slice(1)+'</label>').join('')+'</div>',
@@ -52,8 +52,8 @@ function emitPreview(){
  if(type==='social')preview.contentWindow?.postMessage({type:'grena-social-preview',settings:read()},location.origin);
 }
 function read(){
- if(type==='counter')return {...base,style:$('style').value,edge:$('edge').value,edgeOffset:clamp('edgeOffset',0,200,0)};
- if(type==='multichat')return {...base,theme:$('theme').value,direction:$('direction').value,edgeOffset:clamp('edgeOffset',0,200,0),iconSize:clamp('iconSize',10,96,24),readability:$('readability').value,shadowStrength:clamp('shadowStrength',0,100,70)};
+ if(type==='counter')return {...base,style:$('style').value,edge:$('edge').value,edgeOffset:clamp('edgeOffset',0,80,0)};
+ if(type==='multichat')return {...base,theme:$('theme').value,direction:$('direction').value,edgeOffset:clamp('edgeOffset',0,80,0),iconSize:clamp('iconSize',10,96,24),readability:$('readability').value,shadowStrength:clamp('shadowStrength',0,100,70)};
  if(type==='social')return {...base,socialLayout:$('socialLayout').value,enabledNetworks:[...document.querySelectorAll('[data-network]:checked')].map(el=>el.dataset.network)};
  return {};
 }
