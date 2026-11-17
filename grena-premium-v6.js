@@ -65,6 +65,25 @@
  frame?.addEventListener('load',voiceSync);
  setInterval(voiceSync,1300);
 
+
+ // Reorganizar nodos reales, no clonarlos: se conservan sus IDs, listeners,
+ // contadores, fuente OBS, soundboard y conexiones WebSocket.
+ (function compactHome(){
+  const workspace=document.querySelector('.workspace');
+  const overview=document.querySelector('.overview-panel');
+  const soundboard=$('soundboardStrip');
+  if(!workspace||!overview||!soundboard||$('premiumHero'))return;
+  const head=overview.querySelector(':scope > .panel-head');
+  const viewers=overview.querySelector(':scope > .viewer-grid');
+  if(!head||!viewers)return;
+  const hero=document.createElement('section');
+  hero.className='panel-shell';hero.id='premiumHero';
+  hero.setAttribute('aria-label','Audiencia en directo');
+  hero.append(head,viewers);
+  workspace.prepend(hero);
+  workspace.append(soundboard);
+ })();
+
  // Refleja vinculación real en los contadores, pero conserva filas para conectar.
  const visibility=()=>{
   for(const p of ['tiktok','twitch','kick','youtube']){
