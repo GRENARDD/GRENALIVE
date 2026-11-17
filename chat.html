@@ -961,6 +961,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
           👥 Todos
 
         </label>
+          <label class="radio-option"><input type="radio" name="tiktokMode" value="subscribers"> 💎 Solo suscriptores / miembros</label>
 
         <label class="radio-option">
 
@@ -1038,6 +1039,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
           👥 Todos
 
         </label>
+          <label class="radio-option"><input type="radio" name="twitchMode" value="subscribers"> 💎 Solo suscriptores / miembros</label>
 
         <label class="radio-option">
 
@@ -1089,6 +1091,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
       <label class="voice-check"><input type="checkbox" id="kickVoiceEnabled" checked> Leer mensajes de Kick</label>
       <div class="radio-group">
         <label class="radio-option"><input type="radio" name="kickMode" value="all" checked> 👥 Todos</label>
+          <label class="radio-option"><input type="radio" name="kickMode" value="subscribers"> 💎 Solo suscriptores / miembros</label>
         <label class="radio-option"><input type="radio" name="kickMode" value="followers"> ⭐ Solo seguidores</label>
         <label class="radio-option"><input type="radio" name="kickMode" value="selected"> 🎯 Solo usuarios seleccionados</label>
       </div>
@@ -1106,6 +1109,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
         <label class="voice-check"><input id="youtubeVoiceEnabled" type="checkbox" checked> Leer mensajes de YouTube</label>
         <div class="radio-group">
           <label class="radio-option"><input type="radio" name="youtubeMode" value="all" checked> 👥 Todos</label>
+          <label class="radio-option"><input type="radio" name="youtubeMode" value="subscribers"> 💎 Solo suscriptores / miembros</label>
           <label class="radio-option"><input type="radio" name="youtubeMode" value="selected"> 🎯 Solo usuarios seleccionados</label>
         </div>
         <div class="voice-field" style="margin-top:14px"><label>Usuarios seleccionados</label><textarea id="youtubeSelectedUsers" placeholder="usuario1&#10;usuario2"></textarea></div>
@@ -2480,9 +2484,11 @@ function isUserAllowed(m){
   }
 
   if(mode === 'followers'){
-
     return m.isFollower === true;
-
+  }
+  if(mode === 'subscribers'){
+    // Never assume a viewer has a paid membership when the platform omits roles.
+    return m.isSubscriber === true || m.isMember === true || m.isPaidSubscriber === true || m.isSupportingMember === true;
   }
 
   return true;
@@ -3794,6 +3800,7 @@ function languageAllowedForVoice(text){
 }
 // GRENA_VOICE_LANGUAGE_FILTER_END
 function queueVoice(m){
+  // Disabled platform messages must never enter the TTS queue.
 
   if(
     !$('voiceEnabled').checked
@@ -4348,6 +4355,8 @@ async function speakFishMessage(message, spokenText){
 
 function speakNext(){
 
+  // Drop messages queued before the streamer muted a platform.
+  voiceQueue=voiceQueue.filter(m=>m.__voiceTest===true || isUserAllowed(m));
   dropStaleVoiceMessages();
 
   if(speaking){
