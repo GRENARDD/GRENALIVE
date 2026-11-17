@@ -689,7 +689,7 @@ const routeAction=async(action,root)=>{
 document.addEventListener('click',e=>{const b=e.target.closest('[data-v4-action]');if(!b)return;routeAction(b.dataset.v4Action,b.closest('.card')).catch(fail)});
 
 // ---- Catalog: all cards originate from GREÑA's live real server catalog ----
-let loadedCatalog=[];let giftFilter='all',giftQuery='',onlyAnimated=false;
+let loadedCatalog=[];let giftFilter='all',giftQuery='',onlyAnimated=false,giftLimit=24;
 const catFilterMap={tt:'TikTok',tw:'Twitch',kk:'Kick',yt:'YouTube'};
 async function refreshCatalog(){
   try{const d=await api('/api/gift-catalog');loadedCatalog=Array.isArray(d.items)?d.items:[];persistent.catalog=d;renderCatalog()}
@@ -698,18 +698,33 @@ async function refreshCatalog(){
 function renderCatalog(){
   if(!persistent.catalog)return;
   const allowed=loadedCatalog.filter(g=>(giftFilter==='all'||g.platform===catFilterMap[giftFilter])&&(!onlyAnimated||!!g.animatedImage)&&[g.name,g.nameEs,g.giftKind].some(t=>String(t||'').toLowerCase().includes(giftQuery)));
-  text(el('gc'),'Mostrando '+allowed.length+' regalos del catálogo real de GREÑA');
+  text(el('gc'),'Mostrando '+Math.min(giftLimit,allowed.length)+' de '+allowed.length+' regalos del catálogo real de GREÑA · desplázate por las tarjetas para ver las animaciones');
   const stats=persistent.catalog.stats||{};
   QA('#pg8 .stat b').forEach((node,i)=>text(node,fmt([stats.total,stats.tiktok,stats.twitch,stats.kick,stats.youtube,stats.animated][i])));
   const feed=el('gg');feed.replaceChildren();
-  for(const gift of allowed.slice(0,240)){
+  for(const gift of allowed.slice(0,giftLimit)){
     const card=document.createElement('div');card.className='card gift';
     const heading=document.createElement('div');heading.className='tp';
     const pl=document.createElement('span');pl.className='tag '+(PLATFORM[gift.platform?.toLowerCase()]||'');pl.textContent=gift.platform||'';
     const anim=document.createElement('span');anim.className='tag';anim.textContent=gift.animatedImage?'ANIMADO':'ESTÁTICO';heading.append(pl,anim);
     const preview=document.createElement('div');preview.className='em';
-    const url=gift.animatedImage||gift.image;
-    if(url){const img=document.createElement('img');img.src=url;img.alt='';img.loading='lazy';img.style.cssText='max-width:64px;max-height:66px;object-fit:contain';img.onerror=()=>{img.remove();preview.textContent='🎁'};preview.appendChild(img)}else{preview.textContent='🎁'}
+    const kickGift=gift.platform==='Kick';
+    const giftKind=String(gift.giftKind||gift.category||'').toLowerCase();
+    const kickNumber=Number(gift.amount||0);
+    const kickImage=kickGift?(giftKind.includes('subscription')?'/assets/kick-gifts/subscription-gift.svg':('/assets/kick-gifts/kicks-'+([1,10,50,100,500,1000,2000,5000,10000,50000].includes(kickNumber)?kickNumber:'generic')+'.svg')):'';
+    const youtubeKind=giftKind.replace(/[^a-z]/g,'');
+    const youtubeImage=gift.platform==='YouTube'&&['superchat','supersticker','membership','membershipgift','membermilestone','membershipreceived'].includes(youtubeKind)?'/assets/youtube-events/'+youtubeKind+'.svg':'';
+    const url=gift.animatedImage||gift.image||kickImage||youtubeImage;
+    const fallback=gift.platform==='Twitch'?'💎':gift.platform==='YouTube'?'▶️':gift.platform==='Kick'?'💚':'🎁';
+    if(url){
+      const video=/\.(?:mp4|webm)(?:[?#]|$)/i.test(url);
+      const media=document.createElement(video?'video':'img');
+      media.src=url;media.setAttribute('aria-label',gift.nameEs||gift.name||'Regalo');
+      if(video){media.autoplay=true;media.loop=true;media.muted=true;media.playsInline=true;media.preload='metadata'}
+      else media.loading='lazy';
+      media.onerror=()=>{media.remove();preview.textContent=fallback};
+      preview.appendChild(media);
+    }else preview.textContent=fallback;
     const title=document.createElement('b');title.textContent=gift.nameEs||gift.name||'Regalo';
     const amount=document.createElement('small');amount.textContent=String(gift.amount||'')+' '+String(gift.unit||'');
     const actions=document.createElement('div');actions.className='row';
@@ -724,10 +739,16 @@ function renderCatalog(){
     actions.append(send,json);card.append(heading,preview,title,amount,actions);feed.appendChild(card);
   }
   if(!allowed.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No hay regalos disponibles con esos filtros';feed.appendChild(empty)}
+  if(allowed.length>giftLimit){
+    const more=document.createElement('button');more.className='btn go gift-more';
+    more.textContent='Mostrar '+Math.min(24,allowed.length-giftLimit)+' regalos más';
+    more.onclick=()=>{giftLimit+=24;renderCatalog()};
+    feed.appendChild(more);
+  }
 }
-el('gq2').oninput=e=>{giftQuery=e.target.value.toLowerCase();renderCatalog()};
-QA('#gt button').forEach(btn=>btn.onclick=()=>{QA('#gt button').forEach(b=>b.classList.toggle('on',b===btn));giftFilter=btn.dataset.p;renderCatalog()});
-el('ga').onclick=e=>{onlyAnimated=!onlyAnimated;badge(e.currentTarget,onlyAnimated);renderCatalog()};
+el('gq2').oninput=e=>{giftQuery=e.target.value.toLowerCase();giftLimit=24;renderCatalog()};
+QA('#gt button').forEach(btn=>btn.onclick=()=>{QA('#gt button').forEach(b=>b.classList.toggle('on',b===btn));giftFilter=btn.dataset.p;giftLimit=24;renderCatalog()});
+el('ga').onclick=e=>{onlyAnimated=!onlyAnimated;giftLimit=24;badge(e.currentTarget,onlyAnimated);renderCatalog()};
 
 // ---- Widgets: V4 cards retain their exact markup; links and settings come from GREÑA ----
 
