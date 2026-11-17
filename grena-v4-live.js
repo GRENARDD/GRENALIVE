@@ -63,9 +63,14 @@ async function loadIdentity(){
   const license=persistent.license||{},pill=el('licenseBadge');
   pill.classList.remove('license-admin','license-beta','license-user','license-expired');
   let label='GREÑA ID';let kind='license-user';
+  const licenceRecord=license.license||{};
   if(license.permanentAccess===true){label='✦ ADMINISTRADOR';kind='license-admin'}
-  else if(license.betaAccess===true||license.plan==='beta'||license.licenseType==='beta'){label='✦ BETA';kind='license-beta'}
-  else if(license.daysRemaining!==undefined&&Number.isFinite(Number(license.daysRemaining))){const days=Math.max(0,Math.ceil(Number(license.daysRemaining)));label=days+' DÍAS RESTANTES';kind=days?'license-user':'license-expired'}
+  else if(license.allowed===true&&licenceRecord.kind==='beta'&&licenceRecord.active===true){label='✦ BETA';kind='license-beta'}
+  else if(licenceRecord.active===true&&Number.isFinite(Number(licenceRecord.expiresAt))){
+    const days=Math.max(0,Math.ceil((Number(licenceRecord.expiresAt)-Date.now())/86400000));
+    label=days+' '+(days===1?'DÍA RESTANTE':'DÍAS RESTANTES');kind=days?'license-user':'license-expired';
+  }else if(licenceRecord.expired===true){label='LICENCIA VENCIDA';kind='license-expired'}
+  else if(!license.allowed){label='LICENCIA NO ACTIVA';kind='license-expired'}
   pill.classList.add(kind);pill.textContent=label;
   startVoiceEngine(u.id);
 }
