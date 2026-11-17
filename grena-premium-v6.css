@@ -193,3 +193,27 @@ html.grena-v6-voice-only body.grena-chat .v6-cooldown small{color:#9b9283;displa
 /* Asegurar que el iframe de voz pueda salirse de su panel al mostrarse modal. */
 body.grena-control.grena-voice-popup .workspace,body.grena-control.grena-voice-popup .chat-zone,body.grena-control.grena-voice-popup .chat-frame-wrap{overflow:visible!important;transform:none!important;contain:none!important}
 body.grena-control.grena-voice-popup .chat-frame-wrap{position:static!important}
+
+/* Motor multichat real: aspecto V4 sin alterar filtros ni handlers de moderación. */
+body.grena-chat{background:#0a0908!important;color:#f5efe3!important;font-family:Inter,"Segoe UI",system-ui,sans-serif!important}
+body.grena-chat .app{background:transparent!important}
+body.grena-chat .chat{background:#0a0908!important;border-color:rgba(255,235,200,.09)!important;border-radius:13px!important}
+body.grena-chat .msg{border-radius:12px!important;padding:7px 9px!important;margin-bottom:4px!important;box-shadow:none!important;border-top-color:transparent!important;border-right-color:transparent!important;border-bottom-color:rgba(255,235,200,.04)!important}
+body.grena-chat .msg:hover{background:rgba(246,217,138,.055)!important}
+body.grena-chat .msg .text{color:#ece5da!important;font-size:12px!important}
+body.grena-chat .msg .time{color:#9b9283!important}
+body.grena-chat .connection-box,body.grena-chat .voice-box,body.grena-chat .voice-panel,body.grena-chat .status{background:#131110!important;border-color:rgba(255,235,200,.10)!important}
+body.grena-chat .voice-box{border-radius:14px!important}
+body.grena-chat input:not([type=checkbox]):not([type=radio]):not([type=range]),body.grena-chat select,body.grena-chat textarea{background:#1b1816!important;color:#f5efe3!important;border:1px solid rgba(255,235,200,.13)!important;border-radius:10px!important}
+body.grena-chat .voice-field input[type=range]{accent-color:#d9a441!important}
+body.grena-chat .voice-field label,body.grena-chat .help{color:#9b9283!important}
+body.grena-chat .voice-status{background:#1b1816!important;color:#f5efe3!important}
+body.grena-chat .voice-settings-dialog{background:#131110!important;border-color:rgba(255,235,200,.2)!important}
+body.grena-chat .voice-settings-card{background:#1b1816!important;border-color:rgba(255,235,200,.12)!important;color:#f5efe3!important}
+body.grena-chat .voice-settings-card:hover{border-color:#d9a441!important}
+body.grena-chat .voice-settings-hub{background:#131110!important;border-color:rgba(255,235,200,.10)!important}
+body.grena-chat .mod-card{background:#131110!important;border-color:rgba(255,235,200,.15)!important}
+body.grena-chat .mod-btn{background:#1b1816!important;border-color:rgba(255,235,200,.12)!important}
+body.grena-chat .mod-btn:hover{border-color:#d9a441!important}
+body.grena-chat .muted-manage-btn{background:#1b1816!important;border-color:rgba(255,235,200,.10)!important}
+body.grena-chat .voice-settings-dialog h3,body.grena-chat .voice-box h3{color:#f5efe3!important}
