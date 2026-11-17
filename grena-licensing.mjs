@@ -498,5 +498,5 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    if(!c?.token||!c.centralUserId)throw Object.assign(Error('Vincula tu GREÑA ID con Cloudflare primero'),{status:401});
    return fetchCentral(path,method,payload,c.token);
  }
- return {handle,onLocalAuth,heartbeat,canUse,getCached,getFishCredential,ownerStatus,isOwner,centralConfigured,loginCentralIdentity,registerCentralIdentity,attachCentralSession,requestDynamics};
+ return {handle,onLocalAuth,heartbeat,canUse,getCached,getFishCredential,ownerStatus,isOwner,isAdministrator,centralConfigured,loginCentralIdentity,registerCentralIdentity,attachCentralSession,requestDynamics};
 }
