@@ -59,7 +59,9 @@ jobs:
           test -s grena-v4-live.js
           test -s 'design/reference/GRENA_LIVE_6_Premium_Interactivo_V4(3).html'
           node --test tests/grena-v4-exact-template.test.cjs
-          test -s desktop-build/verify-upgrade-6000-to-6001.ps1
+          node --test tests/grena-v602-premium-panels.test.cjs
+          test -s desktop-build/verify-v602-premium-panels.cjs
+          test -s desktop-build/verify-upgrade-6001-to-6002.ps1
       - name: Verify production GREÑA ID Worker has secure shared rooms
         if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
@@ -110,17 +112,20 @@ jobs:
           cat > release-notes.md <<'EOF'
           GREÑA Live Desktop v6.0.2 — PREMIUM V4 ESTABLE (widgets, regalos, QR móvil, licencias, alertas y soundboard)
 
-          INTERFAZ PREMIUM V4 ORIGINAL:
-          - La interfaz usa directamente el HTML y CSS de GRENA_LIVE_6_Premium_Interactivo_V4(3).html.
-          - El adaptador grena-v4-live.js vincula las vistas originales con el backend, sin volver a introducir el diseño antiguo.
-          - Incluye nueve secciones Premium, chat unificado, paneles, Fish Audio compacto y cinco audios rápidos.
-          - Corrige los paneles de widgets y regalos, los QR móviles, licencias, alertas y atajos del soundboard.
+          CORRECCIONES PREMIUM V4:
+          - Widgets: cambiar entre modelos reales de contadores, multichat, redes y Super Fans desde Configurar, con vista previa y enlaces OBS persistentes.
+          - Regalos: tarjetas legibles, animaciones e imágenes reales, filtros y carga gradual del catálogo.
+          - Móvil: códigos QR completos, separados y visibles, sin botones ni textos superpuestos.
+          - Administración: interfaz negro/dorado, acceso autorizado exclusivamente para el dueño GREÑA ID.
+          - Mi licencia: tipo BETA, prueba o temporal, duración, fecha de vencimiento y días restantes; eliminado Cambiar cuenta.
+          - Alertas: retirado el panel redundante Estado de plataformas, sin quitar los indicadores de Inicio/En vivo.
+          - Audios rápidos: mantener pulsado 3 segundos, volumen individual, cambiar o eliminar archivo y atajos configurables, incluidos atajos globales Electron.
+          - Se respeta la estructura y CSS original del Centro de mando Premium V4.
 
-          FUNCIONES Y PRUEBAS:
-          - Conserva GREÑA ID, multichat, Fish Audio, alertas, widgets OBS, plataformas, móviles y cámaras.
-          - Construcción Windows, pruebas de Node, recursos empaquetados y humo del backend obligatorios.
-          - Actualización real desde 6.0.1 a 6.0.2 con comprobación de persistencia de configuraciones, sesiones y voz.
-          - Las publicaciones oficiales anteriores siguen disponibles.
+          CONTROL DE CALIDAD:
+          - Pruebas de código, Chromium visual 1920x1080, backend empaquetado y nuevo instalador Windows.
+          - Actualización real desde 6.0.1 a 6.0.2, conservando perfiles, chats, configuraciones y voces.
+          - La versión 6.0.1 sigue disponible.
 
           SEGURIDAD:
           - Compilación y pruebas de Windows obligatorias antes de publicar.
