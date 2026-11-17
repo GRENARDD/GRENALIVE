@@ -14,8 +14,14 @@ test('Desktop executable and all in-app brand marks share the exact transparent 
   assert.ok(png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])));
   assert.equal(png.readUInt32BE(16),256);
   assert.equal(png.readUInt32BE(20),256);
-  assert.ok(favicon.includes('href="data:image/png;base64,'+source+'"'),
-    'Browser favicon must contain the same master PNG, not a different G illustration');
+  // GREÑA 6.0: la G azul es el icono histórico del instalador 5.x.
+  // El favicon oficial del nuevo diseño es la G dorada SVG vectorial,
+  // sin rectángulo de fondo ni imagen antigua incrustada.
+  assert.match(favicon,/<svg[^>]+viewBox="0 0 512 512"/);
+  assert.match(favicon,/<linearGradient id="body"/);
+  assert.match(favicon,/fill="url\\(#body\\)"/);
+  assert.doesNotMatch(favicon,/<rect[^>]*fill="(?:white|#fff|#ffffff)"/i);
+  assert.doesNotMatch(favicon,/href="data:image\\/png;base64/);
   const builder=src('desktop-build/build-grena-icon.py');
   assert.match(builder,/grena-g-icon\.png\.base64/);
   assert.match(builder,/grena-g\.ico/);
@@ -32,8 +38,8 @@ test('Main UI, login, modules, floating view and mobile show the G instead of a 
   ];
   for(const path of brandPages){
     const page=src(path);
-    assert.match(page,/src="\/favicon\.svg\?v=529"/,path+' must display the G');
-    assert.match(page,/rel="icon"[^>]*href="\/favicon\.svg\?v=529"/,path+' must use the G favicon');
+    assert.match(page,/src="\\/favicon\\.svg\\?v=600"/,path+' must display the G');
+    assert.match(page,/rel="icon"[^>]*href="\\/favicon\\.svg\\?v=600"/,path+' must use the G favicon');
   }
   assert.doesNotMatch(src('index.html'),/<div class="brand-mark">G<\/div>/);
   assert.doesNotMatch(src('login.html'),/<div class="mark">G<\/div>/);
