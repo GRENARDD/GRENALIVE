@@ -411,7 +411,7 @@ function renderBoard(){
     const m=persistent.board.find(s=>s.slot===i)||{empty:true,slot:i};const node=slotElement(i);if(!node)continue;
     const name=node.querySelector('b'),sub=node.querySelector('small');
     text(name,m.label||'Audio '+i);text(sub,m.empty?'Vacío · subir':(m.name||'Audio guardado')+(m.shortcut?' · '+m.shortcut:''));
-    node.title=m.empty?'Clic para subir audio':'Clic para reproducir · clic derecho para configurar';
+    node.title=(m.empty?'Clic para subir audio':'Clic para reproducir')+' · Mantener pulsado 3 segundos: configuración';
   }
 }
 async function refreshBoard(){try{const d=await api('/api/soundboard');persistent.board=d.slots||[];renderBoard()}catch(e){console.warn('[GREÑA V4 soundboard]',e.message)}}
@@ -435,38 +435,83 @@ async function togglePad(slot){
   if(meta.empty){selectAudio(slot);return}
   if(persistent.audioSlot===slot){stopPad(meta.fade!==false);return}
   if(persistent.audio)stopPad(false);
-  const audio=new Audio(meta.url);audio.preload='auto';audio.volume=meta.fade!==false?0:1;
+  const audio=new Audio(meta.url);audio.preload='auto';const targetVolume=Math.max(0,Math.min(1,Number(meta.volume??100)/100));audio.volume=meta.fade!==false?0:targetVolume;
   persistent.audio=audio;persistent.audioSlot=slot;setActiveSlot(slot);
   audio.addEventListener('ended',()=>{if(persistent.audio===audio){persistent.audio=null;persistent.audioSlot=0;setActiveSlot(0)}});
   audio.addEventListener('error',()=>{if(persistent.audio===audio)stopPad(false);inform('No se pudo reproducir ese archivo')});
   try{await audio.play()}catch(e){stopPad(false);fail(e);return}
-  if(meta.fade!==false){const begin=performance.now();function rise(t){if(persistent.audio!==audio)return;audio.volume=Math.min(1,(t-begin)/650);if(audio.volume<1)requestAnimationFrame(rise)}requestAnimationFrame(rise)}
+  if(meta.fade!==false){const begin=performance.now();function rise(t){if(persistent.audio!==audio)return;audio.volume=Math.min(targetVolume,targetVolume*(t-begin)/650);if(t-begin<650&&targetVolume>0)requestAnimationFrame(rise)}requestAnimationFrame(rise)}
 }
+
+const PRESS_TO_CONFIG_MS=3000;
 QA('#prow .pad').forEach((pad,index)=>{
   const slot=index+1;
-  pad.addEventListener('click',()=>togglePad(slot));
-  pad.addEventListener('contextmenu',e=>{e.preventDefault();soundConfig(slot)});
+  let holdTimer=null,pressStart=0,longPressed=false;
+  const clear=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}};
+  pad.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    clear();longPressed=false;pressStart=Date.now();
+    holdTimer=setTimeout(()=>{holdTimer=null;longPressed=true;soundConfig(slot)},PRESS_TO_CONFIG_MS);
+  });
+  pad.addEventListener('pointerup',()=>{if(pressStart&&Date.now()-pressStart>=PRESS_TO_CONFIG_MS)longPressed=true;pressStart=0;clear()});
+  for(const event of ['pointercancel','pointerleave'])pad.addEventListener(event,()=>{clear();pressStart=0});
+  pad.addEventListener('click',e=>{
+    if(longPressed){e.preventDefault();e.stopImmediatePropagation();longPressed=false;return}
+    togglePad(slot);
+  });
+  pad.addEventListener('contextmenu',e=>{e.preventDefault();clear();longPressed=true;soundConfig(slot)});
 });
-function soundConfig(slot){
-  const item=persistent.board.find(x=>x.slot===slot)||{};
-  dialog('Audio rápido '+slot,'Configura el slot real de GREÑA ID',`<label class="prem-field">Nombre visible<input id="v4PadName" maxlength="32" placeholder="Audio ${slot}"></label><label class="prem-field">Atajo (F1–F12, Ctrl+tecla)<input id="v4PadShortcut" maxlength="40" placeholder="Ejemplo: F5"></label><div class="prem-row"><span>Desvanecer al detener</span><button id="v4PadFade" class="sw ${item.fade!==false?'on':''}"></button></div>`,[
-    {label:'Cambiar archivo',action:()=>{hideDialog();selectAudio(slot)}},
-    {label:'Cerrar',action:hideDialog},
-    {label:'Guardar',primary:true,action:async()=>{
-      await api('/api/soundboard/config/'+slot,{method:'POST',body:{label:el('v4PadName').value.trim(),shortcut:el('v4PadShortcut').value.trim()}});
-      if(!item.empty)await api('/api/soundboard/fade/'+slot,{method:'POST',body:{enabled:el('v4PadFade').classList.contains('on')}});
-      await refreshBoard();hideDialog();inform('Audio '+slot+' configurado');
-    }}
-  ]);
-  el('v4PadName').value=item.label||'';el('v4PadShortcut').value=item.shortcut||'';
-  el('v4PadFade').onclick=e=>badge(e.currentTarget,!e.currentTarget.classList.contains('on'));
-}
 document.addEventListener('keydown',e=>{
-  if(e.repeat||['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)||!persistent.board.length)return;
-  const key=/^F\d+$/.test(e.code)?e.code:e.code;
-  const shortcut=(e.ctrlKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'')+(e.metaKey?'Meta+':'')+key;
-  for(const m of persistent.board){if(m.shortcut===shortcut){e.preventDefault();togglePad(m.slot);return}}
+  if(e.repeat||['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)||e.target?.isContentEditable)return;
+  const shortcut=(e.ctrlKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'')+(e.metaKey?'Meta+':'')+e.code;
+  for(const m of persistent.board){if(!m.empty&&m.shortcut===shortcut){e.preventDefault();togglePad(m.slot);return}}
 });
+function capturePadShortcut(e){
+  if(e.code==='Escape'||e.code==='Backspace'){e.preventDefault();return ''}
+  if(['ControlLeft','ControlRight','ShiftLeft','ShiftRight','AltLeft','AltRight','MetaLeft','MetaRight','Tab'].includes(e.code))return null;
+  if(!/^(?:Key[A-Z]|Digit[0-9]|Numpad[0-9]|F(?:[1-9]|1[0-2]))$/.test(e.code))return null;
+  e.preventDefault();e.stopPropagation();
+  return (e.ctrlKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'')+(e.metaKey?'Meta+':'')+e.code;
+}
+async function savePad(slot){
+  const label=el('v4PadName').value.trim(),shortcut=el('v4PadShortcut').value.trim(),volume=Number(el('v4PadVolume').value);
+  await api('/api/soundboard/config/'+slot,{method:'POST',body:{label,shortcut,volume}});
+  const meta=persistent.board.find(x=>x.slot===slot);
+  if(!meta?.empty)await api('/api/soundboard/fade/'+slot,{method:'POST',body:{enabled:el('v4PadFade').classList.contains('on')}});
+  await refreshBoard();hideDialog();inform('Audio '+slot+' configurado · '+volume+'%');
+}
+function soundConfig(slot){
+  const item=persistent.board.find(x=>x.slot===slot)||{empty:true};
+  const html=[
+    '<label class="prem-field">Nombre visible<input id="v4PadName" maxlength="32"></label>',
+    '<label class="prem-field">Atajo de teclado<input id="v4PadShortcut" readonly placeholder="Pulsa una tecla o combinación"></label>',
+    '<p class="prem-note">Para usarlo mientras juegas, elige Ctrl/Alt + tecla o F1–F12. Evita las teclas reservadas por el juego.</p>',
+    '<label class="prem-field">Volumen de este audio · <strong id="v4PadVolLabel">',Number(item.volume??100),'%</strong>',
+    '<input id="v4PadVolume" type="range" min="0" max="100" step="1" value="',Number(item.volume??100),'" style="accent-color:var(--g2);width:100%"></label>',
+    '<div class="prem-row"><span>Desvanecer al detener</span><button id="v4PadFade" class="sw ',item.fade!==false?'on':'','"></button></div>',
+    '<p class="prem-note">',item.empty?'Sin audio cargado':String(item.name||'Audio guardado').replace(/[<>]/g,''),'</p>'
+  ].join('');
+  const actions=[
+    {label:item.empty?'Añadir audio':'Cambiar audio',action:()=>{hideDialog();selectAudio(slot)}},
+    ...(!item.empty?[{label:'Eliminar audio',action:async()=>{
+      if(!confirm('¿Eliminar el audio '+slot+'?'))return;
+      if(persistent.audioSlot===slot)stopPad(false);
+      await api('/api/soundboard/delete/'+slot,{method:'POST'});
+      await refreshBoard();hideDialog();inform('Audio eliminado');
+    }}]:[]),
+    {label:'Cancelar',action:hideDialog},
+    {label:'Guardar ajustes',primary:true,action:()=>savePad(slot)}
+  ];
+  dialog('Audio rápido '+slot,'Configurar este botón · mantener pulsado 3 segundos',html,actions);
+  el('v4PadName').value=item.label||'';
+  el('v4PadShortcut').value=item.shortcut||'';
+  el('v4PadFade').onclick=e=>badge(e.currentTarget,!e.currentTarget.classList.contains('on'));
+  el('v4PadVolume').addEventListener('input',e=>text(el('v4PadVolLabel'),e.target.value+'%'));
+  el('v4PadShortcut').addEventListener('keydown',e=>{
+    const value=capturePadShortcut(e);
+    if(value!==null)el('v4PadShortcut').value=value;
+  });
+}
 
 // ---- GREÑA Mobile: QR y enlaces generados exclusivamente por el servidor ----
 function drawRealQR(id,url){
