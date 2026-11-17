@@ -73,7 +73,7 @@ async function cycle(id){
     await wait(1200);
   }
 }
-async function load(){try{const r=await fetch('/api/social-settings?x='+Date.now());if(r.ok){const d=await r.json();cfg={...defaults,...d.settings}}}catch{}render()}
+async function load(){try{const r=await fetch('/api/social-settings?x='+Date.now());if(r.ok){const d=await r.json();if(!previewOverride)cfg={...defaults,...d.settings}}}catch{}render()}
 window.addEventListener('message',e=>{if(e.origin!==location.origin)return;if(e.data?.type==='grena-social-preview'&&e.data.settings){previewOverride=true;cfg={...defaults,...e.data.settings};render()}});
 load();setInterval(async()=>{if(previewOverride)return;try{const r=await fetch('/api/social-settings?x='+Date.now());if(!r.ok)return;const d=await r.json();const next={...defaults,...d.settings};if(JSON.stringify(next)!==JSON.stringify(cfg)){cfg=next;render()}}catch{}},2000);
 </script></body></html>
