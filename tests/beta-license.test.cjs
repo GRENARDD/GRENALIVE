@@ -14,15 +14,13 @@ test('BETA license can be granted indefinitely and revoked centrally',()=>{
  assert.match(w,/license_revoked_at=\?/);
  assert.match(w,/sessionUser\(env,req\)/);
 });
-test('BETA appears only with active authorization; owner stays separate',()=>{
- const a=src('license-admin.html');
- const i=src('index.html');
- const l=src('license.html');
- const local=src('grena-licensing.mjs');
- assert.match(a,/<option value="BETA">/);
- assert.match(a,/✦ BETA · SIN VENCIMIENTO/);
- assert.match(i,/id="betaLicenseBadge"/);
- assert.match(i,/d\.allowed===true&&d\.license\?\.kind==='beta'&&d\.license\?\.active===true/);
- assert.match(l,/BETA · ACCESO SIN VENCIMIENTO/);
+test('BETA appears only when allowed with active central license, and owner stays separate in V4',()=>{
+ const admin=src('license-admin.html'),html=src('index.html'),license=src('license.html'),local=src('grena-licensing.mjs'),adapter=src('grena-v4-live.js');
+ assert.match(admin,/<option value="BETA">/);
+ assert.match(admin,/✦ BETA · SIN VENCIMIENTO/);
+ assert.match(html,/id="licenseBadge"/);
+ assert.match(adapter,/license\.permanentAccess===true/);
+ assert.match(adapter,/license\.allowed===true&&licenceRecord\.kind==='beta'&&licenceRecord\.active===true/);
+ assert.match(license,/BETA · ACCESO SIN VENCIMIENTO/);
  assert.match(local,/local\.license\.kind!=='beta'/);
 });
