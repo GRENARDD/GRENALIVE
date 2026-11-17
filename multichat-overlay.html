@@ -394,9 +394,9 @@ const CHAT_WS=(CHAT_DIRECT?`ws://${CHAT_HOST}:8788/ws`:`${location.protocol==='h
 const defaults={iconSize:24,readability:'both',shadowStrength:70,
   direction:'left',edgeOffset:0,fontSize:16,nameSize:14,bubbleWidth:94,bubbleScale:100,padY:8,padX:13,
   avatarSize:36,gap:8,radius:17,opacity:78,maxMessages:6,duration:14,showAvatar:true,
-  showPlatform:true,theme:'clean',showHandle:false,fadeAfter:5
+  showPlatform:true,theme:'clean',showHandle:false,fadeAfter:5,signalFontSize:42
 };
-const CFG_RANGES={iconSize:[16,40],shadowStrength:[0,100],edgeOffset:[0,80],fontSize:[8,96],nameSize:[8,64],bubbleWidth:[10,100],bubbleScale:[30,200],padY:[0,60],padX:[0,80],avatarSize:[12,120],gap:[0,80],radius:[0,80],opacity:[0,100],maxMessages:[1,30],duration:[1,120],fadeAfter:[0,120]};
+const CFG_RANGES={iconSize:[16,40],shadowStrength:[0,100],edgeOffset:[0,80],fontSize:[8,96],nameSize:[8,64],bubbleWidth:[10,100],bubbleScale:[30,200],padY:[0,60],padX:[0,80],avatarSize:[12,120],gap:[0,80],radius:[0,80],opacity:[0,100],maxMessages:[1,30],duration:[1,120],fadeAfter:[0,120],signalFontSize:[18,120]};
 function sanitizeCfg(src){
   src=(src&&typeof src==='object')?src:{};const out={};
   for(const [k,def] of Object.entries(defaults)){
