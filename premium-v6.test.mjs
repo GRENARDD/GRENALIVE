@@ -12,7 +12,9 @@ test('GREÑA V4 exact original HTML uses its own DOM and real backend adapter, n
  const adapter=read('grena-v4-live.js'),chat=read('chat.html');
  const css=html=>html.match(/<style>([\s\S]*?)<\/style>/)?.[1];
  assert.equal(css(index),css(ref));
- for(const id of ['home','feed','vsw','plats','ev','prow','profileTrigger','licenseBadge','pg1','pg2','pg3','pg4','pg5','pg6','pg7','pg8'])assert.match(index, id.startsWith('pg')?new RegExp('pg\\('+id.slice(2)+','):new RegExp('id="'+id+'"'));
+ for(const id of ['home','feed','vsw','plats','ev','prow','profileTrigger','licenseBadge','pg1','pg2','pg4','pg5','pg6','pg7','pg8'])assert.match(index, id.startsWith('pg')?new RegExp('pg\\('+id.slice(2)+','):new RegExp('id="'+id+'"'));
+ assert.doesNotMatch(index,/pg\(3,/);
+ assert.doesNotMatch(index,/data-l="En vivo"/);
  assert.doesNotMatch(index,/grena-premium-v6\.(css|js)|id="chatFrame"/);
  assert.match(index,/grena-v4-live\.js/);
  assert.match(adapter,/api\/chat\/live-messages/);
