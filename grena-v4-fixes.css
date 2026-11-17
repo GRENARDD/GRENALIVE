@@ -1,0 +1,52 @@
+/* GREÑA Live Premium V4: corrections ONLY for subordinate pages (mobile and gifts).
+   Main dashboard HTML/CSS matches the approved reference. */
+#pg2 .g2{align-items:start}
+#pg2 .g2>.card{min-height:300px;overflow:visible;padding:16px 18px!important}
+#pg2 .qr{
+  box-sizing:border-box!important;width:176px!important;height:176px!important;
+  min-width:176px!important;min-height:176px!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;
+  padding:8px!important;margin:8px auto 10px!important;overflow:hidden!important;
+  border:1px solid #eadfc9;border-radius:12px!important;
+  background:#fff!important;color:#222!important;
+}
+#pg2 .qr img,#pg2 .qr canvas,#pg2 .qr table{display:block;max-width:100%!important;max-height:100%!important;object-fit:contain}
+#pg2 #cd{display:block;position:static;min-height:20px;margin:8px auto!important;white-space:nowrap}
+#pg2 #gq,#pg2 #cp1{position:static;max-width:100%;white-space:normal}
+#pg8{overflow:hidden!important}
+#pg8 .pw{min-height:0!important;height:100%!important}
+#pg8 .gx{
+  min-height:0!important;flex:1 1 auto!important;
+  display:grid!important;grid-template-columns:repeat(auto-fill,minmax(185px,1fr))!important;
+  grid-auto-rows:max-content!important;align-content:start!important;
+  align-items:start!important;gap:14px!important;
+  overflow-y:auto!important;overflow-x:hidden!important;padding:8px 5px 18px 0!important;
+}
+#pg8 .gx>.gift{
+  min-width:0!important;min-height:218px!important;height:auto!important;
+  padding:12px!important;gap:8px!important;
+  display:flex!important;flex-direction:column!important;
+  border:1px solid #b68b3933;border-radius:16px!important;
+  background:linear-gradient(155deg,#1b1710,#0f0e0b)!important;
+}
+#pg8 .gift .tp{flex:0 0 auto;min-height:22px;gap:5px}
+#pg8 .gift .em{
+  height:94px!important;min-height:94px!important;
+  width:100%;display:flex;align-items:center;justify-content:center;
+  overflow:hidden!important;border-radius:12px!important;
+  background:radial-gradient(circle,#9e763321,#15120e 70%)!important;
+}
+#pg8 .gift .em img,#pg8 .gift .em video{
+  width:100%;height:100%;max-width:100%!important;max-height:100%!important;
+  object-fit:contain;display:block;
+}
+#pg8 .gift>b{display:block;font-size:13px!important;line-height:1.25;min-height:32px;overflow-wrap:anywhere}
+#pg8 .gift>small{font-size:11px;line-height:1.2;color:#ae9982;min-height:14px}
+#pg8 .gift>.row{margin-top:auto;gap:5px;align-items:stretch}
+#pg8 .gift .btn{font-size:11px!important;min-height:31px;padding:5px 8px!important}
+#pg8 .gift-more{grid-column:1/-1;justify-self:center;margin:12px auto 18px;min-width:180px}
+@media(max-width:800px){
+ #pg2 .g2{grid-template-columns:1fr}
+ #pg8 .gx{grid-template-columns:repeat(auto-fill,minmax(155px,1fr))!important;gap:10px!important}
+ #pg8 .gx>.gift{min-height:206px!important}
+}
