@@ -460,7 +460,7 @@ document.addEventListener('click',e=>{
   const act=e.target.closest('[data-v4-action]');if(!act)return;
   const action=act.dataset.v4Action;
   if(action==='floating-open'){window.location.href='/__grena_bubble_mode__';return}
-  if(action==='floating-reset'){inform('La posición de la ventana se conserva en Electron; no se ha modificado.');return}
+  if(action==='floating-reset'){window.location.href='/__grena_bubble_reset__';return}
 });
 
 // ---- AFTERGLOW: estilos y sonidos reales y persistentes por cuenta ----
