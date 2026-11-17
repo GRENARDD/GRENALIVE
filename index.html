@@ -109,6 +109,10 @@
     </section>
 
     <aside class="ops-zone">
+      <section class="panel-shell" id="premiumVoiceCard" role="button" tabindex="0" aria-label="Abrir los ajustes del chat de voz" aria-haspopup="dialog">
+        <div class="voice-card-title"><span class="eyebrow">CHAT DE VOZ</span><b>Fish Audio · 5 voces</b><small>Cola inteligente · Filtros · Ajustes de voz</small></div>
+        <button class="voice-card-switch" id="premiumVoiceSwitch" type="button" aria-label="Encender o apagar chat de voz" aria-pressed="false"></button>
+      </section>
       <section class="panel-shell overview-panel">
         <div class="panel-head">
           <div><div class="eyebrow">ESTADO EN VIVO</div><h2>Directo</h2></div>
@@ -176,6 +180,7 @@
     </aside>
   </main>
 </div>
+<div id="premiumVoiceBackdrop" hidden><button id="premiumVoiceClose" type="button" aria-label="Cerrar configuración de voz">✕ Cerrar ajustes</button></div>
 <div class="module-layer" id="moduleLayer" aria-hidden="true">
   <div class="module-bar">
     <div class="module-title"><span class="module-live-dot"></span><b id="moduleTitle">Módulo GREÑA</b><small>Chat, voz y conexiones siguen activos en segundo plano</small></div>
