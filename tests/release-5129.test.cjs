@@ -7,11 +7,10 @@ const root=join(__dirname,'..');
 const source=p=>readFileSync(join(root,p),'utf8');
 
 test('5.1.29 ships a real transparent 256px GREÑA G mark instead of default Electron branding',()=>{
- const b64=source('assets/grena-g-icon.png.base64').trim();
- const png=Buffer.from(b64,'base64');
- assert.ok(png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])));
- assert.equal(png.readUInt32BE(16),256);
- assert.equal(png.readUInt32BE(20),256);
+ const svg=source('favicon.svg');
+ assert.match(svg,/G Dorada/);
+ assert.match(svg,/<linearGradient id="body"/);
+ assert.doesNotMatch(svg,/data:image\\/png;base64/);
  const script=source('desktop-build/build-grena-icon.py');
  assert.match(script,/grena-g\.ico/);
  assert.match(script,/win\["icon"\]/);
@@ -20,20 +19,20 @@ test('5.1.29 ships a real transparent 256px GREÑA G mark instead of default Ele
  const ci=source('.github/workflows/grena-desktop-from-kit.yml');
  assert.match(ci,/build-grena-icon\.py/);
  assert.match(ci,/Test-Path 'build\/grena-g\.ico'/);
- assert.ok(ci.indexOf('Generate and verify original GREÑA G icon')<ci.indexOf('Build Windows installer safely'));
+ assert.ok(ci.indexOf('Generate and verify GOLD GREÑA G icon')<ci.indexOf('Build Windows installer safely'));
 });
 
 test('5.1.29 stable gate requires verified Windows build and preserves profiles during upgrade',()=>{
  const ci=source('.github/workflows/grena-desktop-from-kit.yml');
- const release=source('.github/workflows/grena-release-v5129.yml');
- const upgrade=source('desktop-build/verify-upgrade-5127-to-5129.ps1');
- assert.match(ci,/Set official 5\.1\.29 version on main/);
- assert.match(ci,/GRENA-LIVE-Installer-Windows-v5\.1\.29/);
+ const release=source('.github/workflows/grena-release-v6000.yml');
+ const upgrade=source('desktop-build/verify-upgrade-5127-to-6000.ps1');
+ assert.match(ci,/Verify official GREÑA Live 6\.0\.0 version on main/);
+ assert.match(ci,/GRENA-LIVE-Installer-Windows-v6\.0\.0/);
  assert.match(upgrade,/\$oldVersion='5\.1\.27'/);
- assert.match(upgrade,/\$newVersion='5\.1\.29'/);
+ assert.match(upgrade,/\$newVersion='6\.0\.0'/);
  assert.match(upgrade,/Assert-ProfilePreserved '5\.1\.27'/);
- assert.match(upgrade,/Assert-ProfilePreserved '5\.1\.29'/);
- assert.match(release,/VERSION: '5\.1\.29'/);
+ assert.match(upgrade,/Assert-ProfilePreserved '6\.0\.0'/);
+ assert.match(release,/VERSION: '6\.0\.0'/);
  assert.match(release,/\$TESTED_SHA/);
  assert.match(release,/gh run download/);
  assert.match(release,/gh release create/);
@@ -56,7 +55,7 @@ test('chat recovery is part of the 5.1.29 stable Windows build',()=>{
 
 test('5.1.29 PR preview does not run the official-only in-place Windows upgrade gate',()=>{
  const workflow=source('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(workflow,/Verify installed upgrade from GREÑA 5\.1\.27 preserves user data\s*\n\s*if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
- assert.match(workflow,/Set distinct v5\.1\.29 beta version for preview installer/);
- assert.match(workflow,/Set official 5\.1\.29 version on main/);
+ assert.match(workflow,/Verify installed upgrade from GREÑA 5\.1\.27 to 6\.0\.0 preserves user data\s*\n\s*if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
+ assert.match(workflow,/Set distinct 6\.0\.0 release-candidate version for preview installer/);
+ assert.match(workflow,/Verify official GREÑA Live 6\.0\.0 version on main/);
 });
