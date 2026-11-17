@@ -25,15 +25,15 @@ test('5.1.29 ships a real transparent 256px GREÑA G mark instead of default Ele
 
 test('5.1.29 stable gate requires verified Windows build and preserves profiles during upgrade',()=>{
  const ci=source('.github/workflows/grena-desktop-from-kit.yml');
- const release=source('.github/workflows/grena-release-v5129.yml');
- const upgrade=source('desktop-build/verify-upgrade-5127-to-5129.ps1');
- assert.match(ci,/Set official 5\.1\.29 version on main/);
- assert.match(ci,/GRENA-LIVE-Installer-Windows-v5\.1\.29/);
- assert.match(upgrade,/\$oldVersion='5\.1\.27'/);
- assert.match(upgrade,/\$newVersion='5\.1\.29'/);
- assert.match(upgrade,/Assert-ProfilePreserved '5\.1\.27'/);
- assert.match(upgrade,/Assert-ProfilePreserved '5\.1\.29'/);
- assert.match(release,/VERSION: '5\.1\.29'/);
+ const release=source('.github/workflows/grena-release-v6001.yml');
+ const upgrade=source('desktop-build/verify-upgrade-6000-to-6001.ps1');
+ assert.match(ci,/Verify official GREÑA Live 6\.0\.1 version on main/);
+ assert.match(ci,/GRENA-LIVE-Installer-Windows-v6\.0\.1/);
+ assert.match(upgrade,/\$oldVersion='6\.0\.0'/);
+ assert.match(upgrade,/\$newVersion='6\.0\.1'/);
+ assert.match(upgrade,/Assert-ProfilePreserved '6\.0\.0'/);
+ assert.match(upgrade,/Assert-ProfilePreserved '6\.0\.1'/);
+ assert.match(release,/VERSION: '6\.0\.1'/);
  assert.match(release,/\$TESTED_SHA/);
  assert.match(release,/gh run download/);
  assert.match(release,/gh release create/);
@@ -56,7 +56,7 @@ test('chat recovery is part of the 5.1.29 stable Windows build',()=>{
 
 test('5.1.29 PR preview does not run the official-only in-place Windows upgrade gate',()=>{
  const workflow=source('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(workflow,/Verify installed upgrade from GREÑA 5\.1\.27 preserves user data\s*\n\s*if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
- assert.match(workflow,/Set distinct v5\.1\.29 beta version for preview installer/);
- assert.match(workflow,/Set official 5\.1\.29 version on main/);
+ assert.match(workflow,/Verify installed upgrade from GREÑA 6\.0\.0 to 6\.0\.1 preserves user data\s*\n\s*if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
+ assert.match(workflow,/Set distinct 6\.0\.1 release-candidate version for preview installer/);
+ assert.match(workflow,/Verify official GREÑA Live 6\.0\.1 version on main/);
 });
