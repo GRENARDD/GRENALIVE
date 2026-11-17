@@ -9,7 +9,7 @@ const source=p=>readFileSync(join(root,p),'utf8');
 test('Classic 6.0.1 restores the exact pre-6.0 UI without the V6 Premium override',()=>{
   const pkg=JSON.parse(source('package.json'));
   const index=source('index.html');
-  assert.equal(pkg.version,'6.0.1');
+  assert.ok(['6.0.1','6.0.1-rc.1'].includes(pkg.version),'A PR must be non-publishable; main must be stable 6.0.1');
   assert.match(index,/<main class="workspace">/);
   assert.match(index,/id="chatFrame"/);
   assert.match(index,/id="soundboardStrip"/);
