@@ -35,7 +35,9 @@ test('Widget Configurar selects real saved variants and embeds real live preview
  assert.match(widgets,/id="sgLayout"/);
  assert.match(widgets,/id="superFansLayout"/);
  assert.match(widgets,/v4-widget-focus/);
- assert.match(adapter,/widgets\.html\?focus=/);
+ assert.match(adapter,/widget-compact\.html\?type=/);
+ assert.match(file('widget-compact.html'),/id="preview"/);
+ assert.match(file('widget-compact.html'),/Aplicar cambios/);
  assert.match(adapter,/<iframe title=/);
  assert.doesNotMatch(index,/"Tap Tap Top","Top 5 de Tap Taps reales/);
 });
@@ -58,11 +60,11 @@ test('Pairing and install QR cannot overflow their smaller responsive box',()=>{
  assert.match(adapter,/\/api\/mobile\/pair\/create/);
  assert.match(adapter,/\/api\/mobile\/lan\/enable/);
 });
-test('Administration is server-owner-only with V4 gold theme; users see their own timed license',()=>{
+test('Administration is reserved for verified admins with V4 gold theme; users see their own timed license',()=>{
  const lic=file('grena-licensing.mjs');
  assert.match(server,/pathname==='\/license-admin\.html'/);
- assert.match(server,/await licensing\.isOwner\(u\.id\)/);
- assert.match(adapter,/status\.permanentAccess!==true/);
+ assert.match(server,/await licensing\.isAdministrator\(u\.id\)/);
+ assert.match(adapter,/owner\|\|status\.isAdmin===true/);
  assert.match(adapter,/data-profile="admin"/);
  assert.doesNotMatch(adapter,/data-profile="switch"/);
  assert.match(adapter,/async function openMyLicense/);
