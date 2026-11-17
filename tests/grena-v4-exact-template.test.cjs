@@ -38,7 +38,7 @@ test('V4 replaces demo timers, example chats, fake QR and pretend connections wi
  assert.doesNotMatch(live,/fakeQR/);
  assert.doesNotMatch(live,/setInterval\(\(\)=>\{add\(MS/);
  assert.doesNotMatch(live,/INTERACCIONES DE PRUEBA 6\.0 \(sin backend\)/);
- assert.match(live,/src="\/grena-v4-live\.js\?v=6004"/);
+ assert.match(live,/src="\/grena-v4-live\.js\?v=6005"/);
  for(const route of ['/api/account/me','/api/license/status','/api/status','/api/activity?limit=60',
  '/api/viewers','/api/chat/live-messages','/api/soundboard','/api/mobile/pair/create',
  '/api/obs-token','/api/gift-catalog','/api/cam-room/create','/api/dynamics/minecraft']){
