@@ -64,7 +64,7 @@ async function loadIdentity(){
   pill.classList.remove('license-admin','license-beta','license-user','license-expired');
   let label='GREÑA ID';let kind='license-user';
   const licenceRecord=license.license||{};
-  if(license.permanentAccess===true){label='✦ ADMINISTRADOR';kind='license-admin'}
+  if(license.permanentAccess===true||license.isAdmin===true){label='✦ ADMINISTRADOR';kind='license-admin'}
   else if(license.allowed===true&&licenceRecord.kind==='beta'&&licenceRecord.active===true){label='✦ BETA';kind='license-beta'}
   else if(licenceRecord.active===true&&Number.isFinite(Number(licenceRecord.expiresAt))){
     const days=Math.max(0,Math.ceil((Number(licenceRecord.expiresAt)-Date.now())/86400000));
@@ -109,7 +109,7 @@ async function openMyLicense(){
     '<div class="prem-tile" style="cursor:default"><b>Tiempo restante</b><small>'+(owner||beta?'Ilimitado':remaining===null?'—':remaining+' días')+'</small></div>'+
     '</div><p class="prem-note">Información verificada desde GREÑA ID. Las licencias de tiempo extendido muestran su duración registrada, sin inventar un plan de pago.</p>';
   const actions=[{label:'Cerrar',primary:true,action:hideDialog}];
-  if(owner)actions.unshift({label:'Gestionar usuarios y licencias',action:()=>{hideDialog();window.open('/license-admin.html','_blank','noopener')}});
+  if(owner||status.isAdmin===true)actions.unshift({label:'Gestionar usuarios y licencias',action:()=>{location.assign('/license-admin.html')}});
   dialog('Mi licencia GREÑA','Estado y vigencia de tu acceso',content,actions);
 }
 function profileModal(){
@@ -119,8 +119,8 @@ function profileModal(){
     <button class="prem-tile" data-profile="photo"><span class="emoji">📷</span><b>Foto del perfil</b><small>Actualizar la imagen dentro del círculo</small></button>
     <button class="prem-tile" data-profile="fish"><span class="emoji">🎙️</span><b>Fish Audio</b><small>API personal, cifrada en GREÑA</small></button>
     <button class="prem-tile" data-profile="license"><span class="emoji">✦</span><b>Mi licencia</b><small>Tipo, duración y vencimiento de tu GREÑA ID</small></button>
-    ${persistent.license?.permanentAccess===true?'<button class="prem-tile" data-profile="admin"><span class="emoji">🛡️</span><b>Administración GREÑA</b><small>Solo propietario · usuarios, licencias y actualizaciones</small></button>':''}
-    <button class="prem-tile" data-profile="exit"><span class="emoji">🚪</span><b>Salir de GREÑA</b><small>Cerrar sesión o aplicación</small></button>
+    ${(persistent.license?.permanentAccess===true||persistent.license?.isAdmin===true)?'<button class="prem-tile" data-profile="admin"><span class="emoji">🛡️</span><b>Administración GREÑA</b><small>Solo administradores autorizados · usuarios y actualizaciones</small></button>':''}
+    <button class="prem-tile" data-profile="exit"><span class="emoji">🚪</span><b>Cerrar sesión</b><small>Volver al acceso GREÑA ID</small></button>
   </div>`);
   QA('[data-profile]',mbody).forEach(btn=>btn.addEventListener('click',async()=>{
     const a=btn.dataset.profile;
@@ -128,14 +128,18 @@ function profileModal(){
     if(a==='fish'){openFishCredentials();return}
     if(a==='license'){await openMyLicense();return}
     if(a==='admin'){
-      // A visual condition never grants privileges: the server verifies GREÑA ID ownership.
-      const status=await api('/api/license/status');
-      if(status.permanentAccess!==true)throw Error('Administración reservada al propietario GREÑA ID');
-      window.open('/license-admin.html','_blank','noopener');return
+      // Navigate in this same GREÑA window. A delayed window.open is blocked by
+      // Chromium/Electron. The server checks the authenticated owner's GREÑA ID.
+      location.assign('/license-admin.html');return
     }
     if(a==='exit'){
-      hideDialog();if(!confirm('¿Quieres cerrar GREÑA Live?'))return;
-      try{await api('/api/app/exit',{method:'POST',body:{}})}catch{await api('/api/account/logout',{method:'POST'});location.assign('/login.html')}
+      if(!confirm('¿Cerrar sesión de GREÑA ID y volver al inicio de sesión?'))return;
+      try{
+        // Logout must revoke the authenticated session; /api/app/exit only closes the window.
+        await api('/api/account/logout',{method:'POST',body:{}});
+        persistent.account=null;persistent.license=null;
+        location.replace('/login.html');
+      }catch(error){fail(error)}
     }
   }));
 }
@@ -181,6 +185,9 @@ const vsw=el('vsw');vsw.setAttribute('aria-pressed','false');vsw.classList.remov
 vsw.addEventListener('click',e=>{e.stopPropagation();try{setVoiceControl('voiceEnabled',!voiceControl('voiceEnabled')?.checked)}catch(err){fail(err)}});
 Q('.side .voice').addEventListener('click',e=>{if(e.target.closest('#vsw'))return;openVoiceModal()});
 Q('.side .voice').style.cursor='pointer';Q('.side .voice').title='Abrir ajustes reales de Fish Audio';
+const V4_VOICE_PLATFORMS=[{id:'tiktok',label:'TikTok',icon:'/assets/platforms/tiktok.webp',glow:'#ff345f'},{id:'twitch',label:'Twitch',icon:'/assets/platforms/twitch.webp',glow:'#a970ff'},{id:'kick',label:'Kick',icon:'/assets/platforms/kick.svg',glow:'#53fc18'},{id:'youtube',label:'YouTube',icon:'',glow:'#ff4545'}];
+function v4VoiceMode(id){return persistent.voiceFrame?.contentDocument?.querySelector('input[name="'+id+'Mode"]:checked')?.value||'all'}
+function setV4VoiceMode(id,mode){const radio=persistent.voiceFrame?.contentDocument?.querySelector('input[name="'+id+'Mode"][value="'+mode+'"]');if(!radio)throw Error('Filtro no disponible: '+id+' / '+mode);radio.checked=true;radio.dispatchEvent(new Event('change',{bubbles:true}));radio.dispatchEvent(new Event('input',{bubbles:true}));}
 function openVoiceModal(){
   const enabled=voiceControl('voiceEnabled');if(!enabled){inform('El motor de voz sigue conectando.');return}
   const value=id=>voiceControl(id)?.value||'';
@@ -188,8 +195,8 @@ function openVoiceModal(){
   const voiceChoices=voiceControl('voiceSelect')?.options||[];
   const options=[...voiceChoices].map(o=>`<option value="${String(o.value).replaceAll('"','&quot;')}">${String(o.textContent).replace(/[<>]/g,'')}</option>`).join('');
   dialog('Chat de voz · Fish Audio','Configuración real del motor actual · 4 segundos fijos por usuario',`<div class="prem-note">Este panel controla el chat de voz existente, sin crear una segunda voz ni modificar la espera fija de 4 s.</div>
-    <div class="prem-row"><span><b>Activar voz</b></span><button id="v4VoiceEnabled" type="button" class="sw ${checked('voiceEnabled')?'on':''}" aria-label="Activar voz"></button></div>
-    <div class="prem-row"><span><b>Leer nombre del usuario</b></span><button id="v4ReadName" type="button" class="sw ${checked('voiceReadUsername')?'on':''}" aria-label="Leer nombre del usuario"></button></div>
+    
+    <div class="prem-row" style="gap:12px;align-items:center"><span><b>Configuración avanzada</b><small style="display:block;font-size:11px;color:#b2a186;margin-top:4px">Plataformas, audiencia y palabras bloqueadas</small></span><button type="button" id="v4VoiceAdvancedButton" class="prem-btn">⚙ Configurar</button></div><div class="prem-row"><span><b>Leer nombre del usuario</b></span><button id="v4ReadName" type="button" class="sw ${checked('voiceReadUsername')?'on':''}" aria-label="Leer nombre del usuario"></button></div>
     <label class="prem-field">Motor y voz<select id="v4VoiceSelect">${options}</select></label>
     <label class="prem-field">Velocidad de voz<input type="range" id="v4VoiceRate" min="0.6" max="1.6" step="0.05" value="${value('voiceRate')||1}"></label>
     <label class="prem-field">Volumen<input type="range" id="v4VoiceVolume" min="0" max="1" step="0.05" value="${value('voiceVolume')||1}"></label>
@@ -197,7 +204,6 @@ function openVoiceModal(){
     <div class="prem-label">Cinco voces Fish Audio</div>
     ${[1,2,3,4,5].map(i=>`<label class="prem-field">Voz ${i} · ID<input id="v4FishModel${i}" type="text" autocomplete="off" spellcheck="false" maxlength="128"></label>`).join('')}`,[
       {label:'Cerrar',action:hideDialog},{label:'Guardar en GREÑA',primary:true,action:()=>{
-        setVoiceControl('voiceEnabled',el('v4VoiceEnabled').classList.contains('on'));
         setVoiceControl('voiceReadUsername',el('v4ReadName').classList.contains('on'));
         setVoiceControl('voiceSelect',el('v4VoiceSelect').value);
         setVoiceControl('voiceRate',el('v4VoiceRate').value);
@@ -206,10 +212,39 @@ function openVoiceModal(){
         for(let i=1;i<=5;i++)if(voiceControl('fishModelId'+i))setVoiceControl('fishModelId'+i,el('v4FishModel'+i).value.trim());
         hideDialog();inform('Configuración guardada en el motor de voz');
       }}]);
-  for(const [id,target] of [['v4VoiceEnabled','voiceEnabled'],['v4ReadName','voiceReadUsername']])el(id).addEventListener('click',e=>badge(e.currentTarget,!e.currentTarget.classList.contains('on')));
+  for(const [id,target] of [['v4ReadName','voiceReadUsername']])el(id).addEventListener('click',e=>badge(e.currentTarget,!e.currentTarget.classList.contains('on')));
   el('v4VoiceSelect').value=value('voiceSelect');el('v4VoiceLang').value=['all','es','en','es-en'].includes(value('voiceLanguageFilter'))?value('voiceLanguageFilter'):'all';
   for(let i=1;i<=5;i++)text(el('v4FishModel'+i),'');
   for(let i=1;i<=5;i++)el('v4FishModel'+i).value=value('fishModelId'+i);
+  el('v4VoiceAdvancedButton').addEventListener('click',openVoiceAdvanced);
+}
+
+
+function openVoiceAdvanced(){
+  const esc=value=>String(value||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+  const opts=[['all','Todos los usuarios'],['followers','Solo seguidores'],['subscribers','Solo suscriptores o miembros'],['selected','Solo usuarios seleccionados']];
+  const style='<style>.vadv{color:#f3e4c7}.vadv .networks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 18px}.vadv .network{display:grid;place-items:center;gap:6px;background:#17120d;color:#ac9a7e;border:1px solid #604626;border-radius:12px;min-width:0;padding:11px 3px;cursor:pointer;opacity:.65}.vadv .network.on{opacity:1;background:#292010;border-color:#f0c16d;box-shadow:0 0 18px #e8bc642b;color:#f4d38c}.vadv .network img{width:28px;height:28px;object-fit:contain}.vadv .network b{font-size:11px}.vadv .card{padding:15px;border:1px solid #67502e;border-radius:13px;background:#15110c;display:grid;gap:13px}.vadv label{color:#e8cd95;font-size:12px;display:grid;gap:6px}.vadv textarea,.vadv select{color:#f7ecd5;background:#0b0a08;border:1px solid #70522a;border-radius:9px;padding:10px;width:100%;box-sizing:border-box;font:inherit}.vadv .hint{color:#aa9980;font-size:11px;line-height:1.5}@media(max-width:470px){.vadv .networks{gap:4px}.vadv .network{padding:9px 2px}.vadv .network img{width:22px;height:22px}}</style>';
+  const nets=V4_VOICE_PLATFORMS.map(p=>'<button type="button" data-vadv-platform="'+p.id+'" class="network'+(voiceControl(p.id+'VoiceEnabled')?.checked?' on':'')+'" aria-pressed="'+String(voiceControl(p.id+'VoiceEnabled')?.checked===true)+'">'+(p.icon?'<img src="'+p.icon+'" alt="">':'<span style="font-size:26px;color:#f44">▶</span>')+'<b>'+p.label+'</b></button>').join('');
+  const html=style+'<div class="vadv"><div class="hint">Pulsa una red para encender o apagar su lectura. El chat escrito no se silencia.</div><div class="networks">'+nets+'</div><div class="card"><label>Configurar plataforma<select id="vadvPlatform">'+V4_VOICE_PLATFORMS.map(p=>'<option value="'+p.id+'">'+p.label+'</option>').join('')+'</select></label><label>Quién puede hablar<select id="vadvMode">'+opts.map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join('')+'</select></label><label>Usuarios seleccionados<textarea id="vadvUsers" rows="2" placeholder="@usuario1, @usuario2"></textarea></label><label>Palabras bloqueadas · separar por comas<textarea id="vadvWords" rows="3" placeholder="palabra1, palabra2, palabra3"></textarea></label><div class="hint">Las palabras bloqueadas no se enviarán a Fish Audio. No se eliminan mensajes del chat visual. Los modos seguidores y miembros exigen que la plataforma confirme el rol.</div></div></div>';
+  let current='tiktok',wordDraft=voiceControl('blockedWords')?.value||'';
+  const readCurrent=()=>{el('vadvMode').value=v4VoiceMode(current);el('vadvUsers').value=voiceControl(current+'SelectedUsers')?.value||''};
+  const saveCurrent=()=>{setV4VoiceMode(current,el('vadvMode').value);setVoiceControl(current+'SelectedUsers',el('vadvUsers').value)};
+  dialog('Configuración avanzada · Chat de voz','GREÑA Live Premium V4 · Redes y filtros',html,[{label:'Volver al chat de voz',action:()=>{try{saveCurrent();setVoiceControl('blockedWords',el('vadvWords').value);openVoiceModal()}catch(error){fail(error)}}},{label:'Guardar cambios',primary:true,action:()=>{try{saveCurrent();setVoiceControl('blockedWords',el('vadvWords').value);hideDialog();inform('Filtros de voz guardados')}catch(error){fail(error)}}}]);
+  el('vadvWords').value=wordDraft;
+  readCurrent();
+  for(const button of QA('[data-vadv-platform]',mbody))button.addEventListener('click',()=>{try{
+    const id=button.dataset.vadvPlatform,input=voiceControl(id+'VoiceEnabled');
+    if(!input)throw Error('El motor de voz está conectándose');
+    setVoiceControl(id+'VoiceEnabled',!input.checked);
+    button.classList.toggle('on',input.checked);
+    button.setAttribute('aria-pressed',String(input.checked));
+  }catch(error){fail(error)}});
+  el('vadvPlatform').addEventListener('change',()=>{
+    try{wordDraft=el('vadvWords').value;saveCurrent();current=el('vadvPlatform').value;readCurrent()}
+    catch(error){fail(error)}
+  });
+  el('vadvMode').addEventListener('change',()=>{try{saveCurrent()}catch(error){fail(error)}});
+  el('vadvUsers').addEventListener('change',()=>{try{saveCurrent()}catch(error){fail(error)}});
 }
 
 // ---- Conexiones reales, espectadores, mensajes y eventos ----
@@ -774,30 +809,82 @@ el('ga').onclick=e=>{onlyAnimated=!onlyAnimated;giftLimit=24;badge(e.currentTarg
 // ---- Widgets: V4 cards retain their exact markup; links and settings come from GREÑA ----
 
 async function openWidgetConfig(card){
-  const widget=card?.querySelector('b')?.textContent?.trim()||'Widget';
-  const models={
-    'Personajes Minecraft':'minecraft','Contador':'counter','Multichat':'multichat',
-    'Redes Sociales':'social','Tap Tap Top':'taptap','Super Fans':'superfans','Índice de Fidelidad':'loyalty'
-  };
-  const focus=models[widget];
-  if(!focus){inform('Editor no disponible para este widget');return}
-  const code=card?.querySelector('.code')?.textContent?.trim()||'';
-  const html=[
-    '<p class="prem-note">Elige entre los modelos originales de GREÑA. Los cambios se previsualizan y se aplican usando su configuración real; el enlace de OBS se conserva.</p>',
-    '<iframe title="Modelos y previsualización de '+widget.replace(/[<>"]/g,'')+'" src="/widgets.html?focus='+encodeURIComponent(focus)+'&embed=1" ',
-    'style="display:block;width:100%;height:min(64vh,610px);min-height:350px;border:1px solid #a6814338;border-radius:13px;background:#0b0907"></iframe>',
-    '<label class="prem-field">Enlace seguro OBS<input id="v4WidgetUrl" readonly></label>'
-  ].join('');
-  dialog('Configurar · '+widget,'Modelos reales, vista previa y botón APLICAR',html,[
-    {label:'Cerrar',action:hideDialog},
-    {label:'Copiar enlace OBS',primary:true,action:()=>copyLink(el('v4WidgetUrl').value)}
-  ]);
-  const dialogBox=Q('#premiumOverlay .premium-dialog');
-  if(dialogBox){dialogBox.style.width='min(1080px,96vw)';dialogBox.style.maxWidth='96vw'}
-  el('v4WidgetUrl').value=code;
+  const name=card?.querySelector('b')?.textContent?.trim()||'Widget';
+  const types={'Personajes Minecraft':'minecraft','Contador':'counter','Multichat':'multichat','Redes Sociales':'social','Super Fans':'superfans'};
+  const type=types[name];
+  if(!type){inform('No hay configuraciones adicionales para este widget');return}
+  dialog('Configurar · '+name,'Vista previa y ajustes compactos · GREÑA Premium V4',
+    '<iframe title="Editor compacto de '+name.replace(/[<>"']/g,'')+'" src="/widget-compact.html?type='+encodeURIComponent(type)+'" style="display:block;width:100%;height:min(60vh,520px);min-height:345px;border:1px solid #88642f;border-radius:13px;background:#100d09"></iframe>',
+    [{label:'Cerrar',primary:true,action:hideDialog}]);
+  const box=Q('#premiumOverlay .premium-dialog');if(box){box.style.width='min(930px,96vw)';box.style.maxWidth='96vw'}
 }
-
 QA('#pg5 [data-v4-action="widget-config"]').forEach(btn=>btn.addEventListener('click',()=>openWidgetConfig(btn.closest('.wd'))));
+
+// ---- Comunidad GREÑA: ticker real de canales activos, sin datos simulados. ----
+function initCommunityTicker(){
+  const sidebar=Q('#home > .side');if(!sidebar||el('v4CommunityCard'))return;
+  const card=document.createElement('section');card.className='card v4-community';card.id='v4CommunityCard';
+  card.innerHTML='<div class="v4-community-head"><div><div class="eb">COMUNIDAD GREÑA</div><div class="h2">Streamers en vivo <span class="v4-community-live">● LIVE</span></div></div><label class="v4-community-opt" title="Mostrar tu nombre, foto y audiencia a otros usuarios de GREÑA"><input id="v4CommunityShare" type="checkbox">Aparecer</label></div><div class="v4-community-window" aria-label="Usuarios de GREÑA transmitiendo ahora"><div id="v4CommunityTrack" class="v4-community-track"><span class="v4-community-empty">Consultando usuarios en vivo…</span></div></div>';
+  sidebar.appendChild(card);
+  const share=el('v4CommunityShare'),track=el('v4CommunityTrack');
+  const user=persistent.account?.user||{};
+  const storageKey='grena-community-share:'+String(user.id||'guest');
+  try{share.checked=localStorage.getItem(storageKey)==='1'}catch{}
+  const compact=n=>Number(n||0).toLocaleString('es-DO');
+  const makeItem=u=>{
+    const item=document.createElement('div');item.className='v4-community-user';
+    const avatar=document.createElement('span');avatar.className='v4-community-avatar';
+    const image=String(u?.avatar||'');
+    if(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(image)&&image.length<80000)avatar.style.backgroundImage='url('+image+')';
+    else avatar.textContent=String(u.name||'?').slice(0,1).toUpperCase();
+    const label=document.createElement('div');label.className='v4-community-label';
+    const name=document.createElement('b');name.textContent=String(u.name||'Streamer').slice(0,40);
+    const count=document.createElement('small');count.textContent='👁 '+compact(Math.max(0,Number(u.viewers)||0))+' viendo';
+    label.append(name,count);item.append(avatar,label);return item;
+  };
+  function render(data){
+    const users=Array.isArray(data?.users)?data.users.filter(u=>u&&u.name&&Number(u.viewers)>=0&&u.live!==false).slice(0,20):[];
+    track.replaceChildren();track.classList.remove('v4-community-scrolling');
+    if(!users.length){const empty=document.createElement('span');empty.className='v4-community-empty';empty.textContent=data?.offline?'Comunidad temporalmente no disponible':'Sin streamers compartiendo su LIVE';track.append(empty);return}
+    const first=document.createElement('div');first.className='v4-community-set';users.forEach(u=>first.append(makeItem(u)));track.append(first);
+    if(users.length>1){const second=first.cloneNode(true);second.setAttribute('aria-hidden','true');track.append(second);track.classList.add('v4-community-scrolling');track.style.setProperty('--community-duration',Math.max(10,users.length*5)+'s')}
+  }
+  let loading=false;
+  async function load(){
+    if(loading)return;loading=true;
+    try{const d=await api('/api/license/community');render(d)}catch{render({offline:true})}
+    finally{loading=false}
+  }
+  async function publish(){
+    if(!persistent.account)return;
+    if(!share.checked){await api('/api/license/presence',{method:'POST',body:{share:false}}).catch(()=>{});return}
+    const active=Object.keys(PLATFORM).filter(p=>persistent.bridge[p]===true);
+    const viewers=active.reduce((sum,p)=>sum+Math.max(0,Number(persistent.viewers[p])||0),0);
+    let avatar='';
+    const image=el('userAvatar')?.style.backgroundImage||'';
+    const match=/url\(["']?(data:image\/jpeg;base64,[A-Za-z0-9+/=]+)["']?\)/.exec(image);
+    if(match){
+      // Cloudflare presence accepts a small thumbnail, not the original user photo.
+      avatar=await new Promise(resolve=>{
+        const preview=new Image();
+        preview.onload=()=>{try{const canvas=document.createElement('canvas');canvas.width=canvas.height=80;canvas.getContext('2d').drawImage(preview,0,0,80,80);resolve(canvas.toDataURL('image/jpeg',0.72))}catch{resolve('')}};
+        preview.onerror=()=>resolve('');
+        preview.src=match[1];
+      });
+    }
+    // Zero viewers is a valid LIVE count. Only active platform runtime is proof of a live.
+    await api('/api/license/presence',{method:'POST',body:{share:true,live:active.length>0,platforms:active,viewers,avatar}}).catch(()=>{});
+  }
+  share.addEventListener('change',()=>{
+    try{localStorage.setItem(storageKey,share.checked?'1':'0')}catch{}
+    publish().then(load);
+  });
+  const pulse=()=>publish().then(load);
+  void pulse();
+  setInterval(pulse,30000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void load()});
+  addEventListener('pagehide',()=>{if(share.checked&&navigator.sendBeacon)navigator.sendBeacon('/api/license/presence',new Blob([JSON.stringify({share:false})],{type:'application/json'}))});
+}
 
 // ---- Actual initialization ----
 (async()=>{
@@ -806,6 +893,7 @@ QA('#pg5 [data-v4-action="widget-config"]').forEach(btn=>btn.addEventListener('c
     await loadIdentity();
     await Promise.all([refreshStatus(),refreshBoard(),getAlertSettings(),refreshObsLinks(),refreshChat()]);
     connectLiveSocket();
+    initCommunityTicker();
     setInterval(()=>refreshChat(),1250);
     setInterval(()=>refreshStatus(),7000);
     const lazy={4:()=>getAlertSettings(),5:()=>refreshObsLinks(),6:()=>refreshMinecraft(),7:()=>refreshCamera(),8:()=>refreshCatalog()};

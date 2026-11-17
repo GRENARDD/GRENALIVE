@@ -870,7 +870,7 @@ function accountFromAuth(p){if(p==='youtube')return savedAuth.youtube?.displayNa
 function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!savedAuth.twitch?.access_token:p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected){const showTikTokWait=p==='tiktok'&&/reconexi[oó]n|límite temporal|conectando al LIVE|LIVE no disponible/i.test(runtimeLabel);if(!showTikTokWait)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;}out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,configured:p==='starvios'?!!account:authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel,...(p==='starvios'?{live:starviosLive.known?starviosLive.live:null,liveKnown:starviosLive.known}:{})}}return out}
 function pushStatus(){broadcast({type:'platform-status',status:publicStatus()})}
 function normalizeCounterWidgetSettings(input={}){
- const style=['classic','trio','vertical','grena-social'].includes(String(input.counterStyle||input.style||''))?String(input.counterStyle||input.style):'classic';
+ const style=['classic','trio','vertical','grena-viewers','grena-social'].includes(String(input.counterStyle||input.style||''))?(String(input.counterStyle||input.style)==='grena-social'?'grena-viewers':String(input.counterStyle||input.style)):'classic';
  const raw=String(input.counterCardColor||input.cardColor||'').trim();
  const counterCardColor=/^#[0-9a-fA-F]{6}$/.test(raw)?raw.toLowerCase():'#18232c';
  const edge=(input.counterEdge||input.edge)==='right'?'right':'left';
@@ -2146,7 +2146,7 @@ function camWsMessageInner(ws,req,data){
 const PUBLIC_GET=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite','/api/afterglow-settings','/api/overlay-version','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/twitch/device/status','/auth/twitch/callback']);
 const PUBLIC_GET_CLOUD=new Set(['/health','/api/account/me','/api/account/recovery/status','/api/cam-room/invite']);
 const OBS_PUBLIC_API=new Set(['/api/overlay-version','/api/afterglow-settings','/api/alert-style','/api/counter-settings','/api/viewers','/api/follower-goals','/api/loyalty','/api/social-settings','/api/taptap/state','/api/multichat-settings','/api/multichat-history']);
-const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/social-overlay-grena-original.html','/social-overlay-classic.html','/loyalty-overlay.html','/super-fans-overlay.html','/personajes-minecraft.html','/taptap-race.html']);
+const OBS_PUBLIC_PAGES=new Set(['/afterglow-overlay.html','/overlay.html','/viewers.html','/multichat-overlay.html','/social-overlay.html','/social-overlay-grena-original.html','/viewers-grena-original.html','/social-overlay-classic.html','/loyalty-overlay.html','/super-fans-overlay.html','/personajes-minecraft.html','/taptap-race.html']);
 const PUBLIC_POST=new Set(['/api/mobile/pair/consume','/api/account/register','/api/account/login','/api/account/logout','/api/account/recovery/request','/api/account/recovery/reset','/api/app/window-heartbeat','/api/app/window-closing','/webhooks/kick','/api/twitch/token','/api/viewers/test']);
 const LOCAL_HOSTS=new Set([`127.0.0.1:${PORT}`,`localhost:${PORT}`]);
 const MOBILE_PAIRS=new Map();
@@ -2373,7 +2373,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  if(pathname==='/license-admin.html'&&(req.method==='GET'||req.method==='HEAD')){
    const u=sessionUser(req);
    if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA ID.'});
-   if(!await licensing.isOwner(u.id))return json(res,403,{ok:false,error:'Administración reservada para el propietario.'});
+   if(!await licensing.isAdministrator(u.id))return json(res,403,{ok:false,error:'Administración reservada a cuentas administradoras verificadas por GREÑA ID.'});
  }
  if(pathname==='/favicon.ico'&&(req.method==='GET'||req.method==='HEAD')){res.writeHead(302,{location:'/favicon.svg','cache-control':'public, max-age=3600'});return res.end()}
  if(CHAT_HTTP_ROUTES.has(pathname))return proxyChatHttp(req,res,url,false);
@@ -3041,7 +3041,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  // Páginas del panel que requieren sesión.
  // IMPORTANTE: viewers.html es un widget OBS y debe ser público; OBS no comparte la cookie de sesión del navegador.
- const interactive=new Set(['/','/index.html','/live-panel.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/mobile-device.html','/license.html','/license-admin.html','/dynamics.html']);
+ const interactive=new Set(['/','/index.html','/live-panel.html','/preview.html','/afterglow-studio.html','/alerts.html','/custom-alerts.html','/widgets.html','/widget-compact.html','/gift-catalog.html','/cam-room.html','/mode.html','/mobile.html','/mobile-device.html','/license.html','/license-admin.html','/dynamics.html']);
   if(CLOUD_MODE&&OBS_PUBLIC_PAGES.has(pathname)&&!sessionUser(req)&&!obsAuthorized(req))return json(res,401,{ok:false,error:'Este widget necesita el enlace privado actualizado de OBS.'});
   if(OBS_PUBLIC_PAGES.has(pathname))assignObsCookie(req,res);
  if(interactive.has(pathname)){const su=sessionUser(req);const pairingLanding=pathname==='/mobile.html'&&/^[A-Za-z0-9_-]{40,60}$/.test(url.searchParams.get('pair')||'');if(!su&&!pairingLanding){res.writeHead(302,{location:'/login.html','cache-control':'no-store'});return res.end()}if(su&&!su.email){res.writeHead(302,{location:'/login.html#recovery-email','cache-control':'no-store'});return res.end()}}

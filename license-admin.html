@@ -147,7 +147,7 @@ $('publishRelease').onclick=async()=>{
  finally{$('publishRelease').disabled=false}
 };
 loadUpdates();
-$('close').onclick=$('backToApp').onclick=()=>location.assign('/mode.html');
+$('close').onclick=$('backToApp').onclick=()=>location.assign('/');
 $('grantDays').onchange=()=>{const custom=$('grantDays').value==='custom';$('grantCustomLabel').classList.toggle('hidden',!custom);$('grantCustomDays').classList.toggle('hidden',!custom)};
 $('grantForm').onsubmit=async e=>{
  e.preventDefault();const target=$('grantUser').value.trim().replace(/^@/,'').toLowerCase(),beta=$('grantDays').value==='BETA',days=beta?'BETA':Number($('grantDays').value==='custom'?$('grantCustomDays').value:$('grantDays').value);

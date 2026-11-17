@@ -1,0 +1,102 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA · Configurar widget</title><style>
+*{box-sizing:border-box}html,body{margin:0;background:#100d09;color:#f1e2c8;font:13px "Segoe UI",system-ui,Arial,sans-serif;min-height:100%}
+main{padding:12px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(230px,.85fr);gap:14px;align-items:start}
+.preview{min-height:248px;border:1px solid #72552b;background:radial-gradient(ellipse at 60% 20%,#302316,#0a0908 70%);border-radius:13px;overflow:hidden;position:relative}
+.preview iframe{width:100%;height:248px;border:0;background:transparent;pointer-events:none}
+.heading{font-size:10px;font-weight:800;color:#d6a956;letter-spacing:2px;margin:0 0 8px}
+.controls{border:1px solid #5d4524;border-radius:13px;padding:14px;background:#18120c}
+label{display:flex;flex-direction:column;gap:5px;margin:0 0 11px;color:#d7c5a5;font-size:11px;font-weight:700}
+select,input{background:#0e0b08;color:#f6e5ca;border:1px solid #80602e;border-radius:8px;min-height:37px;padding:6px 10px;width:100%;font:inherit}
+input[type=checkbox]{width:15px;height:15px;min-height:0;accent-color:#d5a34c}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.checks{display:flex;flex-wrap:wrap;gap:11px;margin:6px 0 14px}.checks label{flex-direction:row;align-items:center;gap:6px;margin:0}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+button{border:1px solid #80602e;border-radius:9px;background:#251a0e;color:#f3d9a8;font:700 11px inherit;padding:10px 15px;cursor:pointer}
+button.primary{background:linear-gradient(125deg,#f1ce7a,#ad7830);color:#231707;border:0}
+.status{font-size:11px;color:#d1ac69;line-height:1.4;min-height:16px;margin-top:10px}
+.hidden{display:none!important}
+@media(max-width:700px){main{grid-template-columns:1fr}.preview,.preview iframe{min-height:180px;height:180px}}
+</style></head><body><main>
+<div><p class="heading">VISTA PREVIA · GREÑA LIVE</p><div class="preview"><iframe id="preview" title="Vista previa del widget"></iframe></div><p id="help" class="status"></p></div>
+<div class="controls"><p class="heading" id="heading">PERSONALIZAR WIDGET</p><div id="fields"></div><div id="actions" class="actions"></div><p role="status" id="status" class="status"></p></div>
+</main><script>
+const params=new URLSearchParams(location.search);const type=params.get('type')||'minecraft';
+const $=id=>document.getElementById(id);const fields=$('fields'),actions=$('actions'),preview=$('preview');
+const views={minecraft:'/personajes-minecraft.html?clean=1',counter:'/viewers.html?preview=1',multichat:'/chat/multichat-overlay.html?preview=1',social:'/social-overlay.html?preview=1',superfans:'/super-fans-overlay.html?preview=1'};
+const original={
+counter:{style:'classic',edge:'left',edgeOffset:0,counterCardColor:'#18232c'},
+multichat:{theme:'clean',direction:'left',edgeOffset:0,iconSize:24,readability:'both',shadowStrength:70},
+social:{socialLayout:'classic',enabledNetworks:['tiktok','twitch','kick','youtube'],socialNameOverrides:{}}
+};
+let base={};let loaded=false;
+const field=(label,id,control)=>'<label>'+label+control+'</label>';
+const sel=(id,options)=>'<select id="'+id+'">'+options.map(x=>'<option value="'+x[0]+'">'+x[1]+'</option>').join('')+'</select>';
+const number=(id,defaultValue,min,max)=>'<input id="'+id+'" type="number" value="'+defaultValue+'" min="'+min+'" max="'+max+'" step="1">';
+const clamp=(id,min,max,defaultValue)=>Math.max(min,Math.min(max,Number.isFinite(Number($(id)?.value))?Math.round(Number($(id).value)):defaultValue));
+const renderInputs={
+minecraft:()=>'<p class="status">Personajes Minecraft · modelo actual. Se conserva tal cual, con su fondo transparente.</p>',
+counter:()=>field('Seleccionar estilo','style',sel('style',[['classic','Tarjetas GREÑA'],['trio','Trío Live'],['vertical','Vertical'],['grena-viewers','GREÑA Viewers · sin Total']]))+
+'<div class="row">'+field('Pegado al borde','edge',sel('edge',[['left','Izquierda'],['right','Derecha']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>',
+multichat:()=>field('Estilo del chat','theme',sel('theme',[['clean','Minimal PRO'],['blossom','Blossom Glass'],['comicpop','Comic Pop'],['timeline','Timeline Premium']]))+
+'<div class="row">'+field('Dirección','direction',sel('direction',[['left','Izquierda'],['right','Derecha / invertido']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>'+
+'<div class="row">'+field('Tamaño del icono · px','iconSize',number('iconSize',24,10,96))+field('Legibilidad','readability',sel('readability',[['both','Borde y sombra'],['shadow','Sombra suave'],['outline','Borde fino'],['none','Sin efecto']]))+'</div>'+
+field('Intensidad de sombra · %','shadowStrength',number('shadowStrength',70,0,100)),
+social:()=>field('Diseño de redes','socialLayout',sel('socialLayout',[['classic','Clásico'],['animated','Minimalista animado'],['grena-original','GREÑA Redes original']]))+
+'<p class="heading">REDES QUE APARECERÁN EN OBS</p><div class="checks">'+['tiktok','twitch','kick','youtube'].map(id=>'<label><input type="checkbox" data-network="'+id+'" checked>'+id[0].toUpperCase()+id.slice(1)+'</label>').join('')+'</div>',
+superfans:()=>'<p class="status">El Super Fan activo aparece en esta vista previa. Sin controles ni opciones adicionales.</p>'
+};
+function button(label,fn,primary){const b=document.createElement('button');b.textContent=label;b.type='button';if(primary)b.classList.add('primary');b.onclick=fn;actions.append(b)}
+function emitPreview(){
+ if(type==='counter')preview.contentWindow?.postMessage({type:'grena-counter-preview',settings:read()},location.origin);
+ if(type==='multichat')preview.contentWindow?.postMessage({type:'grena-multichat-settings',settings:read()},location.origin);
+ if(type==='social')preview.contentWindow?.postMessage({type:'grena-social-preview',settings:read()},location.origin);
+}
+function read(){
+ if(type==='counter')return {...base,style:$('style').value,edge:$('edge').value,edgeOffset:clamp('edgeOffset',0,80,0)};
+ if(type==='multichat')return {...base,theme:$('theme').value,direction:$('direction').value,edgeOffset:clamp('edgeOffset',0,80,0),iconSize:clamp('iconSize',10,96,24),readability:$('readability').value,shadowStrength:clamp('shadowStrength',0,100,70)};
+ if(type==='social')return {...base,socialLayout:$('socialLayout').value,enabledNetworks:[...document.querySelectorAll('[data-network]:checked')].map(el=>el.dataset.network)};
+ return {};
+}
+function setValues(v){
+ for(const [key,value] of Object.entries(v||{})){const el=$(key);if(el&&('value' in el)&&typeof value!=='object')el.value=String(value)}
+ if(type==='social')document.querySelectorAll('[data-network]').forEach(el=>el.checked=(v?.enabledNetworks||original.social.enabledNetworks).includes(el.dataset.network));
+}
+async function request(url,settings){
+ const opts=settings===undefined?{cache:'no-store'}:{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(settings)};
+ const r=await fetch(url,opts),data=await r.json().catch(()=>({}));
+ if(!r.ok||data.ok===false)throw Error(data.error||'Error del motor de GREÑA');
+ return data;
+}
+async function save(){
+ if(type==='multichat'&&!loaded){$('status').textContent='⚠ Motor de multichat desconectado. No se sobrescribirán tus ajustes.';return}
+ $('status').textContent='Aplicando…';
+ try{
+  const route=type==='counter'?'/api/counter-settings':type==='social'?'/api/social-settings':'/chat/api/multichat-settings';
+  await request(route,read());$('status').textContent='✓ Cambios aplicados correctamente';emitPreview();
+ }catch(e){$('status').textContent='⚠ '+e.message}
+}
+async function reset(){base={...original[type]};setValues(base);emitPreview();$('status').textContent='Ajustes predeterminados en vista previa; pulsa Aplicar para guardarlos.'}
+async function testMessage(){
+ try{await request('/chat/api/multichat-test',{platform:'tiktok',nickname:'Usuario de prueba',user:'prueba_grena',text:'¡Prueba de GREÑA Multichat!'});$('status').textContent='✓ Mensaje de prueba enviado'}catch(e){$('status').textContent='⚠ '+e.message}
+}
+async function init(){
+ if(!views[type]||!renderInputs[type]){$('status').textContent='Editor no disponible';return}
+ $('heading').textContent=({minecraft:'PERSONAJES MINECRAFT',counter:'CONTADOR',multichat:'MULTICHAT',social:'REDES SOCIALES',superfans:'SUPER FANS'})[type];
+ preview.src=views[type];fields.innerHTML=renderInputs[type]();
+ if(type==='counter'||type==='social'||type==='multichat'){
+  try{
+    const route=type==='counter'?'/api/counter-settings':type==='social'?'/api/social-settings':'/chat/api/multichat-settings';
+    const result=await request(route);
+    if(type==='multichat'&&!result.settings)throw Error('No se pudieron cargar los ajustes del chat');
+    base={...original[type],...(result.settings||{})};loaded=true;
+  }catch(error){base={...original[type]};loaded=type!=='multichat';$('status').textContent='⚠ '+error.message}
+  setValues(base);button('Aplicar cambios',save,true);
+  if(type==='multichat'){button('Mensaje de prueba',testMessage);button('Restablecer',reset)}
+  if(type==='social')button('Restablecer',reset);
+  fields.addEventListener('input',emitPreview);fields.addEventListener('change',emitPreview);
+ }
+ preview.addEventListener('load',emitPreview);
+ emitPreview();
+}
+init();
+</script></body></html>
