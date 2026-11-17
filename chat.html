@@ -3574,7 +3574,7 @@ function userVoiceRateLimited(m={}){
   if(speaking && activeVoiceMessage && voiceUserRateKey(activeVoiceMessage)===key)return true;
   const last=Number(voiceUserLastQueuedAt.get(key)||0);
   // Consultar NO reinicia el turno: un comentario rechazado no castiga al usuario.
-  return !!last && now-last < voiceUserCooldownMs;
+  return !!last && now-last < (typeof voiceUserCooldownMs==='number'?voiceUserCooldownMs:VOICE_USER_COOLDOWN_MS);
 }
 function markUserVoiceQueued(m={}){
   if(m.__voiceTest)return;
