@@ -15,15 +15,19 @@ const nav=html=>(html.match(/<nav class="rail" id="nav"[\s\S]*?<\/nav>/)||[])[0]
 test('EXACT source: original V4(3) CSS is byte-for-byte identical',()=>{
  assert.ok(style(reference),'V4 source must include original CSS');
  assert.equal(style(live),style(reference),'No extra overrides, CSS overlays or layout compression are allowed');
- assert.equal(nav(live),nav(reference),'Nav markup, icons and CSS hooks must not be recreated');
+ // The user explicitly removed ONLY the En vivo sidebar button.
+ const buttons=html=>[...nav(html).matchAll(/<button class="nb(?: on)?" data-l="[^"]+"[\\s\\S]*?<\\/button>/g)].map(m=>m[0]);
+ assert.deepEqual(buttons(live),buttons(reference).filter(x=>!x.includes('data-l="En vivo"')),'Other icons and their markup must stay identical');
 });
 
-test('V4 keeps the exact nine original tabs and dashboard DOM, not legacy UI elements',()=>{
- const names=['Inicio','Flotante','Móvil','En vivo','Alertas','Widgets','Juegos','Cámaras','Regalos'];
+test('V4 keeps the eight approved tabs (without En vivo) and dashboard DOM, not legacy UI elements',()=>{
+ const names=['Inicio','Flotante','Móvil','Alertas','Widgets','Juegos','Cámaras','Regalos'];
  const actual=[...nav(live).matchAll(/<button class="nb(?: on)?" data-l="([^"]+)"/g)].map(m=>m[1]);
  assert.deepEqual(actual,names);
+ assert.doesNotMatch(live,/pg\(3,/);
+ assert.doesNotMatch(live,/data-l="En vivo"/);
  for(const id of ['ttl','licenseBadge','profileTrigger','userAvatar','tot','cl','ca','split','leg','feed','vsw','plats','ev','prow',
-   'pg1','pg2','pg3','pg4','pg5','pg6','pg7','pg8'])assert.match(live,id.startsWith('pg')?new RegExp('pg\\('+id.slice(2)+','):new RegExp('id="'+id+'"'),id);
+   'pg1','pg2','pg4','pg5','pg6','pg7','pg8'])assert.match(live,id.startsWith('pg')?new RegExp('pg\\('+id.slice(2)+','):new RegExp('id="'+id+'"'),id);
  for(const cls of ['shell','rail','wrap','hero','chat','side','voice','pads'])assert.match(live,new RegExp('class="[^"]*\\b'+cls+'\\b'),cls);
  assert.doesNotMatch(live,/class="workspace"|class="primary-nav"|id="premiumVoiceCard"|id="chatFrame"/);
  assert.doesNotMatch(live,/grena-premium-v6\.css|grena-premium-v6\.js/);
