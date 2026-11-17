@@ -19,7 +19,7 @@ test('Super Fans preview uses the same authorized link as the OBS source',()=>{
 });
 
 test('Super Fans does not strand a live widget on an empty platform for five minutes',()=>{
- assert.match(overlay,/const available=platforms\.filter\(p=>\(dailyTops\[p\]\|\|\[\]\)\.length>0\)/);
+ assert.match(overlay,/const available=platforms\.filter\(p=>activePlatforms\.includes\(p\)&&\(dailyTops\[p\]\|\|\[\]\)\.length>0\)/);
  assert.match(overlay,/if\(!available\.length\)\{slot\.replaceChildren\(\);nextTimer=setTimeout\(cycle,15000\);return\}/);
  assert.match(overlay,/PERIOD_MS=demo\?14000:330000/);
 });

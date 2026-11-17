@@ -12,7 +12,8 @@ test('V4 keeps the original nine modules while real Minecraft dynamics are conne
 });
 test('V4 original side icons have their accessible labels and open every section',()=>{
  const html=file('index.html');
- for(const label of ['Inicio','Flotante','Móvil','En vivo','Alertas','Widgets','Juegos','Cámaras','Regalos'])assert.ok(html.includes('data-l="'+label+'"'),label);
+ for(const label of ['Inicio','Flotante','Móvil','Alertas','Widgets','Juegos','Cámaras','Regalos'])assert.ok(html.includes('data-l="'+label+'"'),label);
+ assert.doesNotMatch(html,/data-l="En vivo"/);
  assert.match(html,/id="nav" aria-label="Secciones"/);
  assert.match(html,/const TT=\["Centro de mando"/);
 });
@@ -27,15 +28,15 @@ test('V4 profile stores one GREÑA ID photograph inside the original profile cir
 
 test('official v5.1.29 release gate is separate from PR previews and keeps historical 5.1.27 release',()=>{
  const workflow=file('.github/workflows/grena-desktop-from-kit.yml');
- const release=file('.github/workflows/grena-release-v6004.yml');
- const upgrade=file('desktop-build/verify-upgrade-6003-to-6004.ps1');
+ const release=file('.github/workflows/grena-release-v6005.yml');
+ const upgrade=file('desktop-build/verify-upgrade-6004-to-6005.ps1');
  const previousRelease=file('.github/workflows/grena-release-v5127.yml');
- assert.match(workflow,/Verify official GREÑA Live 6\.0\.4 version on main/);
- assert.match(workflow,/GRENA-LIVE-Installer-Windows-v6\.0\.4/);
- assert.match(workflow,/verify-upgrade-6003-to-6004\.ps1/);
- assert.match(release,/Publish official v6\.0\.4 release/);
+ assert.match(workflow,/Verify official GREÑA Live 6\.0\.5 version on main/);
+ assert.match(workflow,/GRENA-LIVE-Installer-Windows-v6\.0\.5/);
+ assert.match(workflow,/verify-upgrade-6004-to-6005\.ps1/);
+ assert.match(release,/Publish official v6\.0\.5 release/);
  assert.match(release,/Verify production GREÑA ID Worker has secure shared rooms/);
- assert.match(upgrade,/\$oldVersion='6\.0\.3'/);
- assert.match(upgrade,/\$newVersion='6\.0\.4'/);
+ assert.match(upgrade,/\$oldVersion='6\.0\.4'/);
+ assert.match(upgrade,/\$newVersion='6\.0\.5'/);
  assert.match(previousRelease,/VERSION: '5\.1\.27'/);
 });

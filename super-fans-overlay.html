@@ -50,6 +50,7 @@ const SHOW_MS=demo?8000:30000,PERIOD_MS=demo?14000:330000,FIRST_MS=demo?800:3000
 const platforms=['kick','tiktok','twitch'],palettes={kick:'#53fc18',twitch:'#a970ff',tiktok:'#25F4EE'};
 const display={kick:'KICK',twitch:'TWITCH',tiktok:'TIKTOK'};
 let dailyTops={},index=0,hideTimer,nextTimer,particlesActive=false,color='#fff',particles=[];
+let activePlatforms=[];
 const slot=document.getElementById('slot'),cv=document.getElementById('fx'),cx=cv.getContext('2d');
 const esc=v=>String(v??'').replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const fmt=n=>Number(n)>=1000?(Number(n)/1000).toFixed(1).replace('.0','')+'K':String(Math.round(Number(n)||0));
@@ -71,7 +72,7 @@ function animateNums(el){
 }
 function refreshDay(){return new Intl.DateTimeFormat('es-DO',{day:'numeric',month:'short',timeZone:'America/Santo_Domingo'}).format(new Date()).toUpperCase()}
 function show(){
- const p=platforms[index];const user=demo?preview[p]:(dailyTops[p]||[])[0];if(!user){slot.replaceChildren();return}
+ const p=platforms[index];const user=demo?preview[p]:(activePlatforms.includes(p)?(dailyTops[p]||[])[0]:null);if(!user){slot.replaceChildren();return}
  const st=user.dailyStats||{};const hours=Math.max(0,rounded(st.minutes)/60);const displayUser=user.nickname||user.user||'Fan';
  const markup=`<div class="card" style="--c:${palettes[p]};--t:${SHOW_MS}ms">
  <div class="fx"><div class="flash"></div><div class="slash"></div></div><div class="bar"></div>
@@ -88,10 +89,10 @@ function cycle(){
  // No dejar OBS vacío durante cinco minutos si el turno pertenece a una
  // plataforma sin actividad, mientras otra sí tiene un Super Fan.
  if(!demo){
-  const available=platforms.filter(p=>(dailyTops[p]||[]).length>0);
+  const available=platforms.filter(p=>activePlatforms.includes(p)&&(dailyTops[p]||[]).length>0);
   if(!available.length){slot.replaceChildren();nextTimer=setTimeout(cycle,15000);return}
   for(let n=0;n<platforms.length;n++){
-   if((dailyTops[platforms[index]]||[]).length)break;
+   if(activePlatforms.includes(platforms[index])&&(dailyTops[platforms[index]]||[]).length)break;
    index=(index+1)%platforms.length;
   }
  }
@@ -99,8 +100,8 @@ function cycle(){
  index=(index+1)%platforms.length;nextTimer=setTimeout(cycle,PERIOD_MS)
 }
 function use(data){if(data?.dailyTops)dailyTops=data.dailyTops}
-async function load(){try{const obs=params.get('obs');const r=await fetch('/api/loyalty?limit=1'+(obs?'&obs='+encodeURIComponent(obs):''),{cache:'no-store'});if(r.ok){const data=await r.json();use(data.loyalty)}}catch{}}
+async function load(){try{const obs=params.get('obs');const suffix=obs?'&obs='+encodeURIComponent(obs):'';const [lr,vr]=await Promise.all([fetch('/api/loyalty?limit=1'+suffix,{cache:'no-store'}),fetch('/api/viewers?x='+Date.now()+suffix,{cache:'no-store'})]);if(vr.ok){const data=await vr.json();activePlatforms=Array.isArray(data.activePlatforms)?data.activePlatforms:[];if(!demo&&!activePlatforms.includes(platforms[(index+platforms.length-1)%platforms.length]))slot.replaceChildren()}if(lr.ok){const data=await lr.json();use(data.loyalty)}}catch{}}
 function connect(){const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+(params.get('obs')?'/?obs='+encodeURIComponent(params.get('obs')):''));ws.onmessage=e=>{try{const d=JSON.parse(e.data);if((d.type==='hello'||d.type==='loyalty-update')&&d.loyalty)use(d.loyalty)}catch{}};ws.onclose=()=>setTimeout(connect,2500);ws.onerror=()=>ws.close()}
-load();connect();setInterval(load,30000);nextTimer=setTimeout(cycle,FIRST_MS);
+load();connect();setInterval(load,5000);nextTimer=setTimeout(cycle,FIRST_MS);
 })();
 </script></body></html>

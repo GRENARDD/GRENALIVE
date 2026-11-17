@@ -85,6 +85,7 @@
 
 <script>
   const vals={twitch:0,kick:0,tiktok:0,youtube:0};
+  let activePlatforms=[];
   function pintar(el,n){
     const s=Math.max(0,Math.round(Number(n)||0)).toLocaleString('en-US');
     if(el.dataset.len!==String(s.length)){
@@ -102,10 +103,10 @@
     const digits=s.replace(/\D/g,'');
     el.querySelectorAll('.roll').forEach((r,i)=>{r.style.transform='translateY('+(-digits[i])+'em)';});
   }
-  function actualizar(){document.querySelectorAll('.num').forEach(el=>pintar(el,vals[el.dataset.k]));}
+  function actualizar(){document.querySelectorAll('.num').forEach(el=>pintar(el,vals[el.dataset.k]));for(const p of Object.keys(vals)){const card=document.querySelector('.item.'+p);if(card)card.style.display=(vals[p]>0&&activePlatforms.includes(p))?'':'none'}}
   window.setViewers=function(o){for(const k of Object.keys(vals)){if(Number.isFinite(Number(o?.[k])))vals[k]=Math.max(0,Number(o[k]));}actualizar();};
-  window.addEventListener('message',e=>{if(e.origin!==location.origin)return;if(e.data?.type==='grena-viewers'&&e.data.viewers)window.setViewers(e.data.viewers)});
-  async function refresh(){try{const params=new URLSearchParams(location.search);const obs=params.get('obs');const url='/api/viewers'+(obs?'?obs='+encodeURIComponent(obs):'');const r=await fetch(url,{cache:'no-store'});if(r.ok){const d=await r.json();if(d.viewers)window.setViewers(d.viewers);}}catch{}}
+  window.addEventListener('message',e=>{if(e.origin!==location.origin)return;if(e.data?.type==='grena-viewers'&&e.data.viewers){activePlatforms=Array.isArray(e.data.activePlatforms)?e.data.activePlatforms:[];window.setViewers(e.data.viewers)}});
+  async function refresh(){try{const params=new URLSearchParams(location.search);const obs=params.get('obs');const url='/api/viewers'+(obs?'?obs='+encodeURIComponent(obs):'');const r=await fetch(url,{cache:'no-store'});if(r.ok){const d=await r.json();if(d.viewers){activePlatforms=Array.isArray(d.activePlatforms)?d.activePlatforms:[];window.setViewers(d.viewers);}}}catch{}}
   actualizar();refresh();setInterval(refresh,3000);
 </script>
 </body>

@@ -48,6 +48,11 @@ body.grena-login:after{background-image:linear-gradient(rgba(214,170,90,.025) 1p
 .grena-login button:focus-visible{outline:2px solid #eac170!important;outline-offset:2px}
 @media(max-width:780px){.grena-login .hero{border-right:0!important;border-bottom:1px solid #684b24!important}}
 </style>
+<style id="grena-premium-login-native-window">
+html.grena-electron-login body::after{pointer-events:none}
+html.grena-electron-login .grena-window-drag{position:fixed;top:0;left:0;right:144px;height:12px;z-index:1000;-webkit-app-region:drag;app-region:drag}
+</style>
+<script>if(/\bElectron\/\d+/i.test(navigator.userAgent)){document.documentElement.classList.add('grena-electron-login');document.addEventListener('DOMContentLoaded',()=>{const region=document.createElement('div');region.className='grena-window-drag';region.setAttribute('aria-hidden','true');document.body.prepend(region)})}</script>
 </head>
 <body class="grena-login">
 <div class="shell">

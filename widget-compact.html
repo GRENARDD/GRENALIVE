@@ -37,7 +37,7 @@ const renderInputs={
 minecraft:()=>'<p class="status">Personajes Minecraft · modelo actual, hasta 10 participantes. La demostración no afecta a OBS.</p>',
 counter:()=>field('Seleccionar estilo','style',sel('style',[['classic','Tarjetas GREÑA'],['trio','Trío Live'],['vertical','Vertical'],['grena-viewers','GREÑA Viewers · sin Total']]))+
 '<div class="row">'+field('Pegado al borde','edge',sel('edge',[['left','Izquierda'],['right','Derecha']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>',
-multichat:()=>field('Estilo del chat','theme',sel('theme',[['clean','Minimal PRO'],['blossom','Blossom Glass'],['comicpop','Comic Pop'],['timeline','Timeline Premium']]))+
+multichat:()=>field('Estilo del chat','theme',sel('theme',[['clean','Minimal PRO'],['blossom','Blossom Glass'],['comicpop','Comic Pop'],['timeline','Timeline Premium'],['signal','MultiChat Signal · original']]))+
 '<div class="row">'+field('Dirección','direction',sel('direction',[['left','Izquierda'],['right','Derecha / invertido']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>'+
 '<div class="row">'+field('Tamaño del icono · px','iconSize',number('iconSize',24,10,96))+field('Legibilidad','readability',sel('readability',[['both','Borde y sombra'],['shadow','Sombra suave'],['outline','Borde fino'],['none','Sin efecto']]))+'</div>'+
 field('Intensidad de sombra · %','shadowStrength',number('shadowStrength',70,0,100)),
@@ -60,7 +60,7 @@ function previewVisual(){
  // No inventar cuentas en OBS: los ejemplos solo viven dentro de esta ventana.
  const names={tiktok:'TikTok · prueba',twitch:'Twitch · prueba',kick:'Kick · prueba',youtube:'YouTube · prueba'};
  const labels={};for(const p of actual.enabledNetworks){if(!actual[p+'User']&&!actual.socialNameOverrides?.[p])labels[p]=names[p];}
- return {...actual,linkedNetworks:[...new Set([...(actual.linkedNetworks||[]),...actual.enabledNetworks])],socialNameOverrides:{...labels,...(actual.socialNameOverrides||{})}};
+ return {...actual,preview:true,linkedNetworks:[...new Set([...(actual.linkedNetworks||[]),...actual.enabledNetworks])],liveNetworks:actual.enabledNetworks,socialNameOverrides:{...labels,...(actual.socialNameOverrides||{})}};
 }
 
 function emitPreview(){

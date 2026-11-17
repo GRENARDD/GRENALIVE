@@ -314,6 +314,14 @@ input[type=range]{accent-color:var(--g2);flex:1;min-width:120px}
 
 </style>
 <link rel="stylesheet" href="/grena-v4-fixes.css?v=602" media="all">
+<style id="grena-premium-native-window">
+/* Only Electron is given draggable chrome. OBS/browser previews remain unchanged. */
+html.grena-electron .bar{ -webkit-app-region:drag; app-region:drag; padding-right:150px; }
+html.grena-electron .bar button,html.grena-electron .bar a,html.grena-electron .bar .r,
+html.grena-electron .bar input,html.grena-electron .bar select{ -webkit-app-region:no-drag; app-region:no-drag; }
+@media(max-width:700px){html.grena-electron .bar{padding-right:142px}}
+</style>
+<script>if(/\bElectron\/\d+/i.test(navigator.userAgent))document.documentElement.classList.add('grena-electron');</script>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -329,7 +337,7 @@ input[type=range]{accent-color:var(--g2);flex:1;min-width:120px}
     <button class="nb on" data-l="Inicio"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg></button>
     <button class="nb" data-l="Flotante"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="14" height="11" rx="2"/><path d="M8 20h13V9"/></svg></button>
     <button class="nb" data-l="Móvil"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg></button>
-    <button class="nb" data-l="En vivo"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><path d="M7.5 7.5a6.4 6.4 0 000 9M16.5 7.5a6.4 6.4 0 010 9M4.5 4.5a10.6 10.6 0 000 15M19.5 4.5a10.6 10.6 0 010 15"/></svg></button>
+    
     <button class="nb" data-l="Alertas"><svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 1112 0v6l2 2H4zM10 21h4"/></svg></button>
     <button class="nb" data-l="Widgets"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></button>
     <button class="nb" data-l="Juegos"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="11" rx="5"/><path d="M7 10v5M4.5 12.5h5M16 11h.01M18.5 14h.01"/></svg></button>
@@ -437,11 +445,16 @@ function toast(t){const e=document.createElement("div");e.className="toast";e.te
 
 /* navegación */
 const TT=["Centro de mando","Ventana flotante","Versión móvil","En vivo","Mis alertas","Widgets","Juegos","Cámaras","Regalos"];
-$$("#nav .nb").forEach((b,i)=>b.onclick=()=>{
-  $$("#nav .nb").forEach(x=>x.classList.toggle("on",x===b));
-  $("#ttl").textContent=TT[i];
-  $("#home").style.display=i?"none":"";$("#soon").style.display=i?"block":"none";
-  $("#sn").textContent=b.dataset.l;
+$$("#nav .nb").forEach((b,i)=>{
+  // Keep existing page IDs and handlers. Only sidebar "En vivo" (page 3) is removed.
+  const page=[0,1,2,4,5,6,7,8][i];
+  b.dataset.page=String(page);
+  b.onclick=()=>{
+    $$("#nav .nb").forEach(x=>x.classList.toggle("on",x===b));
+    $("#ttl").textContent=TT[page];
+    $("#home").style.display=page?"none":"";$("#soon").style.display=page?"block":"none";
+    $("#sn").textContent=b.dataset.l;
+  };
 });
 
 /* voz */
@@ -516,8 +529,12 @@ pg(2,"Versión móvil","Vincula tu teléfono con GREÑA ID.",`
 <div class="card" style="text-align:center"><h3>2. Vincular dispositivo</h3><p class="m" style="font-size:12.5px">Código de un solo uso, válido 2 minutos.</p><div class="qr" id="q2">Todavía no disponible desde el teléfono</div><b style="display:block;margin:10px 0;color:var(--g1)" id="cd">Caduca en 120 s</b><button class="btn go" id="gq">Generar QR de vinculación</button></div></div>
 <div class="row"><button class="btn go" id="wf">📶 Habilitar acceso por Wi-Fi local</button><small>Pulsa y luego escanea los códigos.</small></div>`);
 
-/* 3 · En vivo */
-pg(3,"En vivo","Estado del motor de directos por plataforma.",`<div class="g2" id="lv"></div>`);
+/* El apartado de navegación "En vivo" fue eliminado a petición del usuario.
+   Mantener los datos internos LV para las tarjetas y contadores del inicio;
+   nunca crear una página visible con el ID pg3. */
+const internalLiveState=document.createElement('div');
+internalLiveState.id='lv';internalLiveState.hidden=true;
+WRAP.appendChild(internalLiveState);
 const LV={tt:["Sin vincular",0,0],tw:["Sin vincular",0,0],kk:["Sin vincular",0,0],yt:["Sin vincular",0,0]};
 function lv(){$("#lv").innerHTML=Object.keys(LV).map(k=>`<div class="card"><div class="row"><div class="pi ${k}">${ic(k)}</div><div><b>${CLR[k]}</b><div><small>${LV[k][0]}</small></div></div><span class="tag sp2" style="${LV[k][1]?"color:var(--ok)":""}">${LV[k][1]?"● EN DIRECTO":"Sin directo"}</span></div><div class="row" style="margin-top:14px"><div class="stat"><b>${LV[k][1]?Number(LV[k][2]||0).toLocaleString("es-DO"):"—"}</b><small>espectadores</small></div><button class="btn ${LV[k][1]?"":"go"} sp2" data-k="${k}">${LV[k][1]?"Detener lectura":"Detectar directo"}</button></div></div>`).join("");
 }lv();
@@ -565,12 +582,12 @@ $$("#gt button").forEach(b=>b.onclick=()=>{$$("#gt button").forEach(x=>x.classLi
 $("#ga").onclick=e=>{e.currentTarget.classList.toggle("on");gan^=1;gr()};// The real GREÑA adapter fills the catalog from /api/gift-catalog; do not show demo cards in production.
 
 /* navegación completa */
-$$("#nav .nb").forEach((b,i)=>b.addEventListener("click",()=>{$("#soon").style.display="none";$$(".pg").forEach(p=>p.classList.toggle("on",p.id==="pg"+i))}));
+$$("#nav .nb").forEach(b=>b.addEventListener("click",()=>{$("#soon").style.display="none";const page=Number(b.dataset.page);$$(".pg").forEach(p=>p.classList.toggle("on",p.id==="pg"+page))}));
 document.addEventListener("click",e=>{const s=e.target.closest(".pg .sw");if(s&&s.id!=="ga")s.classList.toggle("on")});
 
 
 </script>
 <script src="/assets/qr-code.min.js"></script>
-<script src="/grena-v4-live.js?v=6004" defer></script>
+<script src="/grena-v4-live.js?v=6005" defer></script>
 </body>
 </html>

@@ -56,6 +56,8 @@ on:
       - 'grena-v4-fixes.css'
       - 'grena-v4-live.js'
       - 'widget-compact.html'
+      - 'desktop-build/enable_frameless.py'
+      - 'multichat-signal.html'
       - 'viewers-grena-original.html'
       - 'social-overlay-grena-original.html'
       - 'tests/grena-owner-admin-navigation.test.cjs'
@@ -141,7 +143,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-6003-to-6004.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-6004-to-6005.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -149,7 +151,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v6.0.3 -> v6.0.4 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v6.0.4 -> v6.0.5 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -207,6 +209,8 @@ jobs:
         run: |
           python desktop-build/fix_startup.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/enable_frameless.py .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_oauth.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_kick_auth.py .
@@ -234,14 +238,14 @@ jobs:
             node --check $path
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Set distinct 6.0.4 release-candidate version for preview installer
+      - name: Set distinct 6.0.5 release-candidate version for preview installer
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "6.0.4-rc.1"
+          $pkg.version = "6.0.5-rc.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 6.0.4-rc.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 6.0.5-rc.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -261,14 +265,14 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Verify official GREÑA Live 6.0.4 version on main (never on pull requests)
+      - name: Verify official GREÑA Live 6.0.5 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ($pkg.version -ne "6.0.4") { throw "Versión base inesperada; se cancela publicación estable." }
-          Write-Host "Versión oficial verificada: 6.0.4"
+          if ($pkg.version -ne "6.0.5") { throw "Versión base inesperada; se cancela publicación estable." }
+          Write-Host "Versión oficial verificada: 6.0.5"
       - name: Generate and verify GOLD GREÑA G icon for Windows
         shell: pwsh
         run: |
@@ -355,7 +359,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($referenceCSS) -or $packageCSS -cne $referenceCSS) {
             throw 'La interfaz empaquetada modificó el CSS original V4 del usuario.'
           }
-          if (!$v4.Contains('<nav class="rail" id="nav"') -or !$v4.Contains('src="/grena-v4-live.js?v=6004"')) {
+          if (!$v4.Contains('<nav class="rail" id="nav"') -or !$v4.Contains('src="/grena-v4-live.js?v=6005"')) {
             throw 'La estructura original V4 o el adaptador real no se empaquetaron.'
           }
           Write-Host 'OK: la interfaz V4 conserva el CSS original sin inyectar el viejo logotipo.'
@@ -444,13 +448,13 @@ jobs:
       - name: Smoke test compiled Windows backend
         shell: pwsh
         run: ./desktop-build/smoke.ps1
-      - name: Verify installed upgrade from GREÑA 6.0.3 to 6.0.4 preserves user data
+      - name: Verify installed upgrade from GREÑA 6.0.4 to 6.0.5 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
-        run: ./desktop-build/verify-upgrade-6003-to-6004.ps1
+        run: ./desktop-build/verify-upgrade-6004-to-6005.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-RC-6.0.4-Windows' || 'GRENA-LIVE-Installer-Windows-v6.0.4' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-RC-6.0.5-Windows' || 'GRENA-LIVE-Installer-Windows-v6.0.5' }}
           path: dist/*.exe
           if-no-files-found: error

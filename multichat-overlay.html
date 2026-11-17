@@ -373,9 +373,13 @@
 @media(prefers-reduced-motion:reduce){.msg.theme-timeline{animation:none!important}}
 
 </style>
+<style id="grena-signal-bridge-css">
+#signalFrame{position:fixed;inset:0;width:100vw;height:100vh;border:0;background:transparent;display:none;pointer-events:none}
+</style>
 </head>
 <body>
   <div id="stage" class="stage"></div>
+<iframe id="signalFrame" title="MultiChat Signal" loading="eager" allowtransparency="true"></iframe>
   <div id="status" class="status"></div>
 <script>
 const KEY='grenaMultichatSettings_v2';
@@ -401,13 +405,16 @@ function sanitizeCfg(src){
     else if(typeof def==='boolean'){out[k]=typeof v==='boolean'?v:def}
     else if(k==='readability'){out[k]=['none','shadow','outline','both'].includes(v)?v:def}
     else if(k==='direction'){out[k]=v==='right'?'right':'left'}
-    else if(k==='theme'){out[k]=['clean','blossom','comicpop','timeline'].includes(v)?v:'clean'}
+    else if(k==='theme'){out[k]=['clean','blossom','comicpop','timeline','signal'].includes(v)?v:'clean'}
     else{out[k]=def}
   }
   return out;
 }
 let cfg={...defaults};
 const stage=document.getElementById('stage');
+const signalFrame=document.getElementById('signalFrame');
+signalFrame.addEventListener('load',()=>{if(cfg.theme==='signal')signalFrame.contentWindow?.postMessage({type:'grena-multichat-settings',settings:cfg},location.origin)});
+
 const statusEl=document.getElementById('status');
 let ws,retry;
 const seenHistory=new Set();
@@ -439,6 +446,20 @@ async function load(){
   }catch{}
 }
 function applyStage(){
+  const signal=cfg.theme==='signal';
+  stage.style.display=signal?'none':'flex';
+  signalFrame.style.display=signal?'block':'none';
+  if(signal){
+    if(signalFrame.dataset.active!=='1'){
+      signalFrame.dataset.active='1';
+      const u=new URL('/multichat-signal.html',location.origin);
+      if(OBS_ACCESS)u.searchParams.set('obs',OBS_ACCESS);
+      if(new URLSearchParams(location.search).get('preview')==='1')u.searchParams.set('preview','1');
+      signalFrame.src=u.toString();
+    }else signalFrame.contentWindow?.postMessage({type:'grena-multichat-settings',settings:cfg},location.origin);
+    return;
+  }
+  if(signalFrame.dataset.active==='1'){signalFrame.dataset.active='0';signalFrame.src='about:blank'}
   stage.style.gap=(cfg.theme==='timeline'?(Number(cfg.gap??8)===8?30:Math.max(0,Number(cfg.gap)||0)):Math.max(12,Number(cfg.gap??8)))+'px';
   stage.style.alignItems=cfg.direction==='right'?'flex-end':'flex-start';
   const edgeOffset=Math.max(0,Math.min(80,Number(cfg.edgeOffset)||0));
@@ -647,6 +668,7 @@ function timelineCaptureBeforeInsert(){
 function timelineAnimateInserted(el){timelineAdded.push(el)}
 
 function add(d){
+  if(cfg.theme==='signal')return;
   if(!d||d.type!=='chat'||!['tiktok','twitch','kick','youtube','starvios'].includes(d.platform))return;
   if(d._historyId){
     if(seenHistory.has(d._historyId)&&stage.querySelector(`[data-hid="${CSS.escape(d._historyId)}"]`))return;
@@ -742,7 +764,7 @@ window.addEventListener('message',e=>{
   const allowedOrigins=new Set(['http://127.0.0.1:8787','http://localhost:8787','http://127.0.0.1:8788','http://localhost:8788',location.origin]);
   if(e.source!==window.parent&&e.source!==window)return;if(!allowedOrigins.has(e.origin))return;
   if(e.data?.type==='grena-multichat-settings'){ cfg=sanitizeCfg(e.data.settings); applyStage(); }
-  if(e.data?.type==='grena-multichat-demo') add(e.data.message);
+  if(e.data?.type==='grena-multichat-demo'){if(cfg.theme==='signal')signalFrame.contentWindow?.postMessage(e.data,location.origin);else add(e.data.message)}
 });
 load();
 function connect(){
