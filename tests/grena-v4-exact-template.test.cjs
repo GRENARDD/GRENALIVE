@@ -23,7 +23,7 @@ test('V4 keeps the exact nine original tabs and dashboard DOM, not legacy UI ele
  const actual=[...nav(live).matchAll(/<button class="nb(?: on)?" data-l="([^"]+)"/g)].map(m=>m[1]);
  assert.deepEqual(actual,names);
  for(const id of ['ttl','licenseBadge','profileTrigger','userAvatar','tot','cl','ca','split','leg','feed','vsw','plats','ev','prow',
-   'pg1','pg2','pg3','pg4','pg5','pg6','pg7','pg8'])assert.match(live,new RegExp('id="'+id+'"'),id);
+   'pg1','pg2','pg3','pg4','pg5','pg6','pg7','pg8'])assert.match(live,id.startsWith('pg')?new RegExp('pg\\('+id.slice(2)+','):new RegExp('id="'+id+'"'),id);
  for(const cls of ['shell','rail','wrap','hero','chat','side','voice','pads'])assert.match(live,new RegExp('class="[^"]*\\b'+cls+'\\b'),cls);
  assert.doesNotMatch(live,/class="workspace"|class="primary-nav"|id="premiumVoiceCard"|id="chatFrame"/);
  assert.doesNotMatch(live,/grena-premium-v6\.css|grena-premium-v6\.js/);
