@@ -12,7 +12,8 @@ test('V4 keeps the original nine modules while real Minecraft dynamics are conne
 });
 test('V4 original side icons have their accessible labels and open every section',()=>{
  const html=file('index.html');
- for(const label of ['Inicio','Flotante','Móvil','En vivo','Alertas','Widgets','Juegos','Cámaras','Regalos'])assert.ok(html.includes('data-l="'+label+'"'),label);
+ for(const label of ['Inicio','Flotante','Móvil','Alertas','Widgets','Juegos','Cámaras','Regalos'])assert.ok(html.includes('data-l="'+label+'"'),label);
+ assert.doesNotMatch(html,/data-l="En vivo"/);
  assert.match(html,/id="nav" aria-label="Secciones"/);
  assert.match(html,/const TT=\["Centro de mando"/);
 });
