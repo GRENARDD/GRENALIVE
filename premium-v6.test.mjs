@@ -23,7 +23,7 @@ test('GREÑA V6 premium assets are linked and contain functional anchors',()=>{
  assert.match(index,/id="grenaPremiumLicense"/);
  assert.match(chat,/id="voiceCooldownSec"/);
  assert.match(chat,/voiceCooldownSeconds:/);
- assert.match(chat,/now-last\s*<\s*VOICE_USER_COOLDOWN_MS/);
+ assert.match(chat,/now-last\s*<\s*voiceUserCooldownMs/);
  assert.match(chat,/grena-v6-chat-visibility\.js/);
  assert.match(css,/grena-v6-voice-only/);
  assert.match(js,/api\/license\/status/);
