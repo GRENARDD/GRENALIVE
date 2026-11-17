@@ -189,3 +189,7 @@ html.grena-v6-voice-only body.grena-chat .v6-cooldown small{color:#9b9283;displa
  body.grena-control #premiumHero{padding:10px!important}
  body.grena-control .workspace #soundboardStrip{flex:none!important}
 }
+
+/* Asegurar que el iframe de voz pueda salirse de su panel al mostrarse modal. */
+body.grena-control.grena-voice-popup .workspace,body.grena-control.grena-voice-popup .chat-zone,body.grena-control.grena-voice-popup .chat-frame-wrap{overflow:visible!important;transform:none!important;contain:none!important}
+body.grena-control.grena-voice-popup .chat-frame-wrap{position:static!important}
