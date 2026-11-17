@@ -48,3 +48,15 @@ test('Chat and main dashboard inline scripts remain syntactically valid',()=>{
   assert.ok(count>0,p+' should contain inline scripts');
  }
 });
+
+test('Gold G icon is a native transparent SVG shared by all brand surfaces',()=>{
+ const svg=read('favicon.svg');
+ assert.match(svg,/<svg[^>]+viewBox="0 0 512 512"/);
+ assert.match(svg,/fill="url\(#body\)"/);
+ assert.doesNotMatch(svg,/<rect[^>]+(fill=["'](?:white|#fff|#ffffff)|width=["']512)/i);
+ assert.doesNotMatch(svg,/data:image\/png;base64/);
+ for(const p of ['index.html','login.html','mode.html','afterglow-studio.html','gift-catalog.html','mobile-device.html']){
+  assert.match(read(p),/favicon\.svg\?v=600/,p);
+ }
+ assert.match(read('grena-premium-v6.css'),/background:transparent!important/);
+});
