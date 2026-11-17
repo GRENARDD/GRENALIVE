@@ -55,7 +55,7 @@ test('chat recovery is part of the 6.0.2 stable Windows build',()=>{
 
 test('6.0.2 PR preview does not run the official-only in-place Windows upgrade gate',()=>{
  const workflow=source('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(workflow,/Verify installed upgrade from GREÑA 6\.0\.0 to 6\.0\.2 preserves user data\s*\n\s*if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
+ assert.match(workflow,/Verify installed upgrade from GREÑA 6\.0\.1 to 6\.0\.2 preserves user data\s*\n\s*if: github\.event_name == 'push' && github\.ref == 'refs\/heads\/main'/);
  assert.match(workflow,/Set distinct 6\.0\.2 release-candidate version for preview installer/);
  assert.match(workflow,/Verify official GREÑA Live 6\.0\.2 version on main/);
 });
