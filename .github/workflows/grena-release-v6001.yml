@@ -12,8 +12,8 @@ permissions:
   actions: read
 jobs:
   release:
-    # PAUSADO POR EL PROPIETARIO: nueva interfaz Premium V4 pendiente de validación.
-    if: ${{ false }}
+    # Publish only after the exact V4 PR is merged and the main Windows CI succeeds.
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -48,7 +48,7 @@ jobs:
             echo 'v6.0.1 ya existe. No sobrescribir una versión oficial.'
             exit 1
           fi
-      - name: Verify true GREÑA Live 6.0.1 Classic rollback identity
+      - name: Verify exact GREÑA Live 6.0.1 Premium V4 reference and adapter
         if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
         run: |
@@ -56,8 +56,9 @@ jobs:
           node -e "const p=require('./package.json');if(p.version!=='6.0.1')process.exit(1)"
           test -s index.html
           test -s chat.html
-          test ! -e grena-premium-v6.css
-          grep -q 'GREÑA LIVE PRO' index.html
+          test -s grena-v4-live.js
+          test -s 'design/reference/GRENA_LIVE_6_Premium_Interactivo_V4(3).html'
+          node --test tests/grena-v4-exact-template.test.cjs
           test -s desktop-build/verify-upgrade-6000-to-6001.ps1
       - name: Verify production GREÑA ID Worker has secure shared rooms
         if: steps.existing_release.outputs.already_exists != 'true'
@@ -107,17 +108,18 @@ jobs:
         run: |
           set -euo pipefail
           cat > release-notes.md <<'EOF'
-          GREÑA Live Desktop v6.0.1 — CLÁSICA ESTABLE
+          GREÑA Live Desktop v6.0.1 — PREMIUM V4 ESTABLE
 
-          RESTAURACIÓN SOLICITADA:
-          - Recuperada la interfaz y el código de GREÑA Live 5.1.29, última versión oficial anterior a la 6.0.0.
-          - Nueva versión 6.0.1 para permitir instalación por encima de 6.0.0 sin confundir el número del instalador.
-          - No incluye el rediseño Premium 6.0.0 ni el ZIP 'Épica' todavía no aprobado.
+          INTERFAZ PREMIUM V4 ORIGINAL:
+          - La interfaz usa directamente el HTML y CSS de GRENA_LIVE_6_Premium_Interactivo_V4(3).html.
+          - El adaptador grena-v4-live.js vincula las vistas originales con el backend, sin volver a introducir el diseño antiguo.
+          - Incluye nueve secciones Premium, chat unificado, paneles, Fish Audio compacto y cinco audios rápidos.
 
-          ESTADO DE FUNCIONES:
-          - Conserva chat, alertas, cuentas y Fish Audio del código probado en v5.1.29.
-          - El instalador se comprueba con una actualización real desde v6.0.0, conservando datos de cuenta, chat y voz.
-          - No se modifican las descargas ni las publicaciones históricas 5.1.29 y 6.0.0.
+          FUNCIONES Y PRUEBAS:
+          - Conserva GREÑA ID, multichat, Fish Audio, alertas, widgets OBS, plataformas, móviles y cámaras.
+          - Construcción Windows, pruebas de Node, recursos empaquetados y humo del backend obligatorios.
+          - Actualización real desde 6.0.0 a 6.0.1 con comprobación de persistencia de configuraciones, sesiones y voz.
+          - Las publicaciones oficiales anteriores siguen disponibles.
 
           SEGURIDAD:
           - Compilación y pruebas de Windows obligatorias antes de publicar.
