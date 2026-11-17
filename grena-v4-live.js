@@ -184,9 +184,7 @@ function renderPlatforms(){
   // The V4 markup is preserved; only its button callbacks are attached to actual APIs.
   QA('#plats button[data-i]').forEach(btn=>btn.addEventListener('click',()=>platformAction(PL[Number(btn.dataset.i)]?.[0])));
   QA('#lv button[data-k]').forEach(btn=>btn.addEventListener('click',()=>platformAction(btn.dataset.k)));
-  // Status in the V4 Alerts section is live, never a static 'No conectado'.
-  const badges=QA('#pg4 .g2 .card:nth-child(1) .tag');
-  ['tiktok','twitch','kick'].forEach((p,i)=>{const s=persistent.status[p]||{},ready=!!(s.authenticated||persistent.bridge[p]);if(badges[i]){badges[i].textContent=ready?'Vinculado':'No conectado';badges[i].style.color=ready?'var(--ok)':'var(--bad)'}});
+  // Platform connections are shown exclusively in Inicio and En vivo; Alerts contains only alert controls.
 }
 async function platformAction(key){
   const p=FULL[key];if(!p)return;
