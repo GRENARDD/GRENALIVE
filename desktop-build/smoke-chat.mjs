@@ -32,19 +32,21 @@ const resources=[
   '/assets/platforms/twitch.webp',
   '/assets/platforms/kick.svg',
   '/assets/youtube-logo.svg',
-  '/control-center.js'
+  '/grena-v4-live.js'
 ];
 for(const resource of resources){
   const r=await get(main+resource);
   assert.equal(r.status,200,'No carga el recurso de plataforma: '+resource);
-  if(resource!=='/control-center.js')assert.match(r.headers.get('content-type')||'',/image\//i,'Tipo MIME icono '+resource);
+  if(resource!=='/grena-v4-live.js')assert.match(r.headers.get('content-type')||'',/image\//i,'Tipo MIME icono '+resource);
 }
 console.log('OK: iconos y JS del panel disponibles en :8787.');
 
-// This source line must be in the built installation, preventing direct :8788 iframe regression.
-const js=await (await get(main+'/control-center.js')).text();
-assert.match(js,/const wanted=\u0060\$\{location\.origin\}\/chat\/\?embed=/,'El iframe sigue apuntando directamente a :8788.');
-console.log('OK: el iframe de GREÑA CHAT usa /chat/ del servidor principal.');
+// The real V4 adapter must load the existing chat engine from the authorized same-origin bridge.
+const js=await (await get(main+'/grena-v4-live.js')).text();
+assert.match(js,/location\.origin\+'\/chat\/\?embed=1&profile='/,'V4 debe inicializar voz desde el chat real bajo el mismo origen.');
+assert.match(js,/\/api\/chat\/live-messages/,'V4 no consume los mensajes reales desde el backend.');
+assert.match(js,/\/api\/viewers/,'V4 no consume los contadores reales.');
+console.log('OK: V4 obtiene chat, voz y espectadores reales sin duplicar conexiones.');
 
 const username='test'+randomBytes(6).toString('hex');
 const registration=await get(main+'/api/account/register',{
@@ -67,7 +69,9 @@ const panel=await get(main+'/',{headers:{Cookie:cookie}});
 assert.equal(panel.status,200,'El panel principal no abre tras iniciar sesión.');
 const panelHtml=await panel.text();
 assert.doesNotMatch(panelHtml,/id="starviosLinkModal"|data-platform="starvios"|id="starviosAccount"/i,'Starvios sigue visible en Inicio.');
-assert.match(panelHtml,/href="\/live-panel\.html"/,'Falta acceso al panel multistream real en Inicio.');
+assert.match(panelHtml,/pg\(3,"En vivo"/,'Falta el apartado En vivo de la interfaz original V4.');
+assert.match(panelHtml,/id="feed"/,'Falta el chat visual V4 original.');
+assert.match(panelHtml,/src="\/grena-v4-live\.js/,'La interfaz V4 no carga sus adaptadores reales.');
 const live=await get(main+'/live-panel.html',{headers:{Cookie:cookie}});
 assert.equal(live.status,200,'El panel multistream empaquetado no abre con GREÑA ID.');
 const liveHtml=await live.text();
@@ -156,7 +160,7 @@ assert.equal(afterglowSource.status,200,'No se carga el overlay de AFTERGLOW.');
 assert.match(await afterglowSource.text(),/settingsSyncTimer/,'OBS no refresca el tema al reconectar.');
 const studio=await get(main+'/afterglow-studio.html?embed=1',{headers:{Cookie:cookie}});
 assert.equal(studio.status,200,'AFTERGLOW Studio no abre en la sesión del creador.');
-assert.match(js,/studio:\{path:'\/afterglow-studio.html\?embed=1'/,'Falta navegación interna a Studio.');
+assert.match(js,/\/api\/afterglow-settings/,'La sección V4 de alertas no utiliza las configuraciones reales de Afterglow.');
 console.log('OK: clic Dominó -> tema persistente -> API de OBS sin cookie y Studio en módulo Electron.');
 
 
