@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>MultiChat Signal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700&family=Unbounded:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--size:20px;--tw:#a970ff;--yt:#ff3b4e;--tt:#25f4ee;--kk:#53fc18}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:transparent!important;overflow:hidden}
+body{font-family:'Manrope',system-ui,'Segoe UI',sans-serif;font-size:var(--size);color:#fff;display:flex;flex-direction:column;justify-content:flex-end;padding:10px 14px}
+#chat{display:flex;flex-direction:column;justify-content:flex-end;max-height:100%;overflow:hidden;
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 42%);mask-image:linear-gradient(to bottom,transparent 0,#000 42%)}
+
+.row{--c:#fff;display:grid;grid-template-rows:0fr;transition:grid-template-rows .6s cubic-bezier(.2,.9,.2,1),opacity .6s}
+.row.show{grid-template-rows:1fr}
+.row:nth-last-child(2){opacity:.9}.row:nth-last-child(3){opacity:.78}.row:nth-last-child(n+4){opacity:.62}
+.row.gone{grid-template-rows:0fr;opacity:0}
+.wrap{overflow:hidden;min-height:0}
+.in{position:relative;display:grid;grid-template-columns:1fr;padding:6px 4px;opacity:0;transform:translateX(-20px);
+  transition:opacity .4s,transform .5s cubic-bezier(.2,.9,.2,1)}
+.th{display:none}
+.show .in{opacity:1;transform:none}
+
+/* el hilo de señal */
+.th{position:relative}
+.th::before{content:"";position:absolute;inset-inline-start:calc(1.25em - 1px);top:-8px;bottom:-8px;width:2px;background:rgba(255,255,255,.22);box-shadow:0 0 8px rgba(255,255,255,.18)}
+.th::after{content:"";position:absolute;inset-inline-start:calc(1.25em - 2px);top:-70%;height:70%;width:4px;border-radius:4px;
+  background:linear-gradient(transparent,var(--p) 70%,#fff);box-shadow:0 0 14px 2px var(--p);animation:drop .55s cubic-bezier(.5,0,.9,.6) forwards}
+@keyframes drop{to{top:42px;opacity:0}}
+.nd{position:absolute;inset-inline-start:.1em;top:calc(50% - 1.15em);width:2.3em;height:2.3em;border-radius:50%;background:#15131c;z-index:2;
+  box-shadow:0 0 0 3px var(--p),0 0 20px 4px var(--p);transform:scale(0);animation:pop .5s .38s cubic-bezier(.2,1.7,.4,1) forwards}
+.nd img,.nd .ini{position:absolute;inset:0;width:100%;height:100%;border-radius:50%}
+.nd img{object-fit:cover}
+.nd .ini{display:grid;place-items:center;font:700 .9em 'Unbounded','Manrope',sans-serif;color:var(--p);text-shadow:0 0 10px var(--p)}
+.nd::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid var(--p);opacity:0;animation:ping 1.1s .4s ease-out forwards}
+@keyframes pop{to{transform:scale(1)}}
+@keyframes ping{0%{opacity:.95;transform:scale(1)}100%{opacity:0;transform:scale(2.2)}}
+
+.ct{min-width:0}
+.nm{display:flex;align-items:center;gap:9px;margin-bottom:2px}
+.g{width:.95em;height:.95em;fill:var(--p);filter:drop-shadow(0 0 6px var(--p));flex:none}
+.name{font:700 .72em/1.4 'Unbounded','Manrope',system-ui,sans-serif;letter-spacing:.02em;color:var(--p);
+  text-shadow:0 0 14px color-mix(in srgb,var(--p) 45%,transparent),0 2px 6px #000}
+.mk{font-size:.72em;font-weight:800;color:var(--c);text-shadow:0 0 8px var(--c);line-height:1}
+.mk.gold{color:#ffd45e;font-family:'Unbounded',sans-serif;font-size:.62em}
+.txt{font-weight:600;line-height:1.28;overflow-wrap:anywhere;color:#fff;
+  text-shadow:0 0 1px #000,0 1px 2px #000,0 2px 12px rgba(0,0,0,.9)}
+.txt.dec{color:var(--c);font-family:ui-monospace,Consolas,monospace}
+.txt img.e{height:1.7em;vertical-align:middle;margin:-.25em 2px 0;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6))}
+
+.tw{--c:var(--tw);--p:var(--tw)}.yt{--c:var(--yt);--p:var(--yt)}.kk{--c:var(--kk);--p:var(--kk)}.tt{--c:var(--tt);--p:var(--tt)}
+.tt .g{fill:#fe2c55;filter:drop-shadow(-2px 0 0 #25f4ee)}
+.tt .nd{box-shadow:0 0 0 3px #fe2c55,-3px 0 0 3px #25f4ee,0 0 20px 4px #fe2c55}
+
+/* ===== SÚPER FAN: dorado + corona + ícono de su plataforma ===== */
+.sf{--c:#ffd45e}
+.sf .th{display:block}
+.sf .in{grid-template-columns:2.9em 1fr;min-height:calc(2.3em + 16px);padding:8px 8px 8px 4px;border-radius:12px;
+  background:linear-gradient(90deg,rgba(255,200,80,.16),rgba(255,200,80,0) 75%);
+  transition:opacity .5s .35s,transform .7s .35s cubic-bezier(.2,.9,.2,1)}
+.sf .ct{padding-inline-start:8px}
+body.right .sf .in{background:linear-gradient(270deg,rgba(255,200,80,.16),rgba(255,200,80,0) 75%)}
+
+/* destacados (superchat de un súper fan): llamarada dorada */
+.hl .nd{box-shadow:0 0 0 4px #ffd45e,0 0 30px 8px var(--p)}
+.hl .nd::after{animation-iteration-count:4;border-color:#ffd45e}
+.hl .name,.sf .name{background:linear-gradient(90deg,#ffd45e,#fff,#ffb23c,#ffd45e) 0 0/250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:none;filter:drop-shadow(0 0 10px rgba(255,200,80,.6));animation:sweep 2.6s linear infinite}
+.hl .txt:not(.dec){background:linear-gradient(100deg,#fff 40%,#ffe9a3 50%,#fff 60%) 0 0/250% 100%;-webkit-background-clip:text;background-clip:text;
+  color:transparent;text-shadow:none;filter:drop-shadow(0 2px 6px #000);animation:sweep 2.8s linear infinite}
+@keyframes sweep{to{background-position:-250% 0}}
+
+.cr{width:1.1em;height:1.1em;fill:#ffd45e;flex:none;margin-inline-start:-2px;filter:drop-shadow(0 0 7px rgba(255,190,60,.95)) drop-shadow(0 1px 2px #000);animation:glow 2.4s ease-in-out infinite}
+@keyframes glow{50%{filter:drop-shadow(0 0 12px rgba(255,210,90,1)) drop-shadow(0 1px 2px #000)}}
+/* alineado a la derecha: ?align=right */
+body.right .in{direction:rtl;transform:translateX(20px)}body.right .show .in{transform:none}
+body.right .ct{direction:ltr;text-align:right}body.right .nm{justify-content:flex-end}
+@media (prefers-reduced-motion:reduce){.row,.in{transition:none}.th::after,.nd,.nd::after{animation:none}.nd{transform:none}}
+#status{position:fixed;top:8px;right:10px;font-size:11px;display:flex;flex-direction:column;gap:3px;align-items:flex-end}
+#status span{background:rgba(12,10,20,.85);padding:3px 9px;border-radius:99px}
+</style>
+</head>
+<body>
+<div id="chat"></div>
+<div id="status"></div>
+
+<script>
+/* =====================================================
+   MULTICHAT OVERLAY - OBS Browser Source
+   Parámetros en la URL (todos opcionales):
+   ?twitch=canal
+   &kick=ID_DE_CHATROOM
+   &yt_key=API_KEY&yt_video=ID_DEL_DIRECTO
+   &tiktok=ws://localhost:21213     (TikFinity / servidor propio)
+   &size=20  &max=12  &fade=45 (seg, 0 = nunca)
+   &hide=nightbot,streamelements    (usuarios a ocultar)
+   &superfans=user1,user2  (superfans manuales, además de subs/miembros)
+   &align=right  (chat pegado a la derecha)
+   &debug=1  (muestra estado de conexiones)
+   &demo=1   (mensajes de prueba)
+   ===================================================== */
+const P = new URLSearchParams(location.search);
+const CFG = {
+  twitch: P.get('twitch'), kick: P.get('kick'),
+  ytKey: P.get('yt_key'), ytVideo: P.get('yt_video'),
+  tiktok: P.get('tiktok'),
+  size: +P.get('size') || 20, max: +P.get('max') || 12, fade: P.has('fade') ? +P.get('fade') : 45,
+  hide: (P.get('hide') || 'nightbot,streamelements,moobot,streamlabs').toLowerCase().split(','),
+  debug: P.has('debug'), superfans: (P.get('superfans') || '').toLowerCase().split(',').filter(Boolean), demo: P.has('demo')
+};
+document.documentElement.style.setProperty('--size', CFG.size + 'px');
+if(P.get('align') === 'right') document.body.classList.add('right');
+const chat = document.getElementById('chat');
+const statusEl = document.getElementById('status');
+
+const ICONS = {
+  tw: '<svg viewBox="0 0 24 24"><path d="M4 3l-1 4v13h4v3h3l3-3h4l5-5V3H4zm15 11l-3 3h-4l-3 3v-3H6V5h13v9zm-3-6h-2v5h2V8zm-5 0H9v5h2V8z"/></svg>',
+  yt: '<svg viewBox="0 0 24 24"><path fill-rule="evenodd" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>',
+  tt: '<svg viewBox="0 0 24 24"><path d="M14 3h3c.3 2.2 1.6 3.6 4 3.8v3.2c-1.5 0-2.9-.4-4-1.2V15a6 6 0 11-6-6v3.300a2.700 2.700 0 102.700 2.700V3z"/></svg>',
+  kk: '<svg viewBox="0 0 24 24"><path d="M4 3h5v6l4-6h6l-5.500 8L19 21h-6l-4-6.500V21H4z"/></svg>'
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function setStatus(k, txt, ok){
+  if(!CFG.debug) return;
+  let el = statusEl.querySelector('[data-k="'+k+'"]');
+  if(!el){ el = document.createElement('span'); el.dataset.k = k; statusEl.appendChild(el); }
+  el.textContent = (ok ? '● ' : '○ ') + k + ' ' + txt; el.style.color = ok ? '#7dffa0' : '#ffb0b0';
+}
+
+/* ---------- Render central ----------
+   msg: {platform:'tw|yt|tt|kk', user, text (HTML ya escapado), color, avatar, badges:[], highlight} */
+const CROWN = '<svg class="cr" viewBox="0 0 24 24"><path d="M3 18h18v2H3zM3 7l4.5 4L12 4l4.5 7L21 7l-2 9H5z"/></svg>';
+function decode(el){ // efecto de descifrado
+  const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), nodes = [];
+  while(w.nextNode()) nodes.push([w.currentNode, w.currentNode.data]);
+  const total = nodes.reduce((a, n) => a + [...n[1]].length, 0); if(!total) return;
+  const G = '▓▒░█<>/\\|+*#01', t0 = performance.now(), dur = Math.min(900, 300 + total * 14);
+  el.classList.add('dec');
+  (function f(t){
+    const p = Math.min(1, (t - t0) / dur), k = Math.floor(p * total); let i = 0;
+    nodes.forEach(([n, o]) => { n.data = [...o].map(ch => (i++ < k || ch === ' ') ? ch : G[Math.random() * G.length | 0]).join(''); });
+    if(p < 1) requestAnimationFrame(f); else el.classList.remove('dec');
+  })(t0);
+}
+const AV = {};
+function avatarFor(m){
+  if(m.avatar) return Promise.resolve(m.avatar);
+  if(m.platform === 'tw' && m.login){ // Twitch no manda foto en el chat: se pide a decapi.me (público, con caché)
+    const k = m.login.toLowerCase();
+    return AV[k] || (AV[k] = fetch('https://decapi.me/twitch/avatar/'+encodeURIComponent(k)).then(r => r.text()).then(t => /^https?:/.test(t.trim()) ? t.trim() : '').catch(() => ''));
+  }
+  return Promise.resolve('');
+}
+function putAvatar(nd, m){
+  avatarFor(m).then(url => {
+    if(!url) return;
+    const im = new Image(); im.referrerPolicy = 'no-referrer';
+    im.onload = () => nd.appendChild(im); im.src = url;
+  });
+}
+function addMessage(m){
+  if(CFG.hide.includes(String(m.user).toLowerCase())) return;
+  const row = document.createElement('div');
+  const sf = (m.badges || []).includes('superfan') || CFG.superfans.includes(String(m.user).toLowerCase());
+  row.className = 'row ' + m.platform + (m.highlight && sf ? ' hl' : '') + (sf ? ' sf' : '');
+  const sym = {owner:1, mod:1, vip:1, sub:1, superfan:1}; // insignias de rol: no se muestran (chat básico)
+  const marks = (m.badges || []).filter(b => !sym[b]).map(b => '<span class="mk gold">'+esc(b)+'</span>').join(''); // solo montos de superchat
+  row.innerHTML = '<div class="wrap"><div class="in"><div class="th"><i class="nd"><span class="ini">'+esc(Array.from(String(m.user))[0] || '?').toUpperCase()+'</span></i></div><div class="ct">'+
+    '<div class="nm"><svg class="g" viewBox="0 0 24 24">'+ICONS[m.platform].replace(/<\/?svg[^>]*>/g, '')+'</svg>'+(sf ? CROWN : '')+
+    '<span class="name">'+esc(m.user)+'</span>'+marks+'</div><div class="txt">'+m.text+'</div></div></div></div>';
+  chat.appendChild(row);
+  requestAnimationFrame(() => requestAnimationFrame(() => row.classList.add('show')));
+  if(sf){ putAvatar(row.querySelector('.nd'), m); setTimeout(() => decode(row.querySelector('.txt')), 420); }
+  const kill = r => { r.classList.add('gone'); setTimeout(() => r.remove(), 650); };
+  while(chat.querySelectorAll('.row:not(.gone)').length > CFG.max) kill(chat.querySelector('.row:not(.gone)'));
+  if(CFG.fade > 0) setTimeout(() => kill(row), CFG.fade * 1000);
+}
+window.addMessage = addMessage; // para usarlo desde tu propia app
+
+/* ---------- Twitch (IRC anónimo, sin token) ---------- */
+function connectTwitch(channel){
+  const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
+  ws.onopen = () => { ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands'); ws.send('PASS SCHMOOPIIE'); ws.send('NICK justinfan'+Math.floor(Math.random()*99999)); ws.send('JOIN #'+channel.toLowerCase()); setStatus('Twitch','conectado',true); };
+  ws.onmessage = ev => ev.data.split('\r\n').forEach(line => {
+    if(line.startsWith('PING')) return ws.send('PONG :tmi.twitch.tv');
+    const mm = line.match(/^@(\S+) :([^!]+)![^ ]+ PRIVMSG #\S+ :(.*)$/);
+    if(!mm) return;
+    const tags = Object.fromEntries(mm[1].split(';').map(t => t.split('=')));
+    let text = mm[3], isAction = text.startsWith('\x01ACTION');
+    if(isAction) text = text.replace(/^\x01ACTION |\x01$/g, '');
+    // emotes
+    const chars = Array.from(text); const reps = [];
+    (tags.emotes || '').split('/').filter(Boolean).forEach(e => { const [id, rg] = e.split(':'); rg.split(',').forEach(r => { const [a,b] = r.split('-').map(Number); reps.push({a,b,id}); }); });
+    reps.sort((x,y) => x.a - y.a);
+    let out = '', i = 0;
+    reps.forEach(r => { out += esc(chars.slice(i, r.a).join('')) + '<img class="e" src="https://static-cdn.jtvnsdp.net/emoticons/v2/'+r.id+'/default/dark/2.0">'; i = r.b + 1; });
+    out += esc(chars.slice(i).join(''));
+    const b = tags.badges || '', badges = [];
+    if(/broadcaster/.test(b)) badges.push('owner'); if(tags.mod === '1') badges.push('mod');
+    if(/vip/.test(b)) badges.push('vip'); if(/subscriber|founder/.test(b)) badges.push('superfan');
+    addMessage({platform:'tw', login: mm[2], user: tags['display-name'] || mm[2], text: out, color: tags.color || '', badges, highlight: !!tags['msg-id']});
+  });
+  ws.onclose = () => { setStatus('Twitch','reconectando',false); setTimeout(() => connectTwitch(channel), 4000); };
+}
+
+/* ---------- Kick (Pusher público; requiere el ID numérico del chatroom) ---------- */
+function connectKick(id){
+  const ws = new WebSocket('wss://ws-us2.pusher.com/app/32cbd69e4b950bf97679?protocol=7&client=js&version=8.4.0&flash=false');
+  ws.onmessage = ev => {
+    const j = JSON.parse(ev.data);
+    if(j.event === 'pusher:connection_established'){ ws.send(JSON.stringify({event:'pusher:subscribe', data:{auth:'', channel:'chatrooms.'+id+'.v2'}})); setStatus('Kick','conectado',true); }
+    if(j.event === 'pusher:ping') ws.send(JSON.stringify({event:'pusher:pong', data:{}}));
+    if(j.event === 'App\\Events\\ChatMessageEvent'){
+      const d = JSON.parse(j.data);
+      const text = esc(d.content).replace(/\[emote:(\d+):([^\]]+)\]/g, '<img class="e" src="https://files.kick.com/emotes/$1/fullsize">');
+      const bd = (d.sender.identity.badges || []).map(x => x.type), badges = [];
+      if(bd.includes('broadcaster')) badges.push('owner'); if(bd.includes('moderator')) badges.push('mod');
+      if(bd.includes('vip')) badges.push('vip'); if(bd.some(x => ['subscriber','founder','og'].includes(x))) badges.push('superfan');
+      addMessage({platform:'kk', user: d.sender.username, text, color: d.sender.identity.color, badges});
+    }
+  };
+  ws.onclose = () => { setStatus('Kick','reconectando',false); setTimeout(() => connectKick(id), 4000); };
+}
+
+/* ---------- YouTube (Data API v3, por polling) ---------- */
+async function connectYouTube(key, video){
+  try{
+    const v = await (await fetch('https://www.googleapis.com/youtube/v3/videos?part=liveStreamingDetails&id='+video+'&key='+key)).json();
+    const liveId = v.items[0].liveStreamingDetails.activeLiveChatId;
+    setStatus('YouTube','conectado',true);
+    let token = '', first = true;
+    const poll = async () => {
+      let wait = 6000;
+      try{
+        const r = await (await fetch('https://www.googleapis.com/youtube/v3/liveChat/messages?part=snippet,authorDetails&liveChatId='+liveId+'&key='+key+(token ? '&pageToken='+token : ''))).json();
+        token = r.nextPageToken; wait = Math.max(r.pollingIntervalMillis || 6000, 5000);
+        (r.items || []).slice(first ? -8 : 0).forEach(it => {
+          const a = it.authorDetails, s = it.snippet, badges = [];
+          if(a.isChatOwner) badges.push('owner'); if(a.isChatModerator) badges.push('mod'); if(a.isChatSponsor) badges.push('superfan');
+          if(s.superChatDetails) badges.push(s.superChatDetails.amountDisplayString);
+          const text = esc(s.displayMessage || (s.superChatDetails && s.superChatDetails.userComment) || '');
+          addMessage({platform:'yt', user: a.displayName, text, avatar: a.profileImageUrl, badges, highlight: s.type === 'superChatEvent'});
+        });
+        first = false;
+      }catch(e){ setStatus('YouTube','error',false); }
+      setTimeout(poll, wait);
+    };
+    poll();
+  }catch(e){ setStatus('YouTube','revisa key / video',false); }
+}
+
+/* ---------- TikTok (WebSocket de TikFinity o tu propio servidor) ---------- */
+function connectTikTok(url){
+  const ws = new WebSocket(url);
+  ws.onopen = () => setStatus('TikTok','conectado',true);
+  ws.onmessage = ev => {
+    try{
+      const j = JSON.parse(ev.data), d = j.data || j;
+      if(j.event && j.event !== 'chat') return;
+      const text = d.comment || d.text; if(!text) return;
+      addMessage({platform:'tt', user: d.nickname || d.uniqueId || 'tiktok', text: esc(text), avatar: d.profilePictureUrl, badges: [].concat(d.isModerator ? ['mod'] : [], (d.isSubscriber || d.isSuperFan || d.topGifterRank || d.fanClubLevel > 0) ? ['superfan'] : [])});
+    }catch(e){}
+  };
+  ws.onclose = () => { setStatus('TikTok','reconectando',false); setTimeout(() => connectTikTok(url), 4000); };
+}
+
+/* ===== GREÑA Live integration: original Signal design and animations remain intact. =====
+   One authenticated GREÑA chat engine for TikTok, Twitch, Kick and YouTube.
+   No direct duplicate platform connections, no client YouTube API key. */
+const OBS_TOKEN=P.get('obs')||'';
+const OBS_QS=OBS_TOKEN?'?obs='+encodeURIComponent(OBS_TOKEN):'';
+const WS_ADDRESS=(location.protocol==='https:'?'wss':'ws')+'://'+location.host+'/chat-ws'+OBS_QS;
+const CHAT_API='/chat/api/multichat-settings'+OBS_QS;
+const HISTORY_API='/chat/api/multichat-history'+(OBS_TOKEN?'?obs='+encodeURIComponent(OBS_TOKEN)+'&':'?');
+const seen=new Set();
+let signalWS=null,signalReconnect=null,signalDraft=false;
+const normPlatform={tiktok:'tt',twitch:'tw',kick:'kk',youtube:'yt'};
+function signalSettings(cfg={}){
+  if(!cfg||typeof cfg!=='object')return;
+  const n=Number(cfg.fontSize);
+  if(Number.isFinite(n)&&n>0){
+    CFG.size=Math.max(10,Math.min(56,Math.round(n)));
+    document.documentElement.style.setProperty('--size',CFG.size+'px');
+  }
+  CFG.max=Math.max(1,Math.min(30,Number(cfg.maxMessages)||12));
+  CFG.fade=Math.max(0,Math.min(120,Number(cfg.duration)||45));
+  document.body.classList.toggle('right',cfg.direction==='right');
+  const margin=Math.max(0,Math.min(80,Number(cfg.edgeOffset)||0));
+  document.body.style.paddingLeft=cfg.direction==='right'?'14px':(14+margin)+'px';
+  document.body.style.paddingRight=cfg.direction==='right'?(14+margin)+'px':'14px';
+}
+function signalMessage(d){
+  if(!d||d.type!=='chat')return;
+  const platform=normPlatform[String(d.platform||'').toLowerCase()];
+  if(!platform||!String(d.text||'').trim())return;
+  if(d._historyId){
+    if(seen.has(d._historyId))return;
+    seen.add(d._historyId);
+    if(seen.size>3000)seen.clear();
+  }
+  const badges=[];
+  if(d.isOwner||d.isBroadcaster)badges.push('owner');
+  if(d.isModerator||d.mod)badges.push('mod');
+  if(d.isSubscriber||d.isMember||d.isSupportingMember||d.isSuperFan)badges.push('superfan');
+  if(d.isVip)badges.push('vip');
+  if(d.superChatAmount)badges.push(String(d.superChatAmount).slice(0,28));
+  const user=String(d.nickname||d.user||d.username||'Usuario').slice(0,80);
+  addMessage({platform,user,login:String(d.user||'').slice(0,80),text:esc(String(d.text).slice(0,1600)),avatar:typeof d.avatar==='string'?d.avatar:'',badges,highlight:!!(d.superChatAmount||d.isHighlighted)});
+}
+async function signalLoad(){
+  if(signalDraft)return;
+  try{
+    const r=await fetch(CHAT_API,{cache:'no-store'});
+    if(r.ok){const d=await r.json();if(!signalDraft)signalSettings(d.settings||{});}
+  }catch{}
+  try{
+    const r=await fetch(HISTORY_API+'limit='+encodeURIComponent(String(CFG.max)),{cache:'no-store'});
+    if(r.ok){const d=await r.json();for(const m of d.messages||[])signalMessage(m);}
+  }catch{}
+}
+function signalConnect(){
+  clearTimeout(signalReconnect);
+  try{signalWS=new WebSocket(WS_ADDRESS)}catch{signalReconnect=setTimeout(signalConnect,1800);return}
+  signalWS.onopen=()=>{setStatus('GREÑA Chat','conectado',true);signalLoad()};
+  signalWS.onmessage=event=>{
+    try{
+      const d=JSON.parse(event.data);
+      if(d.type==='multichat-settings'){if(!signalDraft)signalSettings(d.settings);return}
+      signalMessage(d);
+    }catch{}
+  };
+  signalWS.onclose=()=>{setStatus('GREÑA Chat','reconectando',false);signalReconnect=setTimeout(signalConnect,1500)};
+  signalWS.onerror=()=>{try{signalWS.close()}catch{}};
+}
+window.addEventListener('message',event=>{
+  if(event.origin!==location.origin)return;
+  if(event.source!==window.parent&&event.source!==window)return;
+  if(event.data?.type==='grena-multichat-settings'){signalDraft=true;signalSettings(event.data.settings||{});}
+  if(event.data?.type==='grena-multichat-demo')signalMessage({...event.data.message,type:'chat'});
+});
+if(P.get('preview')==='1'||CFG.demo){
+  const sample=[
+    ['tw','Valeria_Gz','¡Ese clutch fue increíble! 🔥',['superfan']],
+    ['yt','Marco Díaz','Saludos desde Santo Domingo 🇩🇴',['superfan']],
+    ['tt','luna.vibes','jajaja no puede ser 😂😂',['superfan']],
+    ['kk','NeoKick','Hoy rompemos el récord',['superfan']]
+  ];
+  let seq=0;
+  const next=()=>{const d=sample[seq++%sample.length];addMessage({platform:d[0],user:d[1],text:esc(d[2]),badges:d[3]});setTimeout(next,2100)};
+  next();
+}else{
+  signalLoad();signalConnect();
+}
+
+</script>
+</body>
+</html>
