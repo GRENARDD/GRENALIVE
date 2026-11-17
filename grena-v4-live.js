@@ -811,6 +811,65 @@ async function openWidgetConfig(card){
 
 QA('#pg5 [data-v4-action="widget-config"]').forEach(btn=>btn.addEventListener('click',()=>openWidgetConfig(btn.closest('.wd'))));
 
+
+// ---- Comunidad GREÑA: ticker real de canales activos, sin datos simulados. ----
+function initCommunityTicker(){
+  const sidebar=Q('#home > .side');if(!sidebar||el('v4CommunityCard'))return;
+  const card=document.createElement('section');card.className='card v4-community';card.id='v4CommunityCard';
+  card.innerHTML='<div class="v4-community-head"><div><div class="eb">COMUNIDAD GREÑA</div><div class="h2">Streamers en vivo <span class="v4-community-live">● LIVE</span></div></div><label class="v4-community-opt" title="Mostrar tu nombre, foto y audiencia a otros usuarios de GREÑA"><input id="v4CommunityShare" type="checkbox">Aparecer</label></div><div class="v4-community-window" aria-label="Usuarios de GREÑA transmitiendo ahora"><div id="v4CommunityTrack" class="v4-community-track"><span class="v4-community-empty">Consultando usuarios en vivo…</span></div></div>';
+  sidebar.appendChild(card);
+  const share=el('v4CommunityShare'),track=el('v4CommunityTrack');
+  const user=persistent.account?.user||{};
+  const storageKey='grena-community-share:'+String(user.id||'guest');
+  try{share.checked=localStorage.getItem(storageKey)==='1'}catch{}
+  const compact=n=>Number(n||0).toLocaleString('es-DO');
+  const makeItem=u=>{
+    const item=document.createElement('div');item.className='v4-community-user';
+    const avatar=document.createElement('span');avatar.className='v4-community-avatar';
+    const image=String(u?.avatar||'');
+    if(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(image)&&image.length<80000)avatar.style.backgroundImage='url('+image+')';
+    else avatar.textContent=String(u.name||'?').slice(0,1).toUpperCase();
+    const label=document.createElement('div');label.className='v4-community-label';
+    const name=document.createElement('b');name.textContent=String(u.name||'Streamer').slice(0,40);
+    const count=document.createElement('small');count.textContent='👁 '+compact(Math.max(0,Number(u.viewers)||0))+' viendo';
+    label.append(name,count);item.append(avatar,label);return item;
+  };
+  function render(data){
+    const users=Array.isArray(data?.users)?data.users.filter(u=>u&&u.name&&Number(u.viewers)>=0&&u.live!==false).slice(0,20):[];
+    track.replaceChildren();track.classList.remove('v4-community-scrolling');
+    if(!users.length){const empty=document.createElement('span');empty.className='v4-community-empty';empty.textContent=data?.offline?'Comunidad temporalmente no disponible':'Sin streamers compartiendo su LIVE';track.append(empty);return}
+    const first=document.createElement('div');first.className='v4-community-set';users.forEach(u=>first.append(makeItem(u)));track.append(first);
+    if(users.length>1){const second=first.cloneNode(true);second.setAttribute('aria-hidden','true');track.append(second);track.classList.add('v4-community-scrolling');track.style.setProperty('--community-duration',Math.max(10,users.length*5)+'s')}
+  }
+  let loading=false;
+  async function load(){
+    if(loading)return;loading=true;
+    try{const d=await api('/api/license/community');render(d)}catch{render({offline:true})}
+    finally{loading=false}
+  }
+  async function publish(){
+    if(!persistent.account)return;
+    if(!share.checked){await api('/api/license/presence',{method:'POST',body:{share:false}}).catch(()=>{});return}
+    const active=Object.keys(PLATFORM).filter(p=>persistent.bridge[p]===true);
+    const viewers=active.reduce((sum,p)=>sum+Math.max(0,Number(persistent.viewers[p])||0),0);
+    let avatar='';
+    const image=el('userAvatar')?.style.backgroundImage||'';
+    const match=/url\(["']?(data:image\/jpeg;base64,[A-Za-z0-9+/=]+)["']?\)/.exec(image);
+    if(match)avatar=match[1];
+    // Zero viewers is a valid LIVE count. Only active platform runtime is proof of a live.
+    await api('/api/license/presence',{method:'POST',body:{share:true,live:active.length>0,platforms:active,viewers,avatar}}).catch(()=>{});
+  }
+  share.addEventListener('change',()=>{
+    try{localStorage.setItem(storageKey,share.checked?'1':'0')}catch{}
+    publish().then(load);
+  });
+  const pulse=()=>publish().then(load);
+  void pulse();
+  setInterval(pulse,30000);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void load()});
+  addEventListener('pagehide',()=>{if(share.checked&&navigator.sendBeacon)navigator.sendBeacon('/api/license/presence',new Blob([JSON.stringify({share:false})],{type:'application/json'}))});
+}
+
 // ---- Actual initialization ----
 (async()=>{
   try{
@@ -818,6 +877,7 @@ QA('#pg5 [data-v4-action="widget-config"]').forEach(btn=>btn.addEventListener('c
     await loadIdentity();
     await Promise.all([refreshStatus(),refreshBoard(),getAlertSettings(),refreshObsLinks(),refreshChat()]);
     connectLiveSocket();
+    initCommunityTicker();
     setInterval(()=>refreshChat(),1250);
     setInterval(()=>refreshStatus(),7000);
     const lazy={4:()=>getAlertSettings(),5:()=>refreshObsLinks(),6:()=>refreshMinecraft(),7:()=>refreshCamera(),8:()=>refreshCatalog()};
