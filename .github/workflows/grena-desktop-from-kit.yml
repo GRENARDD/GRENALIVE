@@ -52,6 +52,7 @@ on:
       - 'cloudflare/licenses/**'
       - 'desktop-build/fix_startup.py'
       - 'desktop-build/fix_soundboard_hotkeys.py'
+      - 'desktop-build/verify-v602-premium-panels.cjs'
       - 'grena-v4-fixes.css'
       - 'grena-admin-v4.css'
       - 'assets/grena-fullscreen-gift-obs.html'
@@ -288,6 +289,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Verify real OBS transparency and rising bubbles in Chromium
         run: node desktop-build/verify-premium-alpha.cjs
+      - name: Compare V4 Premium secondary screens at real 1920x1080 in Chromium
+        run: node desktop-build/verify-v602-premium-panels.cjs
+      - name: Preserve V4 browser evidence (gifts, mobile QR, widgets, audio, admin)
+        uses: actions/upload-artifact@v4
+        with:
+          name: GRENA-V602-Premium-Visual-1920
+          path: dist/v602-visual-evidence/*.png
+          if-no-files-found: error
+          retention-days: 14
       - name: Probe public Kick authorization broker
         run: node desktop-build/probe-kick-auth.mjs
       - name: Build Windows installer safely (publication happens in verified release workflow)
