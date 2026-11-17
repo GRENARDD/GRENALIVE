@@ -64,7 +64,7 @@ async function loadIdentity(){
   pill.classList.remove('license-admin','license-beta','license-user','license-expired');
   let label='GREÑA ID';let kind='license-user';
   const licenceRecord=license.license||{};
-  if(license.permanentAccess===true){label='✦ ADMINISTRADOR';kind='license-admin'}
+  if(license.permanentAccess===true||license.isAdmin===true){label='✦ ADMINISTRADOR';kind='license-admin'}
   else if(license.allowed===true&&licenceRecord.kind==='beta'&&licenceRecord.active===true){label='✦ BETA';kind='license-beta'}
   else if(licenceRecord.active===true&&Number.isFinite(Number(licenceRecord.expiresAt))){
     const days=Math.max(0,Math.ceil((Number(licenceRecord.expiresAt)-Date.now())/86400000));
@@ -109,7 +109,7 @@ async function openMyLicense(){
     '<div class="prem-tile" style="cursor:default"><b>Tiempo restante</b><small>'+(owner||beta?'Ilimitado':remaining===null?'—':remaining+' días')+'</small></div>'+
     '</div><p class="prem-note">Información verificada desde GREÑA ID. Las licencias de tiempo extendido muestran su duración registrada, sin inventar un plan de pago.</p>';
   const actions=[{label:'Cerrar',primary:true,action:hideDialog}];
-  if(owner)actions.unshift({label:'Gestionar usuarios y licencias',action:()=>{location.assign('/license-admin.html')}});
+  if(owner||status.isAdmin===true)actions.unshift({label:'Gestionar usuarios y licencias',action:()=>{location.assign('/license-admin.html')}});
   dialog('Mi licencia GREÑA','Estado y vigencia de tu acceso',content,actions);
 }
 function profileModal(){
@@ -119,8 +119,8 @@ function profileModal(){
     <button class="prem-tile" data-profile="photo"><span class="emoji">📷</span><b>Foto del perfil</b><small>Actualizar la imagen dentro del círculo</small></button>
     <button class="prem-tile" data-profile="fish"><span class="emoji">🎙️</span><b>Fish Audio</b><small>API personal, cifrada en GREÑA</small></button>
     <button class="prem-tile" data-profile="license"><span class="emoji">✦</span><b>Mi licencia</b><small>Tipo, duración y vencimiento de tu GREÑA ID</small></button>
-    ${persistent.license?.permanentAccess===true?'<button class="prem-tile" data-profile="admin"><span class="emoji">🛡️</span><b>Administración GREÑA</b><small>Solo propietario · usuarios, licencias y actualizaciones</small></button>':''}
-    <button class="prem-tile" data-profile="exit"><span class="emoji">🚪</span><b>Salir de GREÑA</b><small>Cerrar sesión o aplicación</small></button>
+    ${(persistent.license?.permanentAccess===true||persistent.license?.isAdmin===true)?'<button class="prem-tile" data-profile="admin"><span class="emoji">🛡️</span><b>Administración GREÑA</b><small>Solo administradores autorizados · usuarios y actualizaciones</small></button>':''}
+    <button class="prem-tile" data-profile="exit"><span class="emoji">🚪</span><b>Cerrar sesión</b><small>Volver al acceso GREÑA ID</small></button>
   </div>`);
   QA('[data-profile]',mbody).forEach(btn=>btn.addEventListener('click',async()=>{
     const a=btn.dataset.profile;
@@ -229,7 +229,7 @@ function openVoiceAdvanced(){
   let current='tiktok',wordDraft=voiceControl('blockedWords')?.value||'';
   const readCurrent=()=>{el('vadvMode').value=v4VoiceMode(current);el('vadvUsers').value=voiceControl(current+'SelectedUsers')?.value||''};
   const saveCurrent=()=>{setV4VoiceMode(current,el('vadvMode').value);setVoiceControl(current+'SelectedUsers',el('vadvUsers').value)};
-  dialog('Configuración avanzada · Chat de voz','GREÑA Live Premium V4 · Redes y filtros',html,[{label:'Volver al chat de voz',action:()=>{try{saveCurrent();setVoiceControl('blockedWords',wordDraft);openVoiceModal()}catch(error){fail(error)}}},{label:'Guardar cambios',primary:true,action:()=>{try{saveCurrent();setVoiceControl('blockedWords',el('vadvWords').value);hideDialog();inform('Filtros de voz guardados')}catch(error){fail(error)}}}]);
+  dialog('Configuración avanzada · Chat de voz','GREÑA Live Premium V4 · Redes y filtros',html,[{label:'Volver al chat de voz',action:()=>{try{saveCurrent();setVoiceControl('blockedWords',el('vadvWords').value);openVoiceModal()}catch(error){fail(error)}}},{label:'Guardar cambios',primary:true,action:()=>{try{saveCurrent();setVoiceControl('blockedWords',el('vadvWords').value);hideDialog();inform('Filtros de voz guardados')}catch(error){fail(error)}}}]);
   el('vadvWords').value=wordDraft;
   readCurrent();
   for(const button of QA('[data-vadv-platform]',mbody))button.addEventListener('click',()=>{try{
