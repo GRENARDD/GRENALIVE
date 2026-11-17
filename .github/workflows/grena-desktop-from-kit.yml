@@ -56,6 +56,8 @@ on:
       - 'grena-v4-fixes.css'
       - 'grena-v4-live.js'
       - 'widget-compact.html'
+      - 'desktop-build/enable_frameless.py'
+      - 'multichat-signal.html'
       - 'viewers-grena-original.html'
       - 'social-overlay-grena-original.html'
       - 'tests/grena-owner-admin-navigation.test.cjs'
@@ -206,6 +208,8 @@ jobs:
         shell: pwsh
         run: |
           python desktop-build/fix_startup.py .
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python desktop-build/enable_frameless.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/fix_oauth.py .
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
