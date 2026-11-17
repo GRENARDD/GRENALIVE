@@ -338,7 +338,7 @@ async function soundboardState(userId){
   for(let slot=1;slot<=SOUNDBOARD_SLOT_COUNT;slot++){
     const m=raw.slots[String(slot)]||null;
     const uploaded=!!(m?.ext&&SOUNDBOARD_EXTS.has(String(m.ext).toLowerCase()));
-     const item={slot,empty:!uploaded,label:soundboardLabel(m?.label),shortcut:soundboardShortcut(m?.shortcut)||'',fade:m?.fade!==false};
+     const item={slot,empty:!uploaded,label:soundboardLabel(m?.label),shortcut:soundboardShortcut(m?.shortcut)||'',fade:m?.fade!==false,volume:Math.round(Math.max(0,Math.min(100,Number.isFinite(Number(m?.volume))?Number(m.volume):100)))};
      if(uploaded)Object.assign(item,{name:String(m.name||('Audio '+slot)),type:String(m.type||''),size:Number(m.size||0),updatedAt:Number(m.updatedAt||0),url:`/api/soundboard/audio/${slot}?v=${Number(m.updatedAt||0)}`});
      slots.push(item);
   }
@@ -2452,7 +2452,12 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
        }
      }
      const meta=board.raw.slots[String(slot)]||{};
-     meta.label=label;meta.shortcut=shortcut;board.raw.slots[String(slot)]=meta;
+     const volume=Number(body.volume);
+     if(body.volume!==undefined&&(!Number.isFinite(volume)||volume<0||volume>100))
+       return json(res,400,{ok:false,error:'El volumen debe estar entre 0 y 100.'});
+     meta.label=label;meta.shortcut=shortcut;
+     if(body.volume!==undefined)meta.volume=Math.round(volume);
+     board.raw.slots[String(slot)]=meta;
      await safeWriteJson(soundboardMetaFile(u.id),board.raw);
      const fresh=await soundboardState(u.id);
      return json(res,200,{ok:true,slot:fresh.slots[slot-1]});
@@ -2467,6 +2472,22 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
      const meta=board.raw.slots[String(slot)];
      if(!meta)return json(res,404,{ok:false,error:'Sube un audio antes de configurar el desvanecido.'});
      meta.fade=body.enabled!==false;
+     await safeWriteJson(soundboardMetaFile(u.id),board.raw);
+     const fresh=await soundboardState(u.id);
+     return json(res,200,{ok:true,slot:fresh.slots[slot-1]});
+   }
+ }
+ {
+   const deleteMatch=/^\/api\/soundboard\/delete\/([1-5])$/.exec(pathname);
+   if(deleteMatch&&req.method==='POST'){
+     const u=sessionUser(req);if(!u)return json(res,401,{ok:false,error:'Inicia sesión en GREÑA.'});
+     const slot=soundboardSlotNumber(deleteMatch[1]),board=await soundboardState(u.id);
+     const meta=board.raw.slots[String(slot)];
+     if(meta?.ext&&SOUNDBOARD_EXTS.has(String(meta.ext).toLowerCase()))
+       await unlink(join(soundboardDir(u.id),`slot-${slot}${String(meta.ext).toLowerCase()}`)).catch(error=>{
+         if(error?.code!=='ENOENT')throw error;
+       });
+     delete board.raw.slots[String(slot)];
      await safeWriteJson(soundboardMetaFile(u.id),board.raw);
      const fresh=await soundboardState(u.id);
      return json(res,200,{ok:true,slot:fresh.slots[slot-1]});
@@ -2489,7 +2510,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
      }
      const target=join(soundboardDir(u.id),`slot-${slot}${ext}`),tmp=target+'.'+Date.now()+'.tmp';
      await writeFile(tmp,data);await rename(tmp,target);
-     board.raw.version=1;board.raw.slots[String(slot)]={name:fileName,type:soundboardMime(ext,type),ext,size:data.length,updatedAt:Date.now(),fade:old?.fade!==false,label:soundboardLabel(old?.label),shortcut:soundboardShortcut(old?.shortcut)||''};
+     board.raw.version=1;board.raw.slots[String(slot)]={name:fileName,type:soundboardMime(ext,type),ext,size:data.length,updatedAt:Date.now(),fade:old?.fade!==false,label:soundboardLabel(old?.label),shortcut:soundboardShortcut(old?.shortcut)||'',volume:Math.round(Math.max(0,Math.min(100,Number.isFinite(Number(old?.volume))?Number(old.volume):100)))};
      await safeWriteJson(soundboardMetaFile(u.id),board.raw);
      const fresh=await soundboardState(u.id);
      return json(res,200,{ok:true,slot:fresh.slots[slot-1]});

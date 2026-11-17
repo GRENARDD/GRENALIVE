@@ -1,0 +1,136 @@
+name: GREÑA · Publicar Desktop v6.0.2 estable
+on:
+  workflow_run:
+    workflows:
+      - GREÑA LIVE Desktop (kit de integración)
+    types:
+      - completed
+    branches:
+      - main
+permissions:
+  contents: write
+  actions: read
+jobs:
+  release:
+    # Publish only after the exact V4 PR is merged and the main Windows CI succeeds.
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: '6.0.2'
+      TESTED_RUN: ${{ github.event.workflow_run.id }}
+      TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - name: Skip when v6.0.2 is already official
+        id: existing_release
+        shell: bash
+        run: |
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "already_exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION ya está publicada. Los cambios siguientes deben salir como una nueva versión."
+          else
+            echo "already_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Verify Windows build, current HEAD and release identity
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TESTED_SHA" || { echo 'El código de main cambió después de compilar; no publicar un instalador antiguo'; exit 1; }
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_sha)" = "$TESTED_SHA"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .event)" = push
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_branch)" = main
+          if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'v6.0.2 ya existe. No sobrescribir una versión oficial.'
+            exit 1
+          fi
+      - name: Verify exact GREÑA Live 6.0.2 Premium V4 reference and adapter
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node -e "const p=require('./package.json');if(p.version!=='6.0.2')process.exit(1)"
+          test -s index.html
+          test -s chat.html
+          test -s grena-v4-live.js
+          test -s 'design/reference/GRENA_LIVE_6_Premium_Interactivo_V4(3).html'
+          node --test tests/grena-v4-exact-template.test.cjs
+          node --test tests/grena-v602-premium-panels.test.cjs
+          test -s desktop-build/verify-v602-premium-panels.cjs
+          test -s desktop-build/verify-upgrade-6001-to-6002.ps1
+      - name: Verify production GREÑA ID Worker has secure shared rooms
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker='https://grena-live-licenses.omelicolon18.workers.dev'
+          code="$(curl --max-time 15 -sS -o /tmp/grena-health.json -w '%{http_code}' "$worker/health")"
+          test "$code" = 200 || { echo "GREÑA Worker health failed: $code"; exit 1; }
+          grep -q '"ok":true' /tmp/grena-health.json
+          # Cloudflare may deploy after GitHub Windows CI finishes.
+          # Wait for the authenticated route rather than publishing an installer
+          # that points at a Worker without the new rooms backend.
+          ready=false
+          for attempt in $(seq 1 18); do
+            code="$(curl --max-time 15 -sS -o /tmp/grena-rooms.json -w '%{http_code}' "$worker/api/dynamics/rooms" || true)"
+            if test "$code" = 401 && grep -q '"ok":false' /tmp/grena-rooms.json; then
+              ready=true
+              break
+            fi
+            echo "Cloudflare rooms not ready (attempt $attempt/18, HTTP $code)."
+            sleep 10
+          done
+          test "$ready" = true || { echo "Rooms API is not deployed or not protected; refusing v6.0.2 stable release."; exit 1; }
+      - name: Download and verify compiled 6.0.2 Windows installer
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist-release
+          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v6.0.2 --dir dist-release
+          mapfile -t installers < <(find dist-release -maxdepth 2 -type f -iname '*6.0.2.exe' -size +60000k)
+          test "${#installers[@]}" -eq 1 || { echo "Se esperaba exactamente un instalador estable 6.0.2 (encontrados: ${#installers[@]})"; exit 1; }
+          installer="${installers[0]}"
+          test -s "$installer"
+          mv "$installer" dist-release/GRENA.LIVE.Setup.6.0.2.exe
+          exe='GRENA.LIVE.Setup.6.0.2.exe'
+          size="$(stat -c '%s' "dist-release/$exe")"
+          hash="$(openssl dgst -sha512 -binary "dist-release/$exe" | base64 -w0)"
+          test "${#hash}" -ge 70
+          printf 'version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %s\npath: %s\nsha512: %s\nreleaseDate: %s\n' "$VERSION" "$exe" "$hash" "$size" "$exe" "$hash" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist-release/latest.yml
+          ( cd dist-release && sha256sum "$exe" > SHA256SUMS.txt )
+          test -s dist-release/latest.yml
+      - name: Publish official v6.0.2 release (not Cloudflare rollout)
+        if: steps.existing_release.outputs.already_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'EOF'
+          GREÑA Live Desktop v6.0.2 — PREMIUM V4 ESTABLE (widgets, regalos, QR móvil, licencias, alertas y soundboard)
+
+          CORRECCIONES PREMIUM V4:
+          - Widgets: cambiar entre modelos reales de contadores, multichat, redes y Super Fans desde Configurar, con vista previa y enlaces OBS persistentes.
+          - Regalos: tarjetas legibles, animaciones e imágenes reales, filtros y carga gradual del catálogo.
+          - Móvil: códigos QR completos, separados y visibles, sin botones ni textos superpuestos.
+          - Administración: interfaz negro/dorado, acceso autorizado exclusivamente para el dueño GREÑA ID.
+          - Mi licencia: tipo BETA, prueba o temporal, duración, fecha de vencimiento y días restantes; eliminado Cambiar cuenta.
+          - Alertas: retirado el panel redundante Estado de plataformas, sin quitar los indicadores de Inicio/En vivo.
+          - Audios rápidos: mantener pulsado 3 segundos, volumen individual, cambiar o eliminar archivo y atajos configurables, incluidos atajos globales Electron.
+          - Se respeta la estructura y CSS original del Centro de mando Premium V4.
+
+          CONTROL DE CALIDAD:
+          - Pruebas de código, Chromium visual 1920x1080, backend empaquetado y nuevo instalador Windows.
+          - Actualización real desde 6.0.1 a 6.0.2, conservando perfiles, chats, configuraciones y voces.
+          - La versión 6.0.1 sigue disponible.
+
+          SEGURIDAD:
+          - Compilación y pruebas de Windows obligatorias antes de publicar.
+          - Puede aparecer Windows SmartScreen si el instalador no dispone de firma de editor reconocido.
+          - La actualización automática dentro del programa sigue requiriendo aprobación del propietario.
+          EOF
+          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.6.0.2.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" --title "GREÑA Live Desktop v$VERSION" --notes-file release-notes.md

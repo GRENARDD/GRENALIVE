@@ -36,9 +36,9 @@ test('Fish Audio ofrece siempre el botón de sincronización y verifica la cuent
  assert.match(ui,/fishRequest\('POST',undefined,'\/api\/license\/fish-credentials\/sync'\)/);
  assert.match(ui,/No hay API vinculada ni copia local recuperable/);
 });
-test('Compilación estable prepara instalador 6.0.1',()=>{
+test('Compilación estable prepara instalador 6.0.2',()=>{
  const update=src('desktop-build/fix_official_updates.py');
- assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '6\.0\.1'/);
+ assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '6\.0\.2'/);
  const gh=src('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(gh,/GRENA-LIVE-Installer-Windows-v6\.0\.1/);
+ assert.match(gh,/GRENA-LIVE-Installer-Windows-v6\.0\.2/);
 });

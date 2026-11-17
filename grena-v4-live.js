@@ -39,7 +39,7 @@ window.__GRENA_V4_LIVE_READONLY__=()=>JSON.parse(JSON.stringify(stateSnapshot())
 
 // Dialogs are constructed with the template's own premium-shade / premium-dialog DOM and CSS.
 const modal=el('premiumOverlay'),mbody=el('premiumBody'),mfooter=el('premiumFooter');
-function hideDialog(){modal.hidden=true;mbody.replaceChildren();mfooter.replaceChildren()}
+function hideDialog(){modal.hidden=true;const widgetDialog=Q('#premiumOverlay .premium-dialog');if(widgetDialog){widgetDialog.style.width='';widgetDialog.style.maxWidth=''}mbody.replaceChildren();mfooter.replaceChildren()}
 function dialog(title,subtitle,html,actions=[]){
   text(el('premiumTitle'),title);text(el('premiumSub'),subtitle||'GREÑA Live · configuración real');
   el('premiumBack').hidden=true;mbody.innerHTML=html;mfooter.replaceChildren();
@@ -74,24 +74,65 @@ async function loadIdentity(){
   pill.classList.add(kind);pill.textContent=label;
   startVoiceEngine(u.id);
 }
+
+function licenseDuration(license){
+  const since=Number(license?.activatedAt),until=Number(license?.expiresAt);
+  if(!Number.isFinite(since)||!Number.isFinite(until)||until<=since)return 'Duración registrada en GREÑA ID';
+  const days=Math.round((until-since)/86400000);
+  if(days>=28&&days<=32)return '1 mes (30 días)';
+  if(days>=58&&days<=62)return '2 meses (60 días)';
+  if(days>=88&&days<=92)return '3 meses (90 días)';
+  if(days>=358&&days<=372)return '1 año';
+  return days+' días de vigencia asignados';
+}
+async function openMyLicense(){
+  // Always refresh from the authenticated backend; do not trust cached UI or editable storage.
+  const status=await api('/api/license/status');
+  persistent.license=status;
+  const license=status.license||{};
+  const owner=status.permanentAccess===true;
+  const beta=!owner&&status.allowed===true&&license.kind==='beta'&&license.active===true;
+  const active=owner||beta||status.allowed===true&&license.active===true;
+  const expiry=Number(license.expiresAt);
+  const validDate=Number.isFinite(expiry)&&expiry>0;
+  const dateText=validDate?new Date(expiry).toLocaleDateString('es-DO',{year:'numeric',month:'long',day:'numeric'}):'No tiene vencimiento';
+  const remaining=validDate?Math.max(0,Math.ceil((expiry-Date.now())/86400000)):null;
+  const kind=owner?'Propietario · Acceso permanente':beta?'Licencia BETA · Acceso ilimitado':license.kind==='trial'?'Licencia de prueba':license.kind==='license'?'Licencia temporal':status.connected===false?'Sin licencia sincronizada':'Sin licencia activa';
+  const period=owner||beta?'Sin límite de duración':active?licenseDuration(license):'—';
+  const display=active?'ACTIVA':'NO ACTIVA';
+  const content='<div class="prem-preview" style="min-height:120px;display:grid;align-content:center;gap:8px">'+
+    '<small class="prem-note">ESTADO DE TU GREÑA ID</small><strong style="font-size:22px;color:var(--g1)">'+kind+'</strong>'+
+    '<span class="tag">'+display+'</span></div>'+
+    '<div class="prem-grid">'+
+    '<div class="prem-tile" style="cursor:default"><b>Duración</b><small>'+period+'</small></div>'+
+    '<div class="prem-tile" style="cursor:default"><b>Vencimiento</b><small>'+dateText+'</small></div>'+
+    '<div class="prem-tile" style="cursor:default"><b>Tiempo restante</b><small>'+(owner||beta?'Ilimitado':remaining===null?'—':remaining+' días')+'</small></div>'+
+    '</div><p class="prem-note">Información verificada desde GREÑA ID. Las licencias de tiempo extendido muestran su duración registrada, sin inventar un plan de pago.</p>';
+  const actions=[{label:'Cerrar',primary:true,action:hideDialog}];
+  if(owner)actions.unshift({label:'Gestionar usuarios y licencias',action:()=>{hideDialog();window.open('/license-admin.html','_blank','noopener')}});
+  dialog('Mi licencia GREÑA','Estado y vigencia de tu acceso',content,actions);
+}
 function profileModal(){
   const u=persistent.account?.user;if(!u)return;
   const name=String(u.displayName||u.username||'Usuario');
   dialog('Mi GREÑA ID','Cuenta autenticada · '+name,`<div class="prem-grid">
     <button class="prem-tile" data-profile="photo"><span class="emoji">📷</span><b>Foto del perfil</b><small>Actualizar la imagen dentro del círculo</small></button>
     <button class="prem-tile" data-profile="fish"><span class="emoji">🎙️</span><b>Fish Audio</b><small>API personal, cifrada en GREÑA</small></button>
-    <button class="prem-tile" data-profile="license"><span class="emoji">✦</span><b>Licencia</b><small>Ver tu suscripción y renovación</small></button>
-    <button class="prem-tile" data-profile="switch"><span class="emoji">👥</span><b>Cambiar cuenta</b><small>Inicio de sesión con otro GREÑA ID</small></button>
-    ${persistent.license?.permanentAccess===true?'<button class="prem-tile" data-profile="admin"><span class="emoji">🛡️</span><b>Administración</b><small>Administrar usuarios y licencias</small></button>':''}
+    <button class="prem-tile" data-profile="license"><span class="emoji">✦</span><b>Mi licencia</b><small>Tipo, duración y vencimiento de tu GREÑA ID</small></button>
+    ${persistent.license?.permanentAccess===true?'<button class="prem-tile" data-profile="admin"><span class="emoji">🛡️</span><b>Administración GREÑA</b><small>Solo propietario · usuarios, licencias y actualizaciones</small></button>':''}
     <button class="prem-tile" data-profile="exit"><span class="emoji">🚪</span><b>Salir de GREÑA</b><small>Cerrar sesión o aplicación</small></button>
   </div>`);
   QA('[data-profile]',mbody).forEach(btn=>btn.addEventListener('click',async()=>{
     const a=btn.dataset.profile;
     if(a==='photo'){choosePhoto();return}
     if(a==='fish'){openFishCredentials();return}
-    if(a==='license'){window.open('/license.html','_blank','noopener');return}
-    if(a==='admin'){window.open('/license-admin.html','_blank','noopener');return}
-    if(a==='switch'){location.assign('/login.html?switch=1');return}
+    if(a==='license'){await openMyLicense();return}
+    if(a==='admin'){
+      // A visual condition never grants privileges: the server verifies GREÑA ID ownership.
+      const status=await api('/api/license/status');
+      if(status.permanentAccess!==true)throw Error('Administración reservada al propietario GREÑA ID');
+      window.open('/license-admin.html','_blank','noopener');return
+    }
     if(a==='exit'){
       hideDialog();if(!confirm('¿Quieres cerrar GREÑA Live?'))return;
       try{await api('/api/app/exit',{method:'POST',body:{}})}catch{await api('/api/account/logout',{method:'POST'});location.assign('/login.html')}
@@ -184,9 +225,7 @@ function renderPlatforms(){
   // The V4 markup is preserved; only its button callbacks are attached to actual APIs.
   QA('#plats button[data-i]').forEach(btn=>btn.addEventListener('click',()=>platformAction(PL[Number(btn.dataset.i)]?.[0])));
   QA('#lv button[data-k]').forEach(btn=>btn.addEventListener('click',()=>platformAction(btn.dataset.k)));
-  // Status in the V4 Alerts section is live, never a static 'No conectado'.
-  const badges=QA('#pg4 .g2 .card:nth-child(1) .tag');
-  ['tiktok','twitch','kick'].forEach((p,i)=>{const s=persistent.status[p]||{},ready=!!(s.authenticated||persistent.bridge[p]);if(badges[i]){badges[i].textContent=ready?'Vinculado':'No conectado';badges[i].style.color=ready?'var(--ok)':'var(--bad)'}});
+  // Platform connections are shown exclusively in Inicio and En vivo; Alerts contains only alert controls.
 }
 async function platformAction(key){
   const p=FULL[key];if(!p)return;
@@ -372,7 +411,7 @@ function renderBoard(){
     const m=persistent.board.find(s=>s.slot===i)||{empty:true,slot:i};const node=slotElement(i);if(!node)continue;
     const name=node.querySelector('b'),sub=node.querySelector('small');
     text(name,m.label||'Audio '+i);text(sub,m.empty?'Vacío · subir':(m.name||'Audio guardado')+(m.shortcut?' · '+m.shortcut:''));
-    node.title=m.empty?'Clic para subir audio':'Clic para reproducir · clic derecho para configurar';
+    node.title=(m.empty?'Clic para subir audio':'Clic para reproducir')+' · Mantener pulsado 3 segundos: configuración';
   }
 }
 async function refreshBoard(){try{const d=await api('/api/soundboard');persistent.board=d.slots||[];renderBoard()}catch(e){console.warn('[GREÑA V4 soundboard]',e.message)}}
@@ -396,44 +435,110 @@ async function togglePad(slot){
   if(meta.empty){selectAudio(slot);return}
   if(persistent.audioSlot===slot){stopPad(meta.fade!==false);return}
   if(persistent.audio)stopPad(false);
-  const audio=new Audio(meta.url);audio.preload='auto';audio.volume=meta.fade!==false?0:1;
+  const audio=new Audio(meta.url);audio.preload='auto';const targetVolume=Math.max(0,Math.min(1,Number(meta.volume??100)/100));audio.volume=meta.fade!==false?0:targetVolume;
   persistent.audio=audio;persistent.audioSlot=slot;setActiveSlot(slot);
   audio.addEventListener('ended',()=>{if(persistent.audio===audio){persistent.audio=null;persistent.audioSlot=0;setActiveSlot(0)}});
   audio.addEventListener('error',()=>{if(persistent.audio===audio)stopPad(false);inform('No se pudo reproducir ese archivo')});
   try{await audio.play()}catch(e){stopPad(false);fail(e);return}
-  if(meta.fade!==false){const begin=performance.now();function rise(t){if(persistent.audio!==audio)return;audio.volume=Math.min(1,(t-begin)/650);if(audio.volume<1)requestAnimationFrame(rise)}requestAnimationFrame(rise)}
+  if(meta.fade!==false){const begin=performance.now();function rise(t){if(persistent.audio!==audio)return;audio.volume=Math.min(targetVolume,targetVolume*(t-begin)/650);if(t-begin<650&&targetVolume>0)requestAnimationFrame(rise)}requestAnimationFrame(rise)}
 }
+
+const PRESS_TO_CONFIG_MS=3000;
 QA('#prow .pad').forEach((pad,index)=>{
   const slot=index+1;
-  pad.addEventListener('click',()=>togglePad(slot));
-  pad.addEventListener('contextmenu',e=>{e.preventDefault();soundConfig(slot)});
+  let holdTimer=null,pressStart=0,longPressed=false;
+  const clear=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}};
+  pad.addEventListener('pointerdown',e=>{
+    if(e.button!==0)return;
+    clear();longPressed=false;pressStart=Date.now();
+    holdTimer=setTimeout(()=>{holdTimer=null;longPressed=true;soundConfig(slot)},PRESS_TO_CONFIG_MS);
+  });
+  pad.addEventListener('pointerup',()=>{if(pressStart&&Date.now()-pressStart>=PRESS_TO_CONFIG_MS)longPressed=true;pressStart=0;clear()});
+  for(const event of ['pointercancel','pointerleave'])pad.addEventListener(event,()=>{clear();pressStart=0});
+  pad.addEventListener('click',e=>{
+    if(longPressed){e.preventDefault();e.stopImmediatePropagation();longPressed=false;return}
+    togglePad(slot);
+  });
+  pad.addEventListener('contextmenu',e=>{e.preventDefault();clear();longPressed=true;soundConfig(slot)});
 });
-function soundConfig(slot){
-  const item=persistent.board.find(x=>x.slot===slot)||{};
-  dialog('Audio rápido '+slot,'Configura el slot real de GREÑA ID',`<label class="prem-field">Nombre visible<input id="v4PadName" maxlength="32" placeholder="Audio ${slot}"></label><label class="prem-field">Atajo (F1–F12, Ctrl+tecla)<input id="v4PadShortcut" maxlength="40" placeholder="Ejemplo: F5"></label><div class="prem-row"><span>Desvanecer al detener</span><button id="v4PadFade" class="sw ${item.fade!==false?'on':''}"></button></div>`,[
-    {label:'Cambiar archivo',action:()=>{hideDialog();selectAudio(slot)}},
-    {label:'Cerrar',action:hideDialog},
-    {label:'Guardar',primary:true,action:async()=>{
-      await api('/api/soundboard/config/'+slot,{method:'POST',body:{label:el('v4PadName').value.trim(),shortcut:el('v4PadShortcut').value.trim()}});
-      if(!item.empty)await api('/api/soundboard/fade/'+slot,{method:'POST',body:{enabled:el('v4PadFade').classList.contains('on')}});
-      await refreshBoard();hideDialog();inform('Audio '+slot+' configurado');
-    }}
-  ]);
-  el('v4PadName').value=item.label||'';el('v4PadShortcut').value=item.shortcut||'';
-  el('v4PadFade').onclick=e=>badge(e.currentTarget,!e.currentTarget.classList.contains('on'));
+let lastPadShortcut={slot:0,at:0};
+function triggerPadShortcut(slot){
+  if(!Number.isInteger(slot)||slot<1||slot>5)return;
+  // The native shortcut and a focused keydown may arrive from the same key press.
+  const stamp=Date.now();
+  if(lastPadShortcut.slot===slot&&stamp-lastPadShortcut.at<180)return;
+  lastPadShortcut={slot,at:stamp};
+  togglePad(slot);
 }
 document.addEventListener('keydown',e=>{
-  if(e.repeat||['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)||!persistent.board.length)return;
-  const key=/^F\d+$/.test(e.code)?e.code:e.code;
-  const shortcut=(e.ctrlKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'')+(e.metaKey?'Meta+':'')+key;
-  for(const m of persistent.board){if(m.shortcut===shortcut){e.preventDefault();togglePad(m.slot);return}}
+  if(e.repeat||['INPUT','TEXTAREA','SELECT'].includes(e.target?.tagName)||e.target?.isContentEditable)return;
+  const shortcut=(e.ctrlKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'')+(e.metaKey?'Meta+':'')+e.code;
+  for(const m of persistent.board){if(!m.empty&&m.shortcut===shortcut){e.preventDefault();triggerPadShortcut(m.slot);return}}
 });
+window.addEventListener('grena:soundboard:trigger',e=>{
+  // Electron sends only a slot number. The renderer always plays its own logged-in GREÑA ID profile.
+  const slot=Number(e.detail?.slot),meta=persistent.board.find(x=>x.slot===slot);
+  if(meta&&!meta.empty)triggerPadShortcut(slot);
+});
+function capturePadShortcut(e){
+  if(e.code==='Escape'||e.code==='Backspace'){e.preventDefault();return ''}
+  if(['ControlLeft','ControlRight','ShiftLeft','ShiftRight','AltLeft','AltRight','MetaLeft','MetaRight','Tab'].includes(e.code))return null;
+  if(!/^(?:Key[A-Z]|Digit[0-9]|Numpad[0-9]|F(?:[1-9]|1[0-2]))$/.test(e.code))return null;
+  e.preventDefault();e.stopPropagation();
+  return (e.ctrlKey?'Ctrl+':'')+(e.altKey?'Alt+':'')+(e.shiftKey?'Shift+':'')+(e.metaKey?'Meta+':'')+e.code;
+}
+async function savePad(slot){
+  const label=el('v4PadName').value.trim(),shortcut=el('v4PadShortcut').value.trim(),volume=Number(el('v4PadVolume').value);
+  await api('/api/soundboard/config/'+slot,{method:'POST',body:{label,shortcut,volume}});
+  const meta=persistent.board.find(x=>x.slot===slot);
+  if(!meta?.empty)await api('/api/soundboard/fade/'+slot,{method:'POST',body:{enabled:el('v4PadFade').classList.contains('on')}});
+  await refreshBoard();hideDialog();inform('Audio '+slot+' configurado · '+volume+'%');
+}
+function soundConfig(slot){
+  const item=persistent.board.find(x=>x.slot===slot)||{empty:true};
+  const html=[
+    '<label class="prem-field">Nombre visible<input id="v4PadName" maxlength="32"></label>',
+    '<label class="prem-field">Atajo de teclado<input id="v4PadShortcut" readonly placeholder="Pulsa una tecla o combinación"></label>',
+    '<p class="prem-note">Para usarlo mientras juegas, elige Ctrl/Alt + tecla o F1–F12. Evita las teclas reservadas por el juego.</p>',
+    '<label class="prem-field">Volumen de este audio · <strong id="v4PadVolLabel">',Number(item.volume??100),'%</strong>',
+    '<input id="v4PadVolume" type="range" min="0" max="100" step="1" value="',Number(item.volume??100),'" style="accent-color:var(--g2);width:100%"></label>',
+    '<div class="prem-row"><span>Desvanecer al detener</span><button id="v4PadFade" class="sw ',item.fade!==false?'on':'','"></button></div>',
+    '<p class="prem-note">',item.empty?'Sin audio cargado':String(item.name||'Audio guardado').replace(/[<>]/g,''),'</p>'
+  ].join('');
+  const actions=[
+    {label:item.empty?'Añadir audio':'Cambiar audio',action:()=>{hideDialog();selectAudio(slot)}},
+    ...(!item.empty?[{label:'Eliminar audio',action:async()=>{
+      if(!confirm('¿Eliminar el audio '+slot+'?'))return;
+      if(persistent.audioSlot===slot)stopPad(false);
+      await api('/api/soundboard/delete/'+slot,{method:'POST'});
+      await refreshBoard();hideDialog();inform('Audio eliminado');
+    }}]:[]),
+    {label:'Cancelar',action:hideDialog},
+    {label:'Guardar ajustes',primary:true,action:()=>savePad(slot)}
+  ];
+  dialog('Audio rápido '+slot,'Configurar este botón · mantener pulsado 3 segundos',html,actions);
+  el('v4PadName').value=item.label||'';
+  el('v4PadShortcut').value=item.shortcut||'';
+  el('v4PadFade').onclick=e=>badge(e.currentTarget,!e.currentTarget.classList.contains('on'));
+  el('v4PadVolume').addEventListener('input',e=>text(el('v4PadVolLabel'),e.target.value+'%'));
+  el('v4PadShortcut').addEventListener('keydown',e=>{
+    const value=capturePadShortcut(e);
+    if(value!==null)el('v4PadShortcut').value=value;
+  });
+}
 
 // ---- GREÑA Mobile: QR y enlaces generados exclusivamente por el servidor ----
 function drawRealQR(id,url){
-  const target=el(id);target.replaceChildren();
+  const target=el(id);if(!target)return;
+  target.replaceChildren();
   if(typeof QRCode!=='function')throw Error('Falta el generador QR local de GREÑA');
-  new QRCode(target,{text:url,width:160,height:160,colorDark:'#111111',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+  // The reference used a 112px display box while generating a 160px QR:
+  // that cropped the image and overlaid the expiry and action buttons.
+  target.style.boxSizing='border-box';
+  target.style.width='176px';target.style.height='176px';
+  target.style.minWidth='176px';target.style.minHeight='176px';
+  target.style.padding='8px';target.style.overflow='hidden';
+  new QRCode(target,{text:url,width:152,height:152,colorDark:'#111111',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
   target.dataset.url=url;
 }
 function setMobileLink(url){persistent.lanUrl=url;drawRealQR('q1',new URL('/mobile.html',url).href);el('cp1').disabled=false;el('cp1').style.opacity='1';}
@@ -605,7 +710,7 @@ const routeAction=async(action,root)=>{
 document.addEventListener('click',e=>{const b=e.target.closest('[data-v4-action]');if(!b)return;routeAction(b.dataset.v4Action,b.closest('.card')).catch(fail)});
 
 // ---- Catalog: all cards originate from GREÑA's live real server catalog ----
-let loadedCatalog=[];let giftFilter='all',giftQuery='',onlyAnimated=false;
+let loadedCatalog=[];let giftFilter='all',giftQuery='',onlyAnimated=false,giftLimit=24;
 const catFilterMap={tt:'TikTok',tw:'Twitch',kk:'Kick',yt:'YouTube'};
 async function refreshCatalog(){
   try{const d=await api('/api/gift-catalog');loadedCatalog=Array.isArray(d.items)?d.items:[];persistent.catalog=d;renderCatalog()}
@@ -614,18 +719,33 @@ async function refreshCatalog(){
 function renderCatalog(){
   if(!persistent.catalog)return;
   const allowed=loadedCatalog.filter(g=>(giftFilter==='all'||g.platform===catFilterMap[giftFilter])&&(!onlyAnimated||!!g.animatedImage)&&[g.name,g.nameEs,g.giftKind].some(t=>String(t||'').toLowerCase().includes(giftQuery)));
-  text(el('gc'),'Mostrando '+allowed.length+' regalos del catálogo real de GREÑA');
+  text(el('gc'),'Mostrando '+Math.min(giftLimit,allowed.length)+' de '+allowed.length+' regalos del catálogo real de GREÑA · desplázate por las tarjetas para ver las animaciones');
   const stats=persistent.catalog.stats||{};
   QA('#pg8 .stat b').forEach((node,i)=>text(node,fmt([stats.total,stats.tiktok,stats.twitch,stats.kick,stats.youtube,stats.animated][i])));
   const feed=el('gg');feed.replaceChildren();
-  for(const gift of allowed.slice(0,240)){
+  for(const gift of allowed.slice(0,giftLimit)){
     const card=document.createElement('div');card.className='card gift';
     const heading=document.createElement('div');heading.className='tp';
     const pl=document.createElement('span');pl.className='tag '+(PLATFORM[gift.platform?.toLowerCase()]||'');pl.textContent=gift.platform||'';
     const anim=document.createElement('span');anim.className='tag';anim.textContent=gift.animatedImage?'ANIMADO':'ESTÁTICO';heading.append(pl,anim);
     const preview=document.createElement('div');preview.className='em';
-    const url=gift.animatedImage||gift.image;
-    if(url){const img=document.createElement('img');img.src=url;img.alt='';img.loading='lazy';img.style.cssText='max-width:64px;max-height:66px;object-fit:contain';img.onerror=()=>{img.remove();preview.textContent='🎁'};preview.appendChild(img)}else{preview.textContent='🎁'}
+    const kickGift=gift.platform==='Kick';
+    const giftKind=String(gift.giftKind||gift.category||'').toLowerCase();
+    const kickNumber=Number(gift.amount||0);
+    const kickImage=kickGift?(giftKind.includes('subscription')?'/assets/kick-gifts/subscription-gift.svg':('/assets/kick-gifts/kicks-'+([1,10,50,100,500,1000,2000,5000,10000,50000].includes(kickNumber)?kickNumber:'generic')+'.svg')):'';
+    const youtubeKind=giftKind.replace(/[^a-z]/g,'');
+    const youtubeImage=gift.platform==='YouTube'&&['superchat','supersticker','membership','membershipgift','membermilestone','membershipreceived'].includes(youtubeKind)?'/assets/youtube-events/'+youtubeKind+'.svg':'';
+    const url=gift.animatedImage||gift.image||kickImage||youtubeImage;
+    const fallback=gift.platform==='Twitch'?'💎':gift.platform==='YouTube'?'▶️':gift.platform==='Kick'?'💚':'🎁';
+    if(url){
+      const video=/\.(?:mp4|webm)(?:[?#]|$)/i.test(url);
+      const media=document.createElement(video?'video':'img');
+      media.src=url;media.setAttribute('aria-label',gift.nameEs||gift.name||'Regalo');
+      if(video){media.autoplay=true;media.loop=true;media.muted=true;media.playsInline=true;media.preload='metadata'}
+      else media.loading='lazy';
+      media.onerror=()=>{media.remove();preview.textContent=fallback};
+      preview.appendChild(media);
+    }else preview.textContent=fallback;
     const title=document.createElement('b');title.textContent=gift.nameEs||gift.name||'Regalo';
     const amount=document.createElement('small');amount.textContent=String(gift.amount||'')+' '+String(gift.unit||'');
     const actions=document.createElement('div');actions.className='row';
@@ -640,21 +760,43 @@ function renderCatalog(){
     actions.append(send,json);card.append(heading,preview,title,amount,actions);feed.appendChild(card);
   }
   if(!allowed.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='No hay regalos disponibles con esos filtros';feed.appendChild(empty)}
+  if(allowed.length>giftLimit){
+    const more=document.createElement('button');more.className='btn go gift-more';
+    more.textContent='Mostrar '+Math.min(24,allowed.length-giftLimit)+' regalos más';
+    more.onclick=()=>{const scroll=feed.scrollTop;giftLimit+=24;renderCatalog();el('gg').scrollTop=scroll};
+    feed.appendChild(more);
+  }
 }
-el('gq2').oninput=e=>{giftQuery=e.target.value.toLowerCase();renderCatalog()};
-QA('#gt button').forEach(btn=>btn.onclick=()=>{QA('#gt button').forEach(b=>b.classList.toggle('on',b===btn));giftFilter=btn.dataset.p;renderCatalog()});
-el('ga').onclick=e=>{onlyAnimated=!onlyAnimated;badge(e.currentTarget,onlyAnimated);renderCatalog()};
+el('gq2').oninput=e=>{giftQuery=e.target.value.toLowerCase();giftLimit=24;renderCatalog()};
+QA('#gt button').forEach(btn=>btn.onclick=()=>{QA('#gt button').forEach(b=>b.classList.toggle('on',b===btn));giftFilter=btn.dataset.p;giftLimit=24;renderCatalog()});
+el('ga').onclick=e=>{onlyAnimated=!onlyAnimated;giftLimit=24;badge(e.currentTarget,onlyAnimated);renderCatalog()};
 
 // ---- Widgets: V4 cards retain their exact markup; links and settings come from GREÑA ----
+
 async function openWidgetConfig(card){
-  const widget=card?.querySelector('b')?.textContent||'Widget',code=card?.querySelector('.code')?.textContent?.trim()||'';
-  const fields=widget==='Contador'?'<p class="prem-note">El contador toma los espectadores verificados de GREÑA en tiempo real.</p>':widget==='Multichat'?'<p class="prem-note">El multichat OBS se actualiza desde el motor de GREÑA, independiente de Fish Audio.</p>':'<p class="prem-note">El widget sigue utilizando su enlace OBS y configuración guardada en GREÑA.</p>';
-  dialog('Configurar · '+widget,'Enlace real de OBS y editor original de este widget',fields+`<div class="prem-preview"><strong>${widget.replace(/[<>]/g,'')}</strong><small>Conectado al motor GREÑA</small></div><label class="prem-field">Enlace OBS<input id="v4WidgetUrl" readonly></label>`,[
+  const widget=card?.querySelector('b')?.textContent?.trim()||'Widget';
+  const models={
+    'Personajes Minecraft':'minecraft','Contador':'counter','Multichat':'multichat',
+    'Redes Sociales':'social','Tap Tap Top':'taptap','Super Fans':'superfans','Índice de Fidelidad':'loyalty'
+  };
+  const focus=models[widget];
+  if(!focus){inform('Editor no disponible para este widget');return}
+  const code=card?.querySelector('.code')?.textContent?.trim()||'';
+  const html=[
+    '<p class="prem-note">Elige entre los modelos originales de GREÑA. Los cambios se previsualizan y se aplican usando su configuración real; el enlace de OBS se conserva.</p>',
+    '<iframe title="Modelos y previsualización de '+widget.replace(/[<>"]/g,'')+'" src="/widgets.html?focus='+encodeURIComponent(focus)+'&embed=1" ',
+    'style="display:block;width:100%;height:min(64vh,610px);min-height:350px;border:1px solid #a6814338;border-radius:13px;background:#0b0907"></iframe>',
+    '<label class="prem-field">Enlace seguro OBS<input id="v4WidgetUrl" readonly></label>'
+  ].join('');
+  dialog('Configurar · '+widget,'Modelos reales, vista previa y botón APLICAR',html,[
     {label:'Cerrar',action:hideDialog},
-    {label:'Copiar enlace',action:()=>copyLink(el('v4WidgetUrl').value)},
-    {label:'Abrir configuración avanzada',primary:true,action:()=>{hideDialog();window.open('/widgets.html?embed=1','_blank','noopener')}}
-  ]);el('v4WidgetUrl').value=code;
+    {label:'Copiar enlace OBS',primary:true,action:()=>copyLink(el('v4WidgetUrl').value)}
+  ]);
+  const dialogBox=Q('#premiumOverlay .premium-dialog');
+  if(dialogBox){dialogBox.style.width='min(1080px,96vw)';dialogBox.style.maxWidth='96vw'}
+  el('v4WidgetUrl').value=code;
 }
+
 QA('#pg5 [data-v4-action="widget-config"]').forEach(btn=>btn.addEventListener('click',()=>openWidgetConfig(btn.closest('.wd'))));
 
 // ---- Actual initialization ----

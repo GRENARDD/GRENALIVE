@@ -313,6 +313,7 @@ input[type=range]{accent-color:var(--g2);flex:1;min-width:120px}
 @media(max-width:650px){.prem-grid{grid-template-columns:1fr}.premium-top{padding:12px}.premium-content{padding:12px}.premium-actions{padding:10px}.license-pill{font-size:10px}}
 
 </style>
+<link rel="stylesheet" href="/grena-v4-fixes.css?v=602" media="all">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -527,12 +528,11 @@ pg(4,"Mis alertas","Elige cómo se verán tus alertas en OBS, en vertical y hori
 <div class="g3" id="stl">${ST.map((s,i)=>`<div class="card styl${i==6?" sel":""}"><div class="pv" style="background:linear-gradient(135deg,color-mix(in srgb,var(--g3) 55%,var(--s2)),var(--s2))">${s[0]}</div><div class="bd"><div class="row"><b>${s[1]}</b></div><small>${s[2]}</small><button class="btn sp3 ${i==6?"go":""}" style="margin-top:6px">${i==6?"✓ Activo":"Elegir estilo"}</button></div></div>`).join("")}</div>
 <div class="g2"><div class="card"><h3>Personaje de Mascot Alerts</h3><label class="fld"><select><option>🐶 Perro Pixel</option><option>🦊 Zorro Pixel</option><option>🐱 Gato Pixel</option><option>🐸 Rana Pixel</option><option>🐼 Panda Pixel</option></select></label></div>
 <div class="card"><h3>Editar sonidos por alerta</h3><p class="m">Sonidos independientes para follow, regalo, suscripción, raid, compartir y Tap Taps.</p><div class="row" style="margin-top:10px"><button class="btn go" id="openSoundEditor">🎵 Abrir editor compacto</button><span class="tag">6 eventos</span></div></div></div>
-<div class="g2"><div class="card"><h3>Estado de plataformas</h3>${[["tt","TikTok LIVE"],["tw","Twitch"],["kk","Kick"]].map(p=>`<div class="row" style="padding:8px 0;border-top:1px solid var(--line)"><div class="pi ${p[0]}" style="width:30px;height:30px">${ic(p[0])}</div><b>${p[1]}</b><span class="tag sp2" style="color:var(--bad)">No conectado</span></div>`).join("")}</div>
-<div class="card"><h3>Enlaces de OBS · Vertical y Horizontal</h3><small>Funcionan con todas las temáticas; cambiar de estilo no cambia las URLs.</small>${["vertical","horizontal"].map(l=>`<div class="row" style="margin-top:10px"><div class="code">http://127.0.0.1:8787/afterglow-overlay.html?layout=${l}</div><button class="btn" data-copy-near="1">Copiar ${l[0].toUpperCase()}</button></div>`).join("")}</div></div>`);
+<div class="g2" style="grid-template-columns:minmax(0,1fr)"><div class="card"><h3>Enlaces de OBS · Vertical y Horizontal</h3><small>Funcionan con todas las temáticas; cambiar de estilo no cambia las URLs.</small>${["vertical","horizontal"].map(l=>`<div class="row" style="margin-top:10px"><div class="code">http://127.0.0.1:8787/afterglow-overlay.html?layout=${l}</div><button class="btn" data-copy-near="1">Copiar ${l[0].toUpperCase()}</button></div>`).join("")}</div></div>`);
 
 
 /* 5 · Widgets */
-const WD=[["🟩","Personajes Minecraft","Máximo 10 activos; comentarios y niveles con regalos.","personajes-minecraft.html?clean=1"],["👁️","Contador","Espectadores de TikTok, Twitch, Kick y YouTube.","viewers.html"],["💬","Multichat","Chat unificado y transparente para OBS.","chat/multichat-overlay.html"],["📣","Redes Sociales","Tus redes en un overlay animado y transparente.","social-overlay.html"],["❤️","Tap Tap Top","Top 5 de Tap Taps reales de TikTok con carrera.","taptap-race.html"],["👑","Super Fans","Top diario de Kick, Twitch y TikTok.","super-fans-overlay.html"],["🏆","Índice de Fidelidad","Ranking automático de fidelidad multiplataforma.","loyalty-overlay.html"]];
+const WD=[["🟩","Personajes Minecraft","Máximo 10 activos; comentarios y niveles con regalos.","personajes-minecraft.html?clean=1"],["👁️","Contador","Espectadores de TikTok, Twitch, Kick y YouTube.","viewers.html"],["💬","Multichat","Chat unificado y transparente para OBS.","chat/multichat-overlay.html"],["📣","Redes Sociales","Tus redes en un overlay animado y transparente.","social-overlay.html"],["👑","Super Fans","Top diario de Kick, Twitch y TikTok.","super-fans-overlay.html"],["🏆","Índice de Fidelidad","Ranking automático de fidelidad multiplataforma.","loyalty-overlay.html"]];
 pg(5,"Widgets para OBS","Cada gadget conserva siempre el mismo enlace de OBS: elige el modelo y pulsa APLICAR.",`<div class="note ok">● WIDGETS LOCALES ACTIVOS</div><div class="g2">${WD.map(w=>`<div class="card wd"><div class="row"><div class="pi" style="font-size:18px">${w[0]}</div><div><b>${w[1]}</b><div><small>${w[2]}</small></div></div><button class="btn sp2" data-v4-action="widget-config">Configurar +</button></div><div class="row"><div class="code">http://127.0.0.1:8787/${w[3]}</div><button class="btn go" data-copy-near="1">Copiar link OBS</button></div></div>`).join("")}</div>`);
 
 /* 6 · Juegos */
@@ -562,7 +562,7 @@ $("#gg").innerHTML=L.map(g=>`<div class="card gift"><div class="tp"><span class=
 }
 $("#gq2").oninput=e=>{gq=e.target.value.toLowerCase();gr()};
 $$("#gt button").forEach(b=>b.onclick=()=>{$$("#gt button").forEach(x=>x.classList.toggle("on",x===b));gp=b.dataset.p;gr()});
-$("#ga").onclick=e=>{e.currentTarget.classList.toggle("on");gan^=1;gr()};gr();
+$("#ga").onclick=e=>{e.currentTarget.classList.toggle("on");gan^=1;gr()};// The real GREÑA adapter fills the catalog from /api/gift-catalog; do not show demo cards in production.
 
 /* navegación completa */
 $$("#nav .nb").forEach((b,i)=>b.addEventListener("click",()=>{$("#soon").style.display="none";$$(".pg").forEach(p=>p.classList.toggle("on",p.id==="pg"+i))}));

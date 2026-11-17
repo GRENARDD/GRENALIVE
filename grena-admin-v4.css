@@ -1,0 +1,57 @@
+/* GREÑA LIVE 6.0.2 ADMIN — visual premium V4, funcionalidad de administración intacta */
+html:has(body.grena-admin-v4){background:#090807}
+body.grena-admin-v4{
+ --adm-gold:#e3b95f;--adm-soft:#f5dda4;--adm-line:rgba(227,185,95,.22);--adm-muted:#aea18d;
+ margin:0;min-height:100vh;padding:26px 36px 48px!important;
+ background:radial-gradient(ellipse at 88% 6%,rgba(147,99,29,.16),transparent 40%),#0a0908!important;
+ color:#f7eee1!important;font-family:Inter,'Segoe UI',Arial,sans-serif!important;
+}
+body.grena-admin-v4 main{width:100%;max-width:1520px}
+body.grena-admin-v4 .eyebrow{color:var(--adm-gold)!important;letter-spacing:.17em;font-size:11px}
+body.grena-admin-v4 h1{font-size:clamp(25px,3vw,36px);letter-spacing:-.04em;color:#f6e8cc}
+body.grena-admin-v4 h2{font-size:17px;color:#f3e3c4;font-weight:800}
+body.grena-admin-v4 p,body.grena-admin-v4 small,body.grena-admin-v4 .help{color:var(--adm-muted)!important}
+body.grena-admin-v4 .panel{
+ background:linear-gradient(150deg,#19150f,#100e0b)!important;
+ border:1px solid var(--adm-line)!important;border-radius:19px!important;
+ box-shadow:0 12px 34px rgba(0,0,0,.24);padding:21px!important;margin-top:18px
+}
+body.grena-admin-v4 .panel.grant{background:linear-gradient(145deg,#241b10,#120f0b)!important;border-color:rgba(236,185,90,.38)!important}
+body.grena-admin-v4 .stat{
+ background:linear-gradient(145deg,#241d13,#12100d)!important;
+ border:1px solid rgba(223,174,81,.16);border-radius:14px!important;padding:14px 17px!important
+}
+body.grena-admin-v4 .stat b{font-size:clamp(24px,2vw,33px);color:var(--adm-soft);font-weight:900}
+body.grena-admin-v4 button{
+ background:linear-gradient(130deg,#f3d58d,#c5913d)!important;
+ color:#211406!important;border:1px solid rgba(238,187,88,.3)!important;
+ padding:10px 14px!important;border-radius:11px!important;
+ font-weight:800;cursor:pointer;transition:filter .15s,transform .15s
+}
+body.grena-admin-v4 button:hover:not(:disabled){filter:brightness(1.09);transform:translateY(-1px)}
+body.grena-admin-v4 button.secondary,body.grena-admin-v4 button.return,body.grena-admin-v4 button.quick{
+ background:#282016!important;color:#f3d9a2!important;border-color:rgba(244,194,98,.27)!important
+}
+body.grena-admin-v4 button.danger{background:#57231e!important;color:#ffcec8!important;border-color:#b94c42!important}
+body.grena-admin-v4 :is(input,select,textarea){
+ background:#0f0c09!important;color:#f8e9ce!important;
+ border:1px solid #695336!important;border-radius:10px!important;
+ padding:11px 12px;outline:0
+}
+body.grena-admin-v4 :is(input,select,textarea):focus{border-color:var(--adm-gold)!important;box-shadow:0 0 0 2px rgba(213,167,79,.14)}
+body.grena-admin-v4 table{border-collapse:separate;border-spacing:0;width:100%}
+body.grena-admin-v4 table th{
+ background:#241c12;color:#d7bb80!important;font-size:11px;
+ text-transform:uppercase;letter-spacing:.06em;padding:13px!important
+}
+body.grena-admin-v4 table th:first-child{border-top-left-radius:9px}
+body.grena-admin-v4 table th:last-child{border-top-right-radius:9px}
+body.grena-admin-v4 table td{border-bottom:1px solid rgba(234,189,107,.14)!important;padding:12px 10px}
+body.grena-admin-v4 tbody tr:hover{background:rgba(250,190,95,.035)}
+body.grena-admin-v4 .owner-mark{background:rgba(223,175,82,.17);border-color:#98763b;color:#ffdea2}
+body.grena-admin-v4 .beta-mark{background:rgba(52,135,176,.15);border-color:#3b8aaf;color:#98dfff}
+body.grena-admin-v4 pre{background:#120f0b;border-color:#564128;color:#ecd9bd}
+body.grena-admin-v4 .good{color:#8de7ae!important}
+body.grena-admin-v4 .bad{color:#ffaaa7!important}
+body.grena-admin-v4 .message{color:#e9b983}
+@media(max-width:700px){body.grena-admin-v4{padding:16px!important}body.grena-admin-v4 .panel{padding:14px!important}body.grena-admin-v4 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}body.grena-admin-v4 .stat{min-width:0}}
