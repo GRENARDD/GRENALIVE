@@ -1,0 +1,41 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
+test('GREÑA Viewers uses the supplied counter overlay, never Redes usernames or Total',()=>{
+ const widgets=read('widgets.html'),counter=read('viewers.html'),original=read('viewers-grena-original.html');
+ assert.match(widgets,/<option value="grena-viewers">GREÑA Viewers/);
+ assert.doesNotMatch(widgets,/<option value="grena-social">/);
+ assert.match(counter,/src="\/viewers-grena-original.html"/);
+ assert.doesNotMatch(counter,/src="\/social-overlay-grena-original.html"/);
+ assert.match(original,/data-k="tiktok"/);
+ assert.match(original,/data-k="twitch"/);
+ assert.match(original,/data-k="kick"/);
+ assert.match(original,/data-k="youtube"/);
+ assert.doesNotMatch(original,/class="item total"/);
+ assert.doesNotMatch(original,/Math\.random\(/);
+ assert.match(original,/\/api\/viewers/);
+});
+test('GREÑA Redes uses original name overlay with edit controls and linked accounts',()=>{
+ const widgets=read('widgets.html'),social=read('social-overlay.html'),original=read('social-overlay-grena-original.html');
+ assert.match(widgets,/<option value="grena-original">/);
+ assert.match(widgets,/id="sgTikTok"/);
+ assert.match(widgets,/id="sgTwitch"/);
+ assert.match(widgets,/id="sgKick"/);
+ assert.match(widgets,/id="sgYouTube"/);
+ assert.match(widgets,/function sgRead\(\)/);
+ assert.match(widgets,/socialNameOverrides:sgOverrides/);
+ assert.match(social,/src="\/social-overlay-grena-original.html"/);
+ for(const platform of ['tiktok','twitch','kick','youtube']) assert.match(original,new RegExp('data-network="'+platform+'"'));
+ assert.match(original,/\/api\/social-settings/);
+ assert.match(original,/settings\.linkedNetworks/);
+ assert.match(original,/settings\[key\]/);
+});
+test('GREÑA original counter is available to OBS without altering other widget styles',()=>{
+ const server=read('server.mjs');
+ assert.match(server,/\['classic','trio','vertical','grena-viewers','grena-social'\]/);
+ assert.match(server,/'\/viewers-grena-original.html'/);
+ assert.match(read('viewers.html'),/grena-viewers/);
+});
