@@ -145,6 +145,17 @@ s += r'''
        if(!popup.isDestroyed())popup.destroy();
      });
  };
+ const resetGrenaBubblePosition=()=>{
+   if(!mainWindow||mainWindow.isDestroyed())return;
+   const popup=grenaBubble&&!grenaBubble.isDestroyed()?grenaBubble:null;
+   const display=screen.getDisplayMatching(popup?popup.getBounds():mainWindow.getBounds());
+   const work=display.workArea;
+   const width=Math.min(366,Math.max(280,work.width-20)),height=118;
+   const pos=clampFloatingPosition({x:work.x+work.width-width-18,y:work.y+work.height-height-14,width,height},work);
+   try{writeFileSync(FLOATING_POSITION_FILE,JSON.stringify({x:pos.x,y:pos.y}),'utf8')}
+   catch(error){logStartup('BURBUJA RESET',String(error?.message||error))}
+   if(popup){const b=popup.getBounds();const adjusted=clampFloatingPosition({x:pos.x,y:pos.y,width:b.width,height:b.height},work);popup.setPosition(adjusted.x,adjusted.y,false)}
+ };
  const attachGrenaBubbleNavigation=()=>{
    if(!mainWindow||mainWindow.isDestroyed()||grenaBubbleAttachedTo===mainWindow)return false;
    grenaBubbleAttachedTo=mainWindow;
@@ -158,6 +169,9 @@ s += r'''
    mainWindow.webContents.on('will-navigate',(event,url)=>{
      if(isBubbleAction(url,'/__grena_bubble_mode__')){
        event.preventDefault();enableGrenaBubble();
+     }
+     if(isBubbleAction(url,'/__grena_bubble_reset__')){
+       event.preventDefault();resetGrenaBubblePosition();
      }
    });
    return true;
