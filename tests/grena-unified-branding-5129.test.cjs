@@ -18,7 +18,7 @@ test('GREÑA 6.0 browser and Windows EXE use the same GOLD SVG source',()=>{
   const verifier=src('desktop-build/verify-grena-g-alpha.py');
   assert.match(builder,/root \/ "favicon\.svg"/);
   assert.match(builder,/render-grena-g\.cjs/);
-  assert.doesNotMatch(builder,/grena-g-icon\.png\.base64/);
+  assert.doesNotMatch(builder,/source\s*=\s*root\s*\/\s*"assets"/);
   assert.match(builder,/grena-g\.ico/);
   assert.match(builder,/installerIcon/);
   assert.match(builder,/uninstallerIcon/);
