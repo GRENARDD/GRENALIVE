@@ -57,7 +57,7 @@ on:
       - 'desktop-build/smoke-chat.mjs'
       - 'live-panel.html'
       - 'mobile.html'
-      - 'desktop-build/verify-upgrade-5127-to-5129.ps1'
+      - 'desktop-build/verify-upgrade-6000-to-6001.ps1'
       - '.github/workflows/grena-release-v5115.yml'
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
@@ -129,7 +129,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5127-to-5129.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-6000-to-6001.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -137,7 +137,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v5.1.27 -> v5.1.29 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v6.0.0 -> v6.0.1 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -220,14 +220,14 @@ jobs:
             node --check $path
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Set distinct v5.1.29 beta version for preview installer
+      - name: Set distinct 6.0.1 release-candidate version for preview installer
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "5.1.29-beta.1"
+          $pkg.version = "6.0.1-rc.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 5.1.29-beta.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 6.0.1-rc.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -247,16 +247,20 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Set official 5.1.29 version on main (never on pull requests)
+      - name: Verify official GREÑA Live 6.0.1 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ($pkg.version -ne "5.1.19") { throw "Versión base inesperada; se cancela publicación estable." }
-          $pkg.version = "5.1.29"
-          $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Versión oficial verificada: 5.1.29"
+          if ($pkg.version -ne "6.0.1") { throw "Versión base inesperada; se cancela publicación estable." }
+          Write-Host "Versión oficial verificada: 6.0.1"
+      - name: Verify 6.0.1 package identity after legacy integration
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
+          $expected = if ($env:GITHUB_EVENT_NAME -eq 'pull_request') { '6.0.1-rc.1' } else { '6.0.1' }
+          if ($pkg.version -ne $expected) { throw "La versión del instalador no coincide: $($pkg.version) esperado $expected" }
       - name: Generate and verify original GREÑA G icon for Windows
         shell: pwsh
         run: |
@@ -394,13 +398,13 @@ jobs:
       - name: Smoke test compiled Windows backend
         shell: pwsh
         run: ./desktop-build/smoke.ps1
-      - name: Verify installed upgrade from GREÑA 5.1.27 preserves user data
+      - name: Verify installed upgrade from GREÑA 6.0.0 to 6.0.1 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
-        run: ./desktop-build/verify-upgrade-5127-to-5129.ps1
+        run: ./desktop-build/verify-upgrade-6000-to-6001.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-BETA-5.1.29-Windows' || 'GRENA-LIVE-Installer-Windows-v5.1.29' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-RC-6.0.1-Windows' || 'GRENA-LIVE-Installer-Windows-v6.0.1' }}
           path: dist/*.exe
           if-no-files-found: error
