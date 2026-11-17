@@ -1,4 +1,4 @@
-name: GREÑA · Publicar Desktop v6.0.0 ESTABLE
+name: GREÑA · Publicar Desktop v6.0.1 estable
 on:
   workflow_run:
     workflows:
@@ -16,14 +16,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      VERSION: '6.0.0'
+      VERSION: '6.0.1'
       TESTED_RUN: ${{ github.event.workflow_run.id }}
       TESTED_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - uses: actions/checkout@v5
         with:
           ref: main
-      - name: Skip when v6.0.0 is already official
+      - name: Skip when v6.0.1 is already official
         id: existing_release
         shell: bash
         run: |
@@ -44,19 +44,20 @@ jobs:
           test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .event)" = push
           test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$TESTED_RUN" --jq .head_branch)" = main
           if gh release view "v$VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo 'v6.0.0 ya existe. No sobrescribir una versión oficial.'
+            echo 'v6.0.1 ya existe. No sobrescribir una versión oficial.'
             exit 1
           fi
-      - name: Assert main declares GREÑA Live 6.0.0 and includes V4 release changes
+      - name: Verify true GREÑA Live 6.0.1 Classic rollback identity
         if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
         run: |
           set -euo pipefail
-          node -e "const p=require('./package.json'); if(p.version!=='6.0.0')process.exit(1)"
-          grep -q 'VOICE_USER_COOLDOWN_MS = 4000' chat.html
-          grep -q 'G Dorada' favicon.svg
-          test -s grena-premium-v6.js
-          test -s desktop-build/verify-grena-g-alpha.py
+          node -e "const p=require('./package.json');if(p.version!=='6.0.1')process.exit(1)"
+          test -s index.html
+          test -s chat.html
+          test ! -e grena-premium-v6.css
+          grep -q 'GREÑA LIVE PRO' index.html
+          test -s desktop-build/verify-upgrade-6000-to-6001.ps1
       - name: Verify production GREÑA ID Worker has secure shared rooms
         if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
@@ -79,54 +80,48 @@ jobs:
             echo "Cloudflare rooms not ready (attempt $attempt/18, HTTP $code)."
             sleep 10
           done
-          test "$ready" = true || { echo "Rooms API is not deployed or not protected; refusing v6.0.0 stable release."; exit 1; }
-      - name: Download and verify compiled 6.0.0 Windows installer
+          test "$ready" = true || { echo "Rooms API is not deployed or not protected; refusing v6.0.1 stable release."; exit 1; }
+      - name: Download and verify compiled 6.0.1 Windows installer
         if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p dist-release
-          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v6.0.0 --dir dist-release
-          mapfile -t installers < <(find dist-release -maxdepth 2 -type f -iname '*6.0.0.exe' -size +60000k)
-          test "${#installers[@]}" -eq 1 || { echo "Se esperaba exactamente un instalador estable 6.0.0 (encontrados: ${#installers[@]})"; exit 1; }
+          gh run download "$TESTED_RUN" --repo "$GITHUB_REPOSITORY" --name GRENA-LIVE-Installer-Windows-v6.0.1 --dir dist-release
+          mapfile -t installers < <(find dist-release -maxdepth 2 -type f -iname '*6.0.1.exe' -size +60000k)
+          test "${#installers[@]}" -eq 1 || { echo "Se esperaba exactamente un instalador estable 6.0.1 (encontrados: ${#installers[@]})"; exit 1; }
           installer="${installers[0]}"
           test -s "$installer"
-          mv "$installer" dist-release/GRENA.LIVE.Setup.6.0.0.exe
-          exe='GRENA.LIVE.Setup.6.0.0.exe'
+          mv "$installer" dist-release/GRENA.LIVE.Setup.6.0.1.exe
+          exe='GRENA.LIVE.Setup.6.0.1.exe'
           size="$(stat -c '%s' "dist-release/$exe")"
           hash="$(openssl dgst -sha512 -binary "dist-release/$exe" | base64 -w0)"
           test "${#hash}" -ge 70
           printf 'version: %s\nfiles:\n  - url: %s\n    sha512: %s\n    size: %s\npath: %s\nsha512: %s\nreleaseDate: %s\n' "$VERSION" "$exe" "$hash" "$size" "$exe" "$hash" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist-release/latest.yml
           ( cd dist-release && sha256sum "$exe" > SHA256SUMS.txt )
           test -s dist-release/latest.yml
-      - name: Publish official v6.0.0 release (not Cloudflare rollout)
+      - name: Publish official v6.0.1 release (not Cloudflare rollout)
         if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
         run: |
           set -euo pipefail
           cat > release-notes.md <<'EOF'
-          GREÑA Live Desktop 6.0.0 — ESTABLE
+          GREÑA Live Desktop v6.0.1 — CLÁSICA ESTABLE
 
-          IDENTIDAD Y DISEÑO:
-          - Interfaz Premium V4 de GREÑA Live 6.0 con navegación y paneles renovados.
-          - Nueva G dorada transparente unificada en ventanas, ejecutable e instalador Windows.
-          - Compatibilidad con GREÑA ID, roles y licencias.
+          RESTAURACIÓN SOLICITADA:
+          - Recuperada la interfaz y el código de GREÑA Live 5.1.29, última versión oficial anterior a la 6.0.0.
+          - Nueva versión 6.0.1 para permitir instalación por encima de 6.0.0 sin confundir el número del instalador.
+          - No incluye el rediseño Premium 6.0.0 ni el ZIP 'Épica' todavía no aprobado.
 
-          STREAMING:
-          - Multichat y alertas de TikTok, Twitch, Kick y YouTube.
-          - Panel de espectadores, widgets para OBS y edición de sonidos de alertas.
-          - Panel GREÑA Mobile integrado.
+          ESTADO DE FUNCIONES:
+          - Conserva chat, alertas, cuentas y Fish Audio del código probado en v5.1.29.
+          - El instalador se comprueba con una actualización real desde v6.0.0, conservando datos de cuenta, chat y voz.
+          - No se modifican las descargas ni las publicaciones históricas 5.1.29 y 6.0.0.
 
-          CHAT DE VOZ:
-          - Se mantiene el funcionamiento anterior del chat de voz.
-          - Tiempo fijo de 4 segundos por usuario, sin el nuevo deslizador.
-
-          CALIDAD:
-          - Pruebas automatizadas de Windows, backend, integridad del instalador, iconos y overlays.
-          - Prueba real de actualización sobre 5.1.27 y conservación de cuentas, configuraciones y voz.
-          - Puede aparecer Windows SmartScreen si el instalador carece de firma de editor reconocida.
-
-          La disponibilidad de mensajes, alertas y métricas en directo depende de cada plataforma.
+          SEGURIDAD:
+          - Compilación y pruebas de Windows obligatorias antes de publicar.
+          - Puede aparecer Windows SmartScreen si el instalador no dispone de firma de editor reconocido.
+          - La actualización automática dentro del programa sigue requiriendo aprobación del propietario.
           EOF
-          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.6.0.0.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
+          gh release create "v$VERSION" dist-release/GRENA.LIVE.Setup.6.0.1.exe dist-release/latest.yml dist-release/SHA256SUMS.txt \
             --repo "$GITHUB_REPOSITORY" --target "$TESTED_SHA" --title "GREÑA Live Desktop v$VERSION" --notes-file release-notes.md

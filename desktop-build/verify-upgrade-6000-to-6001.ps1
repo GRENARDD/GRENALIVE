@@ -1,20 +1,20 @@
-# Gate de publicación: instalar v5.1.27, actualizar EN EL MISMO DIRECTORIO
-# con el instalador compilado v6.0.0 y comprobar la persistencia de APPDATA.
+# Gate de publicación: instalar v6.0.0, actualizar EN EL MISMO DIRECTORIO
+# con el instalador compilado v6.0.1 y comprobar la persistencia de APPDATA.
 # Se ejecuta exclusivamente en un Windows runner efímero de GitHub Actions.
 $ErrorActionPreference='Stop'
 $ProgressPreference='SilentlyContinue'
-$oldVersion='5.1.27'
-$newVersion='6.0.0'
-$work=Join-Path $env:RUNNER_TEMP 'grena-upgrade-5127-to-6000'
+$oldVersion='6.0.0'
+$newVersion='6.0.1'
+$work=Join-Path $env:RUNNER_TEMP 'grena-upgrade-6000-to-6001'
 $install=Join-Path $work 'Installed'
-$oldSetup=Join-Path $work 'GRENA.LIVE.Setup.5.1.27.exe'
+$oldSetup=Join-Path $work 'GRENA.LIVE.Setup.6.0.0.exe'
 $userdata=Join-Path $env:APPDATA 'GREÑA LIVE PRO'
 $checkpoint=Join-Path $userdata 'profiles\ci-upgrade-preservation'
 $files=@{
- 'chat-settings.json'='{"theme":"minecraft","test":"PRESERVE_CHAT_6000"}'
- 'chat-connections.json'='{"tiktokUrl":"https://www.tiktok.com/@ci-preserve/live","test":"PRESERVE_CONNECTIONS_6000"}'
- 'test-account.json'='{"user":"ci-upgrade-preservation","test":"PRESERVE_ACCOUNT_6000"}'
- 'test-voice.json'='{"voice":"fish-ci","test":"PRESERVE_VOICE_6000"}'
+ 'chat-settings.json'='{"theme":"minecraft","test":"PRESERVE_CHAT_6001"}'
+ 'chat-connections.json'='{"tiktokUrl":"https://www.tiktok.com/@ci-preserve/live","test":"PRESERVE_CONNECTIONS_6001"}'
+ 'test-account.json'='{"user":"ci-upgrade-preservation","test":"PRESERVE_ACCOUNT_6001"}'
+ 'test-voice.json'='{"voice":"fish-ci","test":"PRESERVE_VOICE_6001"}'
 }
 New-Item -ItemType Directory -Path $work,$checkpoint -Force | Out-Null
 $expected=@{}
@@ -50,16 +50,16 @@ if((Get-Item $oldSetup).Length -lt 60000000){throw 'El instalador anterior está
 Install-Silent $oldSetup $oldVersion
 $installedExe=Join-Path $install 'GREÑA LIVE.exe'
 $appPackage=Join-Path $install 'resources\app\package.json'
-if(!(Test-Path -LiteralPath $installedExe)){throw 'El instalador 5.1.27 no dejó GREÑA LIVE.exe en el directorio seleccionado.'}
-if(!(Test-Path -LiteralPath $appPackage)){throw 'El instalador 5.1.27 no dejó package.json en resources/app.'}
+if(!(Test-Path -LiteralPath $installedExe)){throw 'El instalador 6.0.0 no dejó GREÑA LIVE.exe en el directorio seleccionado.'}
+if(!(Test-Path -LiteralPath $appPackage)){throw 'El instalador 6.0.0 no dejó package.json en resources/app.'}
 if((Get-Content $appPackage -Raw -Encoding UTF8|ConvertFrom-Json).version -ne $oldVersion){
- throw 'El instalador 5.1.27 no contiene la versión 5.1.27.'
+ throw 'El instalador 6.0.0 no contiene la versión 6.0.0.'
 }
-Assert-ProfilePreserved '5.1.27'
-$latest=Get-ChildItem -Path (Join-Path (Get-Location) 'dist') -File -Filter "*6.0.0.exe"
-if(@($latest).Count -ne 1){throw "Esperaba un solo instalador v6.0.0, encontrados: $(@($latest).Count)"}
+Assert-ProfilePreserved '6.0.0'
+$latest=Get-ChildItem -Path (Join-Path (Get-Location) 'dist') -File -Filter "*6.0.1.exe"
+if(@($latest).Count -ne 1){throw "Esperaba un solo instalador v6.0.1, encontrados: $(@($latest).Count)"}
 Install-Silent (@($latest)[0].FullName) $newVersion
-if(!(Test-Path -LiteralPath $installedExe)){throw 'El ejecutable desapareció al actualizar a 6.0.0.'}
+if(!(Test-Path -LiteralPath $installedExe)){throw 'El ejecutable desapareció al actualizar a 6.0.1.'}
 if(!(Test-Path -LiteralPath $appPackage)){throw 'No quedó el paquete actualizado instalado.'}
 $actual=(Get-Content $appPackage -Raw -Encoding UTF8|ConvertFrom-Json).version
 if($actual -ne $newVersion){throw "La actualización no sustituyó la versión antigua: $actual"}
@@ -67,5 +67,5 @@ foreach($mod in @('universalify','fs-extra','electron-updater')){
  $modulePath=Join-Path $install "resources\app\node_modules\$mod"
  if(!(Test-Path -LiteralPath $modulePath)){throw "Dependencia ausente tras actualizar: $mod"}
 }
-Assert-ProfilePreserved '6.0.0'
-Write-Host 'OK: instalación real 5.1.27 -> 6.0.0; código y dependencias nuevos; datos persistentes intactos.'
+Assert-ProfilePreserved '6.0.1'
+Write-Host 'OK: instalación real 6.0.0 -> 6.0.1; código y dependencias nuevos; datos persistentes intactos.'

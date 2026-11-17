@@ -57,7 +57,7 @@ on:
       - 'desktop-build/smoke-chat.mjs'
       - 'live-panel.html'
       - 'mobile.html'
-      - 'desktop-build/verify-upgrade-5127-to-5129.ps1'
+      - 'desktop-build/verify-upgrade-6000-to-6001.ps1'
       - '.github/workflows/grena-release-v5115.yml'
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
@@ -129,7 +129,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-5127-to-6000.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-6000-to-6001.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -137,7 +137,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v5.1.27 -> v6.0.0 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v6.0.0 -> v6.0.1 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -220,14 +220,14 @@ jobs:
             node --check $path
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Set distinct 6.0.0 release-candidate version for preview installer
+      - name: Set distinct 6.0.1 release-candidate version for preview installer
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "6.0.0-rc.1"
+          $pkg.version = "6.0.1-rc.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 6.0.0-rc.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 6.0.1-rc.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -247,19 +247,23 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Verify official GREÑA Live 6.0.0 version on main (never on pull requests)
+      - name: Verify official GREÑA Live 6.0.1 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ($pkg.version -ne "6.0.0") { throw "Versión base inesperada; se cancela publicación estable." }
-          Write-Host "Versión oficial verificada: 6.0.0"
-      - name: Generate and verify GOLD GREÑA G icon for Windows
+          if ($pkg.version -ne "6.0.1") { throw "Versión base inesperada; se cancela publicación estable." }
+          Write-Host "Versión oficial verificada: 6.0.1"
+      - name: Verify 6.0.1 package identity after legacy integration
         shell: pwsh
         run: |
-          npm install --no-save --no-audit --no-fund @resvg/resvg-js@2.6.2
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
+          $expected = if ($env:GITHUB_EVENT_NAME -eq 'pull_request') { '6.0.1-rc.1' } else { '6.0.1' }
+          if ($pkg.version -ne $expected) { throw "La versión del instalador no coincide: $($pkg.version) esperado $expected" }
+      - name: Generate and verify original GREÑA G icon for Windows
+        shell: pwsh
+        run: |
           python -m pip install --disable-pip-version-check --no-input pillow
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python desktop-build/build-grena-icon.py .
@@ -302,37 +306,27 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $root = 'dist/win-unpacked/resources/app'
+          $master = (Get-Content -LiteralPath 'assets/grena-g-icon.png.base64' -Raw -Encoding UTF8).Trim()
           $faviconPath = Join-Path $root 'favicon.svg'
           if (!(Test-Path -LiteralPath $faviconPath)) { throw 'Falta favicon.svg dentro del instalador Windows.' }
-          $original = (Get-FileHash -LiteralPath 'favicon.svg' -Algorithm SHA256).Hash
-          $bundled = (Get-FileHash -LiteralPath $faviconPath -Algorithm SHA256).Hash
-          if ($original -ne $bundled) { throw 'El favicon empaquetado es distinto de la G dorada aprobada.' }
           $favicon = Get-Content -LiteralPath $faviconPath -Raw -Encoding UTF8
-          if (!$favicon.Contains('G Dorada') -or !$favicon.Contains('<linearGradient id="body"')) {
-            throw 'Se empaquetó el logotipo equivocado: debe ser la G dorada.'
+          if (!$favicon.Contains('data:image/png;base64,' + $master)) {
+            throw 'El favicon del instalador no es la misma G que usa el exe.'
           }
-          if ($favicon.Contains('data:image/png;base64,')) {
-            throw 'La G azul antigua no debe permanecer incrustada en el favicon.'
-          }
-          foreach ($file in @('build/grena-g.png','build/grena-g.ico')) {
-            if (!(Test-Path -LiteralPath $file)) { throw "Falta el icono generado desde la G dorada: $file" }
-          }
-          python desktop-build/verify-grena-g-alpha.py build/grena-g.png build/grena-g.ico
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $pages = @('index.html','login.html','mode.html','alerts.html','gift-catalog.html','afterglow-studio.html','desktop-bubble.html','mobile.html','mobile-device.html')
           foreach ($file in $pages) {
             $target = Join-Path $root $file
             if (!(Test-Path -LiteralPath $target)) { throw "Falta la pantalla: $file" }
             $html = Get-Content -LiteralPath $target -Raw -Encoding UTF8
-            if (!$html.Contains('src="/favicon.svg?v=600"')) {
-              throw "Esta pantalla no muestra la G dorada: $file"
+            if (!$html.Contains('src="/favicon.svg?v=529"')) {
+              throw "Esta pantalla conserva un logo antiguo: $file"
             }
           }
           $manifest = Get-Content -LiteralPath (Join-Path $root 'assets/mobile.webmanifest') -Raw -Encoding UTF8 | ConvertFrom-Json
           if (@($manifest.icons | Where-Object { $_.src -eq '/favicon.svg' }).Count -lt 1) {
             throw 'GREÑA Mobile no usa el ícono unificado.'
           }
-          Write-Host 'OK: EXE, instalador, favicon, pantallas y móvil usan la G dorada transparente.'
+          Write-Host 'OK: ejecutable, favicon, pantallas y experiencia móvil usan la misma G.'
       - name: Verify Minecraft dynamics and shared room files in Windows package
         shell: pwsh
         run: |
@@ -404,13 +398,13 @@ jobs:
       - name: Smoke test compiled Windows backend
         shell: pwsh
         run: ./desktop-build/smoke.ps1
-      - name: Verify installed upgrade from GREÑA 5.1.27 to 6.0.0 preserves user data
+      - name: Verify installed upgrade from GREÑA 6.0.0 to 6.0.1 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
-        run: ./desktop-build/verify-upgrade-5127-to-6000.ps1
+        run: ./desktop-build/verify-upgrade-6000-to-6001.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-RC-6.0.0-Windows' || 'GRENA-LIVE-Installer-Windows-v6.0.0' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-RC-6.0.1-Windows' || 'GRENA-LIVE-Installer-Windows-v6.0.1' }}
           path: dist/*.exe
           if-no-files-found: error

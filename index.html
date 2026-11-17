@@ -17,14 +17,13 @@
 .grena-control .gx-profile-name-inline #profileName{min-width:0;overflow:hidden;text-overflow:ellipsis}
 </style>
 
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=600">
-<link rel="stylesheet" href="/grena-premium-v6.css?v=6-preview">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=529">
 </head>
 <body class="grena-control">
 <div class="app-shell">
   <header class="topbar">
     <div class="brand-block">
-      <div class="brand-mark grena-logo-mark" role="img" aria-label="GREÑA LIVE"><img class="grena-logo-image" src="/favicon.svg?v=600" alt="" width="64" height="64"></div>
+      <div class="brand-mark grena-logo-mark" role="img" aria-label="GREÑA LIVE"><img class="grena-logo-image" src="/favicon.svg?v=529" alt="" width="64" height="64"></div>
       <div><strong>GREÑA LIVE PRO</strong><span>CREATOR CONTROL · 4.0</span></div>
     </div>
     <nav class="primary-nav" aria-label="Navegación principal">
@@ -39,7 +38,6 @@
       <a class="top-link" href="/gift-catalog.html" data-module="catalog" title="Catálogo de regalos" aria-label="Catálogo de regalos"><span class="gx-nav-icon" aria-hidden="true">🎁</span><span class="gx-nav-label">Regalos</span></a>
     </nav>
     <div class="top-status">
-      <span id="grenaPremiumLicense" data-kind="unknown" title="Comprobando licencia" aria-live="polite">Comprobando licencia…</span>
       <div class="health-pill"><i id="systemDot"></i><span id="systemText">Iniciando sistema…</span></div>
       <a class="top-link" href="/mode.html" title="Elegir versión web o móvil">📱 Cambiar versión</a>
       <div class="profile-pill" id="profilePill"><span class="profile-avatar" id="profileAvatar">G</span><span class="profile-copy"><b class="gx-profile-name-inline"><span id="profileName">GREÑA ID</span><span id="betaLicenseBadge" hidden style="margin-left:7px;padding:2px 7px;background:#145568;color:#d7ffff;border:1px solid #52e2ec;border-radius:7px;font-size:10px;font-weight:900;letter-spacing:.7px" title="Licencia BETA sin fecha de vencimiento">✦ BETA</span></b><small id="profileUser">Cargando…</small></span><button id="logoutBtn" type="button">Cerrar sesión</button></div>
@@ -109,10 +107,6 @@
     </section>
 
     <aside class="ops-zone">
-      <section class="panel-shell" id="premiumVoiceCard" role="button" tabindex="0" aria-label="Abrir los ajustes del chat de voz" aria-haspopup="dialog">
-        <div class="voice-card-title"><span class="eyebrow">CHAT DE VOZ</span><b>Fish Audio · 5 voces</b><small>Cola inteligente · Filtros · Ajustes de voz</small></div>
-        <button class="voice-card-switch" id="premiumVoiceSwitch" type="button" aria-label="Encender o apagar chat de voz" aria-pressed="false"></button>
-      </section>
       <section class="panel-shell overview-panel">
         <div class="panel-head">
           <div><div class="eyebrow">ESTADO EN VIVO</div><h2>Directo</h2></div>
@@ -180,7 +174,6 @@
     </aside>
   </main>
 </div>
-<div id="premiumVoiceBackdrop" hidden><button id="premiumVoiceClose" type="button" aria-label="Cerrar configuración de voz">✕ Cerrar ajustes</button></div>
 <div class="module-layer" id="moduleLayer" aria-hidden="true">
   <div class="module-bar">
     <div class="module-title"><span class="module-live-dot"></span><b id="moduleTitle">Módulo GREÑA</b><small>Chat, voz y conexiones siguen activos en segundo plano</small></div>
@@ -220,6 +213,5 @@
 <script src="/grena-community.js"></script>
 <script src="/app-lifecycle.js"></script>
 <script>(()=>{const e=document.getElementById('overlayUrl');if(e)e.textContent=location.origin+'/overlay.html'})();</script>
-<script src="/grena-premium-v6.js?v=6-preview"></script>
 </body>
 </html>
