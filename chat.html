@@ -1398,7 +1398,8 @@ const VOICE_QUEUE_SOFT_LIMIT = 8;
 const VOICE_QUEUE_HARD_LIMIT = 16;
 const VOICE_STALE_MS = 15000;
 const VOICE_STALE_OVERLOAD_MS = 8000;
-let VOICE_USER_COOLDOWN_MS = 7000;
+const VOICE_USER_COOLDOWN_MS = 7000;
+let voiceUserCooldownMs = VOICE_USER_COOLDOWN_MS;
 const voiceUserLastQueuedAt = new Map();
 let voiceDroppedOverload = 0;
 
@@ -1486,7 +1487,7 @@ function saveSettings(){
       voiceEnabled:
         $('voiceEnabled').checked,
 
-      voiceCooldownSeconds:Math.round(VOICE_USER_COOLDOWN_MS/1000),
+      voiceCooldownSeconds:Math.round(voiceUserCooldownMs/1000),
 
       voiceRate:
         $('voiceRate').value,
@@ -1642,7 +1643,7 @@ function restoreSettings(){
     return;
 
   }
-  if(Number.isFinite(Number(settings.voiceCooldownSeconds))){VOICE_USER_COOLDOWN_MS=Math.max(0,Math.min(60000,Math.round(Number(settings.voiceCooldownSeconds))*1000));$('voiceCooldownSec').value=String(VOICE_USER_COOLDOWN_MS/1000);$('voiceCooldownValue').textContent=String(VOICE_USER_COOLDOWN_MS/1000)+' s';}
+  if(Number.isFinite(Number(settings.voiceCooldownSeconds))){voiceUserCooldownMs=Math.max(0,Math.min(60000,Math.round(Number(settings.voiceCooldownSeconds))*1000));$('voiceCooldownSec').value=String(voiceUserCooldownMs/1000);$('voiceCooldownValue').textContent=String(voiceUserCooldownMs/1000)+' s';}
 
   if(typeof settings.youtubeUrl==='string')$('youtubeUrl').value=settings.youtubeUrl;
   if(typeof settings.starviosUrl==='string')$('starviosUrl').value=settings.starviosUrl;
@@ -3573,7 +3574,7 @@ function userVoiceRateLimited(m={}){
   if(speaking && activeVoiceMessage && voiceUserRateKey(activeVoiceMessage)===key)return true;
   const last=Number(voiceUserLastQueuedAt.get(key)||0);
   // Consultar NO reinicia el turno: un comentario rechazado no castiga al usuario.
-  return !!last && now-last < VOICE_USER_COOLDOWN_MS;
+  return !!last && now-last < voiceUserCooldownMs;
 }
 function markUserVoiceQueued(m={}){
   if(m.__voiceTest)return;
@@ -4650,7 +4651,7 @@ function updateVoiceStatus(){
   if(voiceQueue.length){
 
     $('voiceStatus').textContent =
-      `⏳ Preparando voz · ${voiceQueue.length} comentarios pendientes · turno cada ${Math.round(VOICE_USER_COOLDOWN_MS/1000)} s por usuario.`;
+      `⏳ Preparando voz · ${voiceQueue.length} comentarios pendientes · turno cada ${Math.round(voiceUserCooldownMs/1000)} s por usuario.`;
 
     return;
 
@@ -4659,8 +4660,8 @@ function updateVoiceStatus(){
   if(isFishVoiceSelected()){
     const count = getConfiguredFishModels().length;
     $('voiceStatus').textContent = count === 5
-      ? `🟢 Fish Audio: 5 voces naturales · cola inteligente · ${Math.round(VOICE_USER_COOLDOWN_MS/1000)} s por usuario.`
-      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · ${Math.round(VOICE_USER_COOLDOWN_MS/1000)} s por usuario.`;
+      ? `🟢 Fish Audio: 5 voces naturales · cola inteligente · ${Math.round(voiceUserCooldownMs/1000)} s por usuario.`
+      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · ${Math.round(voiceUserCooldownMs/1000)} s por usuario.`;
     return;
   }
 
@@ -4675,7 +4676,7 @@ function updateVoiceStatus(){
 ===================================================== */
 
 $('voiceReadUsername')?.addEventListener('change',saveSettings);
-$('voiceCooldownSec')?.addEventListener('input',e=>{VOICE_USER_COOLDOWN_MS=Math.max(0,Math.min(60000,Number(e.target.value||0)*1000));$('voiceCooldownValue').textContent=String(VOICE_USER_COOLDOWN_MS/1000)+' s';saveSettings();updateVoiceStatus()});
+$('voiceCooldownSec')?.addEventListener('input',e=>{voiceUserCooldownMs=Math.max(0,Math.min(60000,Number(e.target.value||0)*1000));$('voiceCooldownValue').textContent=String(voiceUserCooldownMs/1000)+' s';saveSettings();updateVoiceStatus()});
 
 $('voiceEnabled').addEventListener(
   'change',
