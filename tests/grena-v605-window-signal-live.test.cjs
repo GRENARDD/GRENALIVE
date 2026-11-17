@@ -15,6 +15,7 @@ test('Remove ONLY the En vivo sidebar tab; preserve live indicators, routes and 
  assert.match(index,/data-l="Widgets"/);
  assert.match(index,/data-l="Alertas"/);
  assert.match(index,/const page=\[0,1,2,4,5,6,7,8\]\[i\]/);
+ assert.match(index,/p\.id==="pg"\+page/);
  assert.match(adapter,/Number\(btn\.dataset\.page\)/);
  assert.match(index,/id='lv'/);
 });
