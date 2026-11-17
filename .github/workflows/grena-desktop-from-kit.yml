@@ -319,7 +319,24 @@ jobs:
           }
           python desktop-build/verify-grena-g-alpha.py build/grena-g.png build/grena-g.ico
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $pages = @('index.html','login.html','mode.html','alerts.html','gift-catalog.html','afterglow-studio.html','desktop-bubble.html','mobile.html','mobile-device.html')
+          # index.html MUST be the user's V4 HTML, not an old brand icon injected into it.
+          $v4Index = Join-Path $root 'index.html'
+          $v4Adapter = Join-Path $root 'grena-v4-live.js'
+          if (!(Test-Path -LiteralPath $v4Index) -or !(Test-Path -LiteralPath $v4Adapter)) {
+            throw 'Falta la interfaz V4 exacta o su adaptador real dentro del instalador.'
+          }
+          $v4 = Get-Content -LiteralPath $v4Index -Raw -Encoding UTF8
+          $ref = Get-Content -LiteralPath 'design/reference/GRENA_LIVE_6_Premium_Interactivo_V4(3).html' -Raw -Encoding UTF8
+          $referenceCSS = [regex]::Match($ref,'(?s)<style>(.*?)</style>').Groups[1].Value
+          $packageCSS = [regex]::Match($v4,'(?s)<style>(.*?)</style>').Groups[1].Value
+          if ([string]::IsNullOrWhiteSpace($referenceCSS) -or $packageCSS -cne $referenceCSS) {
+            throw 'La interfaz empaquetada modificó el CSS original V4 del usuario.'
+          }
+          if (!$v4.Contains('<nav class="rail" id="nav"') -or !$v4.Contains('src="/grena-v4-live.js?v=6004"')) {
+            throw 'La estructura original V4 o el adaptador real no se empaquetaron.'
+          }
+          Write-Host 'OK: la interfaz V4 conserva el CSS original sin inyectar el viejo logotipo.'
+          $pages = @('login.html','mode.html','alerts.html','gift-catalog.html','afterglow-studio.html','desktop-bubble.html','mobile.html','mobile-device.html')
           foreach ($file in $pages) {
             $target = Join-Path $root $file
             if (!(Test-Path -LiteralPath $target)) { throw "Falta la pantalla: $file" }
@@ -332,7 +349,7 @@ jobs:
           if (@($manifest.icons | Where-Object { $_.src -eq '/favicon.svg' }).Count -lt 1) {
             throw 'GREÑA Mobile no usa el ícono unificado.'
           }
-          Write-Host 'OK: EXE, instalador, favicon, pantallas y móvil usan la G dorada transparente.'
+          Write-Host 'OK: EXE y demás ventanas usan la G dorada; el Centro de mando conserva V4 exacto.'
       - name: Verify Minecraft dynamics and shared room files in Windows package
         shell: pwsh
         run: |
