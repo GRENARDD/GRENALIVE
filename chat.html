@@ -706,8 +706,7 @@ body.voice-settings-modal-open{overflow:hidden!important}
 </style>
 <link rel="stylesheet" href="/aurora-ui.css">
 <link rel="stylesheet" href="/grena-gamer.css">
-<style>/* Plataforma retirada: mantener entradas legacy solo para migrar preferencias sin romper voz. */ #starviosStatus,.connection-box:has(#connectStarvios),.voice-box:has(#starviosVoiceEnabled),[data-platform="starvios"]{display:none!important}</style><link rel="icon" type="image/svg+xml" href="/favicon.svg?v=600">
-<link rel="stylesheet" href="/grena-premium-v6.css?v=6-preview"></head>
+<style>/* Plataforma retirada: mantener entradas legacy solo para migrar preferencias sin romper voz. */ #starviosStatus,.connection-box:has(#connectStarvios),.voice-box:has(#starviosVoiceEnabled),[data-platform="starvios"]{display:none!important}</style></head>
 
 <body class="grena-chat">
 
@@ -1398,7 +1397,7 @@ const VOICE_QUEUE_SOFT_LIMIT = 8;
 const VOICE_QUEUE_HARD_LIMIT = 16;
 const VOICE_STALE_MS = 15000;
 const VOICE_STALE_OVERLOAD_MS = 8000;
-const VOICE_USER_COOLDOWN_MS = 4000;
+const VOICE_USER_COOLDOWN_MS = 7000;
 const voiceUserLastQueuedAt = new Map();
 let voiceDroppedOverload = 0;
 
@@ -4647,7 +4646,7 @@ function updateVoiceStatus(){
   if(voiceQueue.length){
 
     $('voiceStatus').textContent =
-      `⏳ Preparando voz · ${voiceQueue.length} comentarios pendientes · turno cada 4 s por usuario.`;
+      `⏳ Preparando voz · ${voiceQueue.length} comentarios pendientes · turno cada 7 s por usuario.`;
 
     return;
 
@@ -4656,8 +4655,8 @@ function updateVoiceStatus(){
   if(isFishVoiceSelected()){
     const count = getConfiguredFishModels().length;
     $('voiceStatus').textContent = count === 5
-      ? '🟢 Fish Audio: 5 voces naturales · cola inteligente · 4 s por usuario.'
-      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · 4 s por usuario.`;
+      ? '🟢 Fish Audio: 5 voces naturales · cola inteligente · 7 s por usuario.'
+      : `🟡 Fish Audio: ${count}/5 voces configuradas · voz fija por usuario · 7 s por usuario.`;
     return;
   }
 
@@ -6143,6 +6142,5 @@ openWS()
 })();
 </script>
 
-<script src="/grena-v6-chat-visibility.js?v=6-preview"></script>
 </body>
 </html>

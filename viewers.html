@@ -113,7 +113,6 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
   html[data-counter-style="trio"] .counter{min-width:110px}
   html[data-counter-style="vertical"] .stage{gap:16px;transform:scale(.86)}
 }
-html[data-counter-style="grena-social"] .stage{padding:0;gap:0;justify-content:center!important}html[data-counter-style="grena-social"] .counters,html[data-counter-style="grena-social"] .vertical-title{display:none!important}html:not([data-counter-style="grena-social"]) #grenaSocialCounter{display:none!important}#grenaSocialCounter{width:100%;height:100%;border:0;background:transparent;flex:1 1 auto}
 </style>
 </head>
 <body>
@@ -123,7 +122,6 @@ html[data-counter-style="grena-social"] .stage{padding:0;gap:0;justify-content:c
     <small>Widget</small>
   </section>
 
-  <iframe id="grenaSocialCounter" title="Redes GREÑA horizontal" src="/social-overlay-grena-original.html" aria-label="Redes sociales originales"></iframe>
   <div class="counters">
     <section class="counter tt is-hidden">
       <div class="platform">
@@ -154,7 +152,6 @@ html[data-counter-style="grena-social"] .stage{padding:0;gap:0;justify-content:c
 </main>
 
 <script>
-const socialFrame=document.getElementById('grenaSocialCounter');const obsToken=new URLSearchParams(location.search).get('obs');if(obsToken){const u=new URL(socialFrame.src,location.origin);u.searchParams.set('obs',obsToken);socialFrame.src=u.toString()}
 const old={tiktok:-1,twitch:-1,kick:-1,youtube:-1};
 const counterDefaults={style:'classic',counterCardColor:'#18232c',edge:'left',edgeOffset:0};
 let counterSettings={...counterDefaults};
@@ -170,7 +167,7 @@ function updatePlatformVisibility(v={}){
 }
 
 function normalizeCounterSettings(v={}){
-  const style=['classic','trio','vertical','grena-social'].includes(String(v.style||''))?String(v.style):'classic';
+  const style=['classic','trio','vertical'].includes(String(v.style||''))?String(v.style):'classic';
   const raw=String(v.counterCardColor||v.cardColor||'#18232c').trim();
   const counterCardColor=/^#[0-9a-fA-F]{6}$/.test(raw)?raw.toLowerCase():'#18232c';
   const edge=v.edge==='right'?'right':'left';
