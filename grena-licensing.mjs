@@ -111,11 +111,14 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
    const c=await getCached(userId);if(!c?.token)return {isOwner:false,configured:false,registered:false};
    try{
      const result=await fetchCentral('/api/license/owner/status','GET',undefined,c.token);
-     await updateCached(userId,{permanentAccess:result.isOwner===true});
-     return {...result,registered:true};
-   }catch{return {isOwner:false,configured:false,registered:!!c.token}}
+     // Only the authenticated Cloudflare service may assign administrator access.
+     const isAdmin=result.isOwner===true||result.isAdmin===true||result.role==='admin'||result.role==='administrator';
+     await updateCached(userId,{permanentAccess:result.isOwner===true,administratorAccess:isAdmin});
+     return {...result,isAdmin,registered:true};
+   }catch{return {isOwner:false,isAdmin:false,configured:false,registered:!!c.token}}
  }
  async function isOwner(userId){return (await ownerStatus(userId)).isOwner===true}
+ async function isAdministrator(userId){return (await ownerStatus(userId)).isAdmin===true}
 
  // La identidad remota es el GREÑA ID compartido entre equipos; las cuentas de
  // streaming y los ajustes continúan en perfiles locales, aislados por dispositivo.
@@ -414,7 +417,7 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      }
      if(pathname==='/api/license/owner/status'&&req.method==='GET'){
        const result=await ownerStatus(u.id);
-       return reply(res,200,{ok:true,isOwner:result.isOwner===true,configured:result.configured===true,registered:result.registered!==false}),true;
+       return reply(res,200,{ok:true,isOwner:result.isOwner===true,isAdmin:result.isAdmin===true,configured:result.configured===true,registered:result.registered!==false}),true;
      }
      if(pathname==='/api/license/owner/claim'&&req.method==='POST'){
        const c=await getCached(u.id);
@@ -462,11 +465,11 @@ export async function makeLicensing({cloud,dataDir,profileFile,activeUser,readBo
      }
      if(pathname==='/api/license/status'&&req.method==='GET'){
        const c=await getCached(u.id);
-       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),permanentAccess:c?.permanentAccess===true,syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.',lastValidatedAt:c?.lastValidatedAt||null}),true;
+       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),permanentAccess:c?.permanentAccess===true,isAdmin:c?.administratorAccess===true,syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.',lastValidatedAt:c?.lastValidatedAt||null}),true;
      }
      if(pathname==='/api/license/refresh'&&req.method==='POST'){
        await heartbeat(u.id);const c=await getCached(u.id);
-       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),permanentAccess:c?.permanentAccess===true,syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.'}),true;
+       return reply(res,200,{ok:true,registered:!!c?.token,connected:!!c?.connected,license:c?.license||null,allowed:localAllowed(c),permanentAccess:c?.permanentAccess===true,isAdmin:c?.administratorAccess===true,syncError:remoteUrl?(c?.syncError||''):'Cloudflare aún no está configurado por el administrador.'}),true;
      }
      if(pathname==='/api/license/redeem'&&req.method==='POST'){
        const c=await getCached(u.id);
