@@ -26,10 +26,11 @@ test('Alerts removes unneeded platform card without affecting real platform read
 });
 test('Widget Configurar selects real saved variants and embeds real live preview, no placeholder',()=>{
  const widgets=file('widgets.html');
- for(const id of ['counter','multichat','social','superfans','loyalty','minecraft']){
+ for(const id of ['counter','multichat','social','superfans','minecraft']){
    assert.ok(widgets.includes('data-widget-module="'+id+'"'));
    assert.ok(adapter.includes("'"+id+"'"),id);
  }
+ assert.doesNotMatch(index,/"Índice de Fidelidad"/);
  assert.match(widgets,/id="counterStyle"/);
  assert.match(widgets,/id="mcTheme"/);
  assert.match(widgets,/id="sgLayout"/);
