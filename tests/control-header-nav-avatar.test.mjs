@@ -35,7 +35,7 @@ test('official v5.1.29 release gate is separate from PR previews and keeps histo
  assert.match(workflow,/verify-upgrade-6000-to-6001\.ps1/);
  assert.match(release,/Publish official v6\.0\.1 release/);
  assert.match(release,/Verify production GREÑA ID Worker has secure shared rooms/);
- assert.match(upgrade,/\$oldVersion='5\.1\.27'/);
+ assert.match(upgrade,/\$oldVersion='6\.0\.0'/);
  assert.match(upgrade,/\$newVersion='6\.0\.1'/);
  assert.match(previousRelease,/VERSION: '5\.1\.27'/);
 });
