@@ -90,10 +90,10 @@ const server=http.createServer((req,res)=>{
   // Widget Configurar must show the ACTUAL saved model selectors and previews.
   await page.locator('#nav .nb').nth(5).click();
   await page.locator('#pg5 [data-v4-action="widget-config"]').nth(1).click();
-  const focused=page.frameLocator('iframe[src*="focus=counter"]');
-  await focused.locator('#counterStyle').waitFor({timeout:12000});
-  assert.ok(await focused.locator('#counterStyle option').count()>=3,'Counter models missing');
-  assert.equal(await focused.locator('[data-widget-module]:visible').count(),1,'Only selected widget editor should appear');
+  const focused=page.frameLocator('iframe[src*="type=counter"]');
+  await focused.locator('#style').waitFor({timeout:12000});
+  assert.ok(await focused.locator('#counterStyle option').count() >=4,'Counter models missing');
+  assert.equal(await page.locator('#premiumBody > iframe:visible').count(),1,'Only selected widget editor should appear');
   await page.screenshot({path:path.join(screenshots,'widgets-1920.png')});
   // Long press on soundboard opens V4 settings and volume without playback.
   await page.locator('#premiumClose').click();
