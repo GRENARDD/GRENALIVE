@@ -133,8 +133,13 @@ function profileModal(){
       location.assign('/license-admin.html');return
     }
     if(a==='exit'){
-      hideDialog();if(!confirm('¿Quieres cerrar GREÑA Live?'))return;
-      try{await api('/api/app/exit',{method:'POST',body:{}})}catch{await api('/api/account/logout',{method:'POST'});location.assign('/login.html')}
+      if(!confirm('¿Cerrar sesión de GREÑA ID y volver al inicio de sesión?'))return;
+      try{
+        // Logout must revoke the authenticated session; /api/app/exit only closes the window.
+        await api('/api/account/logout',{method:'POST',body:{}});
+        persistent.account=null;persistent.license=null;
+        location.replace('/login.html');
+      }catch(error){fail(error)}
     }
   }));
 }
