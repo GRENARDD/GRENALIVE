@@ -35,7 +35,7 @@ const number=(id,defaultValue,min,max)=>'<input id="'+id+'" type="number" value=
 const clamp=(id,min,max,defaultValue)=>Math.max(min,Math.min(max,Number.isFinite(Number($(id)?.value))?Math.round(Number($(id).value)):defaultValue));
 const renderInputs={
 minecraft:()=>'<p class="status">Personajes Minecraft · modelo actual, hasta 10 participantes. La demostración no afecta a OBS.</p>',
-counter:()=>field('Seleccionar estilo','style',sel('style',[['classic','Tarjetas GREÑA'],['trio','Trío Live'],['vertical','Vertical'],['grena-viewers','GREÑA Viewers · sin Total']]))+
+counter:()=>field('Seleccionar estilo','style',sel('style',[['classic','Tarjetas GREÑA'],['trio','Trío Live'],['vertical','Vertical'],['grena-viewers','GREÑA Viewers · sin Total'],['grena-total','Total Viewers · transparente + usuarios']]))+
 '<div class="row">'+field('Pegado al borde','edge',sel('edge',[['left','Izquierda'],['right','Derecha']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>',
 multichat:()=>field('Estilo del chat','theme',sel('theme',[['clean','Minimal PRO'],['blossom','Blossom Glass'],['comicpop','Comic Pop'],['timeline','Timeline Premium'],['signal','MultiChat Signal · original']]))+
 '<div class="row">'+field('Dirección','direction',sel('direction',[['left','Izquierda'],['right','Derecha / invertido']]))+field('Margen lateral · px','edgeOffset',number('edgeOffset',0,0,80))+'</div>'+
@@ -66,7 +66,13 @@ function previewVisual(){
 
 let syncObsPreview=()=>{};
 function emitPreview(){
- if(type==='counter')preview.contentWindow?.postMessage({type:'grena-counter-preview',settings:read()},location.origin);
+ if(type==='counter'){
+  const current=read();
+  preview.contentWindow?.postMessage({type:'grena-counter-preview',settings:current},location.origin);
+  $('help').textContent=current.style==='grena-total'
+   ?'Total Viewers: fondo transparente en OBS, suma de espectadores y usuarios vinculados. Vista previa con cifras de ejemplo.'
+   :'La vista previa no modifica el enlace de OBS ni los contadores reales.';
+ }
  if(type==='multichat'){preview.contentWindow?.postMessage({type:'grena-multichat-settings',settings:read()},location.origin);const field=$('signalSizeField');if(field)field.classList.toggle('hidden',$('theme')?.value!=='signal');syncObsPreview();}
  if(type==='social')preview.contentWindow?.postMessage({type:'grena-social-preview',settings:previewVisual()},location.origin);
 }
@@ -87,7 +93,7 @@ async function request(url,settings){
  return data;
 }
 async function save(){
- if(type==='multichat'&&!loaded){$('status').textContent='⚠ Motor de multichat desconectado. No se sobrescribirán tus ajustes.';return}
+ if(!loaded){$('status').textContent='⚠ No se pudieron cargar los ajustes del widget. No se aplicarán cambios sobre datos desconocidos.';return}
  $('status').textContent='Aplicando…';
  try{
   const route=type==='counter'?'/api/counter-settings':type==='social'?'/api/social-settings':'/chat/api/multichat-settings';
@@ -133,7 +139,7 @@ async function init(){
     const result=await request(route);
     if(type==='multichat'&&!result.settings)throw Error('No se pudieron cargar los ajustes del chat');
     base={...original[type],...(result.settings||{})};loaded=true;
-  }catch(error){base={...original[type]};loaded=type!=='multichat';$('status').textContent='⚠ '+error.message}
+  }catch(error){base={...original[type]};loaded=false;$('status').textContent='⚠ '+error.message}
   setValues(base);button('Aplicar cambios',save,true);
   if(type==='multichat'){button('Mensaje de prueba',testMessage);button('Restablecer',reset)}
   if(type==='social')button('Restablecer',reset);
