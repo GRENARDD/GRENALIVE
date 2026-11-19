@@ -1699,6 +1699,7 @@ async function disconnectTwitch() {
 // YouTube: horizontal y vertical son emisiones independientes con lectores propios.
 const youtubeReaders=new Map();
 const youtubeViewers=new Map();
+const youtubeViewerReadAt=new Map();
 const youtubeReaderHealth=new Map();
 let youtubeViewerTimer=null,youtubeDiscoveryBusy=false,youtubeDiscoveryLastError='';
 function youtubeActiveReaders(){return [...youtubeReaders.values()].filter(r=>r.running)}
@@ -1707,7 +1708,8 @@ function publishYoutubeViewers(){
  if(!active.length){bridgeViewers('youtube',0);return}
  // Si la API no publica concurrentViewers para alguna emisión, conservar
  // la última cifra conocida; no interpretar la ausencia como 0 espectadores.
- const known=active.filter(id=>Number.isFinite(youtubeViewers.get(id)));
+ // Last good YouTube figures expire; failed reads must not refresh them forever.
+ const known=active.filter(id=>Number.isFinite(youtubeViewers.get(id))&&Date.now()-Number(youtubeViewerReadAt.get(id)||0)<90000);
  if(!known.length){bridgeViewers('youtube',null,'YouTube LIVE · contador no disponible ('+active.length+' emisiones)');return}
  bridgeViewers('youtube',known.reduce((total,id)=>total+youtubeViewers.get(id),0),'YouTube LIVE '+known.length+'/'+active.length+' contadores disponibles');
 }
@@ -1788,7 +1790,7 @@ async function connectYouTube(input){
    youtubeStatus(label);
   },
   onViewers:n=>{
-   if(n!==null&&Number.isFinite(n)&&n>=0)youtubeViewers.set(videoId,n);
+   if(n!==null&&Number.isFinite(n)&&n>=0){youtubeViewers.set(videoId,n);youtubeViewerReadAt.set(videoId,Date.now());}
    // También notificar la primera lectura fallida: un 0 inicial no es
    // evidencia de cero espectadores si la API aún no publicó el dato.
    publishYoutubeViewers();
@@ -1805,7 +1807,7 @@ async function connectYouTube(input){
   youtubeStatus();
   return result;
  }catch(e){
-  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);youtubeReaderHealth.delete(videoId);
+  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);youtubeViewerReadAt.delete(videoId);youtubeReaderHealth.delete(videoId);
   publishYoutubeViewers();youtubeStatus('YouTube desconectado');
   throw e;
  }
@@ -1814,10 +1816,10 @@ async function disconnectYouTube(videoId=''){
  if(videoId){
   const reader=youtubeReaders.get(videoId);
   if(reader)await reader.stop();
-  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);youtubeReaderHealth.delete(videoId);
+  youtubeReaders.delete(videoId);youtubeViewers.delete(videoId);youtubeViewerReadAt.delete(videoId);youtubeReaderHealth.delete(videoId);
  }else{
   await Promise.allSettled([...youtubeReaders.values()].map(r=>r.stop()));
-  youtubeReaders.clear();youtubeViewers.clear();youtubeReaderHealth.clear();
+  youtubeReaders.clear();youtubeViewers.clear();youtubeViewerReadAt.clear();youtubeReaderHealth.clear();
  }
  if(!youtubeReaders.size&&youtubeViewerTimer){clearInterval(youtubeViewerTimer);youtubeViewerTimer=null}
  publishYoutubeViewers();
