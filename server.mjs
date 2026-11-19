@@ -870,7 +870,7 @@ function accountFromAuth(p){if(p==='youtube')return savedAuth.youtube?.displayNa
 function publicStatus(){const out={};for(const p of ['tiktok','twitch','kick','youtube']){const raw=status[p]||{};const authenticated=p==='tiktok'?!!(savedAuth.tiktok?.username||savedAuth.tiktok?.sessionId||savedAuth.tiktok?.access_token):p==='twitch'?!!(savedAuth.twitch?.access_token||savedAuth.twitch?.login||savedAuth.twitch?.displayName||twitchCfg?.login):p==='kick'?!!savedAuth.kick?.access_token:p==='youtube'?!!savedAuth.youtube?.channelId:false;const account=raw.account||accountFromAuth(p);const runtimeLabel=raw.label||'No conectado';let label=runtimeLabel;if(authenticated&&!raw.connected){const showTikTokWait=p==='tiktok'&&/reconexi[oó]n|límite temporal|conectando al LIVE|LIVE no disponible/i.test(runtimeLabel);if(!showTikTokWait)label=`${account?account+' · ':''}cuenta vinculada${p==='tiktok'?' · esperando LIVE':' · sesión guardada'}`;}out[p]={...raw,connected:!!raw.connected||authenticated,authenticated,configured:p==='starvios'?!!account:authenticated,runtimeConnected:!!raw.connected,account,label,runtimeLabel,...(p==='starvios'?{live:starviosLive.known?starviosLive.live:null,liveKnown:starviosLive.known}:{})}}return out}
 function pushStatus(){broadcast({type:'platform-status',status:publicStatus()})}
 function normalizeCounterWidgetSettings(input={}){
- const style=['classic','trio','vertical','grena-viewers','grena-social'].includes(String(input.counterStyle||input.style||''))?(String(input.counterStyle||input.style)==='grena-social'?'grena-viewers':String(input.counterStyle||input.style)):'classic';
+ const style=['classic','trio','vertical','grena-viewers','grena-total','grena-social'].includes(String(input.counterStyle||input.style||''))?(String(input.counterStyle||input.style)==='grena-social'?'grena-viewers':String(input.counterStyle||input.style)):'classic';
  const raw=String(input.counterCardColor||input.cardColor||'').trim();
  const counterCardColor=/^#[0-9a-fA-F]{6}$/.test(raw)?raw.toLowerCase():'#18232c';
  const edge=(input.counterEdge||input.edge)==='right'?'right':'left';
@@ -892,7 +892,7 @@ function activeWidgetPlatforms(){
  });
 }
 
-function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,activePlatforms:activeWidgetPlatforms(),meta:viewerMeta,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,updatedAt:Date.now()})}
+function pushViewers(){const v=currentViewers();broadcast({type:'viewers',viewers:v,activePlatforms:activeWidgetPlatforms(),accounts:Object.fromEntries(['tiktok','kick','twitch','youtube'].map(p=>[p,accountFromAuth(p)])),meta:viewerMeta,total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),testMode:viewerTest.enabled,updatedAt:Date.now()})}
 function tiktokViewerSourceFamily(source=''){
  const x=String(source||'').toLowerCase();
  if(x.includes('room_user')||x.includes('room user')||x.includes('live fallback'))return 'roomUser';
@@ -944,10 +944,11 @@ function setViewers(platform,count,source='live'){
  // llega al overlay hasta ser confirmado por las dos fuentes reales o mantenerse estable.
  if(platform==='tiktok'&&n>0&&!acceptTikTokViewerJump(n,source,meta,now))return false;
  if(n>0){meta.lastGood=n;meta.lastGoodAt=now;meta.zeroHits=0;meta.lastZeroAt=0}
+ if(platform==='youtube'||platform==='twitch')meta.available=true;
  else if(forceZero){meta.zeroHits=0;meta.lastZeroAt=now;meta.spikeValue=0;meta.spikeHits=0;meta.spikeAt=0;meta.spikeSources=[]}
  meta.source=source;
  if(viewers[platform]!==n){viewers[platform]=n;pushViewers()}
- else if(platform==='starvios'&&previousAvailability!==meta.available)pushViewers();
+ else if(['youtube','twitch'].includes(platform)||platform==='starvios'&&previousAvailability!==meta.available)pushViewers();
  return true;
 }
 function readTikTokViewerCount(d,{roomUser=false}={}){
@@ -1464,15 +1465,11 @@ async function connectCounterTwitch(input){
  const login=parseTwitchLogin(input);if(!login)throw Error('Pon el link o canal de Twitch.');
  if(counterTwitchTimer)clearInterval(counterTwitchTimer);
  counterTwitchTimer=null;counterTwitchLogin=login;
- try{
-  await refreshCounterTwitch({strict:true});
-  counterTwitchTimer=setInterval(()=>refreshCounterTwitch().catch(e=>console.warn('Contador Twitch:',e?.message||e)),5000);
-  setStatus('twitch',true,`${login} · chat + contador conectados`,login);
-  return {login};
- }catch(e){
-  counterTwitchLogin='';
-  throw e;
- }
+ // Conservar reintentos incluso si Helix falla al conectar por primera vez.
+ counterTwitchTimer=setInterval(()=>refreshCounterTwitch().catch(e=>console.warn('Contador Twitch:',e?.message||e)),5000);
+ const ready=await refreshCounterTwitch();
+ if(!ready)viewerMeta.twitch.source='Twitch Helix · pendiente de reintento';
+ return {login,pending:!ready};
 }
 
 // TikTok: Login Kit identifica la cuenta. Los eventos LIVE siguen entrando por el conector LIVE.
@@ -1522,12 +1519,14 @@ function openTwitchWS(url='wss://eventsub.wss.twitch.tv/ws'){
  ws.on('close',()=>{twitchEventHealth.ready=false;pushEventHealth();if(twitchCfg){setStatus('twitch',false,'Desconectado · reconectando…',twitchCfg.login);setTimeout(()=>{if(twitchCfg&&twitchWS===ws)openTwitchWS()},5000)}});
 }
 async function refreshTwitchViewers(){
-  if(counterTwitchLogin||!twitchCfg||twitchViewerRefreshing)return;
+  if(!twitchCfg||twitchViewerRefreshing)return;
   const cfg=twitchCfg,profileId=activeUserId;
   twitchViewerRefreshing=true;
   try{
     const d=await twitchHelix(`/streams?user_id=${encodeURIComponent(cfg.userId)}`,cfg);
-    if(profileId!==activeUserId||twitchCfg!==cfg||counterTwitchLogin)return;
+    if(profileId!==activeUserId||twitchCfg!==cfg)return;
+    // No mezclar cifras de dos canales distintos.
+    if(counterTwitchLogin&&counterTwitchLogin.toLowerCase()!==String(cfg.login||'').toLowerCase())return;
     const stream=d.data?.[0];
     if(stream&&Number.isFinite(Number(stream.viewer_count))){
       viewerMeta.twitch.zeroHits=0;setViewers('twitch',stream.viewer_count,'Twitch Helix · cuenta vinculada');
@@ -2841,6 +2840,13 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    pushViewers();
    return json(res,200,{ok:true,accepted:false,available:false,viewers:currentViewers(),meta:viewerMeta.starvios});
   }
+  // null: la API no publicó un contador. Nunca convertirlo en cero.
+  if(body.count===null&&(body.platform==='youtube'||body.platform==='twitch')){
+   viewerMeta[body.platform].source=source+' · sin cifra verificable';
+   viewerMeta[body.platform].available=false;
+   pushViewers();
+   return json(res,200,{ok:true,accepted:false,available:false,viewers:currentViewers(),meta:viewerMeta[body.platform]});
+  }
   const transientTikTokBridgeZero=body.platform==='tiktok'&&Number(body.count)===0&&/bridge disconnected|chat.*desconect|socket.*disconnect/i.test(source)&&tiktokDedicatedCounterHealthy();
   const accepted=transientTikTokBridgeZero?false:setViewers(body.platform,body.count,source);
   if(transientTikTokBridgeZero)viewerMeta.tiktok.source='TikTok chat reconectando · contador dedicado activo';
@@ -2851,7 +2857,7 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
  }
  if(pathname==='/api/follower-goals'&&req.method==='GET')return json(res,200,publicFollowerGoals());
  if(pathname==='/api/follower-goals'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}'),next={...followerGoals.settings};for(const p of ['tiktok','twitch','kick','starvios'])if(body[p])next[p]={start:Math.max(0,Number(body[p].start)||0),goal:Math.max(1,Number(body[p].goal)||1),show:body[p].show!==false};followerGoals.settings=next;if(body.resetGained)followerGoals.gained={tiktok:0,twitch:0,kick:0,starvios:0};await persistFollowerGoals();broadcast({type:'follower-goals',state:publicFollowerGoals()});return json(res,200,{ok:true,...publicFollowerGoals()})}
- if(pathname==='/api/viewers'){const v=currentViewers();return json(res,200,{ok:true,viewers:v,activePlatforms:activeWidgetPlatforms(),total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),meta:viewerMeta,testMode:viewerTest.enabled,updatedAt:Date.now()})}
+ if(pathname==='/api/viewers'){const v=currentViewers();return json(res,200,{ok:true,viewers:v,activePlatforms:activeWidgetPlatforms(),accounts:Object.fromEntries(['tiktok','kick','twitch','youtube'].map(p=>[p,accountFromAuth(p)])),total:Object.values(v).reduce((a,n)=>a+(Number(n)||0),0),meta:viewerMeta,testMode:viewerTest.enabled,updatedAt:Date.now()})}
  if(pathname==='/api/counter-settings'&&req.method==='GET')return json(res,200,{ok:true,settings:publicCounterSettings()});
  if(pathname==='/api/counter-settings'&&req.method==='POST'){let b='';b=await readBody(req);const settings=normalizeCounterWidgetSettings(JSON.parse(b||'{}'));autoPrefs={...autoPrefs,counterStyle:settings.style,counterCardColor:settings.counterCardColor,counterEdge:settings.edge,counterEdgeOffset:settings.edgeOffset};await persistAutoPrefs();broadcast({type:'counter-settings',settings});return json(res,200,{ok:true,settings})}
  if(pathname==='/api/counter/connect'&&req.method==='POST'){let b='';b=await readBody(req);const body=JSON.parse(b||'{}');try{if(body.platform==='tiktok'){autoPrefs.counterTikTok=String(body.value||'');autoPrefs.counterTikTokEnabled=true;await persistAutoPrefs();const r=await connectCounterTikTok(body.value);return json(res,200,{ok:true,...r,viewers:currentViewers()})}if(body.platform==='twitch'){autoPrefs.counterTwitch=String(body.value||'');autoPrefs.counterTwitchEnabled=true;await persistAutoPrefs();const r=await connectCounterTwitch(body.value);return json(res,200,{ok:true,...r,viewers:currentViewers()})}if(body.platform==='kick'){const v=String(body.value||'').trim();const slug=v.replace(/^https?:\/\/(www\.)?kick\.com\//i,'').split(/[/?#]/)[0].replace(/^@/,'');if(!slug)throw Error('Pon el link o usuario de Kick.');autoPrefs.counterKick=`https://kick.com/${slug}`;autoPrefs.counterKickEnabled=true;await persistAutoPrefs();await refreshKick();return json(res,200,{ok:true,slug,viewers:currentViewers()})}return json(res,400,{ok:false,error:'Plataforma no válida'})}catch(e){return json(res,400,{ok:false,error:e?.message||String(e)})}}
