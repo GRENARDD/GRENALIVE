@@ -38,7 +38,7 @@ test('Fish Audio ofrece siempre el botón de sincronización y verifica la cuent
 });
 test('Compilación estable prepara instalador 6.0.7',()=>{
  const update=src('desktop-build/fix_official_updates.py');
- assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '6\.0\.6'/);
+ assert.match(update,/pkg\['version'\]=tag\[1:\] if tag else '6\.0\.7'/);
  const gh=src('.github/workflows/grena-desktop-from-kit.yml');
- assert.match(gh,/GRENA-LIVE-Installer-Windows-v6\.0\.6/);
+ assert.match(gh,/GRENA-LIVE-Installer-Windows-v6\.0\.7/);
 });

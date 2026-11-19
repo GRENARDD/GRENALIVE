@@ -31,12 +31,12 @@ test('official v5.1.29 release gate is separate from PR previews and keeps histo
  const release=file('.github/workflows/grena-release-v6007.yml');
  const upgrade=file('desktop-build/verify-upgrade-6005-to-6007.ps1');
  const previousRelease=file('.github/workflows/grena-release-v5127.yml');
- assert.match(workflow,/Verify official GREÑA Live 6\.0\.6 version on main/);
- assert.match(workflow,/GRENA-LIVE-Installer-Windows-v6\.0\.6/);
+ assert.match(workflow,/Verify official GREÑA Live 6\.0\.7 version on main/);
+ assert.match(workflow,/GRENA-LIVE-Installer-Windows-v6\.0\.7/);
  assert.match(workflow,/verify-upgrade-6005-to-6007\.ps1/);
- assert.match(release,/Publish official v6\.0\.6 release/);
+ assert.match(release,/Publish official v6\.0\.7 release/);
  assert.match(release,/Verify production GREÑA ID Worker has secure shared rooms/);
  assert.match(upgrade,/\$oldVersion='6\.0\.5'/);
- assert.match(upgrade,/\$newVersion='6\.0\.6'/);
+ assert.match(upgrade,/\$newVersion='6\.0\.7'/);
  assert.match(previousRelease,/VERSION: '5\.1\.27'/);
 });
