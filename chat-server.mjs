@@ -1788,10 +1788,10 @@ async function connectYouTube(input){
    youtubeStatus(label);
   },
   onViewers:n=>{
-   if(n!==null&&Number.isFinite(n)&&n>=0){
-    youtubeViewers.set(videoId,n);
-    publishYoutubeViewers();
-   }
+   if(n!==null&&Number.isFinite(n)&&n>=0)youtubeViewers.set(videoId,n);
+   // También notificar la primera lectura fallida: un 0 inicial no es
+   // evidencia de cero espectadores si la API aún no publicó el dato.
+   publishYoutubeViewers();
   }
  });
  youtubeReaders.set(videoId,reader);
