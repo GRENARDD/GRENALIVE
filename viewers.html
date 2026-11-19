@@ -114,6 +114,20 @@ html[data-counter-style="vertical"] .pulse{animation:verticalPulse .24s ease-out
   html[data-counter-style="vertical"] .stage{gap:16px;transform:scale(.86)}
 }
 html[data-counter-style="grena-viewers"] .stage{padding:0;gap:0;justify-content:center!important}html[data-counter-style="grena-viewers"] .counters,html[data-counter-style="grena-viewers"] .vertical-title{display:none!important}html:not([data-counter-style="grena-viewers"]) #grenaViewersCounter{display:none!important}#grenaViewersCounter{width:100%;height:100%;border:0;background:transparent;flex:1 1 auto}
+
+html[data-counter-style="grena-total"] .stage{justify-content:flex-start!important;align-items:flex-start!important;padding-top:0!important;gap:0!important}
+html[data-counter-style="grena-total"] .counters,html[data-counter-style="grena-total"] .vertical-title,html:not([data-counter-style="grena-total"]) #grenaTotalCounter{display:none!important}
+#grenaTotalCounter{font-family:"Segoe UI",Roboto,Arial,sans-serif;color:white;text-shadow:0 0 3px #000,0 2px 4px #000,0 0 10px rgba(0,0,0,.95),0 0 20px rgba(0,0,0,.7);padding:18px 22px;background:transparent;min-width:230px;box-sizing:border-box}
+#grenaTotalCounter .gt-total{display:flex;gap:12px;align-items:center}
+#grenaTotalCounter .gt-eye,#grenaTotalCounter .gt-icon{width:34px;height:34px;flex:none;filter:drop-shadow(0 0 3px #000) drop-shadow(0 2px 5px rgba(0,0,0,.9))}
+#grenaTotalCounter .gt-number{font-size:44px;font-weight:800;line-height:1;letter-spacing:.5px}
+#grenaTotalCounter .gt-label{font-size:12px;letter-spacing:2px;opacity:.75;margin-top:4px}
+#grenaTotalCounter .gt-rows{margin-top:14px;display:flex;flex-direction:column;gap:10px}
+#grenaTotalCounter .gt-row{display:flex;align-items:center;gap:12px}
+#grenaTotalCounter .gt-row[hidden]{display:none!important}
+#grenaTotalCounter .gt-count{font-size:26px;font-weight:700;line-height:1}
+#grenaTotalCounter .gt-handle{font-size:12px;opacity:.7}
+
 </style>
 </head>
 <body>
@@ -124,6 +138,7 @@ html[data-counter-style="grena-viewers"] .stage{padding:0;gap:0;justify-content:
   </section>
 
   <iframe id="grenaViewersCounter" title="GREÑA Viewers sin Total" src="/viewers-grena-original.html" aria-label="Contadores GREÑA de espectadores por plataforma"></iframe>
+<section id="grenaTotalCounter" aria-label="Total de espectadores y usuarios vinculados"><div class="gt-total"><svg class="gt-eye" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3.5" fill="#fff"/></svg><div><div class="gt-number" id="gtTotal">0</div><div class="gt-label">TOTAL VIEWERS</div></div></div><div class="gt-rows"><div class="gt-row" data-gt-row="tiktok" hidden><svg class="gt-icon" viewBox="0 0 34 34"><rect width="34" height="34" rx="8" fill="#111"/><path transform="translate(5 5)" fill="#25F4EE" d="M13 3v11.2a3 3 0 1 1-2.2-2.9V8a6 6 0 1 0 5.2 5.9V8.6c1 .8 2.3 1.3 3.6 1.3V6.5C17.8 6.5 16 5 16 3z"/><path transform="translate(7 6)" fill="#FE2C55" d="M13 3v11.2a3 3 0 1 1-2.2-2.9V8a6 6 0 1 0 5.2 5.9V8.6c1 .8 2.3 1.3 3.6 1.3V6.5C17.8 6.5 16 5 16 3z" opacity=".85"/></svg><div><div class="gt-count" data-gt-count="tiktok">0</div><div class="gt-handle" data-gt-handle="tiktok"></div></div></div><div class="gt-row" data-gt-row="kick" hidden><svg class="gt-icon" viewBox="0 0 34 34"><rect width="34" height="34" rx="6" fill="#53FC18"/><path fill="#000" d="M9 7h5v6h2l3-6h5l-4.5 8.5L25 27h-5.5L16 20.5h-2V27H9z"/></svg><div><div class="gt-count" data-gt-count="kick">0</div><div class="gt-handle" data-gt-handle="kick"></div></div></div><div class="gt-row" data-gt-row="twitch" hidden><svg class="gt-icon" viewBox="0 0 34 34"><rect width="34" height="34" rx="6" fill="#9146FF"/><path fill="#fff" d="M8 7h18v12l-5 5h-4l-3 3v-3H8zm3 3v10h4v2l2-2h4l3-3V10zm6 2h2v5h-2zm5 0h2v5h-2z"/></svg><div><div class="gt-count" data-gt-count="twitch">0</div><div class="gt-handle" data-gt-handle="twitch"></div></div></div><div class="gt-row" data-gt-row="youtube" hidden><svg class="gt-icon" viewBox="0 0 34 34"><rect y="5" width="34" height="24" rx="7" fill="#F00"/><path fill="#fff" d="M14 11.5l9 5.5-9 5.5z"/></svg><div><div class="gt-count" data-gt-count="youtube">0</div><div class="gt-handle" data-gt-handle="youtube"></div></div></div></div></section>
   <div class="counters">
     <section class="counter tt is-hidden">
       <div class="platform">
@@ -155,12 +170,35 @@ html[data-counter-style="grena-viewers"] .stage{padding:0;gap:0;justify-content:
 
 <script>
 const originalViewersFrame=document.getElementById('grenaViewersCounter');const obsToken=new URLSearchParams(location.search).get('obs');if(obsToken){const u=new URL(originalViewersFrame.src,location.origin);u.searchParams.set('obs',obsToken);originalViewersFrame.src=u.toString()}
+
+const gtCurrent={total:0},gtFrames={};
+function gtTween(key,el,to){
+ cancelAnimationFrame(gtFrames[key]);const from=gtCurrent[key]||0,start=performance.now(),duration=700;
+ function step(now){const x=Math.min(1,(now-start)/duration);const next=from+(to-from)*(1-Math.pow(1-x,3));gtCurrent[key]=next;el.textContent=Math.round(next).toLocaleString('en-US');if(x<1)gtFrames[key]=requestAnimationFrame(step)}
+ gtFrames[key]=requestAnimationFrame(step);
+}
+function drawGrenaTotal(v={},accounts={}){
+ let total=0;
+ for(const k of ['tiktok','kick','twitch','youtube']){
+  const row=document.querySelector('[data-gt-row="'+k+'"]');
+  const n=Math.max(0,Math.trunc(Number(v[k])||0));
+  const visible=n>0&&activePlatforms.includes(k);
+  row.hidden=!visible;
+  if(!visible)continue;
+  total+=n;
+  gtTween(k,row.querySelector('[data-gt-count]'),n);
+  const account=String(accounts[k]||'').trim();
+  row.querySelector('[data-gt-handle]').textContent=account || 'Cuenta vinculada';
+ }
+ gtTween('total',document.getElementById('gtTotal'),total);
+}
+
 const old={tiktok:-1,twitch:-1,kick:-1,youtube:-1};
 const counterDefaults={style:'classic',counterCardColor:'#18232c',edge:'left',edgeOffset:0};
 let counterSettings={...counterDefaults};
 let previewOverride=false;
 let latestMeta={};
-let activePlatforms=[];
+let activePlatforms=[];let latestAccounts={};
 
 function updatePlatformVisibility(v={}){
  for(const [k,selector] of [['tiktok','.counter.tt'],['twitch','.counter.tw'],['kick','.counter.ki'],['youtube','.counter.yt']]){
@@ -172,7 +210,7 @@ function updatePlatformVisibility(v={}){
 }
 
 function normalizeCounterSettings(v={}){
-  const style=['classic','trio','vertical','grena-viewers'].includes(String(v.style||''))?String(v.style):'classic';
+  const style=['classic','trio','vertical','grena-viewers','grena-total'].includes(String(v.style||''))?String(v.style):'classic';
   const raw=String(v.counterCardColor||v.cardColor||'#18232c').trim();
   const counterCardColor=/^#[0-9a-fA-F]{6}$/.test(raw)?raw.toLowerCase():'#18232c';
   const edge=v.edge==='right'?'right':'left';
@@ -188,7 +226,7 @@ function applyCounterSettings(v={}){
    stage.style.paddingLeft=(right?0:gap)+'px';stage.style.paddingRight=(right?gap:0)+'px';
    stage.style.transformOrigin=right?'right center':'left center';
 }
-function draw(v={},meta){
+function draw(v={},meta,accounts){if(accounts&&typeof accounts==='object')latestAccounts=accounts;drawGrenaTotal(v,latestAccounts);
   if(meta&&typeof meta==='object')latestMeta=meta;
   for(const [k,id] of [['tiktok','tt'],['twitch','tw'],['kick','ki'],['youtube','yt']]){
     const n=Math.max(0,Math.floor(Number(v[k])||0));
@@ -209,7 +247,7 @@ let pollTimer=null;
 async function poll(){
   try{
     const [vr,sr]=await Promise.all([fetch('/api/viewers',{cache:'no-store'}),fetch('/api/counter-settings',{cache:'no-store'})]);
-    if(vr.ok){const d=await vr.json();activePlatforms=Array.isArray(d.activePlatforms)?d.activePlatforms:[];draw(d.viewers,d.meta)}
+    if(vr.ok){const d=await vr.json();activePlatforms=Array.isArray(d.activePlatforms)?d.activePlatforms:[];draw(d.viewers,d.meta,d.accounts)}
     if(sr.ok){const d=await sr.json();if(d.settings&&!previewOverride)applyCounterSettings(d.settings)}
   }catch{}
   clearTimeout(pollTimer);
@@ -230,8 +268,8 @@ function ws(){
     socket.onmessage=e=>{
       try{
         const d=JSON.parse(e.data);
-        if(d.type==='hello'){if(d.viewers)draw(d.viewers);if(d.counterSettings&&!previewOverride)applyCounterSettings(d.counterSettings)}
-        if(d.type==='viewers'&&d.viewers){activePlatforms=Array.isArray(d.activePlatforms)?d.activePlatforms:[];draw(d.viewers,d.meta)}
+        if(d.type==='hello'){if(d.viewers){activePlatforms=Array.isArray(d.activePlatforms)?d.activePlatforms:activePlatforms;draw(d.viewers,d.meta,d.accounts)};if(d.counterSettings&&!previewOverride)applyCounterSettings(d.counterSettings)}
+        if(d.type==='viewers'&&d.viewers){activePlatforms=Array.isArray(d.activePlatforms)?d.activePlatforms:[];draw(d.viewers,d.meta,d.accounts)}
         if(d.type==='counter-settings'&&d.settings&&!previewOverride)applyCounterSettings(d.settings);
       }catch{}
     };
