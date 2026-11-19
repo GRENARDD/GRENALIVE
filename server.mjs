@@ -944,10 +944,11 @@ function setViewers(platform,count,source='live'){
  // llega al overlay hasta ser confirmado por las dos fuentes reales o mantenerse estable.
  if(platform==='tiktok'&&n>0&&!acceptTikTokViewerJump(n,source,meta,now))return false;
  if(n>0){meta.lastGood=n;meta.lastGoodAt=now;meta.zeroHits=0;meta.lastZeroAt=0}
+ if(platform==='youtube'||platform==='twitch')meta.available=true;
  else if(forceZero){meta.zeroHits=0;meta.lastZeroAt=now;meta.spikeValue=0;meta.spikeHits=0;meta.spikeAt=0;meta.spikeSources=[]}
  meta.source=source;
  if(viewers[platform]!==n){viewers[platform]=n;pushViewers()}
- else if(platform==='starvios'&&previousAvailability!==meta.available)pushViewers();
+ else if(['youtube','twitch'].includes(platform)||platform==='starvios'&&previousAvailability!==meta.available)pushViewers();
  return true;
 }
 function readTikTokViewerCount(d,{roomUser=false}={}){
@@ -1464,15 +1465,11 @@ async function connectCounterTwitch(input){
  const login=parseTwitchLogin(input);if(!login)throw Error('Pon el link o canal de Twitch.');
  if(counterTwitchTimer)clearInterval(counterTwitchTimer);
  counterTwitchTimer=null;counterTwitchLogin=login;
- try{
-  await refreshCounterTwitch({strict:true});
-  counterTwitchTimer=setInterval(()=>refreshCounterTwitch().catch(e=>console.warn('Contador Twitch:',e?.message||e)),5000);
-  setStatus('twitch',true,`${login} · chat + contador conectados`,login);
-  return {login};
- }catch(e){
-  counterTwitchLogin='';
-  throw e;
- }
+ // Conservar reintentos incluso si Helix falla al conectar por primera vez.
+ counterTwitchTimer=setInterval(()=>refreshCounterTwitch().catch(e=>console.warn('Contador Twitch:',e?.message||e)),5000);
+ const ready=await refreshCounterTwitch();
+ if(!ready)viewerMeta.twitch.source='Twitch Helix · pendiente de reintento';
+ return {login,pending:!ready};
 }
 
 // TikTok: Login Kit identifica la cuenta. Los eventos LIVE siguen entrando por el conector LIVE.
@@ -1522,12 +1519,14 @@ function openTwitchWS(url='wss://eventsub.wss.twitch.tv/ws'){
  ws.on('close',()=>{twitchEventHealth.ready=false;pushEventHealth();if(twitchCfg){setStatus('twitch',false,'Desconectado · reconectando…',twitchCfg.login);setTimeout(()=>{if(twitchCfg&&twitchWS===ws)openTwitchWS()},5000)}});
 }
 async function refreshTwitchViewers(){
-  if(counterTwitchLogin||!twitchCfg||twitchViewerRefreshing)return;
+  if(!twitchCfg||twitchViewerRefreshing)return;
   const cfg=twitchCfg,profileId=activeUserId;
   twitchViewerRefreshing=true;
   try{
     const d=await twitchHelix(`/streams?user_id=${encodeURIComponent(cfg.userId)}`,cfg);
-    if(profileId!==activeUserId||twitchCfg!==cfg||counterTwitchLogin)return;
+    if(profileId!==activeUserId||twitchCfg!==cfg)return;
+    // No mezclar cifras de dos canales distintos.
+    if(counterTwitchLogin&&counterTwitchLogin.toLowerCase()!==String(cfg.login||'').toLowerCase())return;
     const stream=d.data?.[0];
     if(stream&&Number.isFinite(Number(stream.viewer_count))){
       viewerMeta.twitch.zeroHits=0;setViewers('twitch',stream.viewer_count,'Twitch Helix · cuenta vinculada');
@@ -2840,6 +2839,13 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    viewers.starvios=0;
    pushViewers();
    return json(res,200,{ok:true,accepted:false,available:false,viewers:currentViewers(),meta:viewerMeta.starvios});
+  }
+  // null: la API no publicó un contador. Nunca convertirlo en cero.
+  if(body.count===null&&(body.platform==='youtube'||body.platform==='twitch')){
+   viewerMeta[body.platform].source=source+' · sin cifra verificable';
+   viewerMeta[body.platform].available=false;
+   pushViewers();
+   return json(res,200,{ok:true,accepted:false,available:false,viewers:currentViewers(),meta:viewerMeta[body.platform]});
   }
   const transientTikTokBridgeZero=body.platform==='tiktok'&&Number(body.count)===0&&/bridge disconnected|chat.*desconect|socket.*disconnect/i.test(source)&&tiktokDedicatedCounterHealthy();
   const accepted=transientTikTokBridgeZero?false:setViewers(body.platform,body.count,source);
