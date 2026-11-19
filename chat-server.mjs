@@ -3594,6 +3594,33 @@ chatLicenseTimer.unref?.();
 
 const bridgeHeartbeatTimer=setInterval(bridgeHeartbeat,3000);bridgeHeartbeatTimer.unref?.();setTimeout(bridgeHeartbeat,350);
 
+// Recover a linked channel when chat preferences were never saved (for example
+// after a UI upgrade). Never overwrite a manually configured chat channel.
+let linkedChannelSyncBusy=false;
+async function recoverLinkedChatChannels(){
+  if(!connectionPrefs.autoConnect||linkedChannelSyncBusy)return;
+  linkedChannelSyncBusy=true;
+  try{
+    const response=await fetch(MAIN_ORIGIN+'/api/status',{signal:AbortSignal.timeout(8000),cache:'no-store'});
+    if(!response.ok)return;
+    const data=await response.json();
+    const statuses=data?.status||{};
+    let changed=false;
+    for(const [platform,url] of [
+      ['tiktok',statuses.tiktok?.account?'https://www.tiktok.com/@'+String(statuses.tiktok.account).replace(/^@/,'')+'/live':''],
+      ['twitch',statuses.twitch?.account?'https://www.twitch.tv/'+String(statuses.twitch.account).trim().replace(/^@/,''):'']
+    ]){
+      // Only recover missing URLs for linked accounts. An explicit disconnect
+      // or channel override should not get replaced on every retry.
+      if(!statuses[platform]?.authenticated||!url||connectionPrefs[platform+'Url'])continue;
+      connectionPrefs[platform+'Url']=url;
+      connectionPrefs[platform+'Enabled']=true;
+      changed=true;
+    }
+    if(changed)await saveConnectionPrefs();
+  }catch(e){console.warn('[CHAT account recovery]',String(e?.message||e))}
+  finally{linkedChannelSyncBusy=false}
+}
 let autoTikTokBusy=false,autoKickBusy=false;
 async function autoConnectTikTok(){
   if(!connectionPrefs.autoConnect||!connectionPrefs.tiktokEnabled||!connectionPrefs.tiktokUrl||tiktokConn||autoTikTokBusy)return;
@@ -3629,7 +3656,8 @@ server.listen(
     console.log('[TikTok] Eulerstream API key:',EULERSTREAM_API_KEY?'CONFIGURADA':'NO CONFIGURADA');
     console.log('TikTok + Twitch + Kick preparados. Autoconexión:',connectionPrefs.autoConnect?'ACTIVA':'DESACTIVADA');
     console.log('Chat de voz preparado desde el navegador.');
+    await recoverLinkedChatChannels();
     await Promise.allSettled([autoConnectTwitch(),autoConnectTikTok(),autoConnectKick(),autoConnectYouTube()]);
-    setInterval(()=>{autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube()},30000);
+    setInterval(async()=>{await recoverLinkedChatChannels();autoConnectTwitch();autoConnectTikTok();autoConnectKick();autoConnectYouTube()},30000);
   }
 );
