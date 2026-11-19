@@ -35,7 +35,7 @@ test('GREÑA Redes uses original name overlay with edit controls and linked acco
 });
 test('GREÑA original counter is available to OBS without altering other widget styles',()=>{
  const server=read('server.mjs');
- assert.match(server,/\['classic','trio','vertical','grena-viewers','grena-social'\]/);
+ assert.match(server,/\['classic','trio','vertical','grena-viewers','grena-total','grena-social'\]/);
  assert.match(server,/'\/viewers-grena-original.html'/);
  assert.match(read('viewers.html'),/grena-viewers/);
 });

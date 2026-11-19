@@ -6,7 +6,7 @@ const server=readFileSync(new URL('../server.mjs',import.meta.url),'utf8');
 const chat=readFileSync(new URL('../chat-server.mjs',import.meta.url),'utf8');
 
 test('Twitch IRC disconnect does not reset viewer count',()=>{
- const start=chat.indexOf("client.on(\n    'disconnected'");
+ const start=chat.indexOf("'disconnected',",chat.indexOf('async function connectTwitch('));
  assert.ok(start>=0,'Twitch disconnect handler exists');
  const end=chat.indexOf("bridgeStatus('twitch',false",start);
  assert.ok(end>start,'Twitch disconnect emits status');
