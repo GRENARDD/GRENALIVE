@@ -612,7 +612,8 @@ function bridgeAlert(platform,event,name,action,extra={}) {
   const payload={platform,event,name:name||'Usuario',action,...extra};if(!payload.bridgeEventId&&String(platform).toLowerCase()!=='kick')payload.bridgeEventId=bridgeMessageId(`${String(platform).toLowerCase()}-${event}`);sendToAlerts('/api/internal/event',payload,{reliable:true});
 }
 function bridgeViewers(platform,count,source='') {
-  sendToAlerts('/api/internal/viewers',{platform,count:Number(count)||0,source});
+  // null representa lectura desconocida, no cero espectadores.
+  sendToAlerts('/api/internal/viewers',{platform,count:count===null?null:Number(count)||0,source});
 }
 function bridgeStatus(platform,connected,label,account='',extra={}) {
   sendToAlerts('/api/internal/status',{platform,connected,label,account,...extra});
@@ -1707,7 +1708,7 @@ function publishYoutubeViewers(){
  // Si la API no publica concurrentViewers para alguna emisión, conservar
  // la última cifra conocida; no interpretar la ausencia como 0 espectadores.
  const known=active.filter(id=>Number.isFinite(youtubeViewers.get(id)));
- if(!known.length)return;
+ if(!known.length){bridgeViewers('youtube',null,'YouTube LIVE · contador no disponible ('+active.length+' emisiones)');return}
  bridgeViewers('youtube',known.reduce((total,id)=>total+youtubeViewers.get(id),0),'YouTube LIVE '+known.length+'/'+active.length+' contadores disponibles');
 }
 function youtubeStatus(label='YouTube LIVE conectado'){
@@ -2630,7 +2631,8 @@ async function connectTwitch(input) {
     'disconnected',
     reason => {
       if(twitchClient===client){twitchClient=null;currentTwitchChannel='';}
-      bridgeViewers('twitch',0);
+      // Un fallo de IRC no significa que el directo terminó. Helix es la fuente
+      // del contador; no sobrescribirlo con cero al reconectar el chat.
       bridgeStatus('twitch',false,`${channel} · chat desconectado`,channel);
       broadcastPlatform(
         'twitch',
