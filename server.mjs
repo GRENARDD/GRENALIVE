@@ -888,6 +888,12 @@ function activeWidgetPlatforms(){
   const st=states[p]||{};
   if(!Number.isFinite(n)||n<=0)return false;
   if(viewerTest.enabled&&p!=='youtube')return true;
+  // Chat connection state is not evidence of audience size.
+  // Require a recent verified audience reading so a stale value expires.
+  if(p==='twitch'||p==='youtube'){
+   const m=viewerMeta[p],fresh=Number(m?.lastGoodAt||0)>0&&Date.now()-Number(m.lastGoodAt)<90000;
+   return st.live!==false&&m?.available!==false&&fresh&&(p==='twitch'?/Twitch Helix/i:/YouTube LIVE/i).test(String(m.source||''));
+  }
   return st.live!==false&&(st.authenticated===true||st.runtimeConnected===true||st.live===true);
  });
 }
@@ -2750,6 +2756,11 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
     clearTikTokBridgeDisconnectGrace();
     setStatus(p,false,label||'TikTok LIVE terminó',body.account);
     setViewers('tiktok',0,'TikTok STREAM_END bridge');
+   }else if(p==='twitch'||p==='youtube'){
+    // A chat transport failure cannot erase the Helix / YouTube audience count.
+    // Verified offline or explicit manual disconnects reset viewers elsewhere.
+    setStatus(p,false,label||'Chat desconectado · reintentando',body.account);
+    pushViewers();
    }else if(backupActive){
     if(p==='tiktok')clearTikTokBridgeDisconnectGrace();
     setStatus(p,true,String(body.account||accountFromAuth(p)||'')+` · ${p==='kick'?'contador API activo':'contador activo'} · chat reconectando`,body.account);

@@ -169,6 +169,7 @@ html[data-counter-style="grena-total"] .counters,html[data-counter-style="grena-
 </main>
 
 <script>
+const counterPreviewMode=new URLSearchParams(location.search).get('preview')==='1';
 const originalViewersFrame=document.getElementById('grenaViewersCounter');const obsToken=new URLSearchParams(location.search).get('obs');if(obsToken){const u=new URL(originalViewersFrame.src,location.origin);u.searchParams.set('obs',obsToken);originalViewersFrame.src=u.toString()}
 
 const gtCurrent={total:0},gtFrames={};
@@ -279,8 +280,14 @@ function ws(){
 }
 
 applyCounterSettings(counterDefaults);
-poll();
-ws();
+if(counterPreviewMode){
+  // Demo lives only in the compact editor (?preview=1), never in OBS or the live API.
+  activePlatforms=['tiktok','kick','twitch','youtube'];
+  draw({tiktok:128,kick:72,twitch:31,youtube:54},{},{tiktok:'@grena_rd',kick:'grena-rd',twitch:'grena_rd',youtube:'Canal vinculado'});
+}else{
+  poll();
+  ws();
+}
 </script>
 </body>
 </html>
