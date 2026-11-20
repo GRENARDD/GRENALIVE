@@ -51,6 +51,7 @@ on:
       - 'gift-catalog.html'
       - 'cloudflare/licenses/**'
       - 'desktop-build/fix_startup.py'
+      - 'desktop-build/fix_kick_auth.py'
       - 'desktop-build/fix_soundboard_hotkeys.py'
       - 'desktop-build/verify-v602-premium-panels.cjs'
       - 'grena-v4-fixes.css'
