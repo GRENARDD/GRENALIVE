@@ -3054,6 +3054,14 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    res.setHeader('Cache-Control','no-store');
    return beginOAuth('kick',req,res,true);
  }
+ // Electron permite solamente esta ventana local y protegida para preparar Kick.
+ // No inicia OAuth por si sola: el POST autenticado crea el state en la sesión GREÑA actual.
+ if(pathname==='/oauth/kick/ready'&&req.method==='GET'){
+   if(!sessionUser(req))return callbackPage(res,false,'Inicia sesión con GREÑA ID antes de conectar Kick.');
+   res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'});
+   res.end('<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GREÑA Live · Kick</title><style>html,body{margin:0;min-height:100%;background:#0a0908;color:#f5efe3;font:16px Segoe UI,Arial,sans-serif;display:grid;place-items:center;text-align:center}main{padding:24px;border:1px solid #6d5226;border-radius:18px;background:#131110;max-width:430px}h2{color:#d9a441}</style><main><h2>GREÑA Live · Kick</h2><p>Completa la autorización de Kick en tu navegador.</p><p>Esta ventana se cerrará cuando la cuenta quede conectada.</p></main></html>');
+   return;
+ }
  const m=pathname.match(/^\/oauth\/(tiktok|twitch|kick|youtube)\/(start|callback)$/);if(m){if(m[2]==='start')return await beginOAuth(m[1],req,res);return await withAccountTransition(()=>finishOAuth(m[1],url,res,req))}
  if(pathname==='/api/twitch/device/status'&&req.method==='GET'){
   const id=String(url.searchParams.get('id')||''),session=twitchDeviceSessions.get(id);if(!session||sessionUser(req)?.id!==session.userId)return json(res,404,{ok:false,error:'Esta autorización de Twitch ya no existe o venció.'});
