@@ -9,9 +9,8 @@
 <style>
 :root{--bg:#0a0908;--s1:#131110;--s2:#1b1816;--line:rgba(255,235,200,.09);--t:#f5efe3;--m:#9b9283;--g1:#f6d98a;--g2:#d9a441;--g3:#8a5f1c;--ink:#1a1204;--ok:#3ddc97;--warn:#ffb84a;--bad:#ff6482;--tw:#a77bff;--kk:#53fc18;--tt:#25f4ee;--yt:#ff4d4d;--glow:rgba(217,164,65,.22);
 --f:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;--fd:"Bricolage Grotesque","Inter",system-ui,sans-serif;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-/* El modo claro solo se activa si el usuario lo elige explícitamente. */
-@media(prefers-color-scheme:light){:root[data-theme="light"]{--bg:#f6f1e8;--s1:#fffdf8;--s2:#f0e9db;--line:rgba(60,40,10,.12);--t:#201a10;--m:#7a6f5c;--g1:#c8962f;--g2:#a8741a;--g3:#6b4a10;--ink:#fff8e6;--glow:rgba(168,116,26,.14);color-scheme:light}}
-:root[data-theme="dark"]{color-scheme:dark}
+/* GREÑA Live es exclusivamente oscuro, sin importar el tema de Windows. */
+:root{color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
 *,*::before,*::after{box-sizing:inherit}
 body{margin:0;min-height:100%;background:var(--bg);color:var(--t);font:14px/1.45 var(--f);-webkit-font-smoothing:antialiased}
