@@ -32,7 +32,7 @@ test('YouTube broker is rechecked on login and diagnostics omit tokens',()=>{
 
 test('YouTube OAuth uses async Cloudflare config and Chrome for Google consent',()=>{
  const server=src('server.mjs'),patch=src('desktop-build/fix_oauth.py');
- assert.match(server,/async function beginOAuth\(platform,req,res\)/);
+ assert.match(server,/async function beginOAuth\(platform,req,res,asJson=false\)/);
  assert.match(server,/browserYoutube=platform==='youtube'&&s\.mode==='grena-auth'&&s\.userId===activeUserId/);
  assert.match(patch,/popup\.webContents\.on\('will-redirect',openProvider\)/);
  assert.match(patch,/shell\.openExternal\(url\)/);
