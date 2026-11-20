@@ -25,9 +25,9 @@ async function ask(question){
   const cleanup=()=>{input.off('data',onData);input.setRawMode(false);input.pause()};
   const onData=chunk=>{
    for(const char of chunk.toString('utf8')){
-    if(char==='\\u0003'){cleanup();process.stdout.write('\\n');reject(Error('Cancelado'));return}
-    if(char==='\\r'||char==='\\n'){cleanup();process.stdout.write('\\n');resolve(value);return}
-    if(char==='\\u007f'||char==='\\b'){value=value.slice(0,-1);continue}
+    if(char==='\u0003'){cleanup();process.stdout.write('\n');reject(Error('Cancelado'));return}
+    if(char==='\r'||char==='\n'){cleanup();process.stdout.write('\n');resolve(value);return}
+    if(char==='\u007f'||char==='\b'){value=value.slice(0,-1);continue}
     if(char>=' '){value+=char;if(value.length>1024){cleanup();reject(Error('Contraseña demasiado larga'));return}}
    }
   };
