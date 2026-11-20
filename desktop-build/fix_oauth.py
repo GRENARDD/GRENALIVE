@@ -20,7 +20,7 @@ new='''  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     let target;
     try { target = new URL(url); } catch { return { action: 'deny' }; }
     // Permitir solo ventanas de OAuth locales y conservar cookies de GREÑA.
-    if (target.origin === ADDRESS && /^\\/oauth\\/(twitch|kick|youtube|tiktok)\\/start$/.test(target.pathname)) {
+    if (target.origin === ADDRESS && (/^\\/oauth\\/(twitch|kick|youtube|tiktok)\\/start$/.test(target.pathname) || target.pathname === '/oauth/kick/ready')) {
       return {
         action: 'allow',
         overrideBrowserWindowOptions: {
