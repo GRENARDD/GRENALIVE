@@ -78,6 +78,7 @@ on:
       - '.github/workflows/grena-release-v5117.yml'
       - 'tests/premium-transparent-overlay.test.mjs'
       - '.github/workflows/grena-desktop-from-kit.yml'
+      - '.github/workflows/grena-release-v6009.yml'
   push:
     branches:
       - main
@@ -122,6 +123,7 @@ on:
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
       - '.github/workflows/grena-desktop-from-kit.yml'
+      - '.github/workflows/grena-release-v6009.yml'
       - '.github/workflows/grena-release-v517.yml'
       - '.github/workflows/grena-release-v518.yml'
       - '.github/workflows/grena-release-v519.yml'
