@@ -1,7 +1,7 @@
 // Capa de respaldo cifrado portable para futuras funciones de sincronización GREÑA ID.
 // No exporta tokens OAuth ni claves Fish; no activa sincronización automáticamente.
 import {randomBytes,scryptSync,createCipheriv,createDecipheriv} from 'node:crypto';
-const allowed=new Set(['alert-designs.json','social-gadget.json','chat-settings.json','counter-settings.json','afterglow-settings.json','widget-settings.json','viewer-settings.json','soundboard-settings.json']);
+const allowed=new Set(['alert-designs.json','custom-alerts.json','social.json','afterglow-settings.json','auto-connect.json','chat-settings.json','counter-settings.json','loyalty.json','soundboard-settings.json','viewer-settings.json','widget-settings.json']);
 const secret=/token|secret|password|api.?key|credential|oauth|authorization|private.?key/i;
 const passCheck=x=>{if(typeof x!=='string'||x.length<12||x.length>1024)throw Error('Contraseña de respaldo inválida')};
 const idCheck=x=>{if(typeof x!=='string'||!/^[a-zA-Z0-9_.-]{1,128}$/.test(x))throw Error('GREÑA ID inválido')};
