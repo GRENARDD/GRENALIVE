@@ -4,7 +4,6 @@
 import {readFile,writeFile,rename,mkdir,stat} from 'node:fs/promises';
 import {join,dirname,resolve} from 'node:path';
 import {homedir} from 'node:os';
-import {createInterface} from 'node:readline';
 import {randomBytes} from 'node:crypto';
 import {encryptProfileBackup,decryptProfileBackup,safeSettings} from './grena-profile-backup.mjs';
 
@@ -18,8 +17,22 @@ if(!['export','import'].includes(action)||!file){
  try{await main()}catch(e){console.error('No se pudo completar:',e.message);process.exitCode=1}
 }
 async function ask(question){
- const rl=createInterface({input:process.stdin,output:process.stdout});
- try{return await new Promise(resolve=>rl.question(question,resolve))}finally{rl.close()}
+ const input=process.stdin;
+ if(!input.isTTY||typeof input.setRawMode!=='function')throw Error('Utiliza una terminal interactiva para ingresar la contraseña sin mostrarla.');
+ process.stdout.write(question);
+ return await new Promise((resolve,reject)=>{
+  let value='';
+  const cleanup=()=>{input.off('data',onData);input.setRawMode(false);input.pause()};
+  const onData=chunk=>{
+   for(const char of chunk.toString('utf8')){
+    if(char==='\\u0003'){cleanup();process.stdout.write('\\n');reject(Error('Cancelado'));return}
+    if(char==='\\r'||char==='\\n'){cleanup();process.stdout.write('\\n');resolve(value);return}
+    if(char==='\\u007f'||char==='\\b'){value=value.slice(0,-1);continue}
+    if(char>=' '){value+=char;if(value.length>1024){cleanup();reject(Error('Contraseña demasiado larga'));return}}
+   }
+  };
+  input.setRawMode(true);input.resume();input.on('data',onData);
+ });
 }
 async function currentId(){
  const d=JSON.parse(await readFile(join(DATA_DIR,'active-profile.json'),'utf8'));
