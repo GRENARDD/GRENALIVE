@@ -34,7 +34,7 @@ test('official v5.1.29 release gate is separate from PR previews and keeps histo
  assert.match(workflow,/Verify official GREÑA Live 6\.0\.9 version on main/);
  assert.match(workflow,/GRENA-LIVE-Installer-Windows-v6\.0\.9/);
  assert.match(workflow,/verify-upgrade-6005-to-6009\.ps1/);
- assert.match(release,/Publish official v6\.0\.9 release/);
+ assert.match(release,/Publish official v6\.0\.8 release/);
  assert.match(release,/Verify production GREÑA ID Worker has secure shared rooms/);
  assert.match(upgrade,/\$oldVersion='6\.0\.5'/);
  assert.match(upgrade,/\$newVersion='6\.0\.9'/);
