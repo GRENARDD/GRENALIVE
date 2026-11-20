@@ -10,7 +10,9 @@ const index=file('index.html'),adapter=file('grena-v4-live.js'),server=file('ser
 const stylesheet=html=>(html.match(/<style>([\s\S]*?)<\/style>/)||[])[1];
 test('6.0.2 retains byte-identical V4 master CSS while loading scoped corrections',()=>{
  const ref=file('design/reference/GRENA_LIVE_6_Premium_Interactivo_V4(3).html');
- assert.equal(stylesheet(index),stylesheet(ref),'Do not change approved original Premium V4 CSS');
+ const normalize=css=>css.replace(/\/\* GREÑA Live siempre oscuro: el tema de Windows no altera esta paleta\. \*\/\n/,'').replace(/@media\(prefers-color-scheme:light\)\{[^\n]*\}\n/,'');
+ assert.equal(normalize(stylesheet(index)),normalize(stylesheet(ref)),'Preserve approved CSS apart from disabling automatic light mode');
+ assert.doesNotMatch(stylesheet(index),/prefers-color-scheme:light/);
  assert.match(index,/grena-v4-fixes\.css/);
  const corrections=file('grena-v4-fixes.css');
  assert.match(corrections,/#pg2 \.qr/);
