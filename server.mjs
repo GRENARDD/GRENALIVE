@@ -18,6 +18,7 @@ import {makeBedrockClientBridge} from './dynamics/bedrock-websocket.mjs';
 
 import { normalizeCustomRules, normalizeCustomRule, findCustomRule } from './custom-alerts.mjs';
 import { makeLicensing } from './grena-licensing.mjs';
+import { oauthCallbackBelongsToProfile } from './oauth-callback-ownership.mjs';
 import ownerFishVault from './fish-owner-vault.cjs';
 const {readOwnerFishKeys,storeOwnerFishKey}=ownerFishVault;
 
@@ -1877,8 +1878,7 @@ async function finishBrokerOAuth(platform,code,s,res){
 }
 async function finishOAuth(platform,url,res,req){const code=url.searchParams.get('code'),state=url.searchParams.get('state'),err=url.searchParams.get('error');if(err)throw Error(url.searchParams.get('error_description')||err);const s=oauthState.get(state);oauthState.delete(state);if(!s||s.platform!==platform||Date.now()-s.created>10*60e3)throw Error('La sesión de autorización expiró. Inténtalo de nuevo.');const owner=sessionUser(req);// OAuth abierto en Chrome: Chrome no comparte las cookies de Electron. El state impredecible, de un solo uso,
  // con caducidad y asociado al GREÑA ID activo autoriza este callback únicamente para YouTube por broker.
- const browserYoutube=platform==='youtube'&&s.mode==='grena-auth'&&s.userId===activeUserId;
- if(!s.userId||s.userId!==activeUserId||(!browserYoutube&&(!owner||owner.id!==s.userId)))throw Error('La autorización pertenece a otra sesión GREÑA. Inicia de nuevo desde tu cuenta.');if(s.mode==='grena-auth')return await finishBrokerOAuth(platform,code,s,res);const redirect=s.redirect||oauthRedirectFor(platform);if(platform==='youtube'){
+ if(!oauthCallbackBelongsToProfile({platform,state:s,activeUserId,sessionUserId:owner?.id}))throw Error('La autorización pertenece a otra sesión GREÑA. Inicia de nuevo desde tu cuenta.');if(s.mode==='grena-auth')return await finishBrokerOAuth(platform,code,s,res);const redirect=s.redirect||oauthRedirectFor(platform);if(platform==='youtube'){
   const tok=await postForm('https://oauth2.googleapis.com/token',{code,client_id:process.env.GRENA_YOUTUBE_CLIENT_ID,client_secret:process.env.GRENA_YOUTUBE_CLIENT_SECRET,redirect_uri:redirect,grant_type:'authorization_code'});
   const response=await fetch('https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',{headers:{Authorization:'Bearer '+tok.access_token}});
   const details=await response.json();if(!response.ok||!details.items?.length)throw Error('No se pudo consultar tu canal de YouTube.');
