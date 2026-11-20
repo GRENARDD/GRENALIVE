@@ -14,7 +14,7 @@ const nav=html=>(html.match(/<nav class="rail" id="nav"[\s\S]*?<\/nav>/)||[])[0]
 
 test('EXACT source: original V4(3) CSS is byte-for-byte identical',()=>{
  assert.ok(style(reference),'V4 source must include original CSS');
- const normalize=css=>css.replace(/\/\* GREÑA Live siempre oscuro: el tema de Windows no altera esta paleta\. \*\/\n/,'').replace(/@media\(prefers-color-scheme:light\)\{[^\n]*\}\n/,'');
+ const normalize=css=>css.replace(/\r\n?/g,'\n').replace(/\/\* GREÑA Live siempre oscuro: el tema de Windows no altera esta paleta\. \*\/\n/,'').replace(/@media\(prefers-color-scheme:light\)\{[^\n]*\}\n/,'');
  assert.equal(normalize(style(live)),normalize(style(reference)),'Only the approved dark-theme override may differ');
  assert.doesNotMatch(style(live),/prefers-color-scheme:light/);
  // The user explicitly removed ONLY the En vivo sidebar button.
