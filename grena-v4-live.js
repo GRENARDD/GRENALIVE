@@ -283,7 +283,7 @@ async function platformAction(key){
     if(p==='kick'){
       // La aplicación autentica la solicitud antes de que Chrome abra Kick.
       // Chrome y el contenedor de escritorio no necesitan compartir cookies GREÑA.
-      const popup=window.open('about:blank','grena_oauth_kick','width=640,height=780');
+      const popup=window.open('/oauth/kick/ready','grena_oauth_kick','width=640,height=780');
       if(!popup)throw Error('Permite que GREÑA abra la autorización de Kick.');
       try{
         const prepared=await api('/api/oauth/kick/prepare',{method:'POST',body:{}});
@@ -291,7 +291,18 @@ async function platformAction(key){
         popup.location.replace(prepared.url);
       }catch(e){try{popup.close()}catch{};throw e}
       inform('Autoriza Kick en la ventana de tu navegador.');
-      const check=setInterval(()=>{if(popup.closed){clearInterval(check);refreshStatus().catch(()=>{})}},600);
+      const expires=Date.now()+10*60*1000;
+      const check=setInterval(async()=>{
+        if(popup.closed||Date.now()>expires){clearInterval(check);refreshStatus().catch(()=>{});return}
+        try{
+          await refreshStatus();
+          if(persistent.status?.kick?.authenticated){
+            clearInterval(check);
+            try{popup.close()}catch{}
+            inform('Kick vinculado correctamente a GREÑA Live');
+          }
+        }catch{}
+      },2000);
       return;
     }
     const popup=window.open('/oauth/'+p+'/start','grena_oauth_'+p,'width=640,height=780');
