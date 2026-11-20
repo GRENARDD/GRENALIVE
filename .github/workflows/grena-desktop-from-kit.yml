@@ -359,8 +359,12 @@ jobs:
           $ref = Get-Content -LiteralPath 'design/reference/GRENA_LIVE_6_Premium_Interactivo_V4(3).html' -Raw -Encoding UTF8
           $referenceCSS = [regex]::Match($ref,'(?s)<style>(.*?)</style>').Groups[1].Value
           $packageCSS = [regex]::Match($v4,'(?s)<style>(.*?)</style>').Groups[1].Value
-          if ([string]::IsNullOrWhiteSpace($referenceCSS) -or $packageCSS -cne $referenceCSS) {
-            throw 'La interfaz empaquetada modificó el CSS original V4 del usuario.'
+          # La única diferencia aprobada es eliminar el modo claro automático de Windows.
+          # Se normalizan CRLF/LF para que el instalador no falle por el checkout de Windows.
+          $referenceDarkCSS = ($referenceCSS -replace '\r\n?',"`n") -replace '(?m)^@media\(prefers-color-scheme:light\)\{[^\n]*\}\n',''
+          $packageDarkCSS = ($packageCSS -replace '\r\n?',"`n") -replace '(?m)^/\* GREÑA Live siempre oscuro: el tema de Windows no altera esta paleta\. \*/\n',''
+          if ([string]::IsNullOrWhiteSpace($referenceDarkCSS) -or $packageDarkCSS -cne $referenceDarkCSS -or $packageCSS -match 'prefers-color-scheme:light') {
+            throw 'El CSS empaquetado no coincide con V4 salvo la eliminación aprobada del modo claro.'
           }
           if (!$v4.Contains('<nav class="rail" id="nav"') -or !$v4.Contains('src="/grena-v4-live.js?v=6005"')) {
             throw 'La estructura original V4 o el adaptador real no se empaquetaron.'
