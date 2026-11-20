@@ -51,6 +51,7 @@ on:
       - 'gift-catalog.html'
       - 'cloudflare/licenses/**'
       - 'desktop-build/fix_startup.py'
+      - 'desktop-build/fix_kick_auth.py'
       - 'desktop-build/fix_soundboard_hotkeys.py'
       - 'desktop-build/verify-v602-premium-panels.cjs'
       - 'grena-v4-fixes.css'
@@ -77,6 +78,7 @@ on:
       - '.github/workflows/grena-release-v5117.yml'
       - 'tests/premium-transparent-overlay.test.mjs'
       - '.github/workflows/grena-desktop-from-kit.yml'
+      - '.github/workflows/grena-release-v6009.yml'
   push:
     branches:
       - main
@@ -121,6 +123,7 @@ on:
       - '.github/workflows/grena-release-v5116.yml'
       - '.github/workflows/grena-release-v5117.yml'
       - '.github/workflows/grena-desktop-from-kit.yml'
+      - '.github/workflows/grena-release-v6009.yml'
       - '.github/workflows/grena-release-v517.yml'
       - '.github/workflows/grena-release-v518.yml'
       - '.github/workflows/grena-release-v519.yml'
@@ -143,7 +146,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-6005-to-6008.ps1'
+          $script = Join-Path (Get-Location) 'desktop-build/verify-upgrade-6005-to-6009.ps1'
           $tokens = $null
           $errors = $null
           [void][System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$tokens, [ref]$errors)
@@ -151,7 +154,7 @@ jobs:
             $errors | ForEach-Object { Write-Error $_.Message }
             throw 'El script de actualización contiene errores de sintaxis PowerShell. No compilar instalador.'
           }
-          Write-Host 'OK: script de upgrade v6.0.5 -> v6.0.8 sin errores de sintaxis.'
+          Write-Host 'OK: script de upgrade v6.0.5 -> v6.0.9 sin errores de sintaxis.'
       - name: Verify and apply GREÑA Desktop integration
         shell: pwsh
         run: |
@@ -238,14 +241,14 @@ jobs:
             node --check $path
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Set distinct 6.0.8 release-candidate version for preview installer
+      - name: Set distinct 6.0.9 release-candidate version for preview installer
         if: github.event_name == 'pull_request'
         shell: pwsh
         run: |
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          $pkg.version = "6.0.8-rc.1"
+          $pkg.version = "6.0.9-rc.1"
           $pkg | ConvertTo-Json -Depth 80 | Set-Content package.json -Encoding utf8
-          Write-Host "Instalador de prueba: 6.0.8-rc.1, no publicar en GitHub Releases"
+          Write-Host "Instalador de prueba: 6.0.9-rc.1, no publicar en GitHub Releases"
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Repair and verify Electron updater runtime dependencies
@@ -265,14 +268,14 @@ jobs:
         run: |
           node --test tests/voice-http-fallback.test.mjs tests/obs-mascot-alpha-hardening.test.mjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Verify official GREÑA Live 6.0.8 version on main (never on pull requests)
+      - name: Verify official GREÑA Live 6.0.9 version on main (never on pull requests)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
           $pkg = Get-Content package.json -Raw -Encoding UTF8 | ConvertFrom-Json
-          if ($pkg.version -ne "6.0.8") { throw "Versión base inesperada; se cancela publicación estable." }
-          Write-Host "Versión oficial verificada: 6.0.8"
+          if ($pkg.version -ne "6.0.9") { throw "Versión base inesperada; se cancela publicación estable." }
+          Write-Host "Versión oficial verificada: 6.0.9"
       - name: Generate and verify GOLD GREÑA G icon for Windows
         shell: pwsh
         run: |
@@ -321,7 +324,7 @@ jobs:
       - name: Verify mobile dashboard and live panel are packaged
         shell: pwsh
         run: |
-          foreach ($file in @('live-panel.html','mobile.html','mobile-device.html','chat-realtime-guard.mjs')) {
+          foreach ($file in @('live-panel.html','mobile.html','mobile-device.html','chat-realtime-guard.mjs','oauth-callback-ownership.mjs')) {
             if (!(Test-Path (Join-Path 'dist/win-unpacked/resources/app' $file))) { throw "Falta $file en la aplicación empaquetada" }
           }
       - name: Verify bundled GREÑA G branding
@@ -448,13 +451,13 @@ jobs:
       - name: Smoke test compiled Windows backend
         shell: pwsh
         run: ./desktop-build/smoke.ps1
-      - name: Verify installed upgrade from GREÑA 6.0.5 to 6.0.8 preserves user data
+      - name: Verify installed upgrade from GREÑA 6.0.5 to 6.0.9 preserves user data
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
-        run: ./desktop-build/verify-upgrade-6005-to-6008.ps1
+        run: ./desktop-build/verify-upgrade-6005-to-6009.ps1
       - name: Upload the Windows installer
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-RC-6.0.8-Windows' || 'GRENA-LIVE-Installer-Windows-v6.0.8' }}
+          name: ${{ github.event_name == 'pull_request' && 'GRENA-LIVE-RC-6.0.9-Windows' || 'GRENA-LIVE-Installer-Windows-v6.0.9' }}
           path: dist/*.exe
           if-no-files-found: error

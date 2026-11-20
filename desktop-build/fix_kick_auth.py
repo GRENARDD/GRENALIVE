@@ -23,12 +23,12 @@ once(
   "if(d.providers?.kick?.clientId&&!oauthConfig.kick?.clientSecret)oauthConfig.kick={...(oauthConfig.kick||{}),clientId:d.providers.kick.clientId};"
 )
 once(
-  "if(['tiktok','kick'].includes(platform)&&AUTH_SERVICE_URL)return beginBrokerOAuth(platform,req,res,currentOwner.id);",
+  "if(['tiktok','kick'].includes(platform)&&AUTH_SERVICE_URL)return beginBrokerOAuth(platform,req,res,currentOwner.id,asJson);",
   """// Si el dueño ya configuro SU Kick Developer App en este equipo,
  // el intercambio OAuth usa su propio Client ID/Secret y evita que un
  // broker externo rechace el code. No distribuir esas credenciales.
  const localKickReady=platform==='kick'&&!!oauthConfig.kick?.clientId&&!!oauthConfig.kick?.clientSecret;
- if(['tiktok','kick'].includes(platform)&&AUTH_SERVICE_URL&&!localKickReady)return beginBrokerOAuth(platform,req,res,currentOwner.id);"""
+ if(['tiktok','kick'].includes(platform)&&AUTH_SERVICE_URL&&!localKickReady)return beginBrokerOAuth(platform,req,res,currentOwner.id,asJson);"""
 )
 once(
   """ const d=await authServiceFetch(`/v1/exchange/${platform}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code,redirect_uri:s.redirect||oauthRedirectFor(platform),...(s.verifier?{code_verifier:s.verifier}:{})})});

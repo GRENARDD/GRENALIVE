@@ -1,6 +1,6 @@
 {
   "name": "grena-live-pro-web-tiktok",
-  "version": "6.0.8",
+  "version": "6.0.9",
   "private": true,
   "type": "module",
   "scripts": {
@@ -15,5 +15,5 @@
     "@grpc/grpc-js": "^1.14.0",
     "@grpc/proto-loader": "^0.8.0"
   },
-  "description": "GREÑA Live 6.0.8 Premium V4 Estable · Total Viewers en editor compacto y viewers Twitch/YouTube fiables · widgets con modelos y vista previa, regalos visibles, QR móvil, Administración, licencias y soundboard personal."
+  "description": "GREÑA Live 6.0.9 Premium V4 · candidato a estable · Total Viewers en editor compacto y viewers Twitch/YouTube fiables · widgets con modelos y vista previa, regalos visibles, QR móvil, Administración, licencias y soundboard personal."
 }

@@ -11,7 +11,9 @@ test('GREÑA V4 exact original HTML uses its own DOM and real backend adapter, n
  const index=read('index.html'),ref=read('design/reference/GRENA_LIVE_6_Premium_Interactivo_V4(3).html');
  const adapter=read('grena-v4-live.js'),chat=read('chat.html');
  const css=html=>html.match(/<style>([\s\S]*?)<\/style>/)?.[1];
- assert.equal(css(index),css(ref));
+ const normalize=css=>css.replace(/\r\n?/g,'\n').replace(/\/\* GREÑA Live siempre oscuro: el tema de Windows no altera esta paleta\. \*\/\n/,'').replace(/@media\(prefers-color-scheme:light\)\{[^\n]*\}\n/,'');
+ assert.equal(normalize(css(index)),normalize(css(ref)));
+ assert.doesNotMatch(css(index),/prefers-color-scheme:light/);
  for(const id of ['home','feed','vsw','plats','ev','prow','profileTrigger','licenseBadge','pg1','pg2','pg4','pg5','pg6','pg7','pg8'])assert.match(index, id.startsWith('pg')?new RegExp('pg\\('+id.slice(2)+','):new RegExp('id="'+id+'"'));
  assert.doesNotMatch(index,/pg\(3,/);
  assert.doesNotMatch(index,/data-l="En vivo"/);
