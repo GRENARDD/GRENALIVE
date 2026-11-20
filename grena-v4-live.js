@@ -280,6 +280,20 @@ async function platformAction(key){
       const diagnostic=await api('/api/youtube/diagnostic');
       if(!diagnostic.brokerEnabled)throw Error(diagnostic.workerError||'YouTube OAuth no está disponible');
     }
+    if(p==='kick'){
+      // La aplicación autentica la solicitud antes de que Chrome abra Kick.
+      // Chrome y el contenedor de escritorio no necesitan compartir cookies GREÑA.
+      const popup=window.open('about:blank','grena_oauth_kick','width=640,height=780');
+      if(!popup)throw Error('Permite que GREÑA abra la autorización de Kick.');
+      try{
+        const prepared=await api('/api/oauth/kick/prepare',{method:'POST',body:{}});
+        if(!prepared?.url||!/^https:\/\//i.test(prepared.url))throw Error('GREÑA no generó un enlace Kick válido.');
+        popup.location.replace(prepared.url);
+      }catch(e){try{popup.close()}catch{};throw e}
+      inform('Autoriza Kick en la ventana de tu navegador.');
+      const check=setInterval(()=>{if(popup.closed){clearInterval(check);refreshStatus().catch(()=>{})}},600);
+      return;
+    }
     const popup=window.open('/oauth/'+p+'/start','grena_oauth_'+p,'width=640,height=780');
     if(!popup)throw Error('Permite la ventana de autorización para '+title);
     inform('Autoriza '+title+' para GREÑA Live');
