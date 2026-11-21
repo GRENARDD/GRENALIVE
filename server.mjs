@@ -1376,7 +1376,7 @@ async function refreshKick(){
  }catch(e){viewerMeta.kick.source='error';setStatus('kick',!!savedAuth.kick?.access_token,`${slug} · ${savedAuth.kick?.access_token?'cuenta vinculada · ':''}${e.message||'error de Kick'}`,slug);console.warn('Kick:',e?.message||e)}
  finally{kickViewerRefreshing=false}
 }
-function startKickPolling(){if(kickViewerTimer)clearInterval(kickViewerTimer);refreshKick();kickViewerTimer=setInterval(refreshKick,5000)}
+function startKickPolling(){if(kickViewerTimer)clearInterval(kickViewerTimer);refreshKick();kickViewerTimer=setInterval(refreshKick,5000);const slug=currentKickSlug();if(slug)void ensureLinkedChatReader('kick',`https://kick.com/${slug}`)}
 
 function parseTikTokUser(input=''){
  const x=String(input||'').trim();if(!x)return '';
@@ -1550,7 +1550,7 @@ async function refreshTwitchViewers(){
   }finally{twitchViewerRefreshing=false}
 }
 function startTwitchViewerPolling(){if(twitchViewerTimer)clearInterval(twitchViewerTimer);refreshTwitchViewers();twitchViewerTimer=setInterval(refreshTwitchViewers,5000)}
-async function startTwitch(token){const cfg={token};const me=await twitchHelix('/users',cfg);if(!me.data?.[0])throw Error('No se pudo leer la cuenta de Twitch.');cfg.userId=me.data[0].id;cfg.login=me.data[0].login||me.data[0].display_name;cfg.displayName=me.data[0].display_name||cfg.login;twitchCfg=cfg;savedAuth.twitch={...(savedAuth.twitch||{}),login:cfg.login,displayName:cfg.displayName,userId:cfg.userId};await persistAuth();setStatus('twitch',false,`${cfg.displayName} · autorizando eventos…`,cfg.displayName);await syncCreatorAccount('twitch',cfg.login).catch(()=>{});openTwitchWS();startTwitchViewerPolling();startTwitchValidation();refreshTwitchGiftCatalog(true).catch(e=>console.warn('Catálogo Twitch:',e?.message||e))}
+async function startTwitch(token){const cfg={token};const me=await twitchHelix('/users',cfg);if(!me.data?.[0])throw Error('No se pudo leer la cuenta de Twitch.');cfg.userId=me.data[0].id;cfg.login=me.data[0].login||me.data[0].display_name;cfg.displayName=me.data[0].display_name||cfg.login;twitchCfg=cfg;savedAuth.twitch={...(savedAuth.twitch||{}),login:cfg.login,displayName:cfg.displayName,userId:cfg.userId};await persistAuth();setStatus('twitch',false,`${cfg.displayName} · autorizando eventos…`,cfg.displayName);await syncCreatorAccount('twitch',cfg.login).catch(()=>{});openTwitchWS();startTwitchViewerPolling();startTwitchValidation();refreshTwitchGiftCatalog(true).catch(e=>console.warn('Catálogo Twitch:',e?.message||e));void ensureLinkedChatReader('twitch',`https://www.twitch.tv/${cfg.login}`)}
 async function twitchUserByLogin(login,cfg=twitchCfg){
  if(!cfg?.token)throw Error('Conecta tu cuenta de Twitch en GREÑA para moderar.');
  const clean=String(login||'').trim().replace(/^@/,'');if(!clean)throw Error('Falta el usuario de Twitch.');
@@ -1636,6 +1636,40 @@ async function syncCreatorAccount(platform,username){
 async function syncAllCreatorAccounts(){
  const accounts={tiktok:savedAuth.tiktok?.username||'',twitch:savedAuth.twitch?.login||savedAuth.twitch?.displayName||'',kick:savedAuth.kick?.username||savedAuth.kick?.slug||''};
  for(const [platform,username] of Object.entries(accounts))if(username)await syncCreatorAccount(platform,username).catch(()=>{});
+}
+
+// A linked LIVE must enable its chat reader, not just the separate audience counter.
+// Preserve an explicit chat disable when that platform already has a saved URL.
+// A transient 8788 startup failure is retried without blocking the whole app.
+async function ensureLinkedChatReader(platform,liveUrl,{force=false,attempt=0}={}){
+ const p=String(platform||'').toLowerCase(),value=String(liveUrl||'').trim();
+ if(!['tiktok','twitch','kick'].includes(p)||!value)return false;
+ const ownerAtStart=activeUserId;
+ try{
+  if(!force){
+   const current=await fetch('http://127.0.0.1:8788/api/connection-prefs',{signal:AbortSignal.timeout(2500),cache:'no-store'});
+   if(!current.ok)throw Error('Chat preferences HTTP '+current.status);
+   const state=await current.json(),prefs=state.prefs||{};
+   if(prefs.autoConnect===false||(prefs[p+'Url']&&prefs[p+'Enabled']===false))return false;
+   if(prefs[p+'Enabled']&&prefs[p+'Url']===value)return true;
+  }
+  if(ownerAtStart!==activeUserId)return false;
+  const response=await fetch('http://127.0.0.1:8788/api/connection-prefs',{
+   method:'POST',
+   headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},
+   body:JSON.stringify({autoConnect:true,[p+'Url']:value,[p+'Enabled']:true}),
+   signal:AbortSignal.timeout(4500)
+  });
+  if(!response.ok)throw Error('Chat reader HTTP '+response.status);
+  return true;
+ }catch(e){
+  console.warn('[GREÑA LIVE CHAT]',p,'lector no sincronizado:',e?.message||e);
+  if(attempt<2){
+   const timer=setTimeout(()=>{if(ownerAtStart===activeUserId)void ensureLinkedChatReader(p,value,{force,attempt:attempt+1})},3000);
+   timer.unref?.();
+  }
+  return false;
+ }
 }
 async function disconnectChatPlatform(platform){
  try{await fetch('http://127.0.0.1:8788/api/internal/disconnect-platform',{method:'POST',headers:{'content-type':'application/json','x-grena-internal':BRIDGE_TOKEN},body:JSON.stringify({platform})})}catch{}
@@ -2936,6 +2970,9 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
    autoPrefs.enabled=true;autoPrefs.counterTikTok=target.url;autoPrefs.counterTikTokEnabled=true;
    await persistAutoPrefs();
    await disconnectChatPlatform('tiktok');
+   // Antes se desconectaba el chat y solo se activaba el contador.
+   // Rehabilitar la misma cuenta en el lector del multichat.
+   await ensureLinkedChatReader('tiktok',target.url,{force:true});
    setStatus('tiktok',false,`@${target.username} · conectando por link del LIVE…`,target.username);
    await syncCreatorAccount('tiktok',target.username);
    connectCounterTikTok(target.url).catch(e=>console.warn('Contador TikTok por link:',e?.message||e));
@@ -3172,6 +3209,7 @@ async function ensureTikTokLiveAuto(){
  if(!autoPrefs.enabled||bridgeRuntime.tiktok||autoTikTokBusy||Date.now()<nextTikTokBridgeEnsureAt)return;
  const value=String(autoPrefs.counterTikTok||'').trim()||(savedAuth.tiktok?.username?`https://www.tiktok.com/@${String(savedAuth.tiktok.username).replace(/^@/,'')}/live`:'');
  if(!value)return;
+ if(savedAuth.tiktok?.mode==='live-link')void ensureLinkedChatReader('tiktok',value);
  nextTikTokBridgeEnsureAt=Date.now()+120000;
  autoTikTokBusy=true;
  try{await connectCounterTikTok(value)}catch(e){console.warn('[TikTok shared bridge]',e?.message||e)}
