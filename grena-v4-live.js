@@ -317,7 +317,7 @@ function renderAudience(){
   text(el('tot'),fmt(total));text(el('fl'),fmt(total));
   const legend=el('leg');legend.replaceChildren();
   const colors=['tt','tw','kk','yt'];
-  numbers.forEach((count,i)=>{const span=document.createElement('span');span.className=colors[i];span.innerHTML=ic(colors[i]);const value=document.createElement('b');value.style.color='var(--t)';value.textContent=fmt(count);const label=document.createElement('em');label.textContent=NAME[colors[i]];span.append(value,label);legend.appendChild(span)});
+  numbers.forEach((count,i)=>{const span=document.createElement('span');span.className=colors[i];span.innerHTML=ic(colors[i]);const value=document.createElement('b');value.style.color='var(--t)';const unknown=['twitch','youtube'].includes(keys[i])&&persistent.viewerMeta?.[keys[i]]?.available===false;value.textContent=unknown?'—':fmt(count);if(unknown)span.title='La plataforma todavía no ha entregado una cifra verificable de espectadores';const label=document.createElement('em');label.textContent=NAME[colors[i]];span.append(value,label);legend.appendChild(span)});
   const segments=QA('#split i'),sum=Math.max(1,total);
   segments.forEach((n,i)=>n.style.flex=String(total?Math.max(0,numbers[i]/sum):0.0001));
   const previous=D.at(-1)||0;
@@ -402,7 +402,13 @@ async function refreshChat(){
       if(data.cursor)persistent.chatCursor=data.cursor;
       if(!data.more||!data.messages?.length)break;
     }
-  }catch(e){/* GREÑA Chat puede estar reiniciando: se reintentará con el mismo cursor. */}
+    if(persistent.chatOffline)inform('GREÑA Chat reconectado.');
+    persistent.chatFailures=0;persistent.chatOffline=false;
+  }catch(e){
+    persistent.chatFailures=(persistent.chatFailures||0)+1;
+    if(persistent.chatFailures===3){persistent.chatOffline=true;inform('El motor de chat no responde; el panel intentará reconectarse.');}
+    console.warn('[GREÑA Chat] Lectura de mensajes:',e?.message||e);
+  }
   finally{pollingChat=false}
 }
 let refreshing=false;
@@ -411,7 +417,7 @@ async function refreshStatus(){
   try{
     const [s,a,v]=await Promise.all([api('/api/status'),api('/api/activity?limit=60'),api('/api/viewers')]);
     persistent.status=s.status||{};persistent.bridge=s.bridgeRuntime||{};persistent.eventsHealth=s.eventHealth||{};
-    persistent.viewers=v.viewers||{};
+    persistent.viewers=v.viewers||{};persistent.viewerMeta=v.meta||{};
     for(const entry of (a.activity||[]).slice().reverse())addActivityRecord(entry);
     renderPlatforms();renderAudience();renderActivity();persistent.connected=true;
   }catch(e){persistent.connected=false;console.warn('[GREÑA V4] Actualizando sistemas:',e.message)}
@@ -429,9 +435,10 @@ function connectLiveSocket(){
         if(d.bridgeRuntime)persistent.bridge=d.bridgeRuntime;
         if(d.eventHealth)persistent.eventsHealth=d.eventHealth;
         if(d.viewers)persistent.viewers=d.viewers;
+        if(d.meta)persistent.viewerMeta=d.meta;
         renderPlatforms();renderAudience();
       }
-      if(d.type==='viewers'){persistent.viewers=d.viewers||persistent.viewers;renderAudience()}
+      if(d.type==='viewers'){persistent.viewers=d.viewers||persistent.viewers;if(d.meta)persistent.viewerMeta=d.meta;renderAudience()}
       if(d.type==='activity'&&d.activity){addActivityRecord(d.activity);renderActivity()}
       if(d.type==='profile-changed'&&d.profile&&d.profile.id!==persistent.account?.user?.id)location.assign('/login.html');
     });
