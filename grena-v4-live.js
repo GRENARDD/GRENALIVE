@@ -167,24 +167,103 @@ async function openFishCredentials(){
   ]);
 }
 
-// ---- El motor de voz existente vive en UN iframe invisible y único.
-// Nada de arrastrar a la pantalla la interfaz antigua ni crear motores duplicados.
+// ---- Un solo motor de Chat de Voz; recupera el iframe si /chat/ devuelve
+// 401/502 durante el inicio del servicio 8788, sin duplicar voces ni ajustes.
+let voiceRecoveryTimer=null;
+let voiceRecoveryAttempts=0;
+function voiceControl(id){
+  try{return persistent.voiceFrame?.contentDocument?.getElementById(id)||null}
+  catch{return null}
+}
+function setVoiceControl(id,value){
+  const input=voiceControl(id);
+  if(!input)throw Error('El motor de voz todavía no está disponible.');
+  if(input.type==='checkbox')input.checked=!!value;else input.value=String(value);
+  input.dispatchEvent(new Event('input',{bubbles:true}));
+  input.dispatchEvent(new Event('change',{bubbles:true}));
+}
+const vsw=el('vsw');
+vsw.setAttribute('aria-pressed','false');
+vsw.classList.remove('on');
+el('wave').classList.remove('on');
+function syncVoiceEngine(){
+  const input=voiceControl('voiceEnabled');
+  if(!input)return false;
+  if(voiceRecoveryTimer){clearTimeout(voiceRecoveryTimer);voiceRecoveryTimer=null}
+  voiceRecoveryAttempts=0;
+  if(input.dataset.grenaV4Bridge!=='1'){
+    input.dataset.grenaV4Bridge='1';
+    input.addEventListener('change',()=>{badge(vsw,input.checked);el('wave').classList.toggle('on',input.checked)});
+  }
+  if(typeof persistent.voiceDesiredEnabled==='boolean'){
+    const desired=persistent.voiceDesiredEnabled;
+    persistent.voiceDesiredEnabled=null;
+    if(input.checked!==desired)setVoiceControl('voiceEnabled',desired);
+  }
+  badge(vsw,input.checked);
+  el('wave').classList.toggle('on',input.checked);
+  vsw.title='Activar o desactivar Chat de Voz';
+  return true;
+}
+function recoverVoiceEngine(fast=false){
+  if(syncVoiceEngine()||!persistent.voiceFrame)return;
+  if(voiceRecoveryTimer){
+    if(!fast)return;
+    clearTimeout(voiceRecoveryTimer);
+    voiceRecoveryTimer=null;
+  }
+  vsw.title='Recuperando el motor de voz…';
+  const delay=fast?700:Math.min(16000,7000+voiceRecoveryAttempts*2000);
+  voiceRecoveryTimer=setTimeout(()=>{
+    voiceRecoveryTimer=null;
+    if(syncVoiceEngine())return;
+    voiceRecoveryAttempts++;
+    // La página estática se sirve desde 8787 aunque 8788 esté arrancando.
+    // Su chat y la síntesis Fish siguen conectados al mismo backend mediante
+    // /chat-ws y /api/fish-tts; no se crea un segundo servicio de voz.
+    const path='/chat.html?embed=1&profile='+encodeURIComponent(persistent.voiceProfileId)
+      +'&reconnect='+voiceRecoveryAttempts;
+    persistent.voiceFrame.src=location.origin+path;
+    recoverVoiceEngine(false);
+  },delay);
+}
 function startVoiceEngine(id){
   if(persistent.voiceFrame)return;
-  const frame=document.createElement('iframe');frame.id='grenaV4VoiceEngine';frame.title='Motor de Fish Audio';frame.tabIndex=-1;frame.setAttribute('aria-hidden','true');
+  persistent.voiceProfileId=String(id);
+  persistent.voiceDesiredEnabled=null;
+  const frame=document.createElement('iframe');
+  frame.id='grenaV4VoiceEngine';
+  frame.title='Motor de Fish Audio';
+  frame.tabIndex=-1;
+  frame.setAttribute('aria-hidden','true');
   frame.style.cssText='position:fixed;left:-1800px;top:-1800px;width:650px;height:480px;opacity:0;pointer-events:none;border:0;z-index:-1';
+  frame.addEventListener('load',()=>{if(!syncVoiceEngine())recoverVoiceEngine(true)});
+  frame.addEventListener('error',()=>recoverVoiceEngine(true));
+  document.body.appendChild(frame);
+  persistent.voiceFrame=frame;
   frame.src=location.origin+'/chat/?embed=1&profile='+encodeURIComponent(id);
-  frame.addEventListener('load',()=>{
-    try{const v=frame.contentDocument?.getElementById('voiceEnabled');if(v){badge(el('vsw'),v.checked);el('wave').classList.toggle('on',v.checked);v.addEventListener('change',()=>{badge(el('vsw'),v.checked);el('wave').classList.toggle('on',v.checked)})}}catch{}
-  });
-  document.body.appendChild(frame);persistent.voiceFrame=frame;
+  recoverVoiceEngine(false);
+  // También se recupera si la ventana interna se pierde tras reiniciar 8788.
+  setInterval(()=>{if(!voiceControl('voiceEnabled'))recoverVoiceEngine(false)},8000);
 }
-function voiceControl(id){try{return persistent.voiceFrame?.contentDocument?.getElementById(id)}catch{return null}}
-function setVoiceControl(id,value){const input=voiceControl(id);if(!input)throw Error('El motor de voz está conectándose.');if(input.type==='checkbox')input.checked=!!value;else input.value=String(value);input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));}
-const vsw=el('vsw');vsw.setAttribute('aria-pressed','false');vsw.classList.remove('on');el('wave').classList.remove('on');
-vsw.addEventListener('click',e=>{e.stopPropagation();try{setVoiceControl('voiceEnabled',!voiceControl('voiceEnabled')?.checked)}catch(err){fail(err)}});
+vsw.addEventListener('click',e=>{
+  e.stopPropagation();
+  const input=voiceControl('voiceEnabled');
+  if(input){
+    try{setVoiceControl('voiceEnabled',!input.checked)}catch(err){fail(err)}
+    return;
+  }
+  // No se pierde el clic: la activación se aplicará al cargar el motor.
+  persistent.voiceDesiredEnabled=persistent.voiceDesiredEnabled===null
+    ? true:!persistent.voiceDesiredEnabled;
+  inform(persistent.voiceDesiredEnabled
+    ? 'Chat de Voz pendiente de activar: recuperando el motor automáticamente.'
+    : 'Se canceló la activación pendiente del Chat de Voz.');
+  recoverVoiceEngine(true);
+});
 Q('.side .voice').addEventListener('click',e=>{if(e.target.closest('#vsw'))return;openVoiceModal()});
-Q('.side .voice').style.cursor='pointer';Q('.side .voice').title='Abrir ajustes reales de Fish Audio';
+Q('.side .voice').style.cursor='pointer';
+Q('.side .voice').title='Abrir ajustes reales de Fish Audio';
 const V4_VOICE_PLATFORMS=[{id:'tiktok',label:'TikTok',icon:'/assets/platforms/tiktok.webp',glow:'#ff345f'},{id:'twitch',label:'Twitch',icon:'/assets/platforms/twitch.webp',glow:'#a970ff'},{id:'kick',label:'Kick',icon:'/assets/platforms/kick.svg',glow:'#53fc18'},{id:'youtube',label:'YouTube',icon:'',glow:'#ff4545'}];
 function v4VoiceMode(id){return persistent.voiceFrame?.contentDocument?.querySelector('input[name="'+id+'Mode"]:checked')?.value||'all'}
 function setV4VoiceMode(id,mode){const radio=persistent.voiceFrame?.contentDocument?.querySelector('input[name="'+id+'Mode"][value="'+mode+'"]');if(!radio)throw Error('Filtro no disponible: '+id+' / '+mode);radio.checked=true;radio.dispatchEvent(new Event('change',{bubbles:true}));radio.dispatchEvent(new Event('input',{bubbles:true}));}
