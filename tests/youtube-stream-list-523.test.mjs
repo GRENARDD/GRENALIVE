@@ -55,7 +55,9 @@ test('continuous streams preserve independent message IDs, suppress historic pay
 test('REST fallback observes quota and never polls faster than 30 seconds',()=>{
  const src=file('youtube-live.mjs');
  assert.match(src,/Math\.max\(30000,Number\(data\.pollingIntervalMillis\)\|\|45000\)/);
- assert.match(src,/isQuota\?300000/);
+ assert.match(src,/if\(isQuota\)\{/);
+ assert.match(src,/Math\.min\(900000,Math\.max\(300000,/);
+ assert.match(src,/this\.scheduleStream\(this\.backoff\)/);
  assert.match(src,/scheduleStream\(10000\)/);
 });
 test('disconnecting YouTube removes the OAuth session and tells chat-server to stop',()=>{

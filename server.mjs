@@ -2439,7 +2439,13 @@ const server=http.createServer(async(req,res)=>{let url,pathname='/';try{if(!saf
   if(pathname==='/api/youtube/diagnostic'&&req.method==='GET'){
   if(!sessionUser(req))return json(res,401,{ok:false,error:'Sesión GREÑA requerida.'});
   await loadAuthServiceConfig();
-  return json(res,200,{ok:true,workerReachable:authService.reachable,brokerEnabled:isBrokerProvider('youtube'),linked:!!savedAuth.youtube?.channelId,channel:savedAuth.youtube?.displayName||'',callback:oauthRedirectFor('youtube',req),workerError:authService.lastError||''});
+  // Viewer count and chat readiness are separate. Never represent a missing
+  // YouTube concurrentViewers value as 0 or as a disconnected Google account.
+  const viewerFresh=Number(viewerMeta.youtube?.lastGoodAt||0)>0&&Date.now()-Number(viewerMeta.youtube.lastGoodAt)<90000;
+  return json(res,200,{ok:true,workerReachable:authService.reachable,brokerEnabled:isBrokerProvider('youtube'),linked:!!savedAuth.youtube?.channelId,channel:savedAuth.youtube?.displayName||'',callback:oauthRedirectFor('youtube',req),workerError:authService.lastError||'',
+    realtime:{chatConnected:!!bridgeRuntime.youtube,chatLastSignalAt:Number(bridgeSignals.youtube?.lastSeenAt||0),
+      viewers:Number(viewers.youtube)||0,viewerAvailable:viewerMeta.youtube?.available!==false&&viewerFresh,
+      viewerLastGoodAt:Number(viewerMeta.youtube?.lastGoodAt||0),viewerSource:String(viewerMeta.youtube?.source||'')}});
  }
  if(pathname==='/api/obs-token'&&req.method==='GET'){const owner=sessionUser(req);if(!owner)return json(res,401,{ok:false,error:'Sesión requerida.'});res.setHeader('Cache-Control','no-store');return json(res,200,{ok:true,token:obsToken});}
  if(pathname==='/api/soundboard'&&req.method==='GET'){

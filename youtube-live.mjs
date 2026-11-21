@@ -33,7 +33,7 @@ export class YouTubeLiveReader {
     this.onMessage=onMessage;this.onStatus=onStatus;this.onViewers=onViewers;
     this.running=false;this.timer=null;this.stream=null;this.streamDisabled=false;
     this.nextPageToken='';this.seen=new Set();this.giftCombos=new Map();
-    this.chatId='';this.videoId='';this.backoff=0;this.pollCount=0;this.initialReceived=false;
+    this.chatId='';this.videoId='';this.backoff=0;this.pollCount=0;this.initialReceived=false;this.streamFailures=0;
   }
   async request(resource,params){
     if(this.requestProxy)return this.requestProxy(resource,params);
@@ -54,7 +54,7 @@ export class YouTubeLiveReader {
     const id=youtubeVideoId(input);
     if(!id)throw Error('Introduce el enlace público de YouTube, no el enlace de Studio.');
     this.videoId=id;this.running=true;this.nextPageToken='';
-    this.seen.clear();this.giftCombos.clear();this.backoff=0;
+    this.seen.clear();this.giftCombos.clear();this.backoff=0;this.streamFailures=0;
     try{await this.discoverChat()}catch(e){await this.stop();throw e}
     return {videoId:id,chatId:this.chatId,waiting:!this.chatId};
   }
@@ -72,10 +72,23 @@ export class YouTubeLiveReader {
       return;
     }
     this.onStatus({connected:false,waiting:true,videoId:this.videoId,error:'Esperando que YouTube active el chat LIVE.'});
-    this.timer=setTimeout(()=>this.discoverChat().catch(e=>{
-      this.onStatus({connected:false,error:String(e.message||e)});
-      if(this.running)this.timer=setTimeout(()=>this.discoverChat().catch(()=>{}),60000);
-    }),30000);
+    this.scheduleDiscovery(30000);
+  }
+  // A failed discovery must never strand a reader in running=true with no chat.
+  // Continue rediscovering the SAME broadcast after temporary Google API errors.
+  scheduleDiscovery(delay=30000){
+    if(!this.running)return;
+    clearTimeout(this.timer);
+    this.timer=setTimeout(()=>{
+      this.timer=null;
+      void this.discoverChat().catch(e=>{
+        if(!this.running)return;
+        this.backoff=Math.min(120000,Math.max(30000,(this.backoff||15000)*2));
+        this.onStatus({connected:false,waiting:true,videoId:this.videoId,
+          error:'YouTube: reintentando detectar chat LIVE · '+String(e.message||e).slice(0,150)});
+        this.scheduleDiscovery(this.backoff);
+      });
+    },Math.max(5000,delay));
   }
   consumeBatch(data){
     const initial=!this.initialReceived&&!this.nextPageToken;
@@ -99,11 +112,11 @@ export class YouTubeLiveReader {
       for(const id of this.giftCombos.keys())if(!this.seen.has(id))this.giftCombos.delete(id);
     }
     if(data.nextPageToken)this.nextPageToken=data.nextPageToken;
-    this.backoff=0;
+    this.backoff=0;this.streamFailures=0;
     this.onStatus({connected:true,videoId:this.videoId,transport:this.stream?'streamList':'poll'});
   }
   async beginStream(){
-    if(!this.running||!this.chatId||this.stream)return;
+    if(!this.running||!this.chatId||this.stream||this.streamDisabled)return;
     try{
       const token=await this.getStreamToken();
       if(!this.running)return;
@@ -124,18 +137,33 @@ export class YouTubeLiveReader {
           const code=Number(error?.code);
           const msg=String(error?.details||error?.message||error).slice(0,220);
           this.onStatus({connected:false,videoId:this.videoId,error:'YouTube streamList: '+msg});
-          if([3,12].includes(code)){
-            // API no disponible en este proyecto: modo REST con sondeo limitado.
-            this.streamDisabled=true;this.schedulePoll(45000);
+          this.streamFailures++;
+          const isQuota=code===8||/quota|rate.?limit|exhausted/i.test(msg);
+          if(isQuota){
+            // Respect YouTube quotas: do not add REST requests during a quota failure.
+            this.backoff=Math.min(900000,Math.max(300000,(this.backoff||15000)*2));
+            this.scheduleStream(this.backoff);
+          }else if([3,7,12,16].includes(code)||this.streamFailures>=2){
+            // Permission/grpc unsupported or repeated broken streams: REST can
+            // still deliver live messages without requiring this gRPC transport.
+            this.streamDisabled=true;
+            this.onStatus({connected:false,waiting:true,videoId:this.videoId,
+              error:'YouTube: recuperando comentarios mediante API REST.'});
+            this.schedulePoll(30000);
           }else{
-            const isQuota=code===8||/quota|rate.?limit|exhausted/i.test(msg);
-            this.backoff=Math.min(isQuota?900000:120000,Math.max(isQuota?300000:15000,(this.backoff||7500)*2));
+            this.backoff=Math.min(120000,Math.max(15000,(this.backoff||7500)*2));
             this.scheduleStream(this.backoff);
           }
         },
         onEnd:()=>{
           if(!this.running||this.chatId!==chatId)return;
-          this.stream=null;this.scheduleStream(10000);
+          this.stream=null;this.streamFailures++;
+          if(this.streamFailures>=2){
+            this.streamDisabled=true;
+            this.onStatus({connected:false,waiting:true,videoId:this.videoId,
+              error:'YouTube: canal en tiempo real cerrado, cambiando a API REST.'});
+            this.schedulePoll(30000);
+          }else this.scheduleStream(10000);
         }
       });
     }catch(e){
@@ -168,6 +196,23 @@ export class YouTubeLiveReader {
     }catch(e){
       if(!this.running)return;
       const msg=String(e.message||e);
+      if(/liveChatEnded|liveChatNotFound|liveChatDisabled/i.test(msg)){
+        // The broadcaster can restart LIVE with a new chat ID, while the
+        // broadcast's video ID stays the same. Rediscover instead of polling
+        // the dead chat forever.
+        this.chatId='';this.nextPageToken='';this.streamDisabled=false;
+        this.onStatus({connected:false,waiting:true,videoId:this.videoId,
+          error:'YouTube: recuperando el chat de la transmisión.'});
+        this.scheduleDiscovery(30000);
+        return;
+      }
+      if(/invalidPageToken|pageTokenInvalid/i.test(msg)){
+        this.nextPageToken='';
+        this.onStatus({connected:false,waiting:true,videoId:this.videoId,
+          error:'YouTube: sincronizando historial del chat.'});
+        this.schedulePoll(30000);
+        return;
+      }
       const quota=/quota|rateLimitExceeded|403|429/i.test(msg);
       this.backoff=Math.min(quota?900000:120000,Math.max(quota?300000:30000,(this.backoff||15000)*2));
       interval=this.backoff;
@@ -180,7 +225,9 @@ export class YouTubeLiveReader {
     try{
       const d=await this.request('videos',{part:'liveStreamingDetails',id:this.videoId});
       const n=d.items?.[0]?.liveStreamingDetails?.concurrentViewers;
-      this.onViewers(n===undefined?null:Number(n));
+      // "null", empty and absent are UNKNOWN, never an official count of 0.
+      const count=n===undefined||n===null||n===''?null:Number(n);
+      this.onViewers(Number.isFinite(count)&&count>=0?count:null);
     }catch{this.onViewers(null)}
   }
   async stop(){
@@ -188,6 +235,6 @@ export class YouTubeLiveReader {
     if(this.stream){try{this.stream.cancel()}catch{}this.stream=null}
     this.nextPageToken='';this.seen.clear();this.giftCombos.clear();
     this.videoId='';this.chatId='';this.initialReceived=false;
-    this.streamDisabled=false;
+    this.streamDisabled=false;this.streamFailures=0;
   }
 }
