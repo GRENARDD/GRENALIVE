@@ -64,7 +64,7 @@ jobs:
           test -s widget-compact.html
           test -s viewers-grena-original.html
           test -s desktop-build/verify-v602-premium-panels.cjs
-          test -s desktop-build/verify-upgrade-6005-to-6010.ps1
+          test -s desktop-build/verify-upgrade-6009-to-6010.ps1
       - name: Verify production GREÑA ID Worker has secure shared rooms
         if: steps.existing_release.outputs.already_exists != 'true'
         shell: bash
