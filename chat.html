@@ -3113,19 +3113,24 @@ function convertEmojisAndLimit(text){
 // velocidad ni el resto de las palabras del usuario.
 function shortenRepeatedLaughsForVoice(input=''){
   const original=String(input??'');
-  const compact=/(^|[^\p{L}\p{N}_@#])((?:j[aeiou]+|h[aeiou]+){3,}|(?:xd){3,}|xd{4,}|k{5,})(?=$|[^\p{L}\p{N}_])/giu;
-  const spaced=/(^|[^\p{L}\p{N}_@#])((?:(?:j[aeiou]|h[aeiou])[\s,!?;.:]+){3,}(?:j[aeiou]|h[aeiou]))(?=$|[^\p{L}\p{N}_])/giu;
-  const shortLaugh=sequence=>{
-    const sound=sequence.match(/^[jh][aeiou]/i)?.[0]?.toLowerCase()||'ja';
-    return 'jaja';
-  };
-  const replaceLaugh=(whole,prefix,sequence,offset,full)=>{
-    // No cambiar menciones, hashtags, nombres ni fragmentos de enlaces.
+  const laugh=/(^|[^\p{L}\p{N}_@#])((?:[jh][aeiou]+){2,}|(?:xd){2,}|xd{2,}|k{3,}|(?:ha[,\s]+){1,}ha|(?:ja[,\s]+){1,}ja|(?:je[,\s]+){1,}je)(?=$|[^\p{L}\p{N}_])/giu;
+  return original.replace(laugh,(whole,prefix,sequence,offset,full)=>{
     const sinceSpace=full.slice(Math.max(0,offset-250),offset+prefix.length).split(/\s/).pop()||'';
     if(/(?:https?:\/\/|www\.)[^\s]*$/i.test(sinceSpace))return whole;
-    return prefix+shortLaugh(sequence);
-  };
-  return original.replace(compact,replaceLaugh).replace(spaced,replaceLaugh);
+    return prefix+'jaja';
+  });
+}
+function prepareMeaningfulVoiceText(input=''){
+  const text=shortenRepeatedLaughsForVoice(stripEmojisForVoice(stripStickerAndInternalCodes(input))).trim();
+  if(!/[\p{L}\p{N}]/u.test(text))return '';
+  const plain=text.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,'');
+  if(/^(?:gg+|xd|lol|lmao|omg|klk|k|q|tq|nt|wp|ez|afk|brb|ok+|sip|nop|seh|sisi|nono|ah+|oh+|eh+|ay+|uy+|uf+|mmm+|hmm+|shh+|jaja)$/iu.test(plain))return text;
+  if(/^[\p{L}\p{N}]+$/u.test(plain)){
+    if(/^([\p{L}])\1{2,}$/iu.test(plain))return '';
+    if(/^(?:asdf|qwer|zxcv|hjkl|jkl|sdf|fgh|dfg|ghj|wsad|wasd)+$/i.test(plain))return '';
+    if(/^[b-df-hj-np-tv-z]{4,}$/i.test(plain))return '';
+  }
+  return text;
 }
 // GRENA_VOICE_SHORT_LAUGHS_END
 
@@ -3460,14 +3465,14 @@ function isSmartVoiceSpam(m){
   if(!text) return true;
 
   const profile=getSmartSpamProfile();
-  if(looksLikeGarbageVoiceSpam(text,profile)) return true;
+  if(looksLikeGarbageVoiceSpam(shortenRepeatedLaughsForVoice(text),profile)) return true;
 
   const platform=String(m.platform||'tiktok').toLowerCase();
   const user=String(m.user||m.nickname||'').toLowerCase().trim()||'anonimo';
   const key=`${platform}:${user}`;
   const now=Date.now();
-  const comparable=comparableSpamText(text);
-  const exact=normalizeSpamText(text);
+  const comparable=comparableSpamText(shortenRepeatedLaughsForVoice(text));
+  const exact=normalizeSpamText(shortenRepeatedLaughsForVoice(text));
 
   let h=voiceSpamHistory.get(key) || {
     time:0,
@@ -3845,7 +3850,7 @@ function queueVoice(m){
     : cleanTextForVoice(humanText);
   // Acorta únicamente las risas exageradas antes de enviar la COPIA al TTS.
   // También funciona con las voces de Windows; nunca modifica m.text.
-  text=shortenRepeatedLaughsForVoice(text);
+  text=prepareMeaningfulVoiceText(text);
 
   if(!text){
 
