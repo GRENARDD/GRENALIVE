@@ -1504,7 +1504,7 @@ async function twitchSubscriptions(s){
 async function twitchAvatar(userId){if(!userId||!twitchCfg)return '';const hit=twitchAvatarCache.get(userId);if(hit&&Date.now()-hit.at<30*60e3)return hit.url;try{const d=await twitchHelix(`/users?id=${encodeURIComponent(userId)}`,twitchCfg);const url=d.data?.[0]?.profile_image_url||'';twitchAvatarCache.set(userId,{url,at:Date.now()});if(twitchAvatarCache.size>500){const first=twitchAvatarCache.keys().next().value;twitchAvatarCache.delete(first)}return url}catch{return hit?.url||''}}
 async function twitchUserMeta(userId){
  const id=String(userId||'').trim();if(!id||!twitchCfg)return {avatar:'',isFollower:null};
- const hit=twitchFollowerCache.get(id);if(hit&&Date.now()-hit.at<5*60e3)return hit.value;
+ const hit=twitchFollowerCache.get(id);if(hit&&Date.now()-hit.at<(hit.value.isFollower===null?15000:5*60e3))return hit.value;
  let isFollower=null,avatar='';
  try{
   [avatar,isFollower]=await Promise.all([
