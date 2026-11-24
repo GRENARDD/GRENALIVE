@@ -531,7 +531,7 @@ const twitchMetaCache=new Map();
 const kickMetaCache=new Map();
 async function twitchChatUserMeta(userId){
   const id=String(userId||'').trim();if(!id)return {avatar:'',isFollower:null};
-  const hit=twitchMetaCache.get(id);if(hit&&Date.now()-hit.at<5*60e3)return hit.value;
+  const hit=twitchMetaCache.get(id);if(hit&&Date.now()-hit.at<(hit.value.isFollower===null?15000:5*60e3))return hit.value;
   try{
     const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),1800);
     const r=await fetch(`${MAIN_ORIGIN}/api/internal/twitch-user-meta?user_id=${encodeURIComponent(id)}`,{headers:{'x-grena-internal':BRIDGE_TOKEN},signal:ac.signal,cache:'no-store'}).finally(()=>clearTimeout(timer));
@@ -720,14 +720,10 @@ function getTikTokFollowerStatus(data, user) {
     data?.user?.followInfo?.followStatus
   );
 
-  if (Number.isFinite(followRole)) {
-    return (
-      followRole === 1 ||
-      followRole === 2
-    );
-  }
-
-  return false;
+  if (followRole === 1 || followRole === 2) return true;
+  if (followRole === 0) return false;
+  // Missing metadata is not evidence that a viewer unfollowed.
+  return null;
 }
 
 function getTikTokSubscriberStatus(data, user) {
@@ -1975,6 +1971,9 @@ async function connectTikTok(input,{automatic=false}={}) {
             chat.user
           );
 
+        if (chat.isFollower === null && typeof oldUser?.isFollower === 'boolean') {
+          chat.isFollower = oldUser.isFollower;
+        }
         tiktokUsers.set(
           chat.user,
           {
@@ -2473,7 +2472,7 @@ async function connectTwitch(input) {
       // La lectura de followers/avatar se completa de fondo para mensajes futuros.
       const cachedMeta=twitchMetaCache.get(userId);
       const meta=cachedMeta?.value||{avatar:'',isFollower:null};
-      if(userId&&!cachedMeta){
+      if(userId&&(!cachedMeta||Date.now()-cachedMeta.at>(cachedMeta.value.isFollower===null?15000:5*60e3))){
         void twitchChatUserMeta(userId).then(fresh=>{
           const key=username.toLowerCase();
           const current=twitchUsers.get(key);
