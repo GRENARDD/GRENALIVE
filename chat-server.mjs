@@ -553,17 +553,24 @@ async function kickChatUserMeta(userId){
   }catch{return hit?.value||{avatar:''}}
 }
 
+function ttUser(data={}) {
+  return data.user||data.User||data.author||data.data?.user||data.data?.User||
+    data.data?.author||data.data?.data?.user||data.data?.data?.author||{};
+}
 function ttWho(data={}) {
-  const u=data.user||data.User||data.author||{};
-  return firstString(u.nickname,u.displayName,u.uniqueId,data.nickname,data.uniqueId,'Usuario');
+  const u=ttUser(data);
+  return firstString(u.nickname,u.nickName,u.displayName,u.display_name,u.uniqueId,u.unique_id,
+    data.nickname,data.nickName,data.displayName,data.uniqueId,data.unique_id,'Usuario');
 }
 function ttAvatar(data={}) {
-  const u=data.user||data.User||data.author||{};
-  return findUrl(u.profilePictureUrl,u.avatarThumb,u.avatarMedium,u.avatarLarger,u.avatar,data.profilePictureUrl,data.avatar);
+  const u=ttUser(data);
+  return findUrl(u.profilePictureUrl,u.avatarThumb,u.avatarMedium,u.avatarLarger,u.avatar,
+    data.profilePictureUrl,data.avatar,data.data?.avatar,data.data?.profilePictureUrl);
 }
 function ttUserId(data={}){
-  const u=data.user||data.User||data.author||{};
-  return firstString(u.uniqueId,u.unique_id,u.id,u.userId,data.uniqueId,data.unique_id,data.userId,data.user_id,ttWho(data));
+  const u=ttUser(data);
+  return firstString(u.uniqueId,u.unique_id,u.id,u.userId,u.user_id,
+    data.uniqueId,data.unique_id,data.userId,data.user_id,ttWho(data));
 }
 function ttSocialLooksLikeFollow(data={}){
   const parts=[];
@@ -711,17 +718,21 @@ function findUrl(value) {
 // =====================================
 
 function getTikTokFollowerStatus(data, user) {
-  const followRole = Number(
-    data?.followRole ??
-    user?.followRole ??
-    data?.user?.followRole ??
-    data?.followInfo?.followStatus ??
-    user?.followInfo?.followStatus ??
-    data?.user?.followInfo?.followStatus
-  );
-
-  if (followRole === 1 || followRole === 2) return true;
-  if (followRole === 0) return false;
+  const records=[user,data?.user,data?.User,data?.author,data?.data?.user,
+    data?.data?.User,data?.data?.author,data?.data?.data?.user,data?.data?.data?.author,data];
+  for(const record of records){
+    if(!record||typeof record!=='object')continue;
+    for(const flag of [record.isFollower,record.is_follower,record.isFollowing,record.is_following]){
+      if(flag===true||flag===1||flag==='1'||String(flag).toLowerCase()==='true')return true;
+      if(flag===false||flag===0||flag==='0'||String(flag).toLowerCase()==='false')return false;
+    }
+    const rawRole=record.followRole??record.follow_role??record.followStatus??record.follow_status??
+      record.followInfo?.followStatus??record.follow_info?.follow_status;
+    if(rawRole===undefined||rawRole===null||rawRole==='')continue;
+    const role=Number(rawRole);
+    if(role===1||role===2)return true;
+    if(role===0)return false;
+  }
   // Missing metadata is not evidence that a viewer unfollowed.
   return null;
 }
@@ -788,6 +799,12 @@ function extractTikTokChat(data) {
     data?.author ||
     data?.authorInfo ||
     data?.userInfo ||
+    data?.data?.user ||
+    data?.data?.User ||
+    data?.data?.author ||
+    data?.data?.authorInfo ||
+    data?.data?.userInfo ||
+    data?.data?.data?.user ||
     {};
 
   const username = firstString(
@@ -1928,18 +1945,24 @@ async function connectTikTok(input,{automatic=false}={}) {
   let lastLikeMilestone = 0;
   const recentFollows=new Map();
   const emitFollow=(data,source='follow')=>{
-    const id=ttUserId(data),display=ttWho(data);
+    const id=ttUserId(data),display=ttWho(data),followUser=ttUser(data);
     if(!id&&!display)return false;
     const key=String(id||display).trim().toLowerCase();
     const now=Date.now(),prev=recentFollows.get(key)||0;
     if(now-prev<7000)return false;
     recentFollows.set(key,now);
     for(const [k,t] of recentFollows)if(now-t>60000)recentFollows.delete(k);
-    const username=firstString(data?.user?.uniqueId,data?.user?.unique_id,data?.uniqueId,data?.unique_id,id);
-    if(username){
-      const oldUser=tiktokUsers.get(username);
-      tiktokUsers.set(username,{...(oldUser||{}),username,nickname:firstString(data?.user?.nickname,data?.nickname,display),isFollower:true,lastSeen:now});
-      broadcastPlatform('tiktok',{type:'follower-update',user:username,isFollower:true});
+    const username=firstString(followUser.uniqueId,followUser.unique_id,followUser.username,
+      data?.uniqueId,data?.unique_id,data?.data?.user?.uniqueId,data?.data?.user?.unique_id,id);
+    const rawUserId=firstString(followUser.id,followUser.userId,followUser.user_id,
+      data?.userId,data?.user_id,data?.data?.user?.id,data?.data?.userId);
+    if(username||rawUserId){
+      const key=String(username||'').replace(/^@/,'').toLowerCase();
+      const oldUser=(key&&tiktokUsers.get(key))||(rawUserId&&tiktokUsers.get('id:'+rawUserId))||{};
+      const cached={...oldUser,username:username||oldUser.username||'',nickname:firstString(followUser.nickname,followUser.nickName,data?.nickname,display),isFollower:true,lastSeen:now};
+      if(key)tiktokUsers.set(key,cached);
+      if(rawUserId)tiktokUsers.set('id:'+rawUserId,cached);
+      if(username)broadcastPlatform('tiktok',{type:'follower-update',user:username,isFollower:true});
     }
     bridgeAlert('TikTok','follow',display||username||'Usuario','te siguió',{avatar:ttAvatar(data),tiktokSource:source,userId:id||''});
     return true;
@@ -1966,35 +1989,23 @@ async function connectTikTok(input,{automatic=false}={}) {
         chat.user &&
         chat.user !== 'Usuario'
       ) {
-        const oldUser =
-          tiktokUsers.get(
-            chat.user
-          );
+        const userKey=String(chat.user||'').replace(/^@/,'').toLowerCase();
+        const idKey=chat.userId?'id:'+String(chat.userId):'';
+        const oldUser=(userKey&&tiktokUsers.get(userKey))||(idKey&&tiktokUsers.get(idKey))||null;
 
         if (chat.isFollower === null && typeof oldUser?.isFollower === 'boolean') {
           chat.isFollower = oldUser.isFollower;
         }
-        tiktokUsers.set(
-          chat.user,
-          {
-            ...(oldUser || {}),
-
-            username:
-              chat.user,
-
-            nickname:
-              chat.nickname,
-
-            isFollower:
-              chat.isFollower,
-
-            isSubscriber:
-              chat.isSubscriber,
-
-            lastSeen:
-              Date.now()
-          }
-        );
+        const cachedUser={
+          ...(oldUser || {}),
+          username:chat.user,
+          nickname:chat.nickname,
+          isFollower:chat.isFollower,
+          isSubscriber:chat.isSubscriber,
+          lastSeen:Date.now()
+        };
+        if(userKey)tiktokUsers.set(userKey,cachedUser);
+        if(idKey)tiktokUsers.set(idKey,cachedUser);
       }
 
       if(chat.user==='Usuario')tiktokChatStats.unidentified++;
