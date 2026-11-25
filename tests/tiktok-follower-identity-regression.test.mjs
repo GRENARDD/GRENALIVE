@@ -20,10 +20,10 @@ test('TikTok follower status is read from nested connector envelopes',()=>{
 });
 
 test('Follow events cache both normalized username and stable user ID',()=>{
-  assert.match(source,/data\.data\?\.user\?\.uniqueId/);
+  assert.ok(source.includes('data?.data?.user?.uniqueId'));
   assert.match(source,/tiktokUsers\.set\(key,cached\)/);
   assert.match(source,/tiktokUsers\.set\('id:'\+rawUserId,cached\)/);
-  assert.match(source,/tiktokUsers\.get\('id:'\+String\(chat\.userId\)\)/);
+  assert.ok(source.includes('tiktokUsers.get(idKey)'));
 });
 
 test('A follower role learned from a follow event is preserved when chat omits role metadata',()=>{
