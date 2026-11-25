@@ -1,0 +1,27 @@
+name: GREÑA · TikTok follower identity regression
+on:
+  pull_request:
+    paths:
+      - 'chat-server.mjs'
+      - 'tests/tiktok-follower-identity-regression.test.mjs'
+      - '.github/workflows/tiktok-follower-identity-tests.yml'
+  push:
+    branches: [fix/tiktok-follower-chat-identity]
+    paths:
+      - 'chat-server.mjs'
+      - 'tests/tiktok-follower-identity-regression.test.mjs'
+      - '.github/workflows/tiktok-follower-identity-tests.yml'
+permissions:
+  contents: read
+jobs:
+  tiktok-follower-identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check chat server syntax
+        run: node --check chat-server.mjs
+      - name: Run TikTok follower identity regression tests
+        run: node --test tests/tiktok-follower-identity-regression.test.mjs tests/chat-realtime-tiktok.test.mjs tests/tiktok-chat-minecraft-activity.test.cjs
