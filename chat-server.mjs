@@ -778,7 +778,8 @@ function tiktokDeepCommentText(data) {
  const candidates=[data?.comment,data?.message,data?.text,data?.content,data?.chat,
   data?.chatMessage,data?.data?.comment,data?.data?.message,data?.data?.text,
   data?.data?.content,data?.data?.chat,data?.data?.chatMessage,
-  data?.data?.data?.comment,data?.data?.data?.message];
+  data?.data?.data?.comment,data?.data?.data?.message,data?.data?.data?.text,
+  data?.data?.data?.content,data?.data?.data?.chat,data?.data?.data?.chatMessage];
  const extract=(value,depth=0)=>{
   if(typeof value==='string')return value.trim();
   if(!value||typeof value!=='object'||depth>4)return '';
@@ -805,6 +806,10 @@ function extractTikTokChat(data) {
     data?.data?.authorInfo ||
     data?.data?.userInfo ||
     data?.data?.data?.user ||
+    data?.data?.data?.User ||
+    data?.data?.data?.author ||
+    data?.data?.data?.authorInfo ||
+    data?.data?.data?.userInfo ||
     {};
 
   const username = firstString(
@@ -816,6 +821,14 @@ function extractTikTokChat(data) {
     user?.user?.uniqueId,
     data?.data?.user?.uniqueId,
     data?.data?.user?.unique_id,
+    data?.data?.data?.user?.uniqueId,
+    data?.data?.data?.user?.unique_id,
+    data?.data?.data?.author?.uniqueId,
+    data?.data?.data?.author?.username,
+    data?.data?.data?.authorInfo?.uniqueId,
+    data?.data?.data?.authorInfo?.username,
+    data?.data?.data?.userInfo?.uniqueId,
+    data?.data?.data?.userInfo?.username,
 
     data?.uniqueId,
     data?.unique_id,
@@ -840,6 +853,10 @@ function extractTikTokChat(data) {
     data?.displayName,
     data?.display_name,
     data?.data?.user?.nickname,
+    data?.data?.data?.user?.nickname,
+    data?.data?.data?.author?.nickname,
+    data?.data?.data?.authorInfo?.nickname,
+    data?.data?.data?.userInfo?.nickname,
     data?.data?.nickname,
     data?.data?.author?.nickname,
     data?.data?.userInfo?.nickname,
@@ -864,6 +881,15 @@ function extractTikTokChat(data) {
     data?.data?.comment?.text,
     data?.data?.message?.text,
     data?.data?.content?.text,
+    data?.data?.data?.comment,
+    data?.data?.data?.message,
+    data?.data?.data?.text,
+    data?.data?.data?.content,
+    data?.data?.data?.comment?.text,
+    data?.data?.data?.message?.text,
+    data?.data?.data?.content?.text,
+    data?.data?.data?.chat?.text,
+    data?.data?.data?.chatMessage?.text,
     data?.chat?.text,
     data?.data?.chat?.text,
     data?.comment?.text,
@@ -922,12 +948,12 @@ function extractTikTokChat(data) {
       avatar ||
       '',
 
-    userId: String(user?.id || user?.userId || user?.user_id || data?.userId || data?.user_id || data?.user?.id || data?.data?.user?.id || data?.data?.userId || ''),
-    messageId: String(data?.msgId || data?.msgIdStr || data?.messageId || data?.message_id || data?.common?.msgId || data?.data?.msgId || data?.data?.messageId || ''),
+    userId: String(user?.id || user?.userId || user?.user_id || data?.userId || data?.user_id || data?.user?.id || data?.data?.user?.id || data?.data?.userId || data?.data?.data?.user?.id || data?.data?.data?.user?.userId || data?.data?.data?.userId || ''),
+    messageId: String(data?.msgId || data?.msgIdStr || data?.messageId || data?.message_id || data?.common?.msgId || data?.data?.msgId || data?.data?.messageId || data?.data?.common?.msgId || data?.data?.data?.msgId || data?.data?.data?.msgIdStr || data?.data?.data?.messageId || data?.data?.data?.common?.msgId || ''),
     isFollower,
     isSubscriber,
-    isModerator: !!(user?.isModerator || user?.is_moderator || data?.isModerator || data?.is_moderator || data?.user?.isModerator),
-    isBroadcaster: !!(user?.isBroadcaster || user?.is_broadcaster || data?.isBroadcaster || data?.is_broadcaster)
+    isModerator: !!(user?.isModerator || user?.is_moderator || data?.isModerator || data?.is_moderator || data?.user?.isModerator || data?.data?.data?.user?.isModerator || data?.data?.data?.user?.is_moderator),
+    isBroadcaster: !!(user?.isBroadcaster || user?.is_broadcaster || data?.isBroadcaster || data?.is_broadcaster || data?.data?.data?.user?.isBroadcaster || data?.data?.data?.user?.is_broadcaster)
   };
 }
 
